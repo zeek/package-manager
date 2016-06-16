@@ -1,0 +1,337 @@
+#! /usr/bin/env python
+
+from __future__ import print_function
+import os
+import sys
+import argparse
+import logging
+
+if sys.version_info[0] < 3:
+    import ConfigParser as configparser
+else:
+    import configparser
+
+import bropkg
+
+
+def print_error(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
+def create_manager(config_path):
+
+    def require_config_section(section):
+        sections = config.sections()
+
+        if section in sections:
+            return
+
+        print_error(
+            'error: config file "{}" is missing a "{}" section'.format(
+                config_path, section))
+        sys.exit(1)
+
+    def require_config_option(section, option):
+        if config.has_option(section, option):
+            return
+
+        print_error(str.format('error: config file "{}" is missing option '
+                               'option "{}" in section "{}"',
+                               config_path, section, option))
+
+        sys.exit(1)
+
+    client_path = os.path.abspath(__file__)
+    client_dir = os.path.dirname(client_path)
+
+    if not config_path:
+        config_path = os.environ.get('BRO_PKG_CONFIG_PATH')
+
+    if not config_path:
+        config_path = os.path.join(client_dir, 'bro-pkg.config')
+
+    if not os.path.isfile(config_path):
+        print_error('error: invalid config file "{}"'.format(config_path))
+        sys.exit(1)
+
+    defaults = {'command_line_client_dir': client_dir}
+    config = configparser.SafeConfigParser()
+    config.read(config_path)
+    require_config_section('sources')
+    require_config_section('paths')
+    require_config_option('sources', 'default')
+    require_config_option('paths', 'cache')
+
+    sources = {key: value for (key, value) in config.items('sources')}
+    cache_path = config.get('paths', 'cache', vars=defaults)
+
+    return bropkg.Manager(sources=sources, cache_path=cache_path)
+
+
+def cmd_install(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_remove(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_refresh(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_upgrade(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_load(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_unload(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_pin(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_unpin(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_list(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_search(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_info(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_test(manager, args):
+    # @todo
+    print(args)
+
+
+def cmd_config(manager, args):
+    print('sources: {}'.format(manager.sources))
+    print('cache path: {}'.format(manager.cache_path))
+
+
+def main():
+    top_parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='Manage Bro packages.',
+        epilog='Environment Variables:\n\n'
+        '    BRO_PKG_CONFIG_PATH\t'
+        'Same as --config option, but takes precedence.'
+    )
+    top_parser.add_argument('--source',
+                            help='By default, commands consider all available'
+                            ' package sources.  This restricts commands to'
+                            ' operate within a single package source.')
+    top_parser.add_argument('--version', action='version',
+                            version='%(prog)s ' + bropkg.version_string())
+    top_parser.add_argument('--config',
+                            help='Path to Bro Package Manager config file.')
+    top_parser.add_argument('--verbose', '-v', action='count', default=0,
+                            help='May be used multiple times (e.g. -vvv) for'
+                            ' increased program output (e.g. for debugging)')
+
+    command_parser = top_parser.add_subparsers(
+        title='commands', dest='command',
+        help='See `%(prog)s <command> -h` for per-command usage info.')
+
+    # install
+    sub_parser = command_parser.add_parser(
+        'install',
+        help='Install a package.', description='Install a package.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_install)
+    sub_parser.add_argument(
+        'package', nargs='+', help='Name(s) of package(s) to install.')
+    sub_parser.add_argument(
+        '--version', default='master',
+        help='The version of the package to install.')
+
+    # remove
+    sub_parser = command_parser.add_parser(
+        'remove', help='Remove a package.',
+        description='Remove a previously installed package',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_remove)
+    sub_parser.add_argument(
+        'package', nargs='+', help='Name(s) of package(s) to remove.')
+
+    # refresh
+    sub_parser = command_parser.add_parser(
+        'refresh',
+        help='Update client and sources.',
+        description='Retrieve latest client version and aggregated package'
+        ' metadata from package source repositories.  This does not upgrade'
+        ' installed packages (see the "upgrade" command for that).',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_refresh)
+
+    # upgrade
+    sub_parser = command_parser.add_parser(
+        'upgrade',
+        help='Upgrade installed packages to latest versions.',
+        description='Uprades package(s) to latest available version.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_upgrade)
+    sub_parser.add_argument(
+        'package', nargs='*', default=[],
+        help='Name(s) of package(s) to upgrade (or blank to upgrade all).')
+
+    # load
+    sub_parser = command_parser.add_parser(
+        'load',
+        help='Register packages to be be auto-loaded by Bro.',
+        description='The Bro Package Manager keeps track of all packages that'
+        ' are marked as "loaded" and supplies necessary config files to make it'
+        ' easy/convenient for Bro to load all such packages at once.  This'
+        ' command adds a set of packages to the "loaded packages" list.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_load)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to load.')
+
+    # unload
+    sub_parser = command_parser.add_parser(
+        'unload',
+        help='Register packages to be be auto-loaded by Bro.',
+        description='The Bro Package Manager keeps track of all packages that'
+        ' are marked as "loaded" and supplies necessary config files to make it'
+        ' easy/convenient for Bro to load all such packages at once.  This'
+        ' command removes a set of packages from the "loaded packages" list.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_unload)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to unload.')
+
+    # pin
+    sub_parser = command_parser.add_parser(
+        'pin',
+        help='Prevent packages from being automatically upgraded.',
+        description='Packages that are pinned will be ignored by "upgrade."',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_pin)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to pin.')
+
+    # unpin
+    sub_parser = command_parser.add_parser(
+        'unpin',
+        help='Allows packages to be automatically upgraded.',
+        description='Packages that are not pinned are automatically upgraded'
+        ' by "upgrade."',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_unpin)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to unpin.')
+
+    # list
+    sub_parser = command_parser.add_parser(
+        'list',
+        help='Lists packages.',
+        description='Packages that are not pinned are automatically upgraded'
+        ' by "upgrade."',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_list)
+    sub_parser.add_argument('category', nargs='?', default='installed',
+                            choices=['all', 'installed', 'not_installed',
+                                     'outdated'],
+                            help='Package category used to filter listing.')
+
+    # search
+    sub_parser = command_parser.add_parser(
+        'search',
+        help='Search packages for matching names.',
+        description='Perform a substring search on package names.'
+        ' Surround search text with slashes to indicate it is a regular'
+        ' expression (e.g. "/text/").',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_search)
+    sub_parser.add_argument('search_text',
+                            help='Text to match against package names.')
+
+    # info
+    sub_parser = command_parser.add_parser(
+        'info',
+        help='Display package information.',
+        description='Shows more detailed information for given packages.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_info)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to query.')
+
+    # test
+    sub_parser = command_parser.add_parser(
+        'test',
+        help='Run unit tests for packages.',
+        description='Runs unit tests for packages.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_test)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to test.')
+
+    # config
+    sub_parser = command_parser.add_parser(
+        'config',
+        help='Show Bro Package Manager configuration info.',
+        description='Show Bro Package Manager configuration info.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_config)
+
+    args = top_parser.parse_args()
+
+    if args.verbose > 0:
+        formatter = logging.Formatter(
+            '%(asctime)s %(levelname)-8s %(message)s', '%Y-%m-%d %H:%M:%S')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+
+        if args.verbose == 1:
+            bropkg.LOG.setLevel(logging.WARNING)
+        elif args.verbose == 2:
+            bropkg.LOG.setLevel(logging.INFO)
+        elif args.verbose == 3:
+            bropkg.LOG.setLevel(logging.DEBUG)
+
+        bropkg.LOG.addHandler(handler)
+
+    manager = create_manager(args.config)
+
+    if args.source and args.source not in manager.sources:
+        print_error(
+            'source "{}" does not exist'.format(args.source))
+        sys.exit(1)
+
+    args.run_cmd(manager, args)
+
+
+if __name__ == '__main__':
+    main()
+    sys.exit(0)

@@ -1,0 +1,21 @@
+Bro Package Manager
+===================
+
+The Bro Package Manager makes it easy for Bro users to install and
+manage third party scripts and binary plugins.  The Bro Package Manager
+command line client, called 'bro-pkg', is preconfigured to download
+packages from a GitHub repository that has been set up such that any
+developer can request their Bro package be included.  This repository is
+located at:
+
+    https://github.com/bro/packages
+
+Please see the README file of that repository for information on the
+package submission process.
+
+@todo: verify dependencies
+    - Python 2.7+
+
+@todo: installation process
+
+@todo: point out where to look for command line client doc/manual/help
