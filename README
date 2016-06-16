@@ -1,6 +1,8 @@
 Bro Package Manager
 ===================
 
+Warning: this project is under development and not yet working/complete
+
 The Bro Package Manager makes it easy for Bro users to install and
 manage third party scripts and binary plugins.  The Bro Package Manager
 command line client, called 'bro-pkg', is preconfigured to download
