@@ -17,6 +17,7 @@ package submission process.
 
 @todo: verify dependencies
     - Python 2.7+
+    - GitPython
 
 @todo: installation process
 

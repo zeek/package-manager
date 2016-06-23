@@ -5,6 +5,7 @@ import os
 import sys
 import argparse
 import logging
+import git
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
@@ -36,8 +37,8 @@ def create_manager(config_path):
             return
 
         print_error(str.format('error: config file "{}" is missing option '
-                               'option "{}" in section "{}"',
-                               config_path, section, option))
+                               '"{}" in section "{}"',
+                               config_path, option, section))
 
         sys.exit(1)
 
@@ -60,17 +61,45 @@ def create_manager(config_path):
     require_config_section('sources')
     require_config_section('paths')
     require_config_option('sources', 'default')
-    require_config_option('paths', 'cache')
+    require_config_option('paths', 'state')
 
-    sources = {key: value for (key, value) in config.items('sources')}
-    cache_path = config.get('paths', 'cache', vars=defaults)
+    state_path = config.get('paths', 'state', vars=defaults)
+    manager = bropkg.Manager(state_path=state_path)
 
-    return bropkg.Manager(sources=sources, cache_path=cache_path)
+    for key, value in config.items('sources'):
+        res = manager.add_source(name=key, git_url=value)
+
+        if res == bropkg.Error.INVALID_SOURCE:
+            print_error(
+                'error: source "{}" in {} is not a valid git repo'.format(
+                    key, config_path))
+            sys.exit(1)
+        elif res == bropkg.Error.CONFLICTING_SOURCE:
+            print_error(
+                'error: config file {} has two sources named "{}"'.format(
+                    config_path, key))
+            sys.exit(1)
+
+    return manager
 
 
 def cmd_install(manager, args):
-    # @todo
-    print(args)
+    for pkg in args.package:
+        res = manager.install(pkg)
+
+        if res == bropkg.Error.NONE:
+            print('installed "{}"'.format(pkg))
+            continue
+        elif res == bropkg.Error.INVALID_PACKAGE:
+            print_error('failed to install "{}": invalid package'.format(pkg))
+        elif res == bropkg.Error.AMBIGUOUS_PACKAGE:
+            print_error(
+                'failed to install "{}": '.format(pkg) +
+                'ambiguous package name, choose more specific name from:')
+            matches = manager.match_package_name(pkg)
+
+            for match in matches:
+                print_error('\t{}'.format(match))
 
 
 def cmd_remove(manager, args):
@@ -79,8 +108,8 @@ def cmd_remove(manager, args):
 
 
 def cmd_refresh(manager, args):
-    # @todo
-    print(args)
+    # @todo: `git pull` in client repo
+    manager.refresh()
 
 
 def cmd_upgrade(manager, args):
@@ -109,8 +138,11 @@ def cmd_unpin(manager, args):
 
 
 def cmd_list(manager, args):
-    # @todo
-    print(args)
+    # @todo: improve formatting
+    pkg_list = sorted(manager.list(args.category))
+
+    for pkg in pkg_list:
+        print(pkg)
 
 
 def cmd_search(manager, args):
@@ -130,7 +162,7 @@ def cmd_test(manager, args):
 
 def cmd_config(manager, args):
     print('sources: {}'.format(manager.sources))
-    print('cache path: {}'.format(manager.cache_path))
+    print('state path: {}'.format(manager.state_path))
 
 
 def main():
@@ -141,10 +173,6 @@ def main():
         '    BRO_PKG_CONFIG_PATH\t'
         'Same as --config option, but takes precedence.'
     )
-    top_parser.add_argument('--source',
-                            help='By default, commands consider all available'
-                            ' package sources.  This restricts commands to'
-                            ' operate within a single package source.')
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + bropkg.version_string())
     top_parser.add_argument('--config',
@@ -323,11 +351,6 @@ def main():
         bropkg.LOG.addHandler(handler)
 
     manager = create_manager(args.config)
-
-    if args.source and args.source not in manager.sources:
-        print_error(
-            'source "{}" does not exist'.format(args.source))
-        sys.exit(1)
 
     args.run_cmd(manager, args)
 
