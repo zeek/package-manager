@@ -5,7 +5,6 @@ import os
 import sys
 import argparse
 import logging
-import git
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
@@ -89,22 +88,35 @@ def cmd_install(manager, args):
 
         if res == bropkg.Error.NONE:
             print('installed "{}"'.format(pkg))
-            continue
         elif res == bropkg.Error.INVALID_PACKAGE:
             print_error('failed to install "{}": invalid package'.format(pkg))
         elif res == bropkg.Error.AMBIGUOUS_PACKAGE:
             print_error(
                 'failed to install "{}": '.format(pkg) +
                 'ambiguous package name, choose more specific name from:')
-            matches = manager.match_package_name(pkg)
+            matches = manager.match_source_packages(pkg)
 
             for match in matches:
                 print_error('\t{}'.format(match))
+        elif res == bropkg.Error.CONFLICTING_PACKAGE:
+            print_error(
+                'failed to install "{}": '.format(pkg) +
+                'package name conflicts with an already installed package: '
+                '"{}"'.format(manager.match_installed_packages(pkg)))
+        else:
+            print_error('unknown error installing "{}"'.format(pkg))
 
 
 def cmd_remove(manager, args):
-    # @todo
-    print(args)
+    for pkg in args.package:
+        res = manager.remove(pkg)
+
+        if res == bropkg.Error.NONE:
+            print('removed "{}"'.format(pkg))
+        elif res == bropkg.Error.INVALID_PACKAGE:
+            print_error('failed to remove "{}": invalid package'.format(pkg))
+        else:
+            print_error('unknown error installing "{}"'.format(pkg))
 
 
 def cmd_refresh(manager, args):
@@ -174,7 +186,7 @@ def main():
         'Same as --config option, but takes precedence.'
     )
     top_parser.add_argument('--version', action='version',
-                            version='%(prog)s ' + bropkg.version_string())
+                            version='%(prog)s ' + bropkg.__version__)
     top_parser.add_argument('--config',
                             help='Path to Bro Package Manager config file.')
     top_parser.add_argument('--verbose', '-v', action='count', default=0,
