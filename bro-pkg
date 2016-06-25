@@ -149,12 +149,50 @@ def cmd_unpin(manager, args):
     print(args)
 
 
+def all_packages(manager):
+    source_pkgs = manager.source_packages()
+    installed_pkgs = manager.installed_packages()
+    pkg_dict = {pkg.git_url: (pkg, True) for pkg in installed_pkgs}
+
+    for pkg in source_pkgs:
+        if pkg.git_url not in pkg_dict:
+            pkg_dict[pkg.git_url] = (pkg, False)
+
+    return [value for _, value in pkg_dict.items()]
+
+
 def cmd_list(manager, args):
     # @todo: improve formatting
-    pkg_list = sorted(manager.list(args.category))
+    if args.category == 'all':
+        for pkg_tuple in sorted(all_packages(manager)):
+            pkg = pkg_tuple[0]
+            installed = pkg_tuple[1]
 
-    for pkg in pkg_list:
-        print(pkg)
+            if installed:
+                print('{} (installed)'.format(pkg))
+            else:
+                print('{}'.format(pkg))
+
+    elif args.category == 'installed':
+        installed_pkgs = manager.installed_packages()
+
+        for pkg in sorted(installed_pkgs):
+            print(pkg)
+
+    elif args.category == 'not_installed':
+        for pkg_tuple in sorted(all_packages(manager)):
+            pkg = pkg_tuple[0]
+            installed = pkg_tuple[1]
+
+            if not installed:
+                print('{}'.format(pkg))
+
+    elif args.category == 'outdated':
+        # @todo
+        raise NotImplementedError
+
+    else:
+        raise NotImplementedError
 
 
 def cmd_search(manager, args):

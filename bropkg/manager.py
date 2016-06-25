@@ -152,17 +152,6 @@ class Manager(object):
 
         # @todo: `git pull` in the source package for each installed package
 
-    def list(self, category):
-        """Return a list of `Package`s that match a given category."""
-        if category == 'all':
-            return self.source_packages()
-
-        if category == 'installed':
-            return self.installed_packages()
-
-        raise NotImplementedError
-        # @todo: handle other categories
-
     def remove(self, pkg_path):
         """Remove an installed package.
 
