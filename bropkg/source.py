@@ -46,20 +46,12 @@ class Source(object):
         return self.git_url
 
     def packages(self):
-        """Return list of `SourcePackage`s contained in source repository."""
+        """Return list of `Package`s contained in source repository."""
         rval = []
 
         for submodule in self.clone.submodules:
-            parts = submodule.name.split('/')
-
-            if len(parts) < 2:
-                pkg_author = None
-                pkg_name = parts[0]
-            else:
-                pkg_author = parts[0]
-                pkg_name = parts[1]
-
+            module_dir = os.path.dirname(submodule.name)
             rval.append(Package(submodule.url, source=self.name,
-                                author=pkg_author, name=pkg_name))
+                                module_dir=module_dir))
 
         return rval

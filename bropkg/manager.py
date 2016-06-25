@@ -55,9 +55,9 @@ class Manager(object):
                 pkg_name = pkg_dict['name']
                 pkg_git_url = pkg_dict['git_url']
                 pkg_source = pkg_dict['source']
-                pkg_author = pkg_dict['author']
+                pkg_module_dir = pkg_dict['module_dir']
                 pkg = Package(git_url=pkg_git_url, source=pkg_source,
-                              author=pkg_author, name=pkg_name)
+                              module_dir=pkg_module_dir)
                 self.installed_pkgs[pkg_name] = pkg
 
     def _store_manifest(self):
@@ -129,7 +129,15 @@ class Manager(object):
         A package's "name" is the last component of it's git URL.
         """
         pkg_name = pkg_path.split('/')[-1]
-        return self.installed_pkgs.get(pkg_name)
+        rval = self.installed_pkgs.get(pkg_name)
+
+        if not rval:
+            return None
+
+        if rval.matches_path(pkg_path):
+            return rval
+
+        return None
 
     def refresh(self):
         """Fetch latest git versions for sources and installed packages.

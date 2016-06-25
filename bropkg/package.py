@@ -1,15 +1,16 @@
 class Package(object):
 
-    def __init__(self, git_url, source=None, author=None, name=None):
+    def __init__(self, git_url, source=None, module_dir=None):
         self.git_url = git_url
-        self.name = name if name else git_url.split('/')[-1]
+        self.name = git_url.split('/')[-1]
         self.source = source
-        self.author = author
+        self.module_dir = module_dir
 
     def __str__(self):
         if self.source:
-            if self.author:
-                return '{}/{}/{}'.format(self.source, self.author, self.name)
+            if self.module_dir:
+                return '{}/{}/{}'.format(self.source, self.module_dir,
+                                         self.name)
             else:
                 return '{}/{}'.format(self.source, self.name)
         else:
@@ -23,19 +24,21 @@ class Package(object):
 
     def matches_path(self, path):
         """Return whether this package has a matching path/name."""
+        path_parts = path.split('/')
+
         if self.source:
-            parts = path.split('/')
+            pkg_path = str(self)
+            pkg_path_parts = pkg_path.split('/')
 
-            if len(parts) == 1:
-                return path == self.name
+            for i, part in reversed(list(enumerate(path_parts))):
+                ri = i - len(path_parts)
 
-            if len(parts) == 2:
-                if self.author:
-                    return path == '{}/{}'.format(self.author, self.name)
-                else:
-                    return path == '{}/{}'.format(self.source, self.name)
+                if part != pkg_path_parts[ri]:
+                    return False
 
-            return path == '{}/{}/{}'.format(self.source, self.author,
-                                             self.name)
+            return True
         else:
+            if len(path_parts) == 1 and path_parts[-1] == self.name:
+                return True
+
             return path == self.git_url
