@@ -1,5 +1,6 @@
 import os
 import errno
+import shutil
 
 
 def make_dir(path):
@@ -21,3 +22,26 @@ def remove_trailing_slash(path):
         return path[:-1]
 
     return path
+
+
+def delete_path(path):
+    if not os.path.exists(path):
+        return
+
+    if os.path.islink(path):
+        os.remove(path)
+    elif os.path.isdir(path):
+        shutil.rmtree(path)
+    else:
+        os.remove(path)
+
+
+def make_symlink(target_path, link_path, force=True):
+    try:
+        os.symlink(target_path, link_path)
+    except OSError as error:
+        if error.errno == errno.EEXIST and force:
+            os.remove(link_path)
+            os.symlink(target_path, link_path)
+        else:
+            raise error

@@ -6,6 +6,8 @@ import git
 from .util import (
     make_dir,
     remove_trailing_slash,
+    delete_path,
+    make_symlink,
 )
 from .error import Error
 from .source import Source
@@ -27,22 +29,37 @@ class Manager(object):
         LOG.debug('init Manager version %s', __version__)
         self.sources = {}
         self.installed_pkgs = {}
+        self.loaded_pkgs = {}
         self.state_path = state_path
         self.state_path_sources = os.path.join(self.state_path, 'sources')
         self.state_path_packages = os.path.join(self.state_path, 'packages')
+        self.state_path_loaded = os.path.join(self.state_path, 'loaded')
         self.state_path_manifest = os.path.join(
             self.state_path, 'manifest.json')
         make_dir(self.state_path)
         make_dir(self.state_path_sources)
         make_dir(self.state_path_packages)
+        make_dir(self.state_path_loaded)
 
         if not os.path.exists(self.state_path_manifest):
-            self._store_manifest()
+            self._write_manifest()
 
-        self._load_manifest()
+        self._read_manifest()
+        loaded_pkg_names = {dir for dir in os.listdir(self.state_path_loaded)}
 
-    def _load_manifest(self):
-        """Loads the manifest file containing the list of installed packages.
+        for pkg_name in loaded_pkg_names:
+            pkg = self.installed_pkgs.get(pkg_name)
+
+            if pkg:
+                LOG.debug('found loaded package: %s', pkg_name)
+                self.loaded_pkgs[pkg_name] = pkg
+            else:
+                LOG.info('deleting unexpected loaded package: %s', pkg_name)
+                path_to_delete = os.path.join(self.state_path_loaded, pkg_name)
+                delete_path(path_to_delete)
+
+    def _read_manifest(self):
+        """Read the manifest file containing the list of installed packages.
 
         :raise IOError: when the manifest file can't be read
         """
@@ -60,7 +77,7 @@ class Manager(object):
                               module_dir=pkg_module_dir)
                 self.installed_pkgs[pkg_name] = pkg
 
-    def _store_manifest(self):
+    def _write_manifest(self):
         """Writes the manifest file containing the list of installed packages.
 
         :raise IOError: when the manifest file can't be written
@@ -112,6 +129,10 @@ class Manager(object):
     def installed_packages(self):
         """Return a list of `Package`s that have been installed."""
         return [pkg for _, pkg in self.installed_pkgs.items()]
+
+    def loaded_packages(self):
+        """Return a list of `Package`s that have been loaded."""
+        return [pkg for _, pkg in self.loaded_pkgs.items()]
 
     def match_source_packages(self, pkg_path):
         """Return a list of `Package`s that match a given path."""
@@ -166,20 +187,76 @@ class Manager(object):
             LOG.info('removing "%s": could not find matching package', pkg_path)
             return Error.INVALID_PACKAGE
 
+        self.unload(pkg_path)
         local_path = os.path.join(self.state_path_packages, pkg_to_remove.name)
         del self.installed_pkgs[pkg_to_remove.name]
-        self._store_manifest()
+        self._write_manifest()
         shutil.rmtree(local_path)
 
         # @todo: check dependencies
-        # @todo: unload package
         LOG.debug('removed "%s"', pkg_path)
+        return Error.NONE
+
+    def load(self, pkg_path):
+        """Mark an installed package as being 'loaded'.
+
+        The collection of 'loaded' packages is a convenient way for Bro to more
+        simply load a whole group of packages installed via the package manager.
+
+        :raise OSError: if symlink to installed package can't be created
+        """
+        LOG.debug('loading "%s"', pkg_path)
+        pkg_path = remove_trailing_slash(pkg_path)
+        pkg_to_load = self.match_installed_packages(pkg_path)
+
+        if not pkg_to_load:
+            LOG.info('loading "%s": no matching package', pkg_path)
+            return Error.INVALID_PACKAGE
+
+        if self.loaded_pkgs.get(pkg_to_load.name):
+            LOG.debug('loading "%s": already loaded', pkg_path)
+            return Error.NONE
+
+        link_path = os.path.join(self.state_path_loaded, pkg_to_load.name)
+        relative_path = os.path.join('..', 'packages', pkg_to_load.name)
+        make_symlink(relative_path, link_path)
+        self.loaded_pkgs[pkg_to_load.name] = pkg_to_load
+        # @todo: write bro-pkg.bro
+        LOG.debug('loaded "%s"', pkg_path)
+        return Error.NONE
+
+    def unload(self, pkg_path):
+        """Unmark an installed package as being 'loaded'.
+
+        The collection of 'loaded' packages is a convenient way for Bro to more
+        simply load a whole group of packages installed via the package manager.
+
+        :raise OSError: if symlink to installed package can't be deleted
+        """
+        LOG.debug('unloading "%s"', pkg_path)
+        pkg_path = remove_trailing_slash(pkg_path)
+        pkg_to_unload = self.match_installed_packages(pkg_path)
+
+        if not pkg_to_unload:
+            LOG.info('unloading "%s": no matching package', pkg_path)
+            return Error.INVALID_PACKAGE
+
+        if not self.loaded_pkgs.get(pkg_to_unload.name):
+            LOG.debug('unloading "%s": already unloaded', pkg_path)
+            return Error.NONE
+
+        link_path = os.path.join(self.state_path_loaded, pkg_to_unload.name)
+        delete_path(link_path)
+        del self.loaded_pkgs[pkg_to_unload.name]
+        # @todo: write bro-pkg.bro
+        LOG.debug('unloaded "%s"', pkg_path)
         return Error.NONE
 
     def install(self, pkg_path):
         """Install a package.
 
         :raise IOError: if the package manifest file can't be written
+        :raise OSError: when failing to create loaded package symlink
         """
         LOG.debug('installing "%s"', pkg_path)
         pkg_path = remove_trailing_slash(pkg_path)
@@ -217,10 +294,10 @@ class Manager(object):
                      pkg_path)
             return Error.INVALID_PACKAGE
 
+        # @todo: run the package's build command
         LOG.debug('installed "%s"', pkg_path)
         # @todo: install dependencies
-        # @todo: load the package
-        return Error.NONE
+        return self.load(pkg_path)
 
     def _install_package(self, package):
         """Install a `Package`.
@@ -231,7 +308,7 @@ class Manager(object):
         pkg_path = os.path.join(self.state_path_packages, package.name)
         git.Repo.clone_from(package.git_url, pkg_path)
         self.installed_pkgs[package.name] = package
-        self._store_manifest()
+        self._write_manifest()
 
     def _install_from_git_url(self, git_url):
         """Install a package from a git URL.

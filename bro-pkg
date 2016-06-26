@@ -130,13 +130,27 @@ def cmd_upgrade(manager, args):
 
 
 def cmd_load(manager, args):
-    # @todo
-    print(args)
+    for pkg in args.package:
+        res = manager.load(pkg)
+
+        if res == bropkg.Error.NONE:
+            print('loaded "{}"'.format(pkg))
+        elif res == bropkg.Error.INVALID_PACKAGE:
+            print_error('failed to load "{}": invalid package'.format(pkg))
+        else:
+            print_error('unknown error loading "{}"'.format(pkg))
 
 
 def cmd_unload(manager, args):
-    # @todo
-    print(args)
+    for pkg in args.package:
+        res = manager.unload(pkg)
+
+        if res == bropkg.Error.NONE:
+            print('unloaded "{}"'.format(pkg))
+        elif res == bropkg.Error.INVALID_PACKAGE:
+            print_error('failed to unload "{}": invalid package'.format(pkg))
+        else:
+            print_error('unknown error unloading "{}"'.format(pkg))
 
 
 def cmd_pin(manager, args):
@@ -186,6 +200,20 @@ def cmd_list(manager, args):
 
             if not installed:
                 print('{}'.format(pkg))
+
+    elif args.category == 'loaded':
+        loaded_pkgs = manager.loaded_packages()
+
+        for pkg in sorted(loaded_pkgs):
+            print(pkg)
+
+    elif args.category == 'unloaded':
+        installed_pkgs = manager.installed_packages()
+        loaded_pkgs = {pkg.name: pkg for pkg in manager.loaded_packages()}
+
+        for pkg in sorted(installed_pkgs):
+            if pkg.name not in loaded_pkgs:
+                print(pkg)
 
     elif args.category == 'outdated':
         # @todo
@@ -338,7 +366,7 @@ def main():
     sub_parser.set_defaults(run_cmd=cmd_list)
     sub_parser.add_argument('category', nargs='?', default='installed',
                             choices=['all', 'installed', 'not_installed',
-                                     'outdated'],
+                                     'loaded', 'unloaded', 'outdated'],
                             help='Package category used to filter listing.')
 
     # search
