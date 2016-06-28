@@ -88,6 +88,14 @@ def cmd_install(manager, args):
 
         if res == bropkg.Error.NONE:
             print('installed "{}"'.format(pkg))
+
+            res = manager.load(pkg)
+
+            if res == bropkg.Error.NONE:
+                print('loaded "{}"'.format(pkg))
+            else:
+                print('failed to load "{}"'.format(pkg))
+
         elif res == bropkg.Error.INVALID_PACKAGE:
             print_error('failed to install "{}": invalid package'.format(pkg))
         elif res == bropkg.Error.AMBIGUOUS_PACKAGE:
@@ -103,6 +111,8 @@ def cmd_install(manager, args):
                 'failed to install "{}": '.format(pkg) +
                 'package name conflicts with an already installed package: '
                 '"{}"'.format(manager.match_installed_packages(pkg)))
+        elif res == bropkg.Error.INVALID_PACKAGE_METADATA:
+            print_error('failed to install "{}": invalid metadata'.format(pkg))
         else:
             print_error('unknown error installing "{}"'.format(pkg))
 
@@ -241,6 +251,22 @@ def cmd_test(manager, args):
 def cmd_config(manager, args):
     print('sources: {}'.format(manager.sources))
     print('state path: {}'.format(manager.state_path))
+
+
+def cmd_env(manager, args):
+    bropath = os.environ.get('BROPATH')
+    pluginpath = os.environ.get('BRO_PLUGIN_PATH')
+    bropaths = {p for p in bropath.split(':')} if bropath else set()
+    pluginpaths = {p for p in pluginpath.split(':')} if pluginpath else set()
+    bropaths = bropaths.union(manager.bropaths())
+    pluginpaths = pluginpaths.union(manager.pluginpaths())
+
+    if os.environ['SHELL'].endswith('csh'):
+        print('setenv BROPATH {}'.format(':'.join(bropaths)))
+        print('setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
+    else:
+        print('export BROPATH={}'.format(':'.join(bropaths)))
+        print('export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
 
 def main():
@@ -410,6 +436,15 @@ def main():
         description='Show Bro Package Manager configuration info.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_config)
+
+    # env
+    sub_parser = command_parser.add_parser(
+        'env',
+        help='Show environment variables needed for Bro to be able to use '
+             'packages installed by the Bro Package Manager.',
+        description='Show Bro Package Manager environment info.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_env)
 
     args = top_parser.parse_args()
 

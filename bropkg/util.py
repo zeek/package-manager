@@ -17,20 +17,22 @@ def make_dir(path):
             raise
 
 
-def remove_trailing_slash(path):
+def remove_trailing_slashes(path):
     if path.endswith('/'):
-        return path[:-1]
+        return remove_trailing_slashes(path[:-1])
 
     return path
 
 
 def delete_path(path):
+    if os.path.islink(path):
+        os.remove(path)
+        return
+
     if not os.path.exists(path):
         return
 
-    if os.path.islink(path):
-        os.remove(path)
-    elif os.path.isdir(path):
+    if os.path.isdir(path):
         shutil.rmtree(path)
     else:
         os.remove(path)

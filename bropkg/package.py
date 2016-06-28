@@ -1,10 +1,20 @@
+from .util import (
+    remove_trailing_slashes
+)
+
+
 class Package(object):
 
-    def __init__(self, git_url, source=None, module_dir=None):
-        self.git_url = git_url
-        self.name = git_url.split('/')[-1]
+    @classmethod
+    def name_from_path(cls, path):
+        return remove_trailing_slashes(path).split('/')[-1]
+
+    def __init__(self, git_url, source=None, module_dir=None, metadata=None):
+        self.git_url = remove_trailing_slashes(git_url)
+        self.name = Package.name_from_path(git_url)
         self.source = source
         self.module_dir = module_dir
+        self.metadata = metadata
 
     def __str__(self):
         if self.source:
