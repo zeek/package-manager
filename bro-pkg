@@ -249,8 +249,15 @@ def cmd_test(manager, args):
 
 
 def cmd_config(manager, args):
-    print('sources: {}'.format(manager.sources))
-    print('state path: {}'.format(manager.state_path))
+    if args.config_param == 'all':
+        print('sources: {}'.format(manager.sources))
+        print('state_path: {}'.format(manager.state_path))
+    elif args.config_param == 'sources':
+        print(manager.sources)
+    elif args.config_param == 'state_path':
+        print(manager.state_path)
+    else:
+        raise NotImplementedError
 
 
 def cmd_env(manager, args):
@@ -436,6 +443,10 @@ def main():
         description='Show Bro Package Manager configuration info.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_config)
+    sub_parser.add_argument(
+        'config_param', nargs='?', default='all',
+        choices=['all', 'sources', 'state_path'],
+        help='Name of the config parameter to output.')
 
     # env
     sub_parser = command_parser.add_parser(
