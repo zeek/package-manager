@@ -5,6 +5,8 @@ import os
 import sys
 import argparse
 import logging
+import subprocess
+import StringIO
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
@@ -16,6 +18,13 @@ import bropkg
 
 def print_error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
+
+def config_items(config, section):
+    # Same as config.items(section), but exclude default keys.
+    defaults = {key for key, _ in config.items('DEFAULT')}
+    items = config.items(section)
+    return [(key, value) for (key, value) in items if key not in defaults]
 
 
 def create_manager(config_path):
@@ -55,17 +64,22 @@ def create_manager(config_path):
         sys.exit(1)
 
     defaults = {'command_line_client_dir': client_dir}
-    config = configparser.SafeConfigParser()
+    config = configparser.SafeConfigParser(defaults=defaults)
     config.read(config_path)
     require_config_section('sources')
     require_config_section('paths')
     require_config_option('sources', 'default')
     require_config_option('paths', 'state')
 
-    state_path = config.get('paths', 'state', vars=defaults)
+    if not config.has_option('paths', 'bro_exe') or not config.get('paths',
+                                                                   'bro_exe'):
+        bro_exe = bropkg.util.find_program('bro')
+        config.set('paths', 'bro_exe', bro_exe if bro_exe else '')
+
+    state_path = config.get('paths', 'state')
     manager = bropkg.Manager(state_path=state_path)
 
-    for key, value in config.items('sources'):
+    for key, value in config_items(config, 'sources'):
         res = manager.add_source(name=key, git_url=value)
 
         if res == bropkg.Error.INVALID_SOURCE:
@@ -79,10 +93,10 @@ def create_manager(config_path):
                     config_path, key))
             sys.exit(1)
 
-    return manager
+    return manager, config
 
 
-def cmd_install(manager, args):
+def cmd_install(manager, args, config):
     for pkg in args.package:
         res = manager.install(pkg)
 
@@ -117,7 +131,7 @@ def cmd_install(manager, args):
             print_error('unknown error installing "{}"'.format(pkg))
 
 
-def cmd_remove(manager, args):
+def cmd_remove(manager, args, config):
     for pkg in args.package:
         res = manager.remove(pkg)
 
@@ -129,17 +143,17 @@ def cmd_remove(manager, args):
             print_error('unknown error installing "{}"'.format(pkg))
 
 
-def cmd_refresh(manager, args):
+def cmd_refresh(manager, args, config):
     # @todo: `git pull` in client repo
     manager.refresh()
 
 
-def cmd_upgrade(manager, args):
+def cmd_upgrade(manager, args, config):
     # @todo
     print(args)
 
 
-def cmd_load(manager, args):
+def cmd_load(manager, args, config):
     for pkg in args.package:
         res = manager.load(pkg)
 
@@ -151,7 +165,7 @@ def cmd_load(manager, args):
             print_error('unknown error loading "{}"'.format(pkg))
 
 
-def cmd_unload(manager, args):
+def cmd_unload(manager, args, config):
     for pkg in args.package:
         res = manager.unload(pkg)
 
@@ -163,12 +177,12 @@ def cmd_unload(manager, args):
             print_error('unknown error unloading "{}"'.format(pkg))
 
 
-def cmd_pin(manager, args):
+def cmd_pin(manager, args, config):
     # @todo
     print(args)
 
 
-def cmd_unpin(manager, args):
+def cmd_unpin(manager, args, config):
     # @todo
     print(args)
 
@@ -185,7 +199,7 @@ def all_packages(manager):
     return [value for _, value in pkg_dict.items()]
 
 
-def cmd_list(manager, args):
+def cmd_list(manager, args, config):
     # @todo: improve formatting
     if args.category == 'all':
         for pkg_tuple in sorted(all_packages(manager)):
@@ -233,38 +247,73 @@ def cmd_list(manager, args):
         raise NotImplementedError
 
 
-def cmd_search(manager, args):
+def cmd_search(manager, args, config):
     # @todo
     print(args)
 
 
-def cmd_info(manager, args):
+def cmd_info(manager, args, config):
     # @todo
     print(args)
 
 
-def cmd_test(manager, args):
+def cmd_test(manager, args, config):
     # @todo
     print(args)
 
 
-def cmd_config(manager, args):
+def cmd_config(manager, args, config):
     if args.config_param == 'all':
-        print('sources: {}'.format(manager.sources))
-        print('state_path: {}'.format(manager.state_path))
+        out = StringIO.StringIO()
+        config.write(out)
+        print(out.getvalue())
+        out.close()
     elif args.config_param == 'sources':
-        print(manager.sources)
-    elif args.config_param == 'state_path':
-        print(manager.state_path)
+        for key, value in config_items(config, 'sources'):
+            print('{} = {}'.format(key, value))
+    elif args.config_param == 'state':
+        print(config.get('paths', 'state'))
+    elif args.config_param == 'bro_exe':
+        print(config.get('paths', 'bro_exe'))
     else:
         raise NotImplementedError
 
 
-def cmd_env(manager, args):
-    bropath = os.environ.get('BROPATH')
-    pluginpath = os.environ.get('BRO_PLUGIN_PATH')
-    bropaths = {p for p in bropath.split(':')} if bropath else set()
-    pluginpaths = {p for p in pluginpath.split(':')} if pluginpath else set()
+def cmd_env(manager, args, config):
+    bro_exe = config.get('paths', 'bro_exe')
+
+    if bro_exe:
+        # Parse the output of 'bro --help' to determine starting values for
+        # BROPATH and BRO_PLUGIN_PATH.  e.g. for users that don't set those
+        # in their environment, bro has builtin paths to its installation
+        # directory that it uses and this is an easy way to get things working
+        # in that situation.  Parsing --help output isn't great, but we can
+        # check 'bro --version' here if the output format ever changes or
+        # just formalize some 'bro --config <param>' later to retrieve these
+        # values in a more well-defined manner.
+        cmd = subprocess.Popen([bro_exe, '--help'], stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT)
+
+        for line in cmd.stdout:
+            parts = line.split()
+
+            if not parts:
+                continue
+
+            if parts[0] == "$BROPATH":
+                bropaths = {p for p in parts[-1][1:-1].split(':')}
+            elif parts[0] == "$BRO_PLUGIN_PATH":
+                pluginpaths = {p for p in parts[-1][1:-1].split(':')}
+
+    else:
+        # Start with whatever values the current environment uses and add
+        # the package manager paths to them.
+        bropath = os.environ.get('BROPATH')
+        pluginpath = os.environ.get('BRO_PLUGIN_PATH')
+        bropaths = {p for p in bropath.split(':')} if bropath else set()
+        pluginpaths = {p for p in pluginpath.split(
+            ':')} if pluginpath else set()
+
     bropaths = bropaths.union(manager.bropaths())
     pluginpaths = pluginpaths.union(manager.pluginpaths())
 
@@ -445,7 +494,7 @@ def main():
     sub_parser.set_defaults(run_cmd=cmd_config)
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
-        choices=['all', 'sources', 'state_path'],
+        choices=['all', 'sources', 'state', 'bro_exe'],
         help='Name of the config parameter to output.')
 
     # env
@@ -474,9 +523,9 @@ def main():
 
         bropkg.LOG.addHandler(handler)
 
-    manager = create_manager(args.config)
+    manager, config = create_manager(args.config)
 
-    args.run_cmd(manager, args)
+    args.run_cmd(manager, args, config)
 
 
 if __name__ == '__main__':
