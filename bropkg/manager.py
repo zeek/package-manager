@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import shutil
+import subprocess
 import git
 
 if sys.version_info[0] < 3:
@@ -26,7 +27,7 @@ from . import (
 
 class Manager(object):
 
-    def __init__(self, state_path):
+    def __init__(self, state_path, bro_dist=''):
         """Create package manager.
 
         :raise OSError: when a package manager state directory can't be created
@@ -36,6 +37,7 @@ class Manager(object):
         self.sources = {}
         self.installed_pkgs = {}
         self.loaded_pkgs = {}
+        self.bro_dist = bro_dist
         self.state_path = state_path
         self.state_path_sources = os.path.join(self.state_path, 'sources')
         self.state_path_packages = os.path.join(self.state_path, 'packages')
@@ -58,9 +60,9 @@ class Manager(object):
 
         self._read_manifest()
 
-        with open(self.state_path_loader_script, 'a+') as file:
-            file.seek(0)
-            loaded_pkg_names = [line.split()[1][2:] for line in file]
+        with open(self.state_path_loader_script, 'a+') as f:
+            f.seek(0)
+            loaded_pkg_names = [line.split()[1][2:] for line in f]
             new_loaded_pkg_names = []
 
             for pkg_name in loaded_pkg_names:
@@ -74,21 +76,21 @@ class Manager(object):
                     LOG.info('removing orphaned loaded package: %s', pkg_name)
 
             if len(loaded_pkg_names) != len(new_loaded_pkg_names):
-                file.truncate(0)
+                f.truncate(0)
                 content = ""
 
                 for pkg_name in new_loaded_pkg_names:
                     content += '@load ./{}\n'.format(pkg_name)
 
-                file.write(content)
+                f.write(content)
 
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
 
         :raise IOError: when the manifest file can't be read
         """
-        with open(self.state_path_manifest, 'r') as file:
-            data = json.load(file)
+        with open(self.state_path_manifest, 'r') as f:
+            data = json.load(f)
             pkg_list = data['installed_packages']
             self.installed_pkgs = {}
 
@@ -110,8 +112,8 @@ class Manager(object):
         pkg_list = [pkg.__dict__ for _, pkg in self.installed_pkgs.items()]
         data = {'manifest_version': 0, 'installed_packages': pkg_list}
 
-        with open(self.state_path_manifest, 'w') as file:
-            json.dump(data, file)
+        with open(self.state_path_manifest, 'w') as f:
+            json.dump(data, f)
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
@@ -158,6 +160,17 @@ class Manager(object):
     def loaded_packages(self):
         """Return a list of `Package`s that have been loaded."""
         return [pkg for _, pkg in self.loaded_pkgs.items()]
+
+    def package_state_path(self, pkg_path):
+        """Return the path to the package manager's state dir for a package."""
+        return os.path.join(self.state_path_packages,
+                            Package.name_from_path(pkg_path))
+
+    def package_build_log(self, pkg_path):
+        """Return the path to the package manager's build log for a package."""
+        name = Package.name_from_path(pkg_path)
+        return os.path.join(self.state_path_packages,
+                            '.build-{}.log'.format(name))
 
     def bropaths(self):
         """Return set of paths for use in BROPATH.
@@ -262,8 +275,8 @@ class Manager(object):
             LOG.debug('loading "%s": already loaded', pkg_path)
             return Error.NONE
 
-        with open(self.state_path_loader_script, 'a') as file:
-            file.write('@load ./{}\n'.format(pkg_to_load.name))
+        with open(self.state_path_loader_script, 'a') as f:
+            f.write('@load ./{}\n'.format(pkg_to_load.name))
 
         self.loaded_pkgs[pkg_to_load.name] = pkg_to_load
         LOG.debug('loaded "%s"', pkg_path)
@@ -289,14 +302,14 @@ class Manager(object):
             LOG.debug('unloading "%s": already unloaded', pkg_path)
             return Error.NONE
 
-        with open(self.state_path_loader_script, 'w') as file:
+        with open(self.state_path_loader_script, 'w') as f:
             content = ""
 
             for pkg_name in self.loaded_pkgs:
                 if pkg_name != pkg_to_unload.name:
                     content += '@load ./{}\n'.format(pkg_name)
 
-            file.write(content)
+            f.write(content)
 
         del self.loaded_pkgs[pkg_to_unload.name]
         LOG.debug('unloaded "%s"', pkg_path)
@@ -349,7 +362,6 @@ class Manager(object):
         else:
             return rval
 
-        # @todo: run the package's build command
         # @todo: install dependencies
         return Error.NONE
 
@@ -363,7 +375,7 @@ class Manager(object):
         delete_path(pkg_path)
         git.Repo.clone_from(package.git_url, pkg_path)
 
-        default_metadata = {'bropath': '',
+        default_metadata = {'bro_dist': self.bro_dist, 'bropath': '',
                             'pluginpath': 'build', 'buildcmd': ''}
         parser = configparser.SafeConfigParser(defaults=default_metadata)
         metadata_file = os.path.join(pkg_path, self.pkg_metadata_filename)
@@ -378,6 +390,42 @@ class Manager(object):
 
         metadata = {item[0]: item[1] for item in parser.items('package')}
         package.metadata = metadata
+
+        buildcmd = metadata['buildcmd']
+
+        if buildcmd:
+            LOG.debug('installing "%s": running buildcmd: %s',
+                      package, buildcmd)
+            build = subprocess.Popen(buildcmd,
+                                     shell=True, cwd=pkg_path, bufsize=1,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+
+            try:
+                buildlog = self.package_build_log(pkg_path)
+
+                with open(buildlog, 'w') as f:
+                    LOG.warn('installing "%s": writing build log: %s',
+                             package, buildlog)
+
+                    f.write('=== STDERR ===\n')
+
+                    for line in build.stderr:
+                        f.write(line)
+
+                    f.write('=== STDOUT ===\n')
+
+                    for line in build.stdout:
+                        f.write(line)
+
+            except EnvironmentError as error:
+                LOG.warn('installing "%s": failed to write build log %s %s: %s',
+                         package, buildlog, error.errno, error.strerror)
+
+            returncode = build.wait()
+
+            if returncode != 0:
+                return Error.PACKAGE_BUILD_FAILURE
 
         bropath_link_path = os.path.join(self.state_path_bropath, package.name)
         bropath_link_target = os.path.join('..', 'packages', package.name,

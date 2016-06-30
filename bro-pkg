@@ -77,7 +77,12 @@ def create_manager(config_path):
         config.set('paths', 'bro_exe', bro_exe if bro_exe else '')
 
     state_path = config.get('paths', 'state')
-    manager = bropkg.Manager(state_path=state_path)
+    bro_dist = ''
+
+    if config.has_option('paths', 'bro_dist'):
+        bro_dist = config.get('paths', 'bro_dist')
+
+    manager = bropkg.Manager(state_path=state_path, bro_dist=bro_dist)
 
     for key, value in config_items(config, 'sources'):
         res = manager.add_source(name=key, git_url=value)
@@ -127,6 +132,11 @@ def cmd_install(manager, args, config):
                 '"{}"'.format(manager.match_installed_packages(pkg)))
         elif res == bropkg.Error.INVALID_PACKAGE_METADATA:
             print_error('failed to install "{}": invalid metadata'.format(pkg))
+        elif res == bropkg.Error.PACKAGE_BUILD_FAILURE:
+            log = manager.package_build_log(pkg)
+            print_error(str.format('failed to install "{}":'
+                                   ' build failure, for details see {}',
+                                   pkg, log))
         else:
             print_error('unknown error installing "{}"'.format(pkg))
 
@@ -292,7 +302,7 @@ def cmd_env(manager, args, config):
         # just formalize some 'bro --config <param>' later to retrieve these
         # values in a more well-defined manner.
         cmd = subprocess.Popen([bro_exe, '--help'], stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT)
+                               stderr=subprocess.STDOUT, bufsize=1)
 
         for line in cmd.stdout:
             parts = line.split()
