@@ -54,10 +54,13 @@ def create_manager(config_path):
     client_dir = os.path.dirname(client_path)
 
     if not config_path:
-        config_path = os.environ.get('BRO_PKG_CONFIG_PATH')
+        config_path = os.environ.get('BRO_PKG_CONFIG_FILE')
 
     if not config_path:
         config_path = os.path.join(client_dir, 'bro-pkg.config')
+
+        if not os.path.isfile(config_path):
+            config_path = os.path.join(client_dir, 'bro-pkg.default.config')
 
     if not os.path.isfile(config_path):
         print_error('error: invalid config file "{}"'.format(config_path))
@@ -340,12 +343,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Manage Bro packages.',
         epilog='Environment Variables:\n\n'
-        '    BRO_PKG_CONFIG_PATH\t'
-        'Same as --config option, but takes precedence.'
+        '    BRO_PKG_CONFIG_FILE\t'
+        'Same as --configfile option, but takes precedence.'
     )
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + bropkg.__version__)
-    top_parser.add_argument('--config',
+    top_parser.add_argument('--configfile',
                             help='Path to Bro Package Manager config file.')
     top_parser.add_argument('--verbose', '-v', action='count', default=0,
                             help='May be used multiple times (e.g. -vvv) for'
@@ -533,7 +536,7 @@ def main():
 
         bropkg.LOG.addHandler(handler)
 
-    manager, config = create_manager(args.config)
+    manager, config = create_manager(args.configfile)
 
     args.run_cmd(manager, args, config)
 

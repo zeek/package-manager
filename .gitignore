@@ -1,2 +1,3 @@
 *.pyc
 .state
+bro-pkg.config
