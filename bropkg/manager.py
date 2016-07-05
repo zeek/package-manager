@@ -15,6 +15,8 @@ from .util import (
     remove_trailing_slashes,
     delete_path,
     make_symlink,
+    copy_over_path,
+    move_path,
 )
 from .error import Error
 from .source import Source
@@ -27,7 +29,7 @@ from . import (
 
 class Manager(object):
 
-    def __init__(self, state_path, bro_dist=''):
+    def __init__(self, statepath, scriptpath, pluginpath, bro_dist=''):
         """Create package manager.
 
         :raise OSError: when a package manager state directory can't be created
@@ -38,29 +40,41 @@ class Manager(object):
         self.installed_pkgs = {}
         self.loaded_pkgs = {}
         self.bro_dist = bro_dist
-        self.state_path = state_path
-        self.state_path_sources = os.path.join(self.state_path, 'sources')
-        self.state_path_packages = os.path.join(self.state_path, 'packages')
-        self.state_path_bropath = os.path.join(self.state_path, 'bropath')
-        self.state_path_pluginpath = os.path.join(
-            self.state_path, 'pluginpath')
-        self.state_path_manifest = os.path.join(
-            self.state_path, 'manifest.json')
-        self.state_path_loader_script = os.path.join(self.state_path_bropath,
-                                                     'bro-pkg.bro')
+        self.statepath = statepath
+        self.scriptpath = scriptpath
+        self.prev_scriptpath = None
+        self.pluginpath = pluginpath
+        self.prev_pluginpath = None
+        self.sourcepath = os.path.join(self.statepath, 'sources')
+        self.packagepath = os.path.join(self.statepath, 'packages')
+        self.manifest = os.path.join(self.statepath, 'manifest.json')
+        self.autoload_script = os.path.join(self.scriptpath, 'packages.bro')
+        self.autoload_package = os.path.join(self.scriptpath, '__load__.bro')
         self.pkg_metadata_filename = 'pkg.meta'
-        make_dir(self.state_path)
-        make_dir(self.state_path_sources)
-        make_dir(self.state_path_packages)
-        make_dir(self.state_path_bropath)
-        make_dir(self.state_path_pluginpath)
+        make_dir(self.statepath)
+        make_dir(self.sourcepath)
+        make_dir(self.packagepath)
+        make_dir(self.scriptpath)
+        make_dir(self.pluginpath)
 
-        if not os.path.exists(self.state_path_manifest):
+        if not os.path.exists(self.manifest):
             self._write_manifest()
 
         self._read_manifest()
 
-        with open(self.state_path_loader_script, 'a+') as f:
+        if self.prev_scriptpath != self.scriptpath:
+            LOG.info('moved previous scriptpath %s -> %s', self.prev_scriptpath,
+                     self.scriptpath)
+            move_path(self.prev_scriptpath, self.scriptpath)
+            self._write_manifest()
+
+        if self.prev_pluginpath != self.pluginpath:
+            LOG.info('moved previous pluginpath %s -> %s', self.prev_pluginpath,
+                     self.pluginpath)
+            move_path(self.prev_pluginpath, self.pluginpath)
+            self._write_manifest()
+
+        with open(self.autoload_script, 'a+') as f:
             f.seek(0)
             loaded_pkg_names = [line.split()[1][2:] for line in f]
             new_loaded_pkg_names = []
@@ -84,14 +98,18 @@ class Manager(object):
 
                 f.write(content)
 
+        make_symlink('./packages.bro', self.autoload_package)
+
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
 
         :raise IOError: when the manifest file can't be read
         """
-        with open(self.state_path_manifest, 'r') as f:
+        with open(self.manifest, 'r') as f:
             data = json.load(f)
             pkg_list = data['installed_packages']
+            self.prev_scriptpath = data['scriptpath']
+            self.prev_pluginpath = data['pluginpath']
             self.installed_pkgs = {}
 
             for pkg_dict in pkg_list:
@@ -110,9 +128,10 @@ class Manager(object):
         :raise IOError: when the manifest file can't be written
         """
         pkg_list = [pkg.__dict__ for _, pkg in self.installed_pkgs.items()]
-        data = {'manifest_version': 0, 'installed_packages': pkg_list}
+        data = {'manifest_version': 0, 'scriptpath': self.scriptpath,
+                'pluginpath': self.pluginpath, 'installed_packages': pkg_list}
 
-        with open(self.state_path_manifest, 'w') as f:
+        with open(self.manifest, 'w') as f:
             json.dump(data, f)
 
     def add_source(self, name, git_url):
@@ -130,7 +149,7 @@ class Manager(object):
             LOG.debug('duplicate source "%s" with conflicting URL', name)
             return Error.CONFLICTING_SOURCE
 
-        clone_path = os.path.join(self.state_path_sources, name)
+        clone_path = os.path.join(self.sourcepath, name)
 
         try:
             source = Source(name=name, clone_path=clone_path, git_url=git_url)
@@ -161,32 +180,11 @@ class Manager(object):
         """Return a list of `Package`s that have been loaded."""
         return [pkg for _, pkg in self.loaded_pkgs.items()]
 
-    def package_state_path(self, pkg_path):
-        """Return the path to the package manager's state dir for a package."""
-        return os.path.join(self.state_path_packages,
-                            Package.name_from_path(pkg_path))
-
     def package_build_log(self, pkg_path):
         """Return the path to the package manager's build log for a package."""
         name = Package.name_from_path(pkg_path)
-        return os.path.join(self.state_path_packages,
+        return os.path.join(self.packagepath,
                             '.build-{}.log'.format(name))
-
-    def bropaths(self):
-        """Return set of paths for use in BROPATH.
-
-        Users should add these paths to the BROPATH environment variable in
-        order to use installed packages with Bro.
-        """
-        return {self.state_path_bropath}
-
-    def pluginpaths(self):
-        """Return set of paths for use in BRO_PLUGIN_PATH.
-
-        Users should add these paths to the BRO_PLUGIN_PATH environment variable
-        in order to use installed packages with Bro.
-        """
-        return {self.state_path_pluginpath}
 
     def match_source_packages(self, pkg_path):
         """Return a list of `Package`s that match a given path."""
@@ -243,10 +241,10 @@ class Manager(object):
 
         self.unload(pkg_path)
 
-        delete_path(os.path.join(self.state_path_packages, pkg_to_remove.name))
-        delete_path(os.path.join(self.state_path_bropath, pkg_to_remove.name))
+        delete_path(os.path.join(self.packagepath, pkg_to_remove.name))
+        delete_path(os.path.join(self.scriptpath, pkg_to_remove.name))
         delete_path(os.path.join(
-            self.state_path_pluginpath, pkg_to_remove.name))
+            self.pluginpath, pkg_to_remove.name))
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
@@ -275,7 +273,7 @@ class Manager(object):
             LOG.debug('loading "%s": already loaded', pkg_path)
             return Error.NONE
 
-        with open(self.state_path_loader_script, 'a') as f:
+        with open(self.autoload_script, 'a') as f:
             f.write('@load ./{}\n'.format(pkg_to_load.name))
 
         self.loaded_pkgs[pkg_to_load.name] = pkg_to_load
@@ -302,7 +300,7 @@ class Manager(object):
             LOG.debug('unloading "%s": already unloaded', pkg_path)
             return Error.NONE
 
-        with open(self.state_path_loader_script, 'w') as f:
+        with open(self.autoload_script, 'w') as f:
             content = ""
 
             for pkg_name in self.loaded_pkgs:
@@ -371,11 +369,11 @@ class Manager(object):
         :raise git.exc.GitCommandError: if the git repo is invalid
         :raise IOError: if the package manifest file can't be written
         """
-        pkg_path = os.path.join(self.state_path_packages, package.name)
+        pkg_path = os.path.join(self.packagepath, package.name)
         delete_path(pkg_path)
         git.Repo.clone_from(package.git_url, pkg_path)
 
-        default_metadata = {'bro_dist': self.bro_dist, 'bropath': '',
+        default_metadata = {'bro_dist': self.bro_dist, 'scriptpath': '',
                             'pluginpath': 'build', 'buildcmd': ''}
         parser = configparser.SafeConfigParser(defaults=default_metadata)
         metadata_file = os.path.join(pkg_path, self.pkg_metadata_filename)
@@ -405,8 +403,8 @@ class Manager(object):
                 buildlog = self.package_build_log(pkg_path)
 
                 with open(buildlog, 'w') as f:
-                    LOG.warn('installing "%s": writing build log: %s',
-                             package, buildlog)
+                    LOG.warning('installing "%s": writing build log: %s',
+                                package, buildlog)
 
                     f.write('=== STDERR ===\n')
 
@@ -419,23 +417,55 @@ class Manager(object):
                         f.write(line)
 
             except EnvironmentError as error:
-                LOG.warn('installing "%s": failed to write build log %s %s: %s',
-                         package, buildlog, error.errno, error.strerror)
+                LOG.warning(
+                    'installing "%s": failed to write build log %s %s: %s',
+                    package, buildlog, error.errno, error.strerror)
 
             returncode = build.wait()
 
             if returncode != 0:
                 return Error.PACKAGE_BUILD_FAILURE
 
-        bropath_link_path = os.path.join(self.state_path_bropath, package.name)
-        bropath_link_target = os.path.join('..', 'packages', package.name,
-                                           metadata['bropath'])
-        make_symlink(bropath_link_target, bropath_link_path)
-        pluginpath_link_path = os.path.join(self.state_path_pluginpath,
-                                            package.name)
-        pluginpath_link_target = os.path.join('..', 'packages', package.name,
-                                              metadata['pluginpath'])
-        make_symlink(pluginpath_link_target, pluginpath_link_path)
+        scriptpath_src = os.path.join(self.packagepath, package.name,
+                                      metadata['scriptpath'])
+        scriptpath_dst = os.path.join(self.scriptpath, package.name)
+
+        try:
+            if os.path.exists(scriptpath_src):
+                copy_over_path(scriptpath_src, scriptpath_dst)
+            else:
+                LOG.info('installing "%s": nonexistant scriptpath %s',
+                         package, scriptpath_src)
+        except shutil.Error as error:
+            errors = error.args[0]
+
+            for err in errors:
+                src, dst, msg = err
+                LOG.warning(
+                    'installing "%s": failed to copy scriptpath: %s -> %s: %s',
+                    package, src, dst, msg)
+            return Error.INVALID_PACKAGE_METADATA
+
+        pluginpath_src = os.path.join(self.packagepath, package.name,
+                                      metadata['pluginpath'])
+        pluginpath_dst = os.path.join(self.pluginpath, package.name)
+
+        try:
+            if os.path.exists(pluginpath_src):
+                copy_over_path(pluginpath_src, pluginpath_dst)
+            else:
+                LOG.info('installing "%s": nonexistant pluginpath %s',
+                         package, pluginpath_src)
+        except shutil.Error as error:
+            errors = error.args[0]
+
+            for err in errors:
+                src, dst, msg = err
+                LOG.warning(
+                    'installing "%s": failed to copy pluginpath: %s -> %s: %s',
+                    package, src, dst, msg)
+
+            return Error.INVALID_PACKAGE_METADATA
 
         self.installed_pkgs[package.name] = package
         self._write_manifest()

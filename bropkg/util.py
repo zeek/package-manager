@@ -38,6 +38,25 @@ def delete_path(path):
         os.remove(path)
 
 
+def move_path(src, dst):
+    if os.listdir(dst):
+        # Move contents of src into dst.  Helps avoid accidental file deletion
+        # if user made a mistake in how they specify dst.
+        for f in os.listdir(src):
+            shutil.move(os.path.join(src, f), dst)
+
+        delete_path(src)
+    else:
+        # Replace dst with src.
+        delete_path(dst)
+        shutil.move(src, dst)
+
+
+def copy_over_path(src, dst):
+    delete_path(dst)
+    shutil.copytree(src, dst, symlinks=True)
+
+
 def make_symlink(target_path, link_path, force=True):
     try:
         os.symlink(target_path, link_path)
@@ -57,7 +76,7 @@ def find_program(prog_name):
     path, _ = os.path.split(prog_name)
 
     if path:
-        return prog_name if is_exe(prog_name) else None
+        return prog_name if is_exe(prog_name) else ''
 
     for path in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(path.strip('"'), prog_name)
@@ -65,4 +84,4 @@ def find_program(prog_name):
         if is_exe(path):
             return path
 
-    return None
+    return ''
