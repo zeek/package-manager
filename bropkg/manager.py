@@ -18,7 +18,6 @@ from .util import (
     copy_over_path,
     move_path,
 )
-from .error import Error
 from .source import Source
 from .package import Package
 from . import (
@@ -137,28 +136,33 @@ class Manager(object):
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
 
-        :raise git.exc.GitCommandError: if the git repo is invalid
+        Returns True if the source is successfully added.  It may fail to be
+        added if the git URL is invalid or if a source with a different git URL
+        already exists with the same name.
         """
         if name in self.sources:
             existing_source = self.sources[name]
 
             if existing_source.git_url == git_url:
                 LOG.debug('duplicate source "%s"', name)
-                return Error.NONE
+                return True
 
-            LOG.debug('duplicate source "%s" with conflicting URL', name)
-            return Error.CONFLICTING_SOURCE
+            LOG.warning('conflicting source URLs with name "%s": %s and %s',
+                        name, git_url, existing_source.git_url)
+            return False
 
         clone_path = os.path.join(self.sourcepath, name)
 
         try:
             source = Source(name=name, clone_path=clone_path, git_url=git_url)
-        except git.exc.GitCommandError:
-            return Error.INVALID_SOURCE
+        except git.exc.GitCommandError as error:
+            LOG.warning('failed to clone source "%s", git url %s: %s', name,
+                        git_url, error)
+            return False
         else:
             self.sources[name] = source
 
-        return Error.NONE
+        return True
 
     def default_source(self):
         return self.sources['default']
@@ -196,21 +200,13 @@ class Manager(object):
 
         return rval
 
-    def match_installed_packages(self, pkg_path):
+    def find_installed_package(self, pkg_path):
         """Return a `Package` if one is installed that matches the name.
 
         A package's "name" is the last component of it's git URL.
         """
         pkg_name = Package.name_from_path(pkg_path)
-        rval = self.installed_pkgs.get(pkg_name)
-
-        if not rval:
-            return None
-
-        if rval.matches_path(pkg_path):
-            return rval
-
-        return None
+        return self.installed_pkgs.get(pkg_name)
 
     def refresh(self):
         """Fetch latest git versions for sources and installed packages.
@@ -228,16 +224,18 @@ class Manager(object):
     def remove(self, pkg_path):
         """Remove an installed package.
 
+        Returns True if an installed package was removed.
+
         :raise IOError: if the package manifest file can't be written
         :raise OSError: if the installed package's directory can't be deleted
         """
         LOG.debug('removing "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        pkg_to_remove = self.match_installed_packages(pkg_path)
+        pkg_to_remove = self.find_installed_package(pkg_path)
 
         if not pkg_to_remove:
             LOG.info('removing "%s": could not find matching package', pkg_path)
-            return Error.INVALID_PACKAGE
+            return False
 
         self.unload(pkg_path)
 
@@ -251,7 +249,7 @@ class Manager(object):
 
         # @todo: check dependencies
         LOG.debug('removed "%s"', pkg_path)
-        return Error.NONE
+        return True
 
     def load(self, pkg_path):
         """Mark an installed package as being 'loaded'.
@@ -259,26 +257,28 @@ class Manager(object):
         The collection of 'loaded' packages is a convenient way for Bro to more
         simply load a whole group of packages installed via the package manager.
 
-        :raise IOError: if the bro-pkg.bro file can't be updated
+        Returns True if a package is successfully marked as loaded.
+
+        :raise IOError: if the __load__.bro loader script can't be updated
         """
         LOG.debug('loading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        pkg_to_load = self.match_installed_packages(pkg_path)
+        pkg_to_load = self.find_installed_package(pkg_path)
 
         if not pkg_to_load:
             LOG.info('loading "%s": no matching package', pkg_path)
-            return Error.INVALID_PACKAGE
+            return False
 
         if self.loaded_pkgs.get(pkg_to_load.name):
             LOG.debug('loading "%s": already loaded', pkg_path)
-            return Error.NONE
+            return True
 
         with open(self.autoload_script, 'a') as f:
             f.write('@load ./{}\n'.format(pkg_to_load.name))
 
         self.loaded_pkgs[pkg_to_load.name] = pkg_to_load
         LOG.debug('loaded "%s"', pkg_path)
-        return Error.NONE
+        return True
 
     def unload(self, pkg_path):
         """Unmark an installed package as being 'loaded'.
@@ -286,19 +286,21 @@ class Manager(object):
         The collection of 'loaded' packages is a convenient way for Bro to more
         simply load a whole group of packages installed via the package manager.
 
-        :raise IOError: if bro-pkg.bro loader script cannot be updated
+        Returns True if a package is successfully unmarked as loaded.
+
+        :raise IOError: if __load__.bro loader script cannot be updated
         """
         LOG.debug('unloading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        pkg_to_unload = self.match_installed_packages(pkg_path)
+        pkg_to_unload = self.find_installed_package(pkg_path)
 
         if not pkg_to_unload:
             LOG.info('unloading "%s": no matching package', pkg_path)
-            return Error.INVALID_PACKAGE
+            return False
 
         if not self.loaded_pkgs.get(pkg_to_unload.name):
             LOG.debug('unloading "%s": already unloaded', pkg_path)
-            return Error.NONE
+            return True
 
         with open(self.autoload_script, 'w') as f:
             content = ""
@@ -311,60 +313,66 @@ class Manager(object):
 
         del self.loaded_pkgs[pkg_to_unload.name]
         LOG.debug('unloaded "%s"', pkg_path)
-        return Error.NONE
+        return True
 
     def install(self, pkg_path):
         """Install a package.
+
+        Return empty string if package installation succeeded else an error
+        string explaining why it failed.
 
         :raise IOError: if a state file can't be written
         """
         LOG.debug('installing "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        conflict = self.match_installed_packages(pkg_path)
+        conflict = self.find_installed_package(pkg_path)
 
         if conflict:
             if str(conflict).endswith(pkg_path):
                 LOG.debug('installing "%s": already installed: %s',
-                          pkg_path, conflict.name)
-                return Error.NONE
+                          pkg_path, conflict)
+                return ''
 
             LOG.info('installing "%s": matched already installed package: %s',
-                     pkg_path, conflict.name)
-            return Error.CONFLICTING_PACKAGE
+                     pkg_path, conflict)
+            return 'package with name "{}" ({}) is already installed'.format(
+                conflict.name, conflict)
 
         matches = self.match_source_packages(pkg_path)
 
         if not matches:
             try:
-                rval = self._install_from_git_url(pkg_path)
-            except git.exc.GitCommandError:
-                LOG.info('installing "%s": invalid git repo path', pkg_path)
-                return Error.INVALID_PACKAGE
-            else:
-                return rval
+                return self._install_from_git_url(pkg_path)
+            except git.exc.GitCommandError as error:
+                LOG.info('installing "%s": invalid git repo path: %s', pkg_path,
+                         error)
 
             LOG.info('installing "%s": matched no source package', pkg_path)
-            return Error.INVALID_PACKAGE
+            return 'package not found in sources and also not a valid git URL'
 
         if len(matches) > 1:
+            matches_string = [str(match) for match in matches]
             LOG.info('installing "%s": matched multiple packages: %s',
-                     pkg_path, [str(match) for match in matches])
-            return Error.AMBIGUOUS_PACKAGE
+                     pkg_path, matches_string)
+            return str.format('"{}" matches multiple packages, try a more'
+                              ' specific name from: {}',
+                              pkg_path, matches_string)
 
         try:
-            rval = self._install_package(matches[0])
-        except git.exc.GitCommandError:
+            return self._install_package(matches[0])
+        except git.exc.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid',
                         pkg_path)
-            return Error.INVALID_PACKAGE
-        else:
-            return rval
+            return 'failed to clone package "{}": {}'.format(pkg_path, error)
 
         # @todo: install dependencies
-        return Error.NONE
+        return ''
 
     def _install_package(self, package):
         """Install a `Package`.
+
+        Return empty string if package installation succeeded else an error
+        string explaining why it failed.
 
         :raise git.exc.GitCommandError: if the git repo is invalid
         :raise IOError: if the package manifest file can't be written
@@ -380,11 +388,11 @@ class Manager(object):
 
         if not parser.read(metadata_file):
             LOG.warning('installing "%s": no metadata file', package)
-            return Error.INVALID_PACKAGE_METADATA
+            return 'missing pkg.meta metadata file'
 
         if not parser.has_section('package'):
-            LOG.warning('installing "%s": invalid metadata format', package)
-            return Error.INVALID_PACKAGE_METADATA
+            LOG.warning('installing "%s": metadata missing [package]', package)
+            return 'pkg.meta metadata file is missing [package] section'
 
         metadata = {item[0]: item[1] for item in parser.items('package')}
         package.metadata = metadata
@@ -424,56 +432,64 @@ class Manager(object):
             returncode = build.wait()
 
             if returncode != 0:
-                return Error.PACKAGE_BUILD_FAILURE
+                return 'package buildcmd failed, see log in {}'.format(buildlog)
 
         scriptpath_src = os.path.join(self.packagepath, package.name,
                                       metadata['scriptpath'])
         scriptpath_dst = os.path.join(self.scriptpath, package.name)
+        error = Manager._copy_package_dir(package, 'scriptpath',
+                                          scriptpath_src, scriptpath_dst)
 
-        try:
-            if os.path.exists(scriptpath_src):
-                copy_over_path(scriptpath_src, scriptpath_dst)
-            else:
-                LOG.info('installing "%s": nonexistant scriptpath %s',
-                         package, scriptpath_src)
-        except shutil.Error as error:
-            errors = error.args[0]
-
-            for err in errors:
-                src, dst, msg = err
-                LOG.warning(
-                    'installing "%s": failed to copy scriptpath: %s -> %s: %s',
-                    package, src, dst, msg)
-            return Error.INVALID_PACKAGE_METADATA
+        if error:
+            return error
 
         pluginpath_src = os.path.join(self.packagepath, package.name,
                                       metadata['pluginpath'])
         pluginpath_dst = os.path.join(self.pluginpath, package.name)
+        error = Manager._copy_package_dir(package, 'pluginpath',
+                                          pluginpath_src, pluginpath_dst)
 
-        try:
-            if os.path.exists(pluginpath_src):
-                copy_over_path(pluginpath_src, pluginpath_dst)
-            else:
-                LOG.info('installing "%s": nonexistant pluginpath %s',
-                         package, pluginpath_src)
-        except shutil.Error as error:
-            errors = error.args[0]
-
-            for err in errors:
-                src, dst, msg = err
-                LOG.warning(
-                    'installing "%s": failed to copy pluginpath: %s -> %s: %s',
-                    package, src, dst, msg)
-
-            return Error.INVALID_PACKAGE_METADATA
+        if error:
+            return error
 
         self.installed_pkgs[package.name] = package
         self._write_manifest()
         LOG.debug('installed "%s"', pkg_path)
-        return Error.NONE
+        return ''
+
+    @staticmethod
+    def _copy_package_dir(package, dirname, src, dst):
+        """Copy a directory from a package to its installation location.
+
+        Return empty string if package dir copy succeeded else an error string
+        explaining why it failed.
+        """
+        try:
+            if os.path.exists(src):
+                copy_over_path(src, dst)
+            else:
+                LOG.info('installing "%s": nonexistant %s: %s',
+                         package, dirname, src)
+        except shutil.Error as error:
+            errors = error.args[0]
+            reasons = ""
+
+            for err in errors:
+                src, dst, msg = err
+                reason = 'failed to copy {}: {} -> {}: {}'.format(
+                    dirname, src, dst, msg)
+                reasons += '\n' + reason
+                LOG.warning('installing "%s": %s', package, reason)
+
+            return 'failed to copy package {}: {}'.format(dirname, reasons)
+
+        return ''
 
     def _install_from_git_url(self, git_url):
         """Install a package from a git URL.
+
+        Return empty string if package installation succeeded else an error
+        string explaining why it failed.
 
         :raise git.exc.GitCommandError: if the git repo is invalid
         :raise IOError: if the package manifest file can't be written

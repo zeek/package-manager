@@ -108,17 +108,10 @@ def create_manager(config_path):
                              pluginpath=pluginpath, bro_dist=bro_dist)
 
     for key, value in config_items(config, 'sources'):
-        res = manager.add_source(name=key, git_url=value)
-
-        if res == bropkg.Error.INVALID_SOURCE:
+        if not manager.add_source(name=key, git_url=value):
             print_error(
-                'error: source "{}" in {} is not a valid git repo'.format(
-                    key, config_path))
-            sys.exit(1)
-        elif res == bropkg.Error.CONFLICTING_SOURCE:
-            print_error(
-                'error: config file {} has two sources named "{}"'.format(
-                    config_path, key))
+                'error: invalid source repo "{}" in {} '.format(key,
+                                                                config_path))
             sys.exit(1)
 
     return manager, config
@@ -126,54 +119,26 @@ def create_manager(config_path):
 
 def cmd_install(manager, args, config):
     for pkg in args.package:
-        res = manager.install(pkg)
+        error = manager.install(pkg)
 
-        if res == bropkg.Error.NONE:
-            print('installed "{}"'.format(pkg))
+        if error:
+            print_error('failed installing "{}": {}'.format(pkg, error))
+            continue
 
-            res = manager.load(pkg)
+        print('installed "{}"'.format(pkg))
 
-            if res == bropkg.Error.NONE:
-                print('loaded "{}"'.format(pkg))
-            else:
-                print('failed to load "{}"'.format(pkg))
-
-        elif res == bropkg.Error.INVALID_PACKAGE:
-            print_error('failed to install "{}": invalid package'.format(pkg))
-        elif res == bropkg.Error.AMBIGUOUS_PACKAGE:
-            print_error(
-                'failed to install "{}": '.format(pkg) +
-                'ambiguous package name, choose more specific name from:')
-            matches = manager.match_source_packages(pkg)
-
-            for match in matches:
-                print_error('\t{}'.format(match))
-        elif res == bropkg.Error.CONFLICTING_PACKAGE:
-            print_error(
-                'failed to install "{}": '.format(pkg) +
-                'package name conflicts with an already installed package: '
-                '"{}"'.format(manager.match_installed_packages(pkg)))
-        elif res == bropkg.Error.INVALID_PACKAGE_METADATA:
-            print_error('failed to install "{}": invalid metadata'.format(pkg))
-        elif res == bropkg.Error.PACKAGE_BUILD_FAILURE:
-            log = manager.package_build_log(pkg)
-            print_error(str.format('failed to install "{}":'
-                                   ' build failure, for details see {}',
-                                   pkg, log))
+        if manager.load(pkg):
+            print('loaded "{}"'.format(pkg))
         else:
-            print_error('unknown error installing "{}"'.format(pkg))
+            print('failed to load "{}"'.format(pkg))
 
 
 def cmd_remove(manager, args, config):
     for pkg in args.package:
-        res = manager.remove(pkg)
-
-        if res == bropkg.Error.NONE:
+        if manager.remove(pkg):
             print('removed "{}"'.format(pkg))
-        elif res == bropkg.Error.INVALID_PACKAGE:
-            print_error('failed to remove "{}": invalid package'.format(pkg))
         else:
-            print_error('unknown error installing "{}"'.format(pkg))
+            print('failed removing "{}": no such package installed'.format(pkg))
 
 
 def cmd_refresh(manager, args, config):
@@ -188,26 +153,20 @@ def cmd_upgrade(manager, args, config):
 
 def cmd_load(manager, args, config):
     for pkg in args.package:
-        res = manager.load(pkg)
-
-        if res == bropkg.Error.NONE:
+        if manager.load(pkg):
             print('loaded "{}"'.format(pkg))
-        elif res == bropkg.Error.INVALID_PACKAGE:
-            print_error('failed to load "{}": invalid package'.format(pkg))
         else:
-            print_error('unknown error loading "{}"'.format(pkg))
+            print_error(
+                'failed loading "{}": no such package installed'.format(pkg))
 
 
 def cmd_unload(manager, args, config):
     for pkg in args.package:
-        res = manager.unload(pkg)
-
-        if res == bropkg.Error.NONE:
+        if manager.unload(pkg):
             print('unloaded "{}"'.format(pkg))
-        elif res == bropkg.Error.INVALID_PACKAGE:
-            print_error('failed to unload "{}": invalid package'.format(pkg))
         else:
-            print_error('unknown error unloading "{}"'.format(pkg))
+            print_error(
+                'failed unloading "{}": no such package installed'.format(pkg))
 
 
 def cmd_pin(manager, args, config):
