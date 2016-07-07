@@ -3,12 +3,13 @@ import os
 import json
 import shutil
 import subprocess
-import git
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
 else:
     import configparser
+
+import git
 
 from .util import (
     make_dir,
@@ -16,7 +17,6 @@ from .util import (
     delete_path,
     make_symlink,
     copy_over_path,
-    move_path,
 )
 from .source import Source
 from .package import Package
@@ -28,7 +28,7 @@ from . import (
 
 class Manager(object):
 
-    def __init__(self, statepath, scriptpath, pluginpath, bro_dist=''):
+    def __init__(self, statedir, scriptdir, plugindir, bro_dist=''):
         """Create package manager.
 
         :raise OSError: when a package manager state directory can't be created
@@ -39,38 +39,50 @@ class Manager(object):
         self.installed_pkgs = {}
         self.loaded_pkgs = {}
         self.bro_dist = bro_dist
-        self.statepath = statepath
-        self.scriptpath = scriptpath
-        self.prev_scriptpath = None
-        self.pluginpath = pluginpath
-        self.prev_pluginpath = None
-        self.sourcepath = os.path.join(self.statepath, 'sources')
-        self.packagepath = os.path.join(self.statepath, 'packages')
-        self.manifest = os.path.join(self.statepath, 'manifest.json')
-        self.autoload_script = os.path.join(self.scriptpath, 'packages.bro')
-        self.autoload_package = os.path.join(self.scriptpath, '__load__.bro')
+        self.statedir = statedir
+        self.scriptdir = os.path.join(scriptdir, 'packages')
+        self.plugindir = os.path.join(plugindir, 'packages')
+        self.source_clonedir = os.path.join(self.statedir, 'clones', 'source')
+        self.package_clonedir = os.path.join(
+            self.statedir, 'clones', 'package')
+        self.manifest = os.path.join(self.statedir, 'manifest.json')
+        self.autoload_script = os.path.join(self.scriptdir, 'packages.bro')
+        self.autoload_package = os.path.join(self.scriptdir, '__load__.bro')
         self.pkg_metadata_filename = 'pkg.meta'
-        make_dir(self.statepath)
-        make_dir(self.sourcepath)
-        make_dir(self.packagepath)
-        make_dir(self.scriptpath)
-        make_dir(self.pluginpath)
+        make_dir(self.statedir)
+        make_dir(self.source_clonedir)
+        make_dir(self.package_clonedir)
+        make_dir(self.scriptdir)
+        make_dir(self.plugindir)
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
 
-        self._read_manifest()
+        prev_scriptdir, prev_plugindir = self._read_manifest()
 
-        if self.prev_scriptpath != self.scriptpath:
-            LOG.info('moved previous scriptpath %s -> %s', self.prev_scriptpath,
-                     self.scriptpath)
-            move_path(self.prev_scriptpath, self.scriptpath)
+        if prev_scriptdir != self.scriptdir:
+            LOG.info('moved previous scriptdir %s -> %s', prev_scriptdir,
+                     self.scriptdir)
+
+            if os.path.exists(prev_scriptdir):
+                delete_path(self.scriptdir)
+                shutil.move(prev_scriptdir, self.scriptdir)
+                prev_bropath = os.path.dirname(prev_scriptdir)
+
+                for pkg_name in self.installed_pkgs:
+                    shutil.move(os.path.join(prev_bropath, pkg_name),
+                                os.path.join(self.bropath(), pkg_name))
+
             self._write_manifest()
 
-        if self.prev_pluginpath != self.pluginpath:
-            LOG.info('moved previous pluginpath %s -> %s', self.prev_pluginpath,
-                     self.pluginpath)
-            move_path(self.prev_pluginpath, self.pluginpath)
+        if prev_plugindir != self.plugindir:
+            LOG.info('moved previous plugindir %s -> %s', prev_plugindir,
+                     self.plugindir)
+
+            if os.path.exists(prev_plugindir):
+                delete_path(self.plugindir)
+                shutil.move(prev_plugindir, self.plugindir)
+
             self._write_manifest()
 
         with open(self.autoload_script, 'a+') as f:
@@ -97,18 +109,18 @@ class Manager(object):
 
                 f.write(content)
 
-        make_symlink('./packages.bro', self.autoload_package)
+        make_symlink('packages.bro', self.autoload_package)
 
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
+
+        Returns a tuple of (previous scriptdir, previous plugindir)
 
         :raise IOError: when the manifest file can't be read
         """
         with open(self.manifest, 'r') as f:
             data = json.load(f)
             pkg_list = data['installed_packages']
-            self.prev_scriptpath = data['scriptpath']
-            self.prev_pluginpath = data['pluginpath']
             self.installed_pkgs = {}
 
             for pkg_dict in pkg_list:
@@ -121,17 +133,25 @@ class Manager(object):
                               module_dir=pkg_module_dir, metadata=pkg_metadata)
                 self.installed_pkgs[pkg_name] = pkg
 
+            return data['scriptdir'], data['plugindir']
+
     def _write_manifest(self):
         """Writes the manifest file containing the list of installed packages.
 
         :raise IOError: when the manifest file can't be written
         """
         pkg_list = [pkg.__dict__ for _, pkg in self.installed_pkgs.items()]
-        data = {'manifest_version': 0, 'scriptpath': self.scriptpath,
-                'pluginpath': self.pluginpath, 'installed_packages': pkg_list}
+        data = {'manifest_version': 0, 'scriptdir': self.scriptdir,
+                'plugindir': self.plugindir, 'installed_packages': pkg_list}
 
         with open(self.manifest, 'w') as f:
             json.dump(data, f)
+
+    def bropath(self):
+        return os.path.dirname(self.scriptdir)
+
+    def bro_plugin_path(self):
+        return os.path.dirname(self.plugindir)
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
@@ -151,7 +171,7 @@ class Manager(object):
                         name, git_url, existing_source.git_url)
             return False
 
-        clone_path = os.path.join(self.sourcepath, name)
+        clone_path = os.path.join(self.source_clonedir, name)
 
         try:
             source = Source(name=name, clone_path=clone_path, git_url=git_url)
@@ -187,8 +207,7 @@ class Manager(object):
     def package_build_log(self, pkg_path):
         """Return the path to the package manager's build log for a package."""
         name = Package.name_from_path(pkg_path)
-        return os.path.join(self.packagepath,
-                            '.build-{}.log'.format(name))
+        return os.path.join(self.package_clonedir, '.build-{}.log'.format(name))
 
     def match_source_packages(self, pkg_path):
         """Return a list of `Package`s that match a given path."""
@@ -239,10 +258,10 @@ class Manager(object):
 
         self.unload(pkg_path)
 
-        delete_path(os.path.join(self.packagepath, pkg_to_remove.name))
-        delete_path(os.path.join(self.scriptpath, pkg_to_remove.name))
-        delete_path(os.path.join(
-            self.pluginpath, pkg_to_remove.name))
+        delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
+        delete_path(os.path.join(self.scriptdir, pkg_to_remove.name))
+        delete_path(os.path.join(self.plugindir, pkg_to_remove.name))
+        delete_path(os.path.join(self.bropath(), pkg_to_remove.name))
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
@@ -377,7 +396,7 @@ class Manager(object):
         :raise git.exc.GitCommandError: if the git repo is invalid
         :raise IOError: if the package manifest file can't be written
         """
-        pkg_path = os.path.join(self.packagepath, package.name)
+        pkg_path = os.path.join(self.package_clonedir, package.name)
         delete_path(pkg_path)
         git.Repo.clone_from(package.git_url, pkg_path)
 
@@ -434,18 +453,20 @@ class Manager(object):
             if returncode != 0:
                 return 'package buildcmd failed, see log in {}'.format(buildlog)
 
-        scriptpath_src = os.path.join(self.packagepath, package.name,
+        scriptpath_src = os.path.join(self.package_clonedir, package.name,
                                       metadata['scriptpath'])
-        scriptpath_dst = os.path.join(self.scriptpath, package.name)
+        scriptpath_dst = os.path.join(self.scriptdir, package.name)
         error = Manager._copy_package_dir(package, 'scriptpath',
                                           scriptpath_src, scriptpath_dst)
+        make_symlink(os.path.join('packages', package.name),
+                     os.path.join(self.bropath(), package.name))
 
         if error:
             return error
 
-        pluginpath_src = os.path.join(self.packagepath, package.name,
+        pluginpath_src = os.path.join(self.package_clonedir, package.name,
                                       metadata['pluginpath'])
-        pluginpath_dst = os.path.join(self.pluginpath, package.name)
+        pluginpath_dst = os.path.join(self.plugindir, package.name)
         error = Manager._copy_package_dir(package, 'pluginpath',
                                           pluginpath_src, pluginpath_dst)
 

@@ -61,7 +61,7 @@ def make_symlink(target_path, link_path, force=True):
     try:
         os.symlink(target_path, link_path)
     except OSError as error:
-        if error.errno == errno.EEXIST and force:
+        if error.errno == errno.EEXIST and force and os.path.islink(link_path):
             os.remove(link_path)
             os.symlink(target_path, link_path)
         else:

@@ -52,13 +52,13 @@ def create_manager(config_path):
 
     client_path = os.path.abspath(__file__)
     client_dir = os.path.dirname(client_path)
-    statepath = os.path.join(os.path.expanduser('~'), '.bro-pkg')
+    statedir = os.path.join(os.path.expanduser('~'), '.bro-pkg')
 
     if not config_path:
         config_path = os.environ.get('BRO_PKG_CONFIG_FILE')
 
     if not config_path:
-        config_path = os.path.join(statepath, 'config')
+        config_path = os.path.join(statedir, 'config')
 
         if not os.path.isfile(config_path):
             # @todo: if installed, use the installed location instead
@@ -73,8 +73,8 @@ def create_manager(config_path):
     require_config_section('sources')
     require_config_option('sources', 'default')
 
-    scriptpath = os.path.join(statepath, 'scriptpath')
-    pluginpath = os.path.join(statepath, 'pluginpath')
+    scriptdir = os.path.join(statedir, 'scriptdir')
+    plugindir = os.path.join(statedir, 'plugindir')
     bro_dist = ''
     bro_exe = bropkg.util.find_program('bro')
 
@@ -89,23 +89,23 @@ def create_manager(config_path):
 
             return default
 
-        statepath = get_option(config, 'paths', 'statepath', statepath)
-        scriptpath = get_option(config, 'paths', 'scriptpath', scriptpath)
-        pluginpath = get_option(config, 'paths', 'pluginpath', pluginpath)
+        statedir = get_option(config, 'paths', 'statedir', statedir)
+        scriptdir = get_option(config, 'paths', 'scriptdir', scriptdir)
+        plugindir = get_option(config, 'paths', 'plugindir', plugindir)
         bro_dist = get_option(config, 'paths', 'bro_dist', bro_dist)
         bro_exe = get_option(config, 'paths', 'bro_exe', bro_exe)
 
     else:
         config.add_section('paths')
 
-    config.set('paths', 'statepath', statepath)
-    config.set('paths', 'scriptpath', scriptpath)
-    config.set('paths', 'pluginpath', pluginpath)
+    config.set('paths', 'statedir', statedir)
+    config.set('paths', 'scriptdir', scriptdir)
+    config.set('paths', 'plugindir', plugindir)
     config.set('paths', 'bro_exe', bro_exe)
     config.set('paths', 'bro_dist', bro_dist)
 
-    manager = bropkg.Manager(statepath=statepath, scriptpath=scriptpath,
-                             pluginpath=pluginpath, bro_dist=bro_dist)
+    manager = bropkg.Manager(statedir=statedir, scriptdir=scriptdir,
+                             plugindir=plugindir, bro_dist=bro_dist)
 
     for key, value in config_items(config, 'sources'):
         if not manager.add_source(name=key, git_url=value):
@@ -301,8 +301,8 @@ def cmd_env(manager, args, config):
         bropaths = [p for p in bropath.split(':')] if bropath else []
         pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
 
-    bropaths.append(manager.scriptpath)
-    pluginpaths.append(manager.pluginpath)
+    bropaths.append(manager.bropath())
+    pluginpaths.append(manager.bro_plugin_path())
 
     if os.environ['SHELL'].endswith('csh'):
         print('setenv BROPATH {}'.format(':'.join(bropaths)))
@@ -356,7 +356,7 @@ def main():
     # refresh
     sub_parser = command_parser.add_parser(
         'refresh',
-        help='Update client and sources.',
+        help='Retrieve latest package information from package sources.',
         description='Retrieve latest client version and aggregated package'
         ' metadata from package source repositories.  This does not upgrade'
         ' installed packages (see the "upgrade" command for that).',
@@ -481,8 +481,8 @@ def main():
     sub_parser.set_defaults(run_cmd=cmd_config)
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
-        choices=['all', 'sources', 'statepath', 'scriptpath',
-                 'pluginpath', 'bro_exe', 'bro_dist'],
+        choices=['all', 'sources', 'statedir', 'scriptdir',
+                 'plugindir', 'bro_exe', 'bro_dist'],
         help='Name of the config parameter to output.')
 
     # env
