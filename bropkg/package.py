@@ -3,18 +3,27 @@ from .util import (
 )
 
 
+class PackageInfo(object):
+
+    def __init__(self, package=None, invalid_reason=''):
+        self.package = package
+        self.invalid_reason = invalid_reason
+
+
 class Package(object):
 
     @classmethod
     def name_from_path(cls, path):
         return remove_trailing_slashes(path).split('/')[-1]
 
-    def __init__(self, git_url, source=None, module_dir=None, metadata=None):
+    def __init__(self, git_url, source=None, module_dir=None, metadata=None,
+                 versions=None):
         self.git_url = remove_trailing_slashes(git_url)
         self.name = Package.name_from_path(git_url)
         self.source = source
         self.module_dir = module_dir
-        self.metadata = metadata
+        self.metadata = {} if metadata is None else metadata
+        self.versions = [] if versions is None else versions
 
     def __str__(self):
         if self.source:

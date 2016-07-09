@@ -18,6 +18,7 @@ package submission process.
 @todo: verify dependencies
     - Python 2.7+
     - GitPython
+    - semantic_version
 
 @todo: installation process
 

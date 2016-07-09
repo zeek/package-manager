@@ -245,8 +245,21 @@ def cmd_search(manager, args, config):
 
 
 def cmd_info(manager, args, config):
-    # @todo
-    print(args)
+    for pkg in args.package:
+        info = manager.info(pkg)
+        print('"{}" info:'.format(pkg))
+
+        if info.invalid_reason:
+            print('\tinvalid package: {}'.format(info.invalid_reason))
+            continue
+
+        pkg = info.package
+        print('\tgit URL: {}'.format(pkg.git_url))
+        print('\tversions: {}'.format(pkg.versions))
+        print('\tmetadata:')
+
+        for key, value in pkg.metadata.items():
+            print('\t\t{} = {}'.format(key, value))
 
 
 def cmd_test(manager, args, config):

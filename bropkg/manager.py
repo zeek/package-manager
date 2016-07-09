@@ -10,6 +10,7 @@ else:
     import configparser
 
 import git
+import semantic_version as semver
 
 from .util import (
     make_dir,
@@ -19,7 +20,7 @@ from .util import (
     copy_over_path,
 )
 from .source import Source
-from .package import Package
+from .package import Package, PackageInfo
 from . import (
     __version__,
     LOG,
@@ -40,6 +41,7 @@ class Manager(object):
         self.loaded_pkgs = {}
         self.bro_dist = bro_dist
         self.statedir = statedir
+        self.scratchdir = os.path.join(self.statedir, 'scratch')
         self.scriptdir = os.path.join(scriptdir, 'packages')
         self.plugindir = os.path.join(plugindir, 'packages')
         self.source_clonedir = os.path.join(self.statedir, 'clones', 'source')
@@ -50,6 +52,7 @@ class Manager(object):
         self.autoload_package = os.path.join(self.scriptdir, '__load__.bro')
         self.pkg_metadata_filename = 'pkg.meta'
         make_dir(self.statedir)
+        make_dir(self.scratchdir)
         make_dir(self.source_clonedir)
         make_dir(self.package_clonedir)
         make_dir(self.scriptdir)
@@ -129,8 +132,10 @@ class Manager(object):
                 pkg_source = pkg_dict['source']
                 pkg_module_dir = pkg_dict['module_dir']
                 pkg_metadata = pkg_dict['metadata']
+                pkg_versions = pkg_dict['versions']
                 pkg = Package(git_url=pkg_git_url, source=pkg_source,
-                              module_dir=pkg_module_dir, metadata=pkg_metadata)
+                              module_dir=pkg_module_dir, metadata=pkg_metadata,
+                              versions=pkg_versions)
                 self.installed_pkgs[pkg_name] = pkg
 
             return data['scriptdir'], data['plugindir']
@@ -334,6 +339,93 @@ class Manager(object):
         LOG.debug('unloaded "%s"', pkg_path)
         return True
 
+    def info(self, pkg_path):
+        """Retrieves information about a package.
+
+        Return a `PackageInfo` object.
+        """
+        LOG.debug('getting info on "%s", pkg_path')
+        pkg_path = remove_trailing_slashes(pkg_path)
+
+        matches = self.match_source_packages(pkg_path)
+
+        if not matches:
+            package = Package(git_url=pkg_path)
+
+            try:
+                return self._info(package)
+            except git.exc.GitCommandError as error:
+                LOG.info('getting info on "%s": invalid git repo path: %s',
+                         pkg_path, error)
+
+            LOG.info('getting info on "%s": matched no source package',
+                     pkg_path)
+            reason = 'package not found in sources and not a valid git URL'
+            return PackageInfo(package=package, invalid_reason=reason)
+
+        if len(matches) > 1:
+            matches_string = [str(match) for match in matches]
+            LOG.info('getting info on "%s": matched multiple packages: %s',
+                     pkg_path, matches_string)
+            reason = str.format('"{}" matches multiple packages, try a more'
+                                ' specific name from: {}',
+                                pkg_path, matches_string)
+            return PackageInfo(invalid_reason=reason)
+
+        package = matches[0]
+        return self._info(package)
+
+    def _info(self, package):
+        """Retrieves information about a package.
+
+        Return a `PackageInfo` object.
+
+        :raise git.exc.GitCommandError: when failing to clone the package repo
+        """
+        clonepath = os.path.join(self.scratchdir, package.name)
+        invalid_reason = self._clone_package(package, clonepath)
+        return PackageInfo(package=package, invalid_reason=invalid_reason)
+
+    def _clone_package(self, package, clonepath):
+        """Clone a `Package` into clonepath and retrieve metadata/info for it.
+
+        Return empty string if package cloning and metadata/info retrieval
+        succeeded else an error string explaining why it failed.
+
+        :raise git.exc.GitCommandError: if the git repo is invalid
+        """
+        delete_path(clonepath)
+        clone = git.Repo.clone_from(package.git_url, clonepath)
+
+        default_metadata = {'bro_dist': self.bro_dist, 'scriptpath': '',
+                            'pluginpath': 'build', 'buildcmd': ''}
+        parser = configparser.SafeConfigParser(defaults=default_metadata)
+        metadata_file = os.path.join(clonepath, self.pkg_metadata_filename)
+
+        if not parser.read(metadata_file):
+            LOG.warning('cloneing "%s": no metadata file', package)
+            return 'missing pkg.meta metadata file'
+
+        if not parser.has_section('package'):
+            LOG.warning('cloneing "%s": metadata missing [package]', package)
+            return 'pkg.meta metadata file is missing [package] section'
+
+        metadata = {item[0]: item[1] for item in parser.items('package')}
+        package.metadata = metadata
+
+        for tagref in clone.tags:
+            tag = str(tagref)
+
+            try:
+                semver.Version.coerce(tag)
+            except ValueError:
+                # Skip tags that aren't compatible semantic versions.
+                continue
+            else:
+                package.versions.append(tag)
+
+        return ''
+
     def install(self, pkg_path):
         """Install a package.
 
@@ -361,7 +453,8 @@ class Manager(object):
 
         if not matches:
             try:
-                return self._install_from_git_url(pkg_path)
+                package = Package(git_url=pkg_path)
+                return self._install(package)
             except git.exc.GitCommandError as error:
                 LOG.info('installing "%s": invalid git repo path: %s', pkg_path,
                          error)
@@ -378,7 +471,7 @@ class Manager(object):
                               pkg_path, matches_string)
 
         try:
-            return self._install_package(matches[0])
+            return self._install(matches[0])
         except git.exc.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid',
                         pkg_path)
@@ -387,7 +480,7 @@ class Manager(object):
         # @todo: install dependencies
         return ''
 
-    def _install_package(self, package):
+    def _install(self, package):
         """Install a `Package`.
 
         Return empty string if package installation succeeded else an error
@@ -396,38 +489,24 @@ class Manager(object):
         :raise git.exc.GitCommandError: if the git repo is invalid
         :raise IOError: if the package manifest file can't be written
         """
-        pkg_path = os.path.join(self.package_clonedir, package.name)
-        delete_path(pkg_path)
-        git.Repo.clone_from(package.git_url, pkg_path)
+        clonepath = os.path.join(self.package_clonedir, package.name)
+        res = self._clone_package(package, clonepath)
 
-        default_metadata = {'bro_dist': self.bro_dist, 'scriptpath': '',
-                            'pluginpath': 'build', 'buildcmd': ''}
-        parser = configparser.SafeConfigParser(defaults=default_metadata)
-        metadata_file = os.path.join(pkg_path, self.pkg_metadata_filename)
+        if res:
+            return res
 
-        if not parser.read(metadata_file):
-            LOG.warning('installing "%s": no metadata file', package)
-            return 'missing pkg.meta metadata file'
-
-        if not parser.has_section('package'):
-            LOG.warning('installing "%s": metadata missing [package]', package)
-            return 'pkg.meta metadata file is missing [package] section'
-
-        metadata = {item[0]: item[1] for item in parser.items('package')}
-        package.metadata = metadata
-
-        buildcmd = metadata['buildcmd']
+        buildcmd = package.metadata['buildcmd']
 
         if buildcmd:
             LOG.debug('installing "%s": running buildcmd: %s',
                       package, buildcmd)
             build = subprocess.Popen(buildcmd,
-                                     shell=True, cwd=pkg_path, bufsize=1,
+                                     shell=True, cwd=clonepath, bufsize=1,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
 
             try:
-                buildlog = self.package_build_log(pkg_path)
+                buildlog = self.package_build_log(clonepath)
 
                 with open(buildlog, 'w') as f:
                     LOG.warning('installing "%s": writing build log: %s',
@@ -454,7 +533,7 @@ class Manager(object):
                 return 'package buildcmd failed, see log in {}'.format(buildlog)
 
         scriptpath_src = os.path.join(self.package_clonedir, package.name,
-                                      metadata['scriptpath'])
+                                      package.metadata['scriptpath'])
         scriptpath_dst = os.path.join(self.scriptdir, package.name)
         error = Manager._copy_package_dir(package, 'scriptpath',
                                           scriptpath_src, scriptpath_dst)
@@ -465,7 +544,7 @@ class Manager(object):
             return error
 
         pluginpath_src = os.path.join(self.package_clonedir, package.name,
-                                      metadata['pluginpath'])
+                                      package.metadata['pluginpath'])
         pluginpath_dst = os.path.join(self.plugindir, package.name)
         error = Manager._copy_package_dir(package, 'pluginpath',
                                           pluginpath_src, pluginpath_dst)
@@ -475,7 +554,7 @@ class Manager(object):
 
         self.installed_pkgs[package.name] = package
         self._write_manifest()
-        LOG.debug('installed "%s"', pkg_path)
+        LOG.debug('installed "%s"', package)
         return ''
 
     @staticmethod
@@ -505,15 +584,3 @@ class Manager(object):
             return 'failed to copy package {}: {}'.format(dirname, reasons)
 
         return ''
-
-    def _install_from_git_url(self, git_url):
-        """Install a package from a git URL.
-
-        Return empty string if package installation succeeded else an error
-        string explaining why it failed.
-
-        :raise git.exc.GitCommandError: if the git repo is invalid
-        :raise IOError: if the package manifest file can't be written
-        """
-        package = Package(git_url=git_url)
-        return self._install_package(package)
