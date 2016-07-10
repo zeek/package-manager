@@ -3,10 +3,33 @@ from .util import (
 )
 
 
+class InstalledPackage(object):
+
+    def __init__(self, package, status):
+        self.package = package
+        self.status = status
+
+    def __lt__(self, other):
+        return str(self.package) < str(other.package)
+
+
+class PackageStatus(object):
+
+    def __init__(self, is_loaded, is_pinned, is_outdated,
+                 tracking_method, current_version):
+        self.is_loaded = is_loaded
+        self.is_pinned = is_pinned
+        self.tracking_method = tracking_method
+        self.current_version = current_version
+        self.is_outdated = is_outdated
+
+
 class PackageInfo(object):
 
-    def __init__(self, package=None, invalid_reason=''):
+    def __init__(self, package=None, status=None,
+                 invalid_reason=''):
         self.package = package
+        self.status = status
         self.invalid_reason = invalid_reason
 
 

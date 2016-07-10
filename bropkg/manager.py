@@ -20,7 +20,7 @@ from .util import (
     copy_over_path,
 )
 from .source import Source
-from .package import Package, PackageInfo
+from .package import Package, PackageInfo, PackageStatus, InstalledPackage
 from . import (
     __version__,
     LOG,
@@ -38,7 +38,6 @@ class Manager(object):
         LOG.debug('init Manager version %s', __version__)
         self.sources = {}
         self.installed_pkgs = {}
-        self.loaded_pkgs = {}
         self.bro_dist = bro_dist
         self.statedir = statedir
         self.scratchdir = os.path.join(self.statedir, 'scratch')
@@ -88,31 +87,21 @@ class Manager(object):
 
             self._write_manifest()
 
-        with open(self.autoload_script, 'a+') as f:
-            f.seek(0)
-            loaded_pkg_names = [line.split()[1][2:] for line in f]
-            new_loaded_pkg_names = []
-
-            for pkg_name in loaded_pkg_names:
-                pkg = self.installed_pkgs.get(pkg_name)
-
-                if pkg:
-                    LOG.debug('found loaded package: %s', pkg_name)
-                    self.loaded_pkgs[pkg_name] = pkg
-                    new_loaded_pkg_names.append(pkg_name)
-                else:
-                    LOG.info('removing orphaned loaded package: %s', pkg_name)
-
-            if len(loaded_pkg_names) != len(new_loaded_pkg_names):
-                f.truncate(0)
-                content = ""
-
-                for pkg_name in new_loaded_pkg_names:
-                    content += '@load ./{}\n'.format(pkg_name)
-
-                f.write(content)
-
+        self._write_autoloader()
         make_symlink('packages.bro', self.autoload_package)
+
+    def _write_autoloader(self):
+        """Write the __load__.bro loader script.
+
+        :raise IOError: if __load__.bro loader script cannot be written
+        """
+        with open(self.autoload_script, 'w') as f:
+            content = ""
+
+            for ipkg in self.loaded_packages():
+                content += '@load ./{}\n'.format(ipkg.package.name)
+
+            f.write(content)
 
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
@@ -126,17 +115,16 @@ class Manager(object):
             pkg_list = data['installed_packages']
             self.installed_pkgs = {}
 
-            for pkg_dict in pkg_list:
+            for dicts in pkg_list:
+                pkg_dict = dicts['package_dict']
+                status_dict = dicts['status_dict']
+
                 pkg_name = pkg_dict['name']
-                pkg_git_url = pkg_dict['git_url']
-                pkg_source = pkg_dict['source']
-                pkg_module_dir = pkg_dict['module_dir']
-                pkg_metadata = pkg_dict['metadata']
-                pkg_versions = pkg_dict['versions']
-                pkg = Package(git_url=pkg_git_url, source=pkg_source,
-                              module_dir=pkg_module_dir, metadata=pkg_metadata,
-                              versions=pkg_versions)
-                self.installed_pkgs[pkg_name] = pkg
+                del pkg_dict['name']
+
+                pkg = Package(**pkg_dict)
+                status = PackageStatus(**status_dict)
+                self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
             return data['scriptdir'], data['plugindir']
 
@@ -145,7 +133,12 @@ class Manager(object):
 
         :raise IOError: when the manifest file can't be written
         """
-        pkg_list = [pkg.__dict__ for _, pkg in self.installed_pkgs.items()]
+        pkg_list = []
+
+        for _, installed_pkg in self.installed_pkgs.items():
+            pkg_list.append({'package_dict': installed_pkg.package.__dict__,
+                             'status_dict': installed_pkg.status.__dict__})
+
         data = {'manifest_version': 0, 'scriptdir': self.scriptdir,
                 'plugindir': self.plugindir, 'installed_packages': pkg_list}
 
@@ -202,12 +195,18 @@ class Manager(object):
         return rval
 
     def installed_packages(self):
-        """Return a list of `Package`s that have been installed."""
-        return [pkg for _, pkg in self.installed_pkgs.items()]
+        """Return a list of `InstalledPackage`s that have been installed."""
+        return [ipkg for _, ipkg in self.installed_pkgs.items()]
 
     def loaded_packages(self):
-        """Return a list of `Package`s that have been loaded."""
-        return [pkg for _, pkg in self.loaded_pkgs.items()]
+        """Return a list of `InstalledPackage`s that have been loaded."""
+        rval = []
+
+        for _, ipkg in self.installed_pkgs.items():
+            if ipkg.status.is_loaded:
+                rval.append(ipkg)
+
+        return rval
 
     def package_build_log(self, pkg_path):
         """Return the path to the package manager's build log for a package."""
@@ -225,7 +224,7 @@ class Manager(object):
         return rval
 
     def find_installed_package(self, pkg_path):
-        """Return a `Package` if one is installed that matches the name.
+        """Return a `InstalledPackage` if one matches the name.
 
         A package's "name" is the last component of it's git URL.
         """
@@ -255,14 +254,15 @@ class Manager(object):
         """
         LOG.debug('removing "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        pkg_to_remove = self.find_installed_package(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
 
-        if not pkg_to_remove:
+        if not ipkg:
             LOG.info('removing "%s": could not find matching package', pkg_path)
             return False
 
         self.unload(pkg_path)
 
+        pkg_to_remove = ipkg.package
         delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
         delete_path(os.path.join(self.scriptdir, pkg_to_remove.name))
         delete_path(os.path.join(self.plugindir, pkg_to_remove.name))
@@ -275,6 +275,58 @@ class Manager(object):
         LOG.debug('removed "%s"', pkg_path)
         return True
 
+    def pin(self, pkg_path):
+        """Pin a currently installed package to the currently installed version.
+
+        Pinned packages are never upgraded when calling `upgrade()`.
+
+        Returns an `InstalledPackage` if successfully pinned or None if no
+        matching installed package could be found.
+
+        :raise IOError: when the manifest file can't be written
+        """
+        LOG.debug('pinning "%s"', pkg_path)
+        pkg_path = remove_trailing_slashes(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
+
+        if not ipkg:
+            LOG.info('pinning "%s": no matching package', pkg_path)
+            return None
+
+        if ipkg.status.is_pinned:
+            LOG.debug('pinning "%s": already pinned', pkg_path)
+            return ipkg
+
+        ipkg.status.is_pinned = True
+        self._write_manifest()
+        LOG.debug('pinned "%s"', pkg_path)
+        return ipkg
+
+    def unpin(self, pkg_path):
+        """Unpin a currently installed package and allow it to be upgraded.
+
+        Returns an `InstalledPackage` if successfully pinned or None if no
+        matching installed package could be found.
+
+        :raise IOError: when the manifest file can't be written
+        """
+        LOG.debug('unpinning "%s"', pkg_path)
+        pkg_path = remove_trailing_slashes(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
+
+        if not ipkg:
+            LOG.info('unpinning "%s": no matching package', pkg_path)
+            return None
+
+        if not ipkg.status.is_pinned:
+            LOG.debug('unpinning "%s": already unpinned', pkg_path)
+            return ipkg
+
+        ipkg.status.is_pinned = False
+        self._write_manifest()
+        LOG.debug('unpinned "%s"', pkg_path)
+        return ipkg
+
     def load(self, pkg_path):
         """Mark an installed package as being 'loaded'.
 
@@ -283,24 +335,23 @@ class Manager(object):
 
         Returns True if a package is successfully marked as loaded.
 
-        :raise IOError: if the __load__.bro loader script can't be updated
+        :raise IOError: if the loader script or manifest can't be written
         """
         LOG.debug('loading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        pkg_to_load = self.find_installed_package(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
 
-        if not pkg_to_load:
+        if not ipkg:
             LOG.info('loading "%s": no matching package', pkg_path)
             return False
 
-        if self.loaded_pkgs.get(pkg_to_load.name):
+        if ipkg.status.is_loaded:
             LOG.debug('loading "%s": already loaded', pkg_path)
             return True
 
-        with open(self.autoload_script, 'a') as f:
-            f.write('@load ./{}\n'.format(pkg_to_load.name))
-
-        self.loaded_pkgs[pkg_to_load.name] = pkg_to_load
+        ipkg.status.is_loaded = True
+        self._write_autoloader()
+        self._write_manifest()
         LOG.debug('loaded "%s"', pkg_path)
         return True
 
@@ -312,30 +363,23 @@ class Manager(object):
 
         Returns True if a package is successfully unmarked as loaded.
 
-        :raise IOError: if __load__.bro loader script cannot be updated
+        :raise IOError: if the loader script or manifest can't be written
         """
         LOG.debug('unloading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        pkg_to_unload = self.find_installed_package(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
 
-        if not pkg_to_unload:
+        if not ipkg:
             LOG.info('unloading "%s": no matching package', pkg_path)
             return False
 
-        if not self.loaded_pkgs.get(pkg_to_unload.name):
+        if not ipkg.status.is_loaded:
             LOG.debug('unloading "%s": already unloaded', pkg_path)
             return True
 
-        with open(self.autoload_script, 'w') as f:
-            content = ""
-
-            for pkg_name in self.loaded_pkgs:
-                if pkg_name != pkg_to_unload.name:
-                    content += '@load ./{}\n'.format(pkg_name)
-
-            f.write(content)
-
-        del self.loaded_pkgs[pkg_to_unload.name]
+        ipkg.status.is_loaded = False
+        self._write_autoloader()
+        self._write_manifest()
         LOG.debug('unloaded "%s"', pkg_path)
         return True
 
@@ -346,6 +390,8 @@ class Manager(object):
         """
         LOG.debug('getting info on "%s", pkg_path')
         pkg_path = remove_trailing_slashes(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
+        status = ipkg.status if ipkg else None
 
         matches = self.match_source_packages(pkg_path)
 
@@ -353,7 +399,7 @@ class Manager(object):
             package = Package(git_url=pkg_path)
 
             try:
-                return self._info(package)
+                return self._info(package, status)
             except git.exc.GitCommandError as error:
                 LOG.info('getting info on "%s": invalid git repo path: %s',
                          pkg_path, error)
@@ -361,7 +407,8 @@ class Manager(object):
             LOG.info('getting info on "%s": matched no source package',
                      pkg_path)
             reason = 'package not found in sources and not a valid git URL'
-            return PackageInfo(package=package, invalid_reason=reason)
+            return PackageInfo(package=package, invalid_reason=reason,
+                               status=status)
 
         if len(matches) > 1:
             matches_string = [str(match) for match in matches]
@@ -370,12 +417,12 @@ class Manager(object):
             reason = str.format('"{}" matches multiple packages, try a more'
                                 ' specific name from: {}',
                                 pkg_path, matches_string)
-            return PackageInfo(invalid_reason=reason)
+            return PackageInfo(invalid_reason=reason, status=status)
 
         package = matches[0]
-        return self._info(package)
+        return self._info(package, status)
 
-    def _info(self, package):
+    def _info(self, package, status):
         """Retrieves information about a package.
 
         Return a `PackageInfo` object.
@@ -384,7 +431,8 @@ class Manager(object):
         """
         clonepath = os.path.join(self.scratchdir, package.name)
         invalid_reason = self._clone_package(package, clonepath)
-        return PackageInfo(package=package, invalid_reason=invalid_reason)
+        return PackageInfo(package=package, invalid_reason=invalid_reason,
+                           status=status)
 
     def _clone_package(self, package, clonepath):
         """Clone a `Package` into clonepath and retrieve metadata/info for it.
@@ -403,11 +451,11 @@ class Manager(object):
         metadata_file = os.path.join(clonepath, self.pkg_metadata_filename)
 
         if not parser.read(metadata_file):
-            LOG.warning('cloneing "%s": no metadata file', package)
+            LOG.warning('cloning "%s": no metadata file', package)
             return 'missing pkg.meta metadata file'
 
         if not parser.has_section('package'):
-            LOG.warning('cloneing "%s": metadata missing [package]', package)
+            LOG.warning('cloning "%s": metadata missing [package]', package)
             return 'pkg.meta metadata file is missing [package] section'
 
         metadata = {item[0]: item[1] for item in parser.items('package')}
@@ -432,13 +480,15 @@ class Manager(object):
         Return empty string if package installation succeeded else an error
         string explaining why it failed.
 
-        :raise IOError: if a state file can't be written
+        :raise IOError: if the manifest can't be written
         """
         LOG.debug('installing "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
-        conflict = self.find_installed_package(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
 
-        if conflict:
+        if ipkg:
+            conflict = ipkg.package
+
             if str(conflict).endswith(pkg_path):
                 LOG.debug('installing "%s": already installed: %s',
                           pkg_path, conflict)
@@ -552,7 +602,12 @@ class Manager(object):
         if error:
             return error
 
-        self.installed_pkgs[package.name] = package
+        # @todo: fill in status correctly
+        status = PackageStatus(is_loaded=False, is_pinned=False,
+                               is_outdated=False,
+                               tracking_method='branch', current_version='')
+
+        self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()
         LOG.debug('installed "%s"', package)
         return ''
