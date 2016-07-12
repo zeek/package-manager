@@ -147,7 +147,6 @@ def cmd_remove(manager, args, config):
 
 
 def cmd_refresh(manager, args, config):
-    # @todo: `git pull` in client repo
     manager.refresh()
 
 

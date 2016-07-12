@@ -237,12 +237,20 @@ class Manager(object):
         This retrieves information about new packages and new versions of
         existing packages, but does not yet upgrade installed packaged.
 
+        :raise IOError: if the package manifest file can't be written
         """
         for name, source in self.sources.items():
             LOG.debug('refresh "%s": pulling %s', name, source.git_url)
             source.clone.remote().pull()
 
-        # @todo: `git fetch` for each installed package
+        for ipkg in self.installed_packages():
+            clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
+            clone = git.Repo(clonepath)
+            clone.remote().fetch()
+            ipkg.status.is_outdated = Manager._is_clone_outdated(
+                clone, ipkg.status.current_version, ipkg.status.tracking_method)
+
+        self._write_manifest()
 
     def remove(self, pkg_path):
         """Remove an installed package.
@@ -501,6 +509,26 @@ class Manager(object):
                 return ref
 
     @staticmethod
+    def _is_version_outdated(clone, version):
+        version_tags = Manager._get_version_tags(clone)
+        return version != version_tags[-1]
+
+    @staticmethod
+    def _is_branch_outdated(clone, branch):
+        it = clone.iter_commits('{0}..origin/{0}'.format(branch))
+        num_commits_behind = sum(1 for c in it)
+        return num_commits_behind > 0
+
+    @staticmethod
+    def _is_clone_outdated(clone, ref_name, tracking_method):
+        if tracking_method == 'version':
+            return Manager._is_version_outdated(clone, ref_name)
+        elif tracking_method == 'branch':
+            return Manager._is_branch_outdated(clone, ref_name)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
     def _get_hash(clone, ref_name):
         return Manager._get_ref(clone, ref_name).object.hexsha
 
@@ -597,14 +625,12 @@ class Manager(object):
             if version in version_tags:
                 status.is_pinned = True
                 status.tracking_method = 'version'
-                status.is_outdated = version != version_tags[-1]
             else:
                 branches = Manager._get_branch_names(clone)
 
                 if version in branches:
                     status.is_pinned = False
                     status.tracking_method = 'branch'
-                    status.is_outdated = False
                 else:
                     return 'no such branch or version tag: "{}"'.format(version)
 
@@ -613,7 +639,6 @@ class Manager(object):
                 version = version_tags[-1]
                 status.is_pinned = False
                 status.tracking_method = 'version'
-                status.is_outdated = False
             else:
                 if 'master' not in Manager._get_branch_names(clone):
                     return 'git repo has no "master" branch or version tags'
@@ -621,11 +646,12 @@ class Manager(object):
                 version = 'master'
                 status.is_pinned = False
                 status.tracking_method = 'branch'
-                status.is_outdated = False
 
         status.current_version = version
         status.current_hash = Manager._get_hash(clone, version)
         clone.git.checkout(version)
+        status.is_outdated = Manager._is_clone_outdated(
+            clone, version, status.tracking_method)
         buildcmd = package.metadata['buildcmd']
 
         if buildcmd:
