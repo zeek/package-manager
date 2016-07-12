@@ -15,13 +15,14 @@ class InstalledPackage(object):
 
 class PackageStatus(object):
 
-    def __init__(self, is_loaded, is_pinned, is_outdated,
-                 tracking_method, current_version):
+    def __init__(self, is_loaded=False, is_pinned=False, is_outdated=False,
+                 tracking_method=None, current_version=None, current_hash=None):
         self.is_loaded = is_loaded
         self.is_pinned = is_pinned
+        self.is_outdated = is_outdated
         self.tracking_method = tracking_method
         self.current_version = current_version
-        self.is_outdated = is_outdated
+        self.current_hash = current_hash
 
 
 class PackageInfo(object):

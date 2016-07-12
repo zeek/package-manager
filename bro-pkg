@@ -118,8 +118,13 @@ def create_manager(config_path):
 
 
 def cmd_install(manager, args, config):
+    if args.version and len(args.package) > 1:
+        print_error(
+            'error: "install --version" may only be used for a single package')
+        sys.exit(1)
+
     for name in args.package:
-        error = manager.install(name)
+        error = manager.install(name, args.version)
 
         if error:
             print_error('failed installing "{}": {}'.format(name, error))
@@ -174,8 +179,8 @@ def cmd_pin(manager, args, config):
         ipkg = manager.pin(name)
 
         if ipkg:
-            print('pinned "{}" at version: {}'.format(
-                name, ipkg.status.current_version))
+            print('pinned "{}" at version: {} ({})'.format(
+                name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
             print_error(
                 'failed pinning "{}": no such package installed'.format(name))
@@ -186,8 +191,8 @@ def cmd_unpin(manager, args, config):
         ipkg = manager.unpin(name)
 
         if ipkg:
-            print('unpinned "{}" from version: {}'.format(
-                name, ipkg.status.current_version))
+            print('unpinned "{}" from version: {} ({})'.format(
+                name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
             print_error(
                 'failed unpinning "{}": no such package installed'.format(name))
@@ -244,8 +249,9 @@ def cmd_list(manager, args, config):
                 print(ipkg.package)
 
     elif args.category == 'outdated':
-        # @todo
-        raise NotImplementedError
+        for ipkg in sorted(manager.installed_packages()):
+            if ipkg.status.is_outdated:
+                print(ipkg.package)
 
     else:
         raise NotImplementedError
@@ -275,7 +281,7 @@ def cmd_info(manager, args, config):
             for key, value in info.status.__dict__.items():
                 print('\t\t{} = {}'.format(key, value))
 
-        print('\tmetadata:')
+        print('\tlatest metadata:')
 
         for key, value in pkg.metadata.items():
             print('\t\t{} = {}'.format(key, value))
@@ -373,7 +379,7 @@ def main():
     sub_parser.add_argument(
         'package', nargs='+', help='Name(s) of package(s) to install.')
     sub_parser.add_argument(
-        '--version', default='master',
+        '--version', default=None,
         help='The version of the package to install.')
 
     # remove

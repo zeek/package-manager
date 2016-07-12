@@ -38,20 +38,6 @@ def delete_path(path):
         os.remove(path)
 
 
-def move_path(src, dst):
-    if os.listdir(dst):
-        # Move contents of src into dst.  Helps avoid accidental file deletion
-        # if user made a mistake in how they specify dst.
-        for f in os.listdir(src):
-            shutil.move(os.path.join(src, f), dst)
-
-        delete_path(src)
-    else:
-        # Replace dst with src.
-        delete_path(dst)
-        shutil.move(src, dst)
-
-
 def copy_over_path(src, dst):
     delete_path(dst)
     shutil.copytree(src, dst, symlinks=True)

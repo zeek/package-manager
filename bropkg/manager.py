@@ -460,9 +460,15 @@ class Manager(object):
 
         metadata = {item[0]: item[1] for item in parser.items('package')}
         package.metadata = metadata
+        package.versions = Manager._get_version_tags(clone)
+        return ''
+
+    @staticmethod
+    def _get_version_tags(clone):
+        tags = []
 
         for tagref in clone.tags:
-            tag = str(tagref)
+            tag = tagref.name
 
             try:
                 semver.Version.coerce(tag)
@@ -470,12 +476,43 @@ class Manager(object):
                 # Skip tags that aren't compatible semantic versions.
                 continue
             else:
-                package.versions.append(tag)
+                tags.append(tag)
 
-        return ''
+        return sorted(tags)
 
-    def install(self, pkg_path):
+    @staticmethod
+    def _get_branch_names(clone):
+        rval = []
+
+        for ref in clone.references:
+            branch_name = ref.name
+
+            if not branch_name.startswith('origin/'):
+                continue
+
+            rval.append(branch_name.split('/')[-1])
+
+        return rval
+
+    @staticmethod
+    def _get_ref(clone, ref_name):
+        for ref in clone.refs:
+            if ref.name.split('/')[-1] == ref_name:
+                return ref
+
+    @staticmethod
+    def _get_hash(clone, ref_name):
+        return Manager._get_ref(clone, ref_name).object.hexsha
+
+    def install(self, pkg_path, version=None):
         """Install a package.
+
+        If 'version' is given, it may be either a git version tag or branch.
+        If it's a git version tag, the package is pinned to that version after
+        installation.
+
+        If 'version' is not given, then the latest git version tag is installed
+        (or if no version tags exist, the 'master' branch is installed).
 
         Return empty string if package installation succeeded else an error
         string explaining why it failed.
@@ -490,21 +527,23 @@ class Manager(object):
             conflict = ipkg.package
 
             if str(conflict).endswith(pkg_path):
-                LOG.debug('installing "%s": already installed: %s',
+                LOG.debug('installing "%s": re-install: %s',
                           pkg_path, conflict)
-                return ''
-
-            LOG.info('installing "%s": matched already installed package: %s',
-                     pkg_path, conflict)
-            return 'package with name "{}" ({}) is already installed'.format(
-                conflict.name, conflict)
+                return self._install(ipkg.package, version)
+            else:
+                LOG.info(
+                    'installing "%s": matched already installed package: %s',
+                    pkg_path, conflict)
+                return str.format(
+                    'package with name "{}" ({}) is already installed',
+                    conflict.name, conflict)
 
         matches = self.match_source_packages(pkg_path)
 
         if not matches:
             try:
                 package = Package(git_url=pkg_path)
-                return self._install(package)
+                return self._install(package, version)
             except git.exc.GitCommandError as error:
                 LOG.info('installing "%s": invalid git repo path: %s', pkg_path,
                          error)
@@ -521,7 +560,7 @@ class Manager(object):
                               pkg_path, matches_string)
 
         try:
-            return self._install(matches[0])
+            return self._install(matches[0], version)
         except git.exc.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid',
                         pkg_path)
@@ -530,7 +569,7 @@ class Manager(object):
         # @todo: install dependencies
         return ''
 
-    def _install(self, package):
+    def _install(self, package, version=None):
         """Install a `Package`.
 
         Return empty string if package installation succeeded else an error
@@ -539,12 +578,54 @@ class Manager(object):
         :raise git.exc.GitCommandError: if the git repo is invalid
         :raise IOError: if the package manifest file can't be written
         """
+        # @todo: check if dependencies would be broken by overwriting a
+        # previous installed package w/ a new version
         clonepath = os.path.join(self.package_clonedir, package.name)
-        res = self._clone_package(package, clonepath)
 
-        if res:
-            return res
+        if not self.find_installed_package(package.name):
+            res = self._clone_package(package, clonepath)
 
+            if res:
+                return res
+
+        clone = git.Repo(clonepath)
+        version_tags = Manager._get_version_tags(clone)
+        status = PackageStatus()
+        status.is_loaded = False
+
+        if version:
+            if version in version_tags:
+                status.is_pinned = True
+                status.tracking_method = 'version'
+                status.is_outdated = version != version_tags[-1]
+            else:
+                branches = Manager._get_branch_names(clone)
+
+                if version in branches:
+                    status.is_pinned = False
+                    status.tracking_method = 'branch'
+                    status.is_outdated = False
+                else:
+                    return 'no such branch or version tag: "{}"'.format(version)
+
+        else:
+            if len(version_tags):
+                version = version_tags[-1]
+                status.is_pinned = False
+                status.tracking_method = 'version'
+                status.is_outdated = False
+            else:
+                if 'master' not in Manager._get_branch_names(clone):
+                    return 'git repo has no "master" branch or version tags'
+
+                version = 'master'
+                status.is_pinned = False
+                status.tracking_method = 'branch'
+                status.is_outdated = False
+
+        status.current_version = version
+        status.current_hash = Manager._get_hash(clone, version)
+        clone.git.checkout(version)
         buildcmd = package.metadata['buildcmd']
 
         if buildcmd:
@@ -582,8 +663,8 @@ class Manager(object):
             if returncode != 0:
                 return 'package buildcmd failed, see log in {}'.format(buildlog)
 
-        scriptpath_src = os.path.join(self.package_clonedir, package.name,
-                                      package.metadata['scriptpath'])
+        scriptpath_src = os.path.join(
+            clonepath, package.metadata['scriptpath'])
         scriptpath_dst = os.path.join(self.scriptdir, package.name)
         error = Manager._copy_package_dir(package, 'scriptpath',
                                           scriptpath_src, scriptpath_dst)
@@ -593,19 +674,14 @@ class Manager(object):
         if error:
             return error
 
-        pluginpath_src = os.path.join(self.package_clonedir, package.name,
-                                      package.metadata['pluginpath'])
+        pluginpath_src = os.path.join(
+            clonepath, package.metadata['pluginpath'])
         pluginpath_dst = os.path.join(self.plugindir, package.name)
         error = Manager._copy_package_dir(package, 'pluginpath',
                                           pluginpath_src, pluginpath_dst)
 
         if error:
             return error
-
-        # @todo: fill in status correctly
-        status = PackageStatus(is_loaded=False, is_pinned=False,
-                               is_outdated=False,
-                               tracking_method='branch', current_version='')
 
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()
