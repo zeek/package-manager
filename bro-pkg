@@ -146,17 +146,44 @@ def cmd_remove(manager, args, config):
             print('failed removing "{}": no such package installed'.format(name))
 
 
+def outdated(manager):
+    return [ipkg.package.qualified_name()
+            for ipkg in manager.installed_packages()
+            if ipkg.status.is_outdated]
+
+
 def cmd_refresh(manager, args, config):
+    src_pkgs_before = {i.qualified_name() for i in manager.source_packages()}
+    outdated_before = {i for i in outdated(manager)}
     manager.refresh()
+    src_pkgs_after = {i.qualified_name() for i in manager.source_packages()}
+    outdated_after = {i for i in outdated(manager)}
+
+    if src_pkgs_before == src_pkgs_after:
+        print('refreshed source packages: no changes')
+    else:
+        print('source package changes:')
+        diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
+
+        for name in diff:
+            change = 'added' if name in src_pkgs_after else 'removed'
+            print('\t{} {}'.format(change, name))
+
+    if outdated_before == outdated_after:
+        print('refreshed installed packages: no new outdated packages')
+    else:
+        print('installed packages are outdated:')
+        diff = outdated_before.symmetric_difference(outdated_after)
+
+        for name in diff:
+            print('\t{}'.format(name))
 
 
 def cmd_upgrade(manager, args, config):
     if args.package:
         pkg_list = args.package
     else:
-        pkg_list = [ipkg.package.qualified_name()
-                    for ipkg in manager.installed_packages()
-                    if ipkg.status.is_outdated]
+        pkg_list = outdated(manager)
 
     for name in pkg_list:
         res = manager.upgrade(name)
@@ -506,17 +533,6 @@ def main():
     sub_parser.add_argument(
         'package', nargs='+', default=[],
         help='Name(s) of package(s) to query.')
-
-    # test
-    sub_parser = command_parser.add_parser(
-        'test',
-        help='Run unit tests for packages.',
-        description='Runs unit tests for packages.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    sub_parser.set_defaults(run_cmd=cmd_test)
-    sub_parser.add_argument(
-        'package', nargs='+', default=[],
-        help='Name(s) of package(s) to test.')
 
     # config
     sub_parser = command_parser.add_parser(
