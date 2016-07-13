@@ -151,8 +151,22 @@ def cmd_refresh(manager, args, config):
 
 
 def cmd_upgrade(manager, args, config):
-    # @todo
-    print(args)
+    if args.package:
+        pkg_list = args.package
+    else:
+        pkg_list = [ipkg.package.qualified_name()
+                    for ipkg in manager.installed_packages()
+                    if ipkg.status.is_outdated]
+
+    for name in pkg_list:
+        res = manager.upgrade(name)
+
+        if res:
+            print('failed upgrading "{}": {}'.format(name, res))
+        else:
+            ipkg = manager.find_installed_package(name)
+            print('upgraded "{}" ({})'.format(
+                name, ipkg.status.current_version))
 
 
 def cmd_load(manager, args, config):
@@ -284,11 +298,6 @@ def cmd_info(manager, args, config):
 
         for key, value in pkg.metadata.items():
             print('\t\t{} = {}'.format(key, value))
-
-
-def cmd_test(manager, args, config):
-    # @todo
-    print(args)
 
 
 def cmd_config(manager, args, config):

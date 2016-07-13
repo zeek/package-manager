@@ -252,6 +252,42 @@ class Manager(object):
 
         self._write_manifest()
 
+    def upgrade(self, pkg_path):
+        """Upgrade a package to the latest available version.
+
+        Return empty string if package upgrade succeeded else an error
+        string explaining why it failed.
+
+        :raise IOError: if the manifest can't be written
+        """
+        LOG.debug('upgrading "%s"', pkg_path)
+        pkg_path = remove_trailing_slashes(pkg_path)
+        ipkg = self.find_installed_package(pkg_path)
+
+        if not ipkg:
+            LOG.info('upgrading "%s": no matching package', pkg_path)
+            return "no such package installed"
+
+        if ipkg.status.is_pinned:
+            LOG.info('upgrading "%s": package is pinned', pkg_path)
+            return "package is pinned"
+
+        if not ipkg.status.is_outdated:
+            LOG.info('upgrading "%s": package not outdated', pkg_path)
+            return "package is not outdated"
+
+        clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
+        clone = git.Repo(clonepath)
+
+        if ipkg.status.tracking_method == 'version':
+            version_tags = Manager._get_version_tags(clone)
+            return self._install(ipkg.package, version_tags[-1])
+        elif ipkg.status.tracking_method == 'branch':
+            clone.remote().pull()
+            return self._install(ipkg.package, ipkg.status.current_version)
+        else:
+            raise NotImplementedError
+
     def remove(self, pkg_path):
         """Remove an installed package.
 
@@ -419,7 +455,7 @@ class Manager(object):
                                status=status)
 
         if len(matches) > 1:
-            matches_string = [str(match) for match in matches]
+            matches_string = [match.qualified_name() for match in matches]
             LOG.info('getting info on "%s": matched multiple packages: %s',
                      pkg_path, matches_string)
             reason = str.format('"{}" matches multiple packages, try a more'
@@ -554,7 +590,7 @@ class Manager(object):
         if ipkg:
             conflict = ipkg.package
 
-            if str(conflict).endswith(pkg_path):
+            if conflict.qualified_name().endswith(pkg_path):
                 LOG.debug('installing "%s": re-install: %s',
                           pkg_path, conflict)
                 return self._install(ipkg.package, version)
@@ -580,7 +616,7 @@ class Manager(object):
             return 'package not found in sources and also not a valid git URL'
 
         if len(matches) > 1:
-            matches_string = [str(match) for match in matches]
+            matches_string = [match.qualified_name() for match in matches]
             LOG.info('installing "%s": matched multiple packages: %s',
                      pkg_path, matches_string)
             return str.format('"{}" matches multiple packages, try a more'
@@ -609,8 +645,9 @@ class Manager(object):
         # @todo: check if dependencies would be broken by overwriting a
         # previous installed package w/ a new version
         clonepath = os.path.join(self.package_clonedir, package.name)
+        ipkg = self.find_installed_package(package.name)
 
-        if not self.find_installed_package(package.name):
+        if not ipkg:
             res = self._clone_package(package, clonepath)
 
             if res:
@@ -619,17 +656,16 @@ class Manager(object):
         clone = git.Repo(clonepath)
         version_tags = Manager._get_version_tags(clone)
         status = PackageStatus()
-        status.is_loaded = False
+        status.is_loaded = ipkg.status.is_loaded if ipkg else False
+        status.is_pinned = ipkg.status.is_pinned if ipkg else False
 
         if version:
             if version in version_tags:
-                status.is_pinned = True
                 status.tracking_method = 'version'
             else:
                 branches = Manager._get_branch_names(clone)
 
                 if version in branches:
-                    status.is_pinned = False
                     status.tracking_method = 'branch'
                 else:
                     return 'no such branch or version tag: "{}"'.format(version)
@@ -637,14 +673,12 @@ class Manager(object):
         else:
             if len(version_tags):
                 version = version_tags[-1]
-                status.is_pinned = False
                 status.tracking_method = 'version'
             else:
                 if 'master' not in Manager._get_branch_names(clone):
                     return 'git repo has no "master" branch or version tags'
 
                 version = 'master'
-                status.is_pinned = False
                 status.tracking_method = 'branch'
 
         status.current_version = version

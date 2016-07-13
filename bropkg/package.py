@@ -50,6 +50,15 @@ class Package(object):
         self.versions = [] if versions is None else versions
 
     def __str__(self):
+        return self.qualified_name()
+
+    def __repr__(self):
+        return self.git_url
+
+    def __lt__(self, other):
+        return str(self) < str(other)
+
+    def qualified_name(self):
         if self.source:
             if self.module_dir:
                 return '{}/{}/{}'.format(self.source, self.module_dir,
@@ -58,12 +67,6 @@ class Package(object):
                 return '{}/{}'.format(self.source, self.name)
         else:
             return self.git_url
-
-    def __repr__(self):
-        return self.git_url
-
-    def __lt__(self, other):
-        return str(self) < str(other)
 
     def matches_path(self, path):
         """Return whether this package has a matching path/name."""
