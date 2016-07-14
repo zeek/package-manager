@@ -5,8 +5,6 @@ import os
 import sys
 import argparse
 import logging
-import subprocess
-import StringIO
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
@@ -298,8 +296,29 @@ def cmd_list(manager, args, config):
 
 
 def cmd_search(manager, args, config):
-    # @todo
-    print(args)
+    # @todo: search metadata topics/tags
+    src_pkgs = manager.source_packages()
+
+    if args.search_text[0] == '/' and args.search_text[-1] == '/':
+        import re
+
+        try:
+            regex = re.compile(args.search_text[1:-1])
+        except re.error as error:
+            print('invalid regex: {}'.format(error))
+            sys.exit(1)
+        else:
+            matches = [pkg for pkg in src_pkgs if regex.search(
+                pkg.module_path())]
+    else:
+        matches = [
+            pkg for pkg in src_pkgs if args.search_text in pkg.module_path()]
+
+    if matches:
+        for match in matches:
+            print(match.qualified_name())
+    else:
+        print("no matches")
 
 
 def cmd_info(manager, args, config):
@@ -328,6 +347,8 @@ def cmd_info(manager, args, config):
 
 
 def cmd_config(manager, args, config):
+    import StringIO
+
     if args.config_param == 'all':
         out = StringIO.StringIO()
         config.write(out)
@@ -341,6 +362,7 @@ def cmd_config(manager, args, config):
 
 
 def cmd_env(manager, args, config):
+    import subprocess
     bro_exe = config.get('paths', 'bro_exe')
 
     if bro_exe:
@@ -515,8 +537,8 @@ def main():
     sub_parser = command_parser.add_parser(
         'search',
         help='Search packages for matching names.',
-        description='Perform a substring search on package names.'
-        ' Surround search text with slashes to indicate it is a regular'
+        description='Perform a substring search on package names and metadata'
+        ' tags.  Surround search text with slashes to indicate it is a regular'
         ' expression (e.g. "/text/").',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_search)

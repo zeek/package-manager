@@ -2,7 +2,6 @@ import sys
 import os
 import json
 import shutil
-import subprocess
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
@@ -689,6 +688,7 @@ class Manager(object):
         buildcmd = package.metadata['buildcmd']
 
         if buildcmd:
+            import subprocess
             LOG.debug('installing "%s": running buildcmd: %s',
                       package, buildcmd)
             build = subprocess.Popen(buildcmd,

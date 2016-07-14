@@ -58,15 +58,17 @@ class Package(object):
     def __lt__(self, other):
         return str(self) < str(other)
 
+    def module_path(self):
+        if self.module_dir:
+            return '{}/{}'.format(self.module_dir, self.name)
+
+        return self.name
+
     def qualified_name(self):
         if self.source:
-            if self.module_dir:
-                return '{}/{}/{}'.format(self.source, self.module_dir,
-                                         self.name)
-            else:
-                return '{}/{}'.format(self.source, self.name)
-        else:
-            return self.git_url
+            return '{}/{}'.format(self.source, self.module_path())
+
+        return self.git_url
 
     def matches_path(self, path):
         """Return whether this package has a matching path/name."""
