@@ -396,7 +396,7 @@ def main():
         description='Manage Bro packages.',
         epilog='Environment Variables:\n\n'
         '    BRO_PKG_CONFIG_FILE\t'
-        'Same as --configfile option, but takes precedence.'
+        'Same as --configfile option, but has less precedence.'
     )
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + bropkg.__version__)

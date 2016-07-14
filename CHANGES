@@ -1,4 +1,8 @@
 
+0.2-1 | 2016-07-14 12:26:56 -0500
+
+  * Fix a mistake in --help output. (Jon Siwek)
+
 0.2 | 2016-07-14 10:51:11 -0500
 
   * Release 0.2.
