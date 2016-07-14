@@ -236,60 +236,43 @@ def cmd_unpin(manager, args, config):
                 'failed unpinning "{}": no such package installed'.format(name))
 
 
-def all_packages(manager):
-    source_pkgs = manager.source_packages()
-    installed_pkgs = [ipkg.package for ipkg in manager.installed_packages()]
-    pkg_dict = {pkg.git_url: (pkg, True) for pkg in installed_pkgs}
-
-    for pkg in source_pkgs:
-        if pkg.git_url not in pkg_dict:
-            pkg_dict[pkg.git_url] = (pkg, False)
-
-    return [value for _, value in pkg_dict.items()]
-
-
 def cmd_list(manager, args, config):
-    # @todo: improve formatting
     if args.category == 'all':
-        for pkg_tuple in sorted(all_packages(manager)):
-            pkg = pkg_tuple[0]
-            installed = pkg_tuple[1]
-
-            if installed:
-                print('{} (installed)'.format(pkg))
-            else:
-                print('{}'.format(pkg))
+        for pkg in sorted(manager.source_packages()):
+            ipkg = manager.find_installed_package(pkg.name)
+            pkg_qn = pkg.qualified_name()
+            output_fmt = '{} (installed)' if ipkg else '{}'
+            print(output_fmt.format(pkg_qn))
 
     elif args.category == 'installed':
         installed_pkgs = [
             ipkg.package for ipkg in manager.installed_packages()]
 
         for pkg in sorted(installed_pkgs):
-            print(pkg)
+            print(pkg.qualified_name())
 
     elif args.category == 'not_installed':
-        for pkg_tuple in sorted(all_packages(manager)):
-            pkg = pkg_tuple[0]
-            installed = pkg_tuple[1]
+        for pkg in sorted(manager.source_packages()):
+            ipkg = manager.find_installed_package(pkg.name)
 
-            if not installed:
-                print('{}'.format(pkg))
+            if not ipkg:
+                print(pkg.qualified_name())
 
     elif args.category == 'loaded':
         loaded_pkgs = [ipkg.package for ipkg in manager.loaded_packages()]
 
         for pkg in sorted(loaded_pkgs):
-            print(pkg)
+            print(pkg.qualified_name())
 
     elif args.category == 'unloaded':
         for ipkg in sorted(manager.installed_packages()):
             if not ipkg.status.is_loaded:
-                print(ipkg.package)
+                print(ipkg.package.qualified_name())
 
     elif args.category == 'outdated':
         for ipkg in sorted(manager.installed_packages()):
             if ipkg.status.is_outdated:
-                print(ipkg.package)
+                print(ipkg.package.qualified_name())
 
     else:
         raise NotImplementedError
