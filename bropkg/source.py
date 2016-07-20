@@ -1,3 +1,8 @@
+"""
+A module containing the definition of a Package Source: a git repository
+containing a collection of git submodules that point to Bro packages.
+"""
+
 import os
 import shutil
 import git
@@ -7,6 +12,19 @@ from .package import Package
 
 
 class Source(object):
+    """A Bro package source.
+
+    This class contains properties of a package source like its name, remote git
+    URL, and local git clone.
+
+    Attributes:
+        name (`string`): The name of the source as given by a config file key
+        in it's `[sources]` section.
+
+        git_url (`string`): The git URL of the package source.
+
+        clone (`git.Repo`): The local git clone of the package source.
+    """
 
     def __init__(self, name, clone_path, git_url):
         """Create a package source.
@@ -17,6 +35,7 @@ class Source(object):
         git_url = os.path.expanduser(git_url)
         self.name = name
         self.git_url = git_url
+        self.clone = None
 
         try:
             self.clone = git.Repo(clone_path)
@@ -46,7 +65,7 @@ class Source(object):
         return self.git_url
 
     def packages(self):
-        """Return list of `Package`s contained in source repository."""
+        """Return list of :class:`.package.Package` in source repository."""
         rval = []
 
         for submodule in self.clone.submodules:

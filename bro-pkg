@@ -25,6 +25,25 @@ def config_items(config, section):
     return [(key, value) for (key, value) in items if key not in defaults]
 
 
+def is_exe(path):
+    return os.path.isfile(path) and os.access(path, os.X_OK)
+
+
+def find_program(prog_name):
+    path, _ = os.path.split(prog_name)
+
+    if path:
+        return prog_name if is_exe(prog_name) else ''
+
+    for path in os.environ["PATH"].split(os.pathsep):
+        path = os.path.join(path.strip('"'), prog_name)
+
+        if is_exe(path):
+            return path
+
+    return ''
+
+
 def create_manager(config_path):
 
     def require_config_section(section):
@@ -74,7 +93,7 @@ def create_manager(config_path):
     scriptdir = os.path.join(statedir, 'scriptdir')
     plugindir = os.path.join(statedir, 'plugindir')
     bro_dist = ''
-    bro_exe = bropkg.util.find_program('bro')
+    bro_exe = find_program('bro')
 
     if config.has_section('paths'):
         def config_option_set(config, section, option):
@@ -390,10 +409,24 @@ def cmd_env(manager, args, config):
         print('export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
 
-def main():
+def argparser():
+    pkg_name_help = 'The name(s) of package(s) to operate on.  The package' \
+                    ' may be named in several ways.  If the package is part' \
+                    ' of a package source, it may be referred to by the' \
+                    ' base name of the package (last component of git URL)' \
+                    ' or the submodule path within the package source.' \
+                    ' If two packages in different package sources' \
+                    ' have conflicting submodule paths, then the package' \
+                    ' name may be prepended to the submodule path to resolve' \
+                    ' the ambiguity. A full git URL may also be used to refer' \
+                    ' to a package that does not belong to a source. E.g. for' \
+                    ' a packge in a source named "default" at submodule path' \
+                    ' "alice/foo", the following names work: "foo",' \
+                    ' "alice/foo", "default/alice/foo".'
+
     top_parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='Manage Bro packages.',
+        description='A command-line package manager for Bro.',
         epilog='Environment Variables:\n\n'
         '    BRO_PKG_CONFIG_FILE\t'
         'Same as --configfile option, but has less precedence.'
@@ -413,31 +446,41 @@ def main():
     # install
     sub_parser = command_parser.add_parser(
         'install',
-        help='Install a package.', description='Install a package.',
+        help='Installs Bro packages.',
+        description='Installs packages from a configured package source or'
+                    ' directly from a git URL.  After installing, the package'
+                    ' is marked as being "loaded" (see the "load" command).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_install)
     sub_parser.add_argument(
-        'package', nargs='+', help='Name(s) of package(s) to install.')
+        'package', nargs='+', help=pkg_name_help)
     sub_parser.add_argument(
         '--version', default=None,
-        help='The version of the package to install.')
+        help='The version of the package to install.  Only one package may be'
+        ' specified at a time when using this flag.  A version tag or branch'
+        ' name may be specified here.  By default, the latest version tag is'
+        ' installed, or if a package has no version tags, the "master"'
+        ' branch is installed.')
 
     # remove
     sub_parser = command_parser.add_parser(
-        'remove', help='Remove a package.',
-        description='Remove a previously installed package',
+        'remove',
+        help='Uninstall a package.',
+        description='Unloads (see the "unload" command) and uninstalls a'
+        ' previously installed package.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_remove)
-    sub_parser.add_argument(
-        'package', nargs='+', help='Name(s) of package(s) to remove.')
+    sub_parser.add_argument('package', nargs='+', help=pkg_name_help)
 
     # refresh
     sub_parser = command_parser.add_parser(
         'refresh',
-        help='Retrieve latest package information from package sources.',
-        description='Retrieve latest client version and aggregated package'
-        ' metadata from package source repositories.  This does not upgrade'
-        ' installed packages (see the "upgrade" command for that).',
+        help='Retrieve updated package information.',
+        description='Update local package source clones to retrieve information'
+        ' about new packages that are available.  Also fetches updated package'
+        ' information about any installed packages to determine if new versions'
+        ' are available.  This does not upgrade installed packages (see the'
+        ' "upgrade" command for that).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_refresh)
 
@@ -445,21 +488,26 @@ def main():
     sub_parser = command_parser.add_parser(
         'upgrade',
         help='Upgrade installed packages to latest versions.',
-        description='Uprades package(s) to latest available version.',
+        description='Uprades the specified package(s) to latest available'
+        ' version.  If no specific packages are specified, then all installed'
+        ' packages that are outdated and not pinned are upgraded.  For packages'
+        ' that are installed with `--version` using a git branch name, the'
+        ' package is updated to the latest commit on that branch, else the'
+        ' package is updated to the highest available git version tag.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_upgrade)
     sub_parser.add_argument(
-        'package', nargs='*', default=[],
-        help='Name(s) of package(s) to upgrade (or blank to upgrade all).')
+        'package', nargs='*', default=[], help=pkg_name_help)
 
     # load
     sub_parser = command_parser.add_parser(
         'load',
         help='Register packages to be be auto-loaded by Bro.',
         description='The Bro Package Manager keeps track of all packages that'
-        ' are marked as "loaded" and supplies necessary config files to make it'
-        ' easy/convenient for Bro to load all such packages at once.  This'
-        ' command adds a set of packages to the "loaded packages" list.',
+        ' are marked as "loaded" and maintains a single Bro script that, when '
+        ' loaded by Bro (e.g. via "@load packages"), will load all "loaded"'
+        ' packages at once.'
+        ' This command adds a set of packages to the "loaded packages" list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_load)
     sub_parser.add_argument(
@@ -469,46 +517,44 @@ def main():
     # unload
     sub_parser = command_parser.add_parser(
         'unload',
-        help='Register packages to be be auto-loaded by Bro.',
+        help='Unregister packages to be be auto-loaded by Bro.',
         description='The Bro Package Manager keeps track of all packages that'
-        ' are marked as "loaded" and supplies necessary config files to make it'
-        ' easy/convenient for Bro to load all such packages at once.  This'
-        ' command removes a set of packages from the "loaded packages" list.',
+        ' are marked as "loaded" and maintains a single Bro script that, when '
+        ' loaded by Bro, will load all "loaded" packages at once.'
+        ' This command removes a set of packages from the "loaded packages"'
+        ' list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_unload)
     sub_parser.add_argument(
-        'package', nargs='+', default=[],
-        help='Name(s) of package(s) to unload.')
+        'package', nargs='+', default=[], help=pkg_name_help)
 
     # pin
     sub_parser = command_parser.add_parser(
         'pin',
         help='Prevent packages from being automatically upgraded.',
-        description='Packages that are pinned will be ignored by "upgrade."',
+        description='Pinned packages will be ignored by the "upgrade" command.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_pin)
     sub_parser.add_argument(
-        'package', nargs='+', default=[],
-        help='Name(s) of package(s) to pin.')
+        'package', nargs='+', default=[], help=pkg_name_help)
 
     # unpin
     sub_parser = command_parser.add_parser(
         'unpin',
         help='Allows packages to be automatically upgraded.',
         description='Packages that are not pinned are automatically upgraded'
-        ' by "upgrade."',
+        ' by the "upgrade" command',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_unpin)
     sub_parser.add_argument(
-        'package', nargs='+', default=[],
-        help='Name(s) of package(s) to unpin.')
+        'package', nargs='+', default=[], help=pkg_name_help)
 
     # list
     sub_parser = command_parser.add_parser(
         'list',
         help='Lists packages.',
-        description='Packages that are not pinned are automatically upgraded'
-        ' by "upgrade."',
+        description='Filters available/installed packages by a chosen category'
+        ' and then outputs that filtered package list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_list)
     sub_parser.add_argument('category', nargs='?', default='installed',
@@ -525,43 +571,59 @@ def main():
         ' expression (e.g. "/text/").',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_search)
-    sub_parser.add_argument('search_text',
-                            help='Text to match against package names.')
+    sub_parser.add_argument(
+        'search_text', help='The text/pattern to look for.')
 
     # info
     sub_parser = command_parser.add_parser(
         'info',
         help='Display package information.',
-        description='Shows more detailed information for given packages.',
+        description='Shows detailed information/metadata for given packages.'
+        ' If the package is currently installed, additional information about'
+        ' the status of it is displayed.  E.g. the installed version or whether'
+        ' it is currently marked as "pinned" or "loaded."',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_info)
     sub_parser.add_argument(
-        'package', nargs='+', default=[],
-        help='Name(s) of package(s) to query.')
+        'package', nargs='+', default=[], help=pkg_name_help)
 
     # config
     sub_parser = command_parser.add_parser(
         'config',
         help='Show Bro Package Manager configuration info.',
-        description='Show Bro Package Manager configuration info.',
+        description='The default output of this command is a valid package'
+        ' manager config file that corresponds to the one currently being used,'
+        ' but also with any defaulted field values filled in.  This command'
+        ' also allows for only the value of a specific field to be output if'
+        ' the name of that field is given as an argument to the command.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_config)
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
         choices=['all', 'sources', 'statedir', 'scriptdir',
                  'plugindir', 'bro_exe', 'bro_dist'],
-        help='Name of the config parameter to output.')
+        help='Name of a specific config file field to output.')
 
     # env
     sub_parser = command_parser.add_parser(
         'env',
-        help='Show environment variables needed for Bro to be able to use '
-             'packages installed by the Bro Package Manager.',
-        description='Show Bro Package Manager environment info.',
+        help='Show the value of environment variables that need to be set for'
+        ' Bro to be able to use installed packages.',
+        description='This command returns shell commands that, when executed,'
+        ' will correctly set BROPATH and BRO_PLUGIN_PATH to utilize the scripts'
+        ' and plugins from packages installed by the package manager.  For this'
+        ' command to function properly, either the "bro_exe" field of the config'
+        ' file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH'
+        ' environment variables should already contain valid paths to which'
+        ' this command will append package-specific paths to.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_env)
 
-    args = top_parser.parse_args()
+    return top_parser
+
+
+def main():
+    args = argparser().parse_args()
 
     if args.verbose > 0:
         formatter = logging.Formatter(

@@ -1,3 +1,7 @@
+"""
+These are meant to be private utility methods for internal use.
+"""
+
 import os
 import errno
 import shutil
@@ -52,22 +56,3 @@ def make_symlink(target_path, link_path, force=True):
             os.symlink(target_path, link_path)
         else:
             raise error
-
-
-def is_exe(path):
-    return os.path.isfile(path) and os.access(path, os.X_OK)
-
-
-def find_program(prog_name):
-    path, _ = os.path.split(prog_name)
-
-    if path:
-        return prog_name if is_exe(prog_name) else ''
-
-    for path in os.environ["PATH"].split(os.pathsep):
-        path = os.path.join(path.strip('"'), prog_name)
-
-        if is_exe(path):
-            return path
-
-    return ''

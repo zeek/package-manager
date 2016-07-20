@@ -1,4 +1,10 @@
 
+0.2-2 | 2016-07-20 14:35:38 -0500
+
+  * Documentation and other clean up.
+
+    Sphinx is used docs: manual, api reference, man page. (Jon Siwek)
+
 0.2-1 | 2016-07-14 12:26:56 -0500
 
   * Fix a mistake in --help output. (Jon Siwek)

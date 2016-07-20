@@ -1,3 +1,8 @@
+"""
+A module defining the main Bro Package Manager interface which supplies methods
+to interact with and operate on Bro packages.
+"""
+
 import sys
 import os
 import json
@@ -11,7 +16,7 @@ else:
 import git
 import semantic_version as semver
 
-from .util import (
+from ._util import (
     make_dir,
     remove_trailing_slashes,
     delete_path,
@@ -27,9 +32,77 @@ from . import (
 
 
 class Manager(object):
+    """A package manager object performs various operations on packages.
+
+    It uses a state directory and a manifest file within it to keep
+    track of package sources, installed packages and their statuses.
+
+    Attributes:
+        sources (`dict of (string, string)`): dictionary package sources whose
+        keys and values are the names and git URL, respectively, given to
+        :meth:`add_source()`
+
+        installed_pkgs (`dict of (string`, :class:`.package.InstalledPackage`)):
+        a dictionary of installed packaged keyed on package names (the last
+        component of the packages git URL)
+
+        bro_dist (`string`): path to the Bro source code distribution.  This
+        is needed for packages that contain Bro plugins that need to be built
+        source code.
+
+        statedir (`string`): the directory where the package manager will
+        a maintain manifest file, package/source git clones, and other
+        persistent state the manager needs in order to operate
+
+        scratchdir (`string`): a directory where the package manager performs
+        miscellaneous/temporary file operations
+
+        scriptdir (`string`): the directory where the package manager will
+        copy each installed package's `scriptpath` (as given by its `pkg.meta`
+        file).  Each package gets a subdirectory within `scriptdir` associated
+        with its name.
+
+        plugindir (`string`): the directory where the package manager will
+        copy each installed package's `pluginpath` (as given by its `pkg.meta`
+        file).  Each package gets a subdirectory within `plugindir` associated
+        with its name.
+
+        source_clone_dir (`string`): the directory where the package manager
+        will clone package sources.  Each source gets a subdirectory associated
+        with its name.
+
+        package_clone_dir (`string`): the directory where the package manager
+        will clone installed packages.  Each package gets a subdirectory
+        associated with its name.
+
+        manifest (`string`): the path to the package manager's manifest file.
+        This file maintains a list of installed packages and their status.
+
+        autoload_script (`string`): path to a Bro script named 'packages.bro'
+        that the package manager maintains.  It is a list of `@load` for each
+        installed package that is marked as loaded (see :meth:`load()`).
+
+        autoload_package (`string`): path to a Bro `__load__.bro` script
+        which is just a symlink to `autoload_script`.  It's always located in
+        a directory named "packages", so as long as BROPATH is configured
+        correctly, "@load packages" will load all installed packages that have
+        been marked as loaded.
+
+        pkg_metadata_filename (`string`): the expected file name that packages
+        are supposed to use to store their metadata
+    """
 
     def __init__(self, statedir, scriptdir, plugindir, bro_dist=''):
         """Create package manager.
+
+        Args:
+            statedir (`string`): value to set the `statedir` attribute to
+
+            scriptdir (`string`): value to set the `scriptdir` attribute to
+
+            plugindir (`string`): value to set the `plugindir` attribute to
+
+            bro_dist (`string`): value to set the `bro_dist` attribute to
 
         :raise OSError: when a package manager state directory can't be created
         :raise IOError: when a package manager state file can't be created
@@ -145,13 +218,27 @@ class Manager(object):
             json.dump(data, f)
 
     def bropath(self):
+        """Return the path where installed package scripts are located.
+
+        This path can be added to BROPATH for interoperability with Bro.
+        """
         return os.path.dirname(self.scriptdir)
 
     def bro_plugin_path(self):
+        """Return the path where installed package plugins are located.
+
+        This path can be added to BRO_PLUGIN_PATH for interoperability with Bro.
+        """
         return os.path.dirname(self.plugindir)
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
+
+        Args:
+            name (`string`): a short name that will be used to reference the
+            package source
+
+            git_url (`string`): the git URL of the package source
 
         Returns True if the source is successfully added.  It may fail to be
         added if the git URL is invalid or if a source with a different git URL
@@ -181,11 +268,8 @@ class Manager(object):
 
         return True
 
-    def default_source(self):
-        return self.sources['default']
-
     def source_packages(self):
-        """Return a list of `Package`s contained in all sources."""
+        """Return a list of :class:`.package.Package` contained in all sources."""
         rval = []
 
         for _, source in self.sources.items():
@@ -194,11 +278,11 @@ class Manager(object):
         return rval
 
     def installed_packages(self):
-        """Return a list of `InstalledPackage`s that have been installed."""
+        """Return list of :class:`.package.InstalledPackage`."""
         return [ipkg for _, ipkg in self.installed_pkgs.items()]
 
     def loaded_packages(self):
-        """Return a list of `InstalledPackage`s that have been loaded."""
+        """Return list of :class:`.package.InstalledPackage` that have been loaded."""
         rval = []
 
         for _, ipkg in self.installed_pkgs.items():
@@ -208,12 +292,28 @@ class Manager(object):
         return rval
 
     def package_build_log(self, pkg_path):
-        """Return the path to the package manager's build log for a package."""
+        """Return the path to the package manager's build log for a package.
+
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
+        """
         name = Package.name_from_path(pkg_path)
         return os.path.join(self.package_clonedir, '.build-{}.log'.format(name))
 
     def match_source_packages(self, pkg_path):
-        """Return a list of `Package`s that match a given path."""
+        """Return a list of :class:`.package.Package` that match a given path.
+
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
+        """
         rval = []
 
         for pkg in self.source_packages():
@@ -223,7 +323,14 @@ class Manager(object):
         return rval
 
     def find_installed_package(self, pkg_path):
-        """Return a `InstalledPackage` if one matches the name.
+        """Return an :class:`.package.InstalledPackage` if one matches the name.
+
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
 
         A package's "name" is the last component of it's git URL.
         """
@@ -246,13 +353,20 @@ class Manager(object):
             clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
             clone = git.Repo(clonepath)
             clone.remote().fetch()
-            ipkg.status.is_outdated = Manager._is_clone_outdated(
+            ipkg.status.is_outdated = _is_clone_outdated(
                 clone, ipkg.status.current_version, ipkg.status.tracking_method)
 
         self._write_manifest()
 
     def upgrade(self, pkg_path):
         """Upgrade a package to the latest available version.
+
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
 
         Return empty string if package upgrade succeeded else an error
         string explaining why it failed.
@@ -279,7 +393,7 @@ class Manager(object):
         clone = git.Repo(clonepath)
 
         if ipkg.status.tracking_method == 'version':
-            version_tags = Manager._get_version_tags(clone)
+            version_tags = _get_version_tags(clone)
             return self._install(ipkg.package, version_tags[-1])
         elif ipkg.status.tracking_method == 'branch':
             clone.remote().pull()
@@ -289,6 +403,13 @@ class Manager(object):
 
     def remove(self, pkg_path):
         """Remove an installed package.
+
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
 
         Returns True if an installed package was removed.
 
@@ -321,10 +442,17 @@ class Manager(object):
     def pin(self, pkg_path):
         """Pin a currently installed package to the currently installed version.
 
-        Pinned packages are never upgraded when calling `upgrade()`.
+        Pinned packages are never upgraded when calling :meth:`upgrade()`.
 
-        Returns an `InstalledPackage` if successfully pinned or None if no
-        matching installed package could be found.
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
+
+        Returns an :class:`.package.InstalledPackage` if successfully pinned or
+        None if no matching installed package could be found.
 
         :raise IOError: when the manifest file can't be written
         """
@@ -348,8 +476,15 @@ class Manager(object):
     def unpin(self, pkg_path):
         """Unpin a currently installed package and allow it to be upgraded.
 
-        Returns an `InstalledPackage` if successfully pinned or None if no
-        matching installed package could be found.
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
+
+        Returns an :class:`.package.InstalledPackage` if successfully pinned or
+        None if no matching installed package could be found.
 
         :raise IOError: when the manifest file can't be written
         """
@@ -375,6 +510,13 @@ class Manager(object):
 
         The collection of 'loaded' packages is a convenient way for Bro to more
         simply load a whole group of packages installed via the package manager.
+
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
 
         Returns True if a package is successfully marked as loaded.
 
@@ -404,6 +546,13 @@ class Manager(object):
         The collection of 'loaded' packages is a convenient way for Bro to more
         simply load a whole group of packages installed via the package manager.
 
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
+
         Returns True if a package is successfully unmarked as loaded.
 
         :raise IOError: if the loader script or manifest can't be written
@@ -429,7 +578,14 @@ class Manager(object):
     def info(self, pkg_path):
         """Retrieves information about a package.
 
-        Return a `PackageInfo` object.
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
+
+        Return a :class:`.package.PackageInfo` object.
         """
         LOG.debug('getting info on "%s", pkg_path')
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -468,7 +624,7 @@ class Manager(object):
     def _info(self, package, status):
         """Retrieves information about a package.
 
-        Return a `PackageInfo` object.
+        Return a :class:`.package.PackageInfo` object.
 
         :raise git.exc.GitCommandError: when failing to clone the package repo
         """
@@ -478,7 +634,7 @@ class Manager(object):
                            status=status)
 
     def _clone_package(self, package, clonepath):
-        """Clone a `Package` into clonepath and retrieve metadata/info for it.
+        """Clone :class:`.package.Package` git repo and retrieve metadata/info.
 
         Return empty string if package cloning and metadata/info retrieval
         succeeded else an error string explaining why it failed.
@@ -503,79 +659,23 @@ class Manager(object):
 
         metadata = {item[0]: item[1] for item in parser.items('package')}
         package.metadata = metadata
-        package.versions = Manager._get_version_tags(clone)
+        package.versions = _get_version_tags(clone)
         return ''
-
-    @staticmethod
-    def _get_version_tags(clone):
-        tags = []
-
-        for tagref in clone.tags:
-            tag = tagref.name
-
-            try:
-                semver.Version.coerce(tag)
-            except ValueError:
-                # Skip tags that aren't compatible semantic versions.
-                continue
-            else:
-                tags.append(tag)
-
-        return sorted(tags)
-
-    @staticmethod
-    def _get_branch_names(clone):
-        rval = []
-
-        for ref in clone.references:
-            branch_name = ref.name
-
-            if not branch_name.startswith('origin/'):
-                continue
-
-            rval.append(branch_name.split('/')[-1])
-
-        return rval
-
-    @staticmethod
-    def _get_ref(clone, ref_name):
-        for ref in clone.refs:
-            if ref.name.split('/')[-1] == ref_name:
-                return ref
-
-    @staticmethod
-    def _is_version_outdated(clone, version):
-        version_tags = Manager._get_version_tags(clone)
-        return version != version_tags[-1]
-
-    @staticmethod
-    def _is_branch_outdated(clone, branch):
-        it = clone.iter_commits('{0}..origin/{0}'.format(branch))
-        num_commits_behind = sum(1 for c in it)
-        return num_commits_behind > 0
-
-    @staticmethod
-    def _is_clone_outdated(clone, ref_name, tracking_method):
-        if tracking_method == 'version':
-            return Manager._is_version_outdated(clone, ref_name)
-        elif tracking_method == 'branch':
-            return Manager._is_branch_outdated(clone, ref_name)
-        else:
-            raise NotImplementedError
-
-    @staticmethod
-    def _get_hash(clone, ref_name):
-        return Manager._get_ref(clone, ref_name).object.hexsha
 
     def install(self, pkg_path, version=None):
         """Install a package.
 
-        If 'version' is given, it may be either a git version tag or branch.
-        If it's a git version tag, the package is pinned to that version after
-        installation.
+        Args:
+            pkg_path (`string`): the full git URL of a package or the shortened
+            path/name that refers to it within a package source.  E.g. for
+            a package in a source named "default" at submodule path "alice/foo",
+            the following inputs may refer to the package: "foo", "alice/foo",
+            or "default/alice/foo".
 
-        If 'version' is not given, then the latest git version tag is installed
-        (or if no version tags exist, the 'master' branch is installed).
+            version (`string`): if not given, then the latest git version tag is
+            installed (or if no version tags exist, the 'master' branch is
+            installed).  If given, it may be either a git version tag or a git
+            branch name.
 
         Return empty string if package installation succeeded else an error
         string explaining why it failed.
@@ -633,7 +733,7 @@ class Manager(object):
         return ''
 
     def _install(self, package, version=None):
-        """Install a `Package`.
+        """Install a :class:`.package.Package`.
 
         Return empty string if package installation succeeded else an error
         string explaining why it failed.
@@ -653,7 +753,7 @@ class Manager(object):
                 return res
 
         clone = git.Repo(clonepath)
-        version_tags = Manager._get_version_tags(clone)
+        version_tags = _get_version_tags(clone)
         status = PackageStatus()
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
         status.is_pinned = ipkg.status.is_pinned if ipkg else False
@@ -662,7 +762,7 @@ class Manager(object):
             if version in version_tags:
                 status.tracking_method = 'version'
             else:
-                branches = Manager._get_branch_names(clone)
+                branches = _get_branch_names(clone)
 
                 if version in branches:
                     status.tracking_method = 'branch'
@@ -674,16 +774,16 @@ class Manager(object):
                 version = version_tags[-1]
                 status.tracking_method = 'version'
             else:
-                if 'master' not in Manager._get_branch_names(clone):
+                if 'master' not in _get_branch_names(clone):
                     return 'git repo has no "master" branch or version tags'
 
                 version = 'master'
                 status.tracking_method = 'branch'
 
         status.current_version = version
-        status.current_hash = Manager._get_hash(clone, version)
+        status.current_hash = _get_hash(clone, version)
         clone.git.checkout(version)
-        status.is_outdated = Manager._is_clone_outdated(
+        status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
         buildcmd = package.metadata['buildcmd']
 
@@ -726,8 +826,8 @@ class Manager(object):
         scriptpath_src = os.path.join(
             clonepath, package.metadata['scriptpath'])
         scriptpath_dst = os.path.join(self.scriptdir, package.name)
-        error = Manager._copy_package_dir(package, 'scriptpath',
-                                          scriptpath_src, scriptpath_dst)
+        error = _copy_package_dir(package, 'scriptpath',
+                                  scriptpath_src, scriptpath_dst)
         make_symlink(os.path.join('packages', package.name),
                      os.path.join(self.bropath(), package.name))
 
@@ -737,8 +837,8 @@ class Manager(object):
         pluginpath_src = os.path.join(
             clonepath, package.metadata['pluginpath'])
         pluginpath_dst = os.path.join(self.plugindir, package.name)
-        error = Manager._copy_package_dir(package, 'pluginpath',
-                                          pluginpath_src, pluginpath_dst)
+        error = _copy_package_dir(package, 'pluginpath',
+                                  pluginpath_src, pluginpath_dst)
 
         if error:
             return error
@@ -748,30 +848,91 @@ class Manager(object):
         LOG.debug('installed "%s"', package)
         return ''
 
-    @staticmethod
-    def _copy_package_dir(package, dirname, src, dst):
-        """Copy a directory from a package to its installation location.
 
-        Return empty string if package dir copy succeeded else an error string
-        explaining why it failed.
-        """
+def _get_version_tags(clone):
+    tags = []
+
+    for tagref in clone.tags:
+        tag = tagref.name
+
         try:
-            if os.path.exists(src):
-                copy_over_path(src, dst)
-            else:
-                LOG.info('installing "%s": nonexistant %s: %s',
-                         package, dirname, src)
-        except shutil.Error as error:
-            errors = error.args[0]
-            reasons = ""
+            semver.Version.coerce(tag)
+        except ValueError:
+            # Skip tags that aren't compatible semantic versions.
+            continue
+        else:
+            tags.append(tag)
 
-            for err in errors:
-                src, dst, msg = err
-                reason = 'failed to copy {}: {} -> {}: {}'.format(
-                    dirname, src, dst, msg)
-                reasons += '\n' + reason
-                LOG.warning('installing "%s": %s', package, reason)
+    return sorted(tags)
 
-            return 'failed to copy package {}: {}'.format(dirname, reasons)
 
-        return ''
+def _get_branch_names(clone):
+    rval = []
+
+    for ref in clone.references:
+        branch_name = ref.name
+
+        if not branch_name.startswith('origin/'):
+            continue
+
+        rval.append(branch_name.split('/')[-1])
+
+    return rval
+
+
+def _get_ref(clone, ref_name):
+    for ref in clone.refs:
+        if ref.name.split('/')[-1] == ref_name:
+            return ref
+
+
+def _is_version_outdated(clone, version):
+    version_tags = _get_version_tags(clone)
+    return version != version_tags[-1]
+
+
+def _is_branch_outdated(clone, branch):
+    it = clone.iter_commits('{0}..origin/{0}'.format(branch))
+    num_commits_behind = sum(1 for c in it)
+    return num_commits_behind > 0
+
+
+def _is_clone_outdated(clone, ref_name, tracking_method):
+    if tracking_method == 'version':
+        return _is_version_outdated(clone, ref_name)
+    elif tracking_method == 'branch':
+        return _is_branch_outdated(clone, ref_name)
+    else:
+        raise NotImplementedError
+
+
+def _get_hash(clone, ref_name):
+    return _get_ref(clone, ref_name).object.hexsha
+
+
+def _copy_package_dir(package, dirname, src, dst):
+    """Copy a directory from a package to its installation location.
+
+    Return empty string if package dir copy succeeded else an error string
+    explaining why it failed.
+    """
+    try:
+        if os.path.exists(src):
+            copy_over_path(src, dst)
+        else:
+            LOG.info('installing "%s": nonexistant %s: %s',
+                     package, dirname, src)
+    except shutil.Error as error:
+        errors = error.args[0]
+        reasons = ""
+
+        for err in errors:
+            src, dst, msg = err
+            reason = 'failed to copy {}: {} -> {}: {}'.format(
+                dirname, src, dst, msg)
+            reasons += '\n' + reason
+            LOG.warning('installing "%s": %s', package, reason)
+
+        return 'failed to copy package {}: {}'.format(dirname, reasons)
+
+    return ''
