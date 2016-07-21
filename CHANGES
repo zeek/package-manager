@@ -1,4 +1,8 @@
 
+0.2-4 | 2016-07-21 09:49:15 -0500
+
+  * Make output of 'info' command have a stable order. (Jon Siwek)
+
 0.2-3 | 2016-07-21 09:44:42 -0500
 
   * Python3 compatibility fixes. (Jon Siwek)

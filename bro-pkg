@@ -339,12 +339,12 @@ def cmd_info(manager, args, config):
         if info.status:
             print('\tinstall status:')
 
-            for key, value in info.status.__dict__.items():
+            for key, value in sorted(info.status.__dict__.items()):
                 print('\t\t{} = {}'.format(key, value))
 
         print('\tlatest metadata:')
 
-        for key, value in pkg.metadata.items():
+        for key, value in sorted(pkg.metadata.items()):
             print('\t\t{} = {}'.format(key, value))
 
 
