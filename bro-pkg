@@ -507,9 +507,9 @@ def argparser():
         'load',
         help='Register packages to be be auto-loaded by Bro.',
         description='The Bro Package Manager keeps track of all packages that'
-        ' are marked as "loaded" and maintains a single Bro script that, when '
-        ' loaded by Bro (e.g. via "@load packages"), will load all "loaded"'
-        ' packages at once.'
+        ' are marked as "loaded" and maintains a single Bro script that, when'
+        ' loaded by Bro (e.g. via "@load packages"), will load the scripts from'
+        ' all "loaded" packages at once.'
         ' This command adds a set of packages to the "loaded packages" list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_load)
@@ -522,10 +522,10 @@ def argparser():
         'unload',
         help='Unregister packages to be be auto-loaded by Bro.',
         description='The Bro Package Manager keeps track of all packages that'
-        ' are marked as "loaded" and maintains a single Bro script that, when '
-        ' loaded by Bro, will load all "loaded" packages at once.'
-        ' This command removes a set of packages from the "loaded packages"'
-        ' list.',
+        ' are marked as "loaded" and maintains a single Bro script that, when'
+        ' loaded by Bro, will load the scripts from all "loaded" packages at'
+        ' once.  This command removes a set of packages from the "loaded'
+        ' packages" list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_unload)
     sub_parser.add_argument(

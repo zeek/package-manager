@@ -88,14 +88,19 @@ An example `pkg.meta`::
 
   [package]
   version = 1.0.0
-  scriptpath = build/scripts
+  scriptpath = scripts/Demo/Rot13
   buildcmd = ./configure --bro-dist=%(bro_dist)s && make
 
 In the above example, the "%(bro_dist)s" string is substituted for the path the
 user has set for the "bro_dist" option in the :ref:`package manager config file
 <bro-pkg-config-file>`. The default CMake skeleton for Bro plugins will use
 `build/` as the directory for the final/built version of the plugin, which
-matches the defaulted value of the omitted `pluginpath` metadata field.
+matches the defaulted value of the omitted `pluginpath` metadata field. The
+`scriptpath` field is set to the location where the author has placed custom
+scripts for their plugin.  When a package has both a Bro plugin and Bro script
+components, the "plugin" part is always unconditionally loaded by Bro, but the
+"script" components must either be explicitly loaded (e.g.
+"@load <package_name>") or the package marked as :ref:`loaded <load-command>`.
 
 Note that if you want to distribute a BroControl plugin with a Bro plugin, you
 typically need to add the BroControl plugin's python script to the
