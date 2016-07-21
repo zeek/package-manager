@@ -590,9 +590,13 @@ class Manager(object):
         LOG.debug('getting info on "%s", pkg_path')
         pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
-        status = ipkg.status if ipkg else None
 
-        matches = self.match_source_packages(pkg_path)
+        if ipkg:
+            status = ipkg.status
+            matches = [ipkg.package]
+        else:
+            status = None
+            matches = self.match_source_packages(pkg_path)
 
         if not matches:
             package = Package(git_url=pkg_path)
