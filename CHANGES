@@ -1,4 +1,14 @@
 
+0.2-8 | 2016-07-21 12:14:53 -0500
+
+  * Improve speed of checking for changed remote package sources. (Jon Siwek)
+
+  * Improve how 'info' command locates packages. (Jon Siwek)
+
+  * Emit an error when package has non-existant 'scriptpath'. (Jon Siwek)
+
+  * Documentation clarifications. (Jon Siwek)
+
 0.2-4 | 2016-07-21 09:49:15 -0500
 
   * Make output of 'info' command have a stable order. (Jon Siwek)

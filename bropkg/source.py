@@ -49,12 +49,13 @@ class Source(object):
             self.clone = git.Repo.clone_from(git_url, clone_path)
         else:
             LOG.debug('found source clone of "%s" at %s', name, clone_path)
-            old_urls = [url for url in self.clone.remote().urls]
+            old_url = self.clone.git.config('--local', '--get',
+                                            'remote.origin.url')
 
-            if git_url not in old_urls:
+            if git_url != old_url:
                 LOG.debug(
                     'url of source "%s" changed from %s to %s, reclone at %s',
-                    name, old_urls, git_url, clone_path)
+                    name, old_url, git_url, clone_path)
                 shutil.rmtree(clone_path)
                 self.clone = git.Repo.clone_from(git_url, clone_path)
 
