@@ -826,6 +826,11 @@ class Manager(object):
         scriptpath_src = os.path.join(
             clonepath, package.metadata['scriptpath'])
         scriptpath_dst = os.path.join(self.scriptdir, package.name)
+
+        if not os.path.exists(scriptpath_src):
+            return str.format("package's 'scriptpath' does not exist: {0}",
+                              package.metadata['scriptpath'])
+
         error = _copy_package_dir(package, 'scriptpath',
                                   scriptpath_src, scriptpath_dst)
         make_symlink(os.path.join('packages', package.name),
@@ -834,9 +839,20 @@ class Manager(object):
         if error:
             return error
 
-        pluginpath_src = os.path.join(
-            clonepath, package.metadata['pluginpath'])
+        pluginpath = package.metadata['pluginpath']
+        pluginpath_src = os.path.join(clonepath, pluginpath)
         pluginpath_dst = os.path.join(self.plugindir, package.name)
+
+        if not os.path.exists(pluginpath_src):
+            LOG.info('installing "%s": package "pluginpath" does not exist: %s',
+                     package, pluginpath)
+
+            if pluginpath != 'build':
+                # It's common for a package to not have build directory for
+                # for plugins, so don't error out in that case, just log it.
+                return str.format("package's 'pluginpath' does not exist: {0}",
+                                  pluginpath)
+
         error = _copy_package_dir(package, 'pluginpath',
                                   pluginpath_src, pluginpath_dst)
 
@@ -919,9 +935,6 @@ def _copy_package_dir(package, dirname, src, dst):
     try:
         if os.path.exists(src):
             copy_over_path(src, dst)
-        else:
-            LOG.info('installing "%s": nonexistant %s: %s',
-                     package, dirname, src)
     except shutil.Error as error:
         errors = error.args[0]
         reasons = ""
