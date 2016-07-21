@@ -349,10 +349,13 @@ def cmd_info(manager, args, config):
 
 
 def cmd_config(manager, args, config):
-    import StringIO
-
     if args.config_param == 'all':
-        out = StringIO.StringIO()
+        if sys.version_info[0] < 3:
+            from StringIO import StringIO
+        else:
+            from io import StringIO
+
+        out = StringIO()
         config.write(out)
         print(out.getvalue())
         out.close()
@@ -380,7 +383,7 @@ def cmd_env(manager, args, config):
                                stderr=subprocess.STDOUT, bufsize=1)
 
         for line in cmd.stdout:
-            parts = line.split()
+            parts = line.decode().split()
 
             if not parts:
                 continue

@@ -1,4 +1,8 @@
 
+0.2-3 | 2016-07-21 09:44:42 -0500
+
+  * Python3 compatibility fixes. (Jon Siwek)
+
 0.2-2 | 2016-07-20 14:35:38 -0500
 
   * Documentation and other clean up.

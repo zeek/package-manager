@@ -806,12 +806,12 @@ class Manager(object):
                     f.write('=== STDERR ===\n')
 
                     for line in build.stderr:
-                        f.write(line)
+                        f.write(line.decode())
 
                     f.write('=== STDOUT ===\n')
 
                     for line in build.stdout:
-                        f.write(line)
+                        f.write(line.decode())
 
             except EnvironmentError as error:
                 LOG.warning(
