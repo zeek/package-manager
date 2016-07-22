@@ -11,6 +11,11 @@ if sys.version_info[0] < 3:
 else:
     import configparser
 
+BRO_PYTHON_PATH = '@BRO_ROOT@/lib/python'
+
+if os.path.isdir(BRO_PYTHON_PATH):
+    sys.path.append(BRO_PYTHON_PATH)
+
 import bropkg
 
 
@@ -21,7 +26,7 @@ def print_error(*args, **kwargs):
 def config_items(config, section):
     # Same as config.items(section), but exclude default keys.
     defaults = {key for key, _ in config.items('DEFAULT')}
-    items = config.items(section)
+    items = sorted(config.items(section))
     return [(key, value) for (key, value) in items if key not in defaults]
 
 
@@ -44,76 +49,66 @@ def find_program(prog_name):
     return ''
 
 
-def create_manager(config_path):
+def file_is_not_empty(path):
+    return os.path.isfile(path) and os.path.getsize(path) > 0
 
-    def require_config_section(section):
-        sections = config.sections()
 
-        if section in sections:
-            return
+def find_configfile():
+    configfile = os.environ.get('BRO_PKG_CONFIG_FILE')
 
-        print_error(
-            'error: config file "{}" is missing a "{}" section'.format(
-                config_path, section))
-        sys.exit(1)
+    if configfile and file_is_not_empty(configfile):
+        return configfile
 
-    def require_config_option(section, option):
-        if config.has_option(section, option):
-            return
+    configfile = os.path.join(os.path.expanduser('~'), '.bro-pkg', 'config')
 
-        print_error(str.format('error: config file "{}" is missing option '
-                               '"{}" in section "{}"',
-                               config_path, option, section))
+    if file_is_not_empty(configfile):
+        return configfile
 
-        sys.exit(1)
+    configfile = os.path.join('@BRO_ETC_INSTALL_DIR@', 'bro-pkg.config')
 
-    client_path = os.path.abspath(__file__)
-    client_dir = os.path.dirname(client_path)
-    statedir = os.path.join(os.path.expanduser('~'), '.bro-pkg')
+    if file_is_not_empty(configfile):
+        return configfile
 
-    if not config_path:
-        config_path = os.environ.get('BRO_PKG_CONFIG_FILE')
+    return None
 
-    if not config_path:
-        config_path = os.path.join(statedir, 'config')
 
-        if not os.path.isfile(config_path):
-            # @todo: if installed, use the installed location instead
-            config_path = os.path.join(client_dir, 'bro-pkg.config')
-
-    if not os.path.isfile(config_path):
-        print_error('error: invalid config file "{}"'.format(config_path))
-        sys.exit(1)
-
+def create_config(configfile):
     config = configparser.SafeConfigParser()
-    config.read(config_path)
-    require_config_section('sources')
-    require_config_option('sources', 'default')
 
-    scriptdir = os.path.join(statedir, 'scriptdir')
-    plugindir = os.path.join(statedir, 'plugindir')
-    bro_dist = ''
-    bro_exe = find_program('bro')
+    if configfile:
+        if not os.path.isfile(configfile):
+            print_error('error: invalid config file "{}"'.format(configfile))
+            sys.exit(1)
 
-    if config.has_section('paths'):
-        def config_option_set(config, section, option):
-            return config.has_option(section, option) and config.get(section,
-                                                                     option)
+        config.read(configfile)
 
-        def get_option(config, section, option, default):
-            if config_option_set(config, section, option):
-                return config.get(section, option)
+    if not config.has_section('sources'):
+        config.add_section('sources')
 
-            return default
-
-        statedir = get_option(config, 'paths', 'statedir', statedir)
-        scriptdir = get_option(config, 'paths', 'scriptdir', scriptdir)
-        plugindir = get_option(config, 'paths', 'plugindir', plugindir)
-        bro_dist = get_option(config, 'paths', 'bro_dist', bro_dist)
-        bro_exe = get_option(config, 'paths', 'bro_exe', bro_exe)
-
-    else:
+    if not config.has_section('paths'):
         config.add_section('paths')
+
+    if not configfile:
+        config.set('sources', 'default', 'https://github.com/bro/packages')
+
+    def config_option_set(config, section, option):
+        return config.has_option(section, option) and config.get(section,
+                                                                 option)
+
+    def get_option(config, section, option, default):
+        if config_option_set(config, section, option):
+            return config.get(section, option)
+
+        return default
+
+    statedir = get_option(config, 'paths', 'statedir',
+                          os.path.join(os.path.expanduser('~'), '.bro-pkg'))
+    scriptdir = get_option(config, 'paths', 'scriptdir',
+                           os.path.join(statedir, 'scriptdir'))
+    plugindir = get_option(config, 'paths', 'plugindir',
+                           os.path.join(statedir, 'plugindir'))
+    bro_dist = get_option(config, 'paths', 'bro_dist', '')
+    bro_exe = get_option(config, 'paths', 'bro_exe', find_program('bro'))
 
     config.set('paths', 'statedir', statedir)
     config.set('paths', 'scriptdir', scriptdir)
@@ -121,17 +116,25 @@ def create_manager(config_path):
     config.set('paths', 'bro_exe', bro_exe)
     config.set('paths', 'bro_dist', bro_dist)
 
+    return config
+
+
+def create_manager(config):
+    statedir = config.get('paths', 'statedir')
+    scriptdir = config.get('paths', 'scriptdir')
+    plugindir = config.get('paths', 'plugindir')
+    bro_dist = config.get('paths', 'bro_dist')
+
     manager = bropkg.Manager(statedir=statedir, scriptdir=scriptdir,
                              plugindir=plugindir, bro_dist=bro_dist)
 
     for key, value in config_items(config, 'sources'):
         if not manager.add_source(name=key, git_url=value):
             print_error(
-                'error: invalid source repo "{}" in {} '.format(key,
-                                                                config_path))
+                'error: invalid source repo "{}" in config file '.format(key))
             sys.exit(1)
 
-    return manager, config
+    return manager
 
 
 def cmd_install(manager, args, config):
@@ -643,7 +646,13 @@ def main():
 
         bropkg.LOG.addHandler(handler)
 
-    manager, config = create_manager(args.configfile)
+    configfile = args.configfile
+
+    if not configfile:
+        configfile = find_configfile()
+
+    config = create_config(configfile)
+    manager = create_manager(config)
 
     args.run_cmd(manager, args, config)
 

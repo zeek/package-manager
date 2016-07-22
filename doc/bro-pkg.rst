@@ -56,7 +56,7 @@ to customize their :doc:`Package Sources <source>`, :doc:`Package <package>`
 installation paths, Bro executable/source paths, and other package manager
 client options.
 
-See the default config file below for explanations of the available options
-and how to customize them:
+See the default/example config file below for explanations of the
+available options and how to customize them:
 
 .. literalinclude:: ../bro-pkg.config

@@ -1,4 +1,8 @@
 
+0.2-9 | 2016-07-22 15:07:57 -0500
+
+  * Change bro-pkg to not require a config file and add setup.py. (Jon Siwek)
+
 0.2-8 | 2016-07-21 12:14:53 -0500
 
   * Improve speed of checking for changed remote package sources. (Jon Siwek)
