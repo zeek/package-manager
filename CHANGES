@@ -1,4 +1,8 @@
 
+0.2-10 | 2016-07-23 14:19:09 -0500
+
+  * Add a prebuilt man page. (Jon Siwek)
+
 0.2-9 | 2016-07-22 15:07:57 -0500
 
   * Change bro-pkg to not require a config file and add setup.py. (Jon Siwek)
