@@ -54,7 +54,11 @@ suggested/minimum configuration would be to use the following settings:
 With those settings, the package manager will install Bro scripts, Bro plugins,
 and BroControl plugins into directories where `bro`/`broctl` expect to find such
 things by default.  BroControl also needs no further configuration to
-automatically distribute installed package scripts/plugins to all nodes.
+automatically distribute installed package scripts/plugins to all nodes, but
+you need to add "@load packages" to your `site/local.bro` if you want it to
+have Bro load all the scripts from installed packages (that are marked as
+"loaded").  Alternatively, you could add "@load <package_name>" for individual,
+installed packages.
 
 If you prefer to not use those settings for `scriptdir` and `plugindir`, the
 default `bro-pkg` configuration will install all package scripts/plugins within
