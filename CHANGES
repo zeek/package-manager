@@ -1,4 +1,10 @@
 
+0.2-13 | 2016-07-24 12:18:40 -0500
+
+  * Add a 'gh-pages' Makefile target. (Jon Siwek)
+
+  * Add .nojekyll file to built sphinx docs. (Jon Siwek)
+
 0.2-11 | 2016-07-23 15:32:24 -0500
 
   * Add installation/setup docs. (Jon Siwek)
