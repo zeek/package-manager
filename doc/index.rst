@@ -1,17 +1,10 @@
-Bro Package Manager Manual
-==========================
-Version: |version|
-
-Table of Contents
------------------
+.. include:: overview.rst
 
 .. toctree::
-   :maxdepth: 2
+    :hidden:
+    :numbered:
 
-   Bro Package Manager Overview <overview>
-   bro-pkg
-   package
-   source
-   api/index
-
-* :ref:`genindex`
+    bro-pkg
+    package
+    source
+    api/index

@@ -64,6 +64,10 @@ html: $(BROPKGSTAMP)
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
+.PHONY: livehtml
+livehtml: $(BROPKGSTAMP)
+	sphinx-autobuild -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+
 .PHONY: dirhtml
 dirhtml: $(BROPKGSTAMP)
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
