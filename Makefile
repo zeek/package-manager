@@ -9,6 +9,10 @@ man:
 html:
 	(cd doc && make html)
 
+.PHONY: livehtml
+livehtml:
+	(cd doc && make livehtml)
+
 .PHONY: gh-pages
 gh-pages:
 	(cd doc && make clean html)

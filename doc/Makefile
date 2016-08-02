@@ -66,7 +66,7 @@ html: $(BROPKGSTAMP)
 
 .PHONY: livehtml
 livehtml: $(BROPKGSTAMP)
-	sphinx-autobuild -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	sphinx-autobuild --ignore "*.swp" --ignore "*.swpx" --ignore "*.swx" -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 
 .PHONY: dirhtml
 dirhtml: $(BROPKGSTAMP)

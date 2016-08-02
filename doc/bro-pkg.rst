@@ -3,48 +3,144 @@ Command-Line Client (`bro-pkg`)
 
 .. argparse::
     :module: bro-pkg
-    :func: argparser
+    :func: top_level_parser
     :prog: bro-pkg
 
-    install : @before
-        .. _install-command:
+    --configfile : @after
+        See :ref:`bro-pkg-config-file`.
 
-    remove : @before
-        .. _remove-command:
+Commands
+--------
 
-    refresh : @before
-        .. _refresh-command:
+.. _install-command:
 
-    upgrade : @before
-        .. _upgrade-command:
+install
+~~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: install
 
-    load : @before
-        .. _load-command:
+.. _remove-command:
 
-    unload : @before
-        .. _unload-command:
+remove
+~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: remove
 
-    pin : @before
-        .. _pin-command:
+.. _refresh-command:
 
-    unpin : @before
-        .. _unpin-command:
+refresh
+~~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: refresh
 
-    list : @before
-        .. _list-command:
+.. _upgrade-command:
 
-    search : @before
-        .. _search-command:
+upgrade
+~~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: upgrade
 
-    info : @before
-        .. _info-command:
+.. _load-command:
 
-    config : @before
-        .. _config-command:
+load
+~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: load
 
-    env : @before
-        .. _env-command:
+.. _unload-command:
 
+unload
+~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: unload
+
+.. _pin-command:
+
+pin
+~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: pin
+
+.. _unpin-command:
+
+unpin
+~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: unpin
+
+.. _list-command:
+
+list
+~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: list
+
+.. _search-command:
+
+search
+~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: search
+
+.. _info-command:
+
+info
+~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: info
+
+.. _config-command:
+
+config
+~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: config
+
+.. _env-command:
+
+env
+~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: env
 
 .. _bro-pkg-config-file:
 

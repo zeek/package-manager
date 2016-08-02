@@ -1,3 +1,10 @@
 .float-right {
     float: right;
 }
+
+/*
+Prevent sphinx-argparse option output (e.g. --version) from wrapping.
+*/
+span.option {
+    white-space: nowrap;
+}

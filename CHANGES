@@ -1,4 +1,8 @@
 
+0.2-16 | 2016-08-02 14:34:49 -0500
+
+  * Docs: give each bro-pkg command its own section (Jon Siwek)
+
 0.2-15 | 2016-08-01 14:34:06 -0500
 
   * Documentation organization/layout/theming. (Jon Siwek)

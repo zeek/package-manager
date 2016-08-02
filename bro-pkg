@@ -414,6 +414,23 @@ def cmd_env(manager, args, config):
         print('export BROPATH={}'.format(':'.join(bropaths)))
         print('export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
+def top_level_parser():
+    top_parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='A command-line package manager for Bro.',
+        epilog='Environment Variables:\n\n'
+        '    BRO_PKG_CONFIG_FILE\t'
+        'Same as --configfile option, but has less precedence.'
+    )
+    top_parser.add_argument('--version', action='version',
+                            version='%(prog)s ' + bropkg.__version__)
+    top_parser.add_argument('--configfile',
+                            help='Path to Bro Package Manager config file.')
+    top_parser.add_argument('--verbose', '-v', action='count', default=0,
+                            help='Increase program output for debugging.'
+                            ' Use multiple times for more output (e.g. -vvv).')
+    return top_parser
+
 
 def argparser():
     pkg_name_help = 'The name(s) of package(s) to operate on.  The package' \
@@ -430,21 +447,7 @@ def argparser():
                     ' "alice/foo", the following names work: "foo",' \
                     ' "alice/foo", "default/alice/foo".'
 
-    top_parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='A command-line package manager for Bro.',
-        epilog='Environment Variables:\n\n'
-        '    BRO_PKG_CONFIG_FILE\t'
-        'Same as --configfile option, but has less precedence.'
-    )
-    top_parser.add_argument('--version', action='version',
-                            version='%(prog)s ' + bropkg.__version__)
-    top_parser.add_argument('--configfile',
-                            help='Path to Bro Package Manager config file.')
-    top_parser.add_argument('--verbose', '-v', action='count', default=0,
-                            help='May be used multiple times (e.g. -vvv) for'
-                            ' increased program output (e.g. for debugging)')
-
+    top_parser = top_level_parser()
     command_parser = top_parser.add_subparsers(
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
