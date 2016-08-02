@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Aug 01, 2016" "0.2-14" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Aug 02, 2016" "0.2-17" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -39,8 +39,6 @@ A command\-line package manager for Bro.
 .nf
 .ft C
 usage: bro\-pkg [\-h] [\-\-version] [\-\-configfile CONFIGFILE] [\-\-verbose]
-               {install,remove,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,env}
-               ...
 .ft P
 .fi
 .UNINDENT
@@ -55,19 +53,27 @@ show program\(aqs version number and exit
 .TP
 .B \-\-configfile
 Path to Bro Package Manager config file.
+.sp
+See \fI\%Config File\fP\&.
 .TP
 .B \-\-verbose=0\fP,\fB  \-v=0
-May be used multiple times (e.g. \-vvv) for increased program output (e.g. for debugging)
+Increase program output for debugging. Use multiple times for more output (e.g. \-vvv).
 .UNINDENT
-.TP
-.B Sub\-commands:
-.INDENT 7.0
-.TP
-\fBinstall\fP
-Installs Bro packages.
+.UNINDENT
+.sp
+Environment Variables:
+.INDENT 0.0
+.INDENT 3.5
+BRO_PKG_CONFIG_FILE	Same as \-\-configfile option, but has less precedence.
+.UNINDENT
+.UNINDENT
+
+.SH COMMANDS
+.SS install
 .sp
 Installs packages from a configured package source or directly from a git URL.  After installing, the package is marked as being "loaded" (see the "load" command).
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -77,7 +83,7 @@ usage: bro\-pkg install [\-h] [\-\-version VERSION] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -93,12 +99,11 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.
 .UNINDENT
 .UNINDENT
-.TP
-\fBremove\fP
-Uninstall a package.
+.SS remove
 .sp
 Unloads (see the "unload" command) and uninstalls a previously installed package.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -108,7 +113,7 @@ usage: bro\-pkg remove [\-h] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -117,12 +122,11 @@ usage: bro\-pkg remove [\-h] package [package ...]
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
 .UNINDENT
 .UNINDENT
-.TP
-\fBrefresh\fP
-Retrieve updated package information.
+.SS refresh
 .sp
 Update local package source clones to retrieve information about new packages that are available.  Also fetches updated package information about any installed packages to determine if new versions are available.  This does not upgrade installed packages (see the "upgrade" command for that).
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -132,14 +136,13 @@ usage: bro\-pkg refresh [\-h]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .UNINDENT
-.TP
-\fBupgrade\fP
-Upgrade installed packages to latest versions.
+.SS upgrade
 .sp
-Uprades the specified package(s) to latest available version.  If no specific packages are specified, then all installed packages that are outdated and not pinned are upgraded.  For packages that are installed with \(ga\-\-version\(ga using a git branch name, the package is updated to the latest commit on that branch, else the package is updated to the highest available git version tag.
-.INDENT 7.0
+Uprades the specified package(s) to latest available version.  If no specific packages are specified, then all installed packages that are outdated and not pinned are upgraded.  For packages that are installed with \fI\-\-version\fP using a git branch name, the package is updated to the latest commit on that branch, else the package is updated to the highest available git version tag.
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -149,7 +152,7 @@ usage: bro\-pkg upgrade [\-h] [package [package ...]]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -158,12 +161,11 @@ usage: bro\-pkg upgrade [\-h] [package [package ...]]
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
 .UNINDENT
 .UNINDENT
-.TP
-\fBload\fP
-Register packages to be be auto\-loaded by Bro.
+.SS load
 .sp
 The Bro Package Manager keeps track of all packages that are marked as "loaded" and maintains a single Bro script that, when loaded by Bro (e.g. via "@load packages"), will load the scripts from all "loaded" packages at once. This command adds a set of packages to the "loaded packages" list.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -173,7 +175,7 @@ usage: bro\-pkg load [\-h] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -182,12 +184,11 @@ usage: bro\-pkg load [\-h] package [package ...]
 Name(s) of package(s) to load.
 .UNINDENT
 .UNINDENT
-.TP
-\fBunload\fP
-Unregister packages to be be auto\-loaded by Bro.
+.SS unload
 .sp
 The Bro Package Manager keeps track of all packages that are marked as "loaded" and maintains a single Bro script that, when loaded by Bro, will load the scripts from all "loaded" packages at once.  This command removes a set of packages from the "loaded packages" list.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -197,7 +198,7 @@ usage: bro\-pkg unload [\-h] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -206,12 +207,11 @@ usage: bro\-pkg unload [\-h] package [package ...]
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
 .UNINDENT
 .UNINDENT
-.TP
-\fBpin\fP
-Prevent packages from being automatically upgraded.
+.SS pin
 .sp
 Pinned packages will be ignored by the "upgrade" command.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -221,7 +221,7 @@ usage: bro\-pkg pin [\-h] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -230,12 +230,11 @@ usage: bro\-pkg pin [\-h] package [package ...]
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
 .UNINDENT
 .UNINDENT
-.TP
-\fBunpin\fP
-Allows packages to be automatically upgraded.
+.SS unpin
 .sp
 Packages that are not pinned are automatically upgraded by the "upgrade" command
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -245,7 +244,7 @@ usage: bro\-pkg unpin [\-h] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -254,12 +253,11 @@ usage: bro\-pkg unpin [\-h] package [package ...]
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
 .UNINDENT
 .UNINDENT
-.TP
-\fBlist\fP
-Lists packages.
+.SS list
 .sp
 Filters available/installed packages by a chosen category and then outputs that filtered package list.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -270,7 +268,7 @@ usage: bro\-pkg list [\-h]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -281,12 +279,11 @@ Package category used to filter listing.
 Possible choices: all, installed, not_installed, loaded, unloaded, outdated
 .UNINDENT
 .UNINDENT
-.TP
-\fBsearch\fP
-Search packages for matching names.
+.SS search
 .sp
 Perform a substring search on package names and metadata tags.  Surround search text with slashes to indicate it is a regular expression (e.g. "/text/").
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -296,7 +293,7 @@ usage: bro\-pkg search [\-h] search_text
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -305,12 +302,11 @@ usage: bro\-pkg search [\-h] search_text
 The text/pattern to look for.
 .UNINDENT
 .UNINDENT
-.TP
-\fBinfo\fP
-Display package information.
+.SS info
 .sp
 Shows detailed information/metadata for given packages. If the package is currently installed, additional information about the status of it is displayed.  E.g. the installed version or whether it is currently marked as "pinned" or "loaded."
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -320,7 +316,7 @@ usage: bro\-pkg info [\-h] package [package ...]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -329,12 +325,11 @@ usage: bro\-pkg info [\-h] package [package ...]
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
 .UNINDENT
 .UNINDENT
-.TP
-\fBconfig\fP
-Show Bro Package Manager configuration info.
+.SS config
 .sp
 The default output of this command is a valid package manager config file that corresponds to the one currently being used, but also with any defaulted field values filled in.  This command also allows for only the value of a specific field to be output if the name of that field is given as an argument to the command.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -345,7 +340,7 @@ usage: bro\-pkg config [\-h]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
+.INDENT 0.0
 .TP
 .B Positional arguments:
 .INDENT 7.0
@@ -356,12 +351,11 @@ Name of a specific config file field to output.
 Possible choices: all, sources, statedir, scriptdir, plugindir, bro_exe, bro_dist
 .UNINDENT
 .UNINDENT
-.TP
-\fBenv\fP
-Show the value of environment variables that need to be set for Bro to be able to use installed packages.
+.SS env
 .sp
 This command returns shell commands that, when executed, will correctly set BROPATH and BRO_PLUGIN_PATH to utilize the scripts and plugins from packages installed by the package manager.  For this command to function properly, either the "bro_exe" field of the config file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH environment variables should already contain valid paths to which this command will append package\-specific paths to.
-.INDENT 7.0
+
+.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -371,18 +365,8 @@ usage: bro\-pkg env [\-h]
 .fi
 .UNINDENT
 .UNINDENT
-.INDENT 7.0
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.sp
-Environment Variables:
 .INDENT 0.0
-.INDENT 3.5
-BRO_PKG_CONFIG_FILE	Same as \-\-configfile option, but has less precedence.
 .UNINDENT
-.UNINDENT
-
 .SH CONFIG FILE
 .sp
 The \fIbro\-pkg\fP command\-line client uses an INI\-format config file to allow users
@@ -404,11 +388,13 @@ available options and how to customize them:
 # (1) bro\-pkg \-\-configfile=/path/to/custom/config
 # (2) the BRO_PKG_CONFIG_FILE environment variable
 # (3) a config file located at $HOME/.bro\-pkg/config
-# (4) if bro\-pkg is installed along with bro, prefix/etc/bro\-pkg.config
-# (5) if none of the above exist, then bro\-pkg uses builtin, default
+# (4) if bro\-pkg is installed along with bro:
+      $bro_installprefix/etc/bro\-pkg.config
+# (5) if none of the above exist, then bro\-pkg uses builtin/default
 #     values for all settings shown below
 
 [sources]
+
 # The default package source repository from which package manager
 # clients fetch packages.  The default source may be removed, changed,
 # or additional sources may be added as long as they use a unique key
@@ -416,33 +402,34 @@ available options and how to customize them:
 default = https://github.com/bro/packages
 
 [paths]
-# Directory where source repositories are cloned, packages are installed,
-# and other package manager state information is maintained.
-# If left blank, this defaults to $HOME/.bro\-pkg
+
+# Directory where source repositories are cloned, packages are
+# installed, and other package manager state information is
+# maintained.  If left blank, this defaults to $HOME/.bro\-pkg
 statedir =
 
 # The directory where package scripts are copied upon installation.
-# A subdirectory named \(aqpackages\(aq is always created within the specified
-# path and the package manager will copy each package\(aqs \(aqscriptpath\(aq to
-# that subdirectory as well as create a symlink within $scriptdir itself
-# that points to the package\(aqs copied \(aqscriptpath\(aq.
+# A subdirectory named \(aqpackages\(aq is always created within the
+# specified path and the package manager will copy each package\(aqs
+# \(aqscriptpath\(aq to that subdirectory as well as create a symlink within
+# $scriptdir itself that points to the package\(aqs copied \(aqscriptpath\(aq.
 # If left blank, this defaults to $statedir/scriptdir
 # A typical path to set here is $bro_install_prefix/share/bro/site
 scriptdir =
 
 # The directory where package plugins are copied upon installation.
-# A subdirectory named \(aqpackages\(aq is always created within the specified
-# path and the package manager will work solely within that subdirectory.
+# A subdirectory named \(aqpackages\(aq is always created within the
+# specified path for the package manager to work within.
 # If left blank, this defaults to $statedir/plugindir
 # A typical path to set here is $bro_install_prefix/lib/bro/plugins
 plugindir =
 
 # The path to the \(aqbro\(aq executable (e.g. /usr/local/bro/bin/bro).
 # This is used by the \(aqbro\-pkg env\(aq command to determine built\-in
-# BROPATH and BRO_PLUGIN_PATH settings the \(aqbro\(aq executable uses in the
-# case those environment variables aren\(aqt set.
-# If left empty, the PATH environment variable will be searched for the
-# \(aqbro\(aq exectuable.
+# BROPATH and BRO_PLUGIN_PATH settings the \(aqbro\(aq executable uses in
+# the case those environment variables aren\(aqt set.
+# If left empty, the PATH environment variable will be searched for
+# the \(aqbro\(aq exectuable.
 bro_exe =
 
 # The path to Bro distribution source code.  This is only needed when

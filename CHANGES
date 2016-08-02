@@ -1,4 +1,8 @@
 
+0.2-17 | 2016-08-02 14:46:16 -0500
+
+  * Docs: rebuild docs on version string change. (Jon Siwek)
+
 0.2-16 | 2016-08-02 14:34:49 -0500
 
   * Docs: give each bro-pkg command its own section (Jon Siwek)
