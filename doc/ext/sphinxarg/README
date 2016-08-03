@@ -1,0 +1,7 @@
+Modified version of sphinx-argparse 0.1.15:
+
+    https://github.com/ribozz/sphinx-argparse
+
+Added Sphinx extension hooks to check for whether the python module
+associated with an argparse directive is outdated and so the .rst file
+it is used in needs to be re-read.

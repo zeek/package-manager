@@ -1,4 +1,11 @@
 
+0.2-18 | 2016-08-03 16:10:18 -0500
+
+  * Docs: fix Sphinx argparse extension to check for outdated modules.
+
+    Sphinx itself should now always be able to determine whether the
+    command-line bro-pkg documentation needs to be rebuilt. (Jon Siwek)
+
 0.2-17 | 2016-08-02 14:46:16 -0500
 
   * Docs: rebuild docs on version string change. (Jon Siwek)

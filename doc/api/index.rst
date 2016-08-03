@@ -6,7 +6,6 @@ Python API Reference (`bropkg`)
     :undoc-members:
     :show-inheritance:
 
-
 The following Python modules are all provided as part of the `bropkg`
 public interface:
 

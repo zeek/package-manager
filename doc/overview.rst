@@ -26,8 +26,7 @@ For users of the command-line client or Python API:
 
 For developers or those that want to build the documentation locally:
 
-* Sphinx: https://pypi.python.org/pypi/Sphinx/1.4.5
-* sphinx-argparse: https://pypi.python.org/pypi/sphinx-argparse
+* Sphinx: https://pypi.python.org/pypi/Sphinx
 
 Installation
 ------------
