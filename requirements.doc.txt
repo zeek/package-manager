@@ -1,2 +1,4 @@
 Sphinx
 sphinx-bootstrap-theme
+GitPython
+semantic_version
