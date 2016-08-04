@@ -57,7 +57,7 @@ html:
 
 .PHONY: livehtml
 livehtml:
-	sphinx-autobuild --ignore "*.lock" --ignore "*.pyc" --ignore "*.swp" --ignore "*.swpx" --ignore "*.swx" --watch .. --watch ../bropkg -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	sphinx-autobuild --ignore "*.git/*" --ignore "*.lock" --ignore "*.pyc" --ignore "*.swp" --ignore "*.swpx" --ignore "*.swx" --watch .. --watch ../bropkg -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 
 .PHONY: dirhtml
 dirhtml:
