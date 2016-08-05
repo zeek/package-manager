@@ -1,4 +1,10 @@
 
+0.2-21 | 2016-08-05 13:41:47 -0500
+
+  * Docs: change theme. (Jon Siwek)
+
+  * Docs: GitPython and semantic_version build requirements (Jon Siwek)
+
 0.2-19 | 2016-08-04 13:25:48 -0500
 
   * Docs: add requirements file (Jon Siwek)
