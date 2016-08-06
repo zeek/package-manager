@@ -1,4 +1,12 @@
 
+0.2-25 | 2016-08-06 15:08:12 -0500
+
+  * Docs: don't restrict argparse-generated table widths. (Jon Siwek)
+
+  * Docs: misc. style fixes and clarifications. (Jon Siwek)
+
+  * Docs: switch theme (again) to Read the Docs theme.
+
 0.2-22 | 2016-08-06 13:12:26 -0500
 
   * Docs: clarifications, organization, style. (Jon Siwek)

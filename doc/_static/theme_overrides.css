@@ -1,0 +1,18 @@
+/*
+Prevent sphinx-argparse option output (e.g. --version) from wrapping.
+*/
+span.option {
+    white-space: nowrap;
+}
+
+/* override table width restrictions */
+html body div.wy-table-responsive table td,
+html body div.wy-table-responsive table th {
+    white-space: normal;
+}
+
+html body div.wy-table-responsive {
+    margin-bottom: 24px;
+    max-width: 100%;
+    overflow: visible;
+}

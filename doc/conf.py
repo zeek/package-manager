@@ -157,6 +157,10 @@ html_title = u'Bro Package Manager Documentation'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+def setup(app):
+   #app.add_javascript("custom.js")
+   app.add_stylesheet("theme_overrides.css")
+
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
