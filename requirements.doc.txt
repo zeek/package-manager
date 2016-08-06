@@ -1,5 +1,4 @@
 Sphinx
-sphinx-bootstrap-theme
 sphinxcontrib-napoleon
 GitPython
 semantic_version
