@@ -33,21 +33,21 @@ class PackageStatus(object):
     manager will operate on it.
 
     Attributes:
-        is_loaded (`bool`): whether a package is marked as "loaded"
+        is_loaded (bool): whether a package is marked as "loaded".
 
-        is_pinned (`bool`): whether a package is allowed to be upgraded.
+        is_pinned (bool): whether a package is allowed to be upgraded.
 
-        is_outdated (`bool`): whether a newer version of the package exists.
+        is_outdated (bool): whether a newer version of the package exists.
 
-        tracking_method (`string`): either 'branch' or 'version' to indicate
-        whether package upgrades should stick to a git branch or use git version
-        tags.
+        tracking_method (str): either "branch" or "version" to indicate
+            whether package upgrades should stick to a git branch or use git
+            version tags.
 
-        current_version (`string`): the current version of the installed
-        package, which is either a git branch name or a git version tag.
+        current_version (str): the current version of the installed
+            package, which is either a git branch name or a git version tag.
 
-        current_hash (`string`): the git sha1 hash associated with installed
-        package's current version/commit.
+        current_hash (str): the git sha1 hash associated with installed
+            package's current version/commit.
     """
 
     def __init__(self, is_loaded=False, is_pinned=False, is_outdated=False,
@@ -69,10 +69,10 @@ class PackageInfo(object):
         package (:class:`Package`): the relevant Bro package
 
         status (:class:`PackageStatus`): this attribute is set for installed
-        packages
+            packages
 
-        invalid_reason (`string`): this attribute is set when there is a problem
-        with gathering package information and explains what went wrong
+        invalid_reason (str): this attribute is set when there is a problem
+            with gathering package information and explains what went wrong
     """
 
     def __init__(self, package=None, status=None,
@@ -89,27 +89,27 @@ class Package(object):
     itself, like its metadata, version, URL, and name.
 
     Attributes:
-        git_url (`string`): the git URL which uniquely identifies where the
-        Bro package is located
+        git_url (str): the git URL which uniquely identifies where the
+            Bro package is located
 
-        name (`string`): the canonical name of the package, which is always the
-        last component of the git URL path
+        name (str): the canonical name of the package, which is always the
+            last component of the git URL path
 
-        source (`string`): the package source this package comes from, which
-        may be empty if the package is not a part of a source (i.e. the user
-        is referring directly to the package's git URL).
+        source (str): the package source this package comes from, which
+            may be empty if the package is not a part of a source (i.e. the user
+            is referring directly to the package's git URL).
 
-        module_dir (`string`): the directory within the package source where
-        this package is located as a submodule.  E.g. if the package source
-        has a git submodule at "alice/foo" for the package named "foo", then
-        `module_dir` should be "alice".  It may also be empty if the package
-        is not part of a package source.
+        module_dir (str): the directory within the package source where
+            this package is located as a submodule.  E.g. if the package source
+            has a git submodule at "alice/foo" for the package named "foo", then
+            `module_dir` should be "alice".  It may also be empty if the package
+            is not part of a package source.
 
-        metadata (`dict of (string, string)`): the contents of the package's
-        `pkg.meta` file
+        metadata (dict of str -> str): the contents of the package's
+            :file:`pkg.meta` file
 
-        versions (`list of string`): a list of the package's availabe git
-        version tags
+        versions (list of str): a list of the package's availabe git version
+            tags
     """
 
     @classmethod
@@ -161,8 +161,8 @@ class Package(object):
     def matches_path(self, path):
         """Return whether this package has a matching path/name.
 
-        E.g for a package with :meth:`qualified_name()` of "default/alice/foo",
-        the following inputs will match: "foo", "alice/foo", "default/alice/foo"
+        E.g for a package with :meth:`qualified_name()` of "bro/alice/foo",
+        the following inputs will match: "foo", "alice/foo", "bro/alice/foo"
         """
         path_parts = path.split('/')
 

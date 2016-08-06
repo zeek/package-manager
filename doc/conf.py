@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.abspath('./ext'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinxarg.ext', 'sphinx.ext.autodoc']
+extensions = ['sphinxarg.ext', 'sphinx.ext.autodoc', 'sphinxcontrib.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -148,10 +148,10 @@ html_theme_options = {
     ],
 
     # Render the next and previous page links in navbar. (Default: true)
-    'navbar_sidebarrel': False,
+    'navbar_sidebarrel': True,
 
     # Render the current pages TOC in the navbar. (Default: true)
-    'navbar_pagenav': False,
+    'navbar_pagenav': True,
 
     # Global TOC depth for "site" navbar tab. (Default: 1)
     # Switching to -1 shows all levels.
@@ -176,7 +176,7 @@ html_theme_options = {
 
     # Location of link to source.
     # Options are "nav" (default), "footer" or anything else to exclude.
-    'source_link_position': "footer",
+    'source_link_position': "nav",
 
     # Bootswatch (http://bootswatch.com/) theme.
     #
@@ -236,12 +236,6 @@ html_static_path = ['_static']
 
 # Custom sidebar templates, maps document names to template names.
 #
-# html_sidebars = {}
-# html_sidebars = {
-#    '**': ['globaltoc.html', 'searchbox.html'],
-#    'using/windows': ['windowssidebar.html', 'searchbox.html'],
-#}
-
 html_sidebars = {'**': ['custom-sidebar.html']}
 
 # Additional templates that should be rendered to pages, maps page names to

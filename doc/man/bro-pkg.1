@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Aug 05, 2016" "0.2-21" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Aug 06, 2016" "0.2-22" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -89,7 +89,7 @@ usage: bro\-pkg install [\-h] [\-\-version VERSION] package [package ...]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .TP
 .B Options:
@@ -119,12 +119,12 @@ usage: bro\-pkg remove [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS refresh
 .sp
-Update local package source clones to retrieve information about new packages that are available.  Also fetches updated package information about any installed packages to determine if new versions are available.  This does not upgrade installed packages (see the "upgrade" command for that).
+Retrieve latest metadata from package sources and checks whether any installed packages have available upgrades. Note that this does not actually upgrade any packages (see the "upgrade" command for that).
 
 .INDENT 0.0
 .INDENT 3.5
@@ -158,7 +158,7 @@ usage: bro\-pkg upgrade [\-h] [package [package ...]]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS load
@@ -204,7 +204,7 @@ usage: bro\-pkg unload [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS pin
@@ -227,7 +227,7 @@ usage: bro\-pkg pin [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS unpin
@@ -250,12 +250,12 @@ usage: bro\-pkg unpin [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS list
 .sp
-Filters available/installed packages by a chosen category and then outputs that filtered package list.
+Outputs a list of packages that match a given category.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -322,7 +322,7 @@ usage: bro\-pkg info [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .Bpackage
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "default" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "default/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or the submodule path within the package source. If two packages in different package sources have conflicting submodule paths, then the package name may be prepended to the submodule path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a packge in a source named "bro" at submodule path "alice/foo", the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS config
@@ -353,7 +353,7 @@ Possible choices: all, sources, statedir, scriptdir, plugindir, bro_exe, bro_dis
 .UNINDENT
 .SS env
 .sp
-This command returns shell commands that, when executed, will correctly set BROPATH and BRO_PLUGIN_PATH to utilize the scripts and plugins from packages installed by the package manager.  For this command to function properly, either the "bro_exe" field of the config file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH environment variables should already contain valid paths to which this command will append package\-specific paths to.
+This command returns shell commands that, when executed, will correctly set BROPATH and BRO_PLUGIN_PATH to utilize the scripts and plugins from packages installed by the package manager.  For this command to function properly, either the "bro_exe" field of the config file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH environment variables should already contain valid paths to which this command will append package\-specific paths.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -369,10 +369,9 @@ usage: bro\-pkg env [\-h]
 .UNINDENT
 .SH CONFIG FILE
 .sp
-The \fIbro\-pkg\fP command\-line client uses an INI\-format config file to allow users
-to customize their Package Sources, Package
-installation paths, Bro executable/source paths, and other package manager
-client options.
+The \fBbro\-pkg\fP command\-line tool uses an INI\-format config file to allow
+users to customize their Package Sources, Package installation paths, Bro executable/source paths, and other
+\fBbro\-pkg\fP options.
 .sp
 See the default/example config file below for explanations of the
 available options and how to customize them:
@@ -388,18 +387,18 @@ available options and how to customize them:
 # (1) bro\-pkg \-\-configfile=/path/to/custom/config
 # (2) the BRO_PKG_CONFIG_FILE environment variable
 # (3) a config file located at $HOME/.bro\-pkg/config
-# (4) if bro\-pkg is installed along with bro:
-      $bro_installprefix/etc/bro\-pkg.config
+# (4) if bro\-pkg is installed via a Bro CMake build:
+#     $bro_install_prefix/etc/bro\-pkg.config
 # (5) if none of the above exist, then bro\-pkg uses builtin/default
 #     values for all settings shown below
 
 [sources]
 
-# The default package source repository from which package manager
-# clients fetch packages.  The default source may be removed, changed,
-# or additional sources may be added as long as they use a unique key
+# The default package source repository from which bro\-pkg fetches
+# packages.  The default source may be removed, changed, or
+# additional sources may be added as long as they use a unique key
 # and a value that is a valid git URL.
-default = https://github.com/bro/packages
+bro = https://github.com/bro/packages
 
 [paths]
 
@@ -429,7 +428,7 @@ plugindir =
 # BROPATH and BRO_PLUGIN_PATH settings the \(aqbro\(aq executable uses in
 # the case those environment variables aren\(aqt set.
 # If left empty, the PATH environment variable will be searched for
-# the \(aqbro\(aq exectuable.
+# the \(aqbro\(aq executable.
 bro_exe =
 
 # The path to Bro distribution source code.  This is only needed when

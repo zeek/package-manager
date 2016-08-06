@@ -1,5 +1,5 @@
 """
-A module containing the definition of a Package Source: a git repository
+A module containing the definition of a "package source": a git repository
 containing a collection of git submodules that point to Bro packages.
 """
 
@@ -18,19 +18,20 @@ class Source(object):
     URL, and local git clone.
 
     Attributes:
-        name (`string`): The name of the source as given by a config file key
-        in it's `[sources]` section.
+        name (str): The name of the source as given by a config file key
+            in it's ``[sources]`` section.
 
-        git_url (`string`): The git URL of the package source.
+        git_url (str): The git URL of the package source.
 
-        clone (`git.Repo`): The local git clone of the package source.
+        clone (git.Repo): The local git clone of the package source.
     """
 
     def __init__(self, name, clone_path, git_url):
         """Create a package source.
 
-        :raise git.exc.GitCommandError: if the git repo is invalid
-        :raise OSError: if the git repo is invalid and can't be re-initialized
+        Raises:
+            git.exc.GitCommandError: if the git repo is invalid
+            OSError: if the git repo is invalid and can't be re-initialized
         """
         git_url = os.path.expanduser(git_url)
         self.name = name

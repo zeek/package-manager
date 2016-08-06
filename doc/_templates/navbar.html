@@ -1,7 +1,20 @@
 {% extends "!navbar.html" %}
 
-{% block navbartoc %}
-  {% if theme_navbar_pagenav %}
-    {% include "navbartoc.html" %}
-  {% endif %}
+{% block sidebarrel %}
+{%- if prev %}
+  <li>
+    <a href="{{ prev.link|e }}" title="{{ prev.title|striptags }}">
+      <span class="glyphicon glyphicon-chevron-left visible-sm-inline"></span>
+      <span class="hidden-sm hidden-tablet">{{ "&laquo;"|safe }}Prev</span>
+    </a>
+  </li>
+{%- endif %}
+{%- if next %}
+  <li>
+    <a href="{{ next.link|e }}" title="{{ next.title|striptags }}">
+      <span class="glyphicon glyphicon-chevron-right visible-sm-inline"></span>
+      <span class="hidden-sm hidden-tablet">Next{{ "&raquo;"|safe }}</span>
+    </a>
+  </li>
+{%- endif %}
 {% endblock %}

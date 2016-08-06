@@ -10,7 +10,8 @@ import shutil
 def make_dir(path):
     """Create a directory or do nothing if it already exists.
 
-    :raise OSError: if directory cannot be created
+    Raises:
+        OSError: if directory cannot be created
     """
     try:
         os.makedirs(path)

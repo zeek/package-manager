@@ -89,7 +89,7 @@ def create_config(configfile):
         config.add_section('paths')
 
     if not configfile:
-        config.set('sources', 'default', 'https://github.com/bro/packages')
+        config.set('sources', 'bro', 'https://github.com/bro/packages')
 
     def config_option_set(config, section, option):
         return config.has_option(section, option) and config.get(section,
@@ -443,9 +443,9 @@ def argparser():
                     ' name may be prepended to the submodule path to resolve' \
                     ' the ambiguity. A full git URL may also be used to refer' \
                     ' to a package that does not belong to a source. E.g. for' \
-                    ' a packge in a source named "default" at submodule path' \
+                    ' a packge in a source named "bro" at submodule path' \
                     ' "alice/foo", the following names work: "foo",' \
-                    ' "alice/foo", "default/alice/foo".'
+                    ' "alice/foo", "bro/alice/foo".'
 
     top_parser = top_level_parser()
     command_parser = top_parser.add_subparsers(
@@ -485,10 +485,9 @@ def argparser():
     sub_parser = command_parser.add_parser(
         'refresh',
         help='Retrieve updated package information.',
-        description='Update local package source clones to retrieve information'
-        ' about new packages that are available.  Also fetches updated package'
-        ' information about any installed packages to determine if new versions'
-        ' are available.  This does not upgrade installed packages (see the'
+        description='Retrieve latest metadata from package sources and checks'
+        ' whether any installed packages have available upgrades.'
+        ' Note that this does not actually upgrade any packages (see the'
         ' "upgrade" command for that).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_refresh)
@@ -562,8 +561,7 @@ def argparser():
     sub_parser = command_parser.add_parser(
         'list',
         help='Lists packages.',
-        description='Filters available/installed packages by a chosen category'
-        ' and then outputs that filtered package list.',
+        description='Outputs a list of packages that match a given category.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_list)
     sub_parser.add_argument('category', nargs='?', default='installed',
@@ -624,7 +622,7 @@ def argparser():
         ' command to function properly, either the "bro_exe" field of the config'
         ' file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH'
         ' environment variables should already contain valid paths to which'
-        ' this command will append package-specific paths to.',
+        ' this command will append package-specific paths.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_env)
 

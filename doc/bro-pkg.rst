@@ -1,5 +1,7 @@
-Command-Line Client (`bro-pkg`)
-===============================
+.. _bro-pkg:
+
+bro-pkg Command-Line Tool
+=========================
 
 .. argparse::
     :module: bro-pkg
@@ -147,10 +149,10 @@ env
 Config File
 -----------
 
-The `bro-pkg` command-line client uses an INI-format config file to allow users
-to customize their :doc:`Package Sources <source>`, :doc:`Package <package>`
-installation paths, Bro executable/source paths, and other package manager
-client options.
+The :program:`bro-pkg` command-line tool uses an INI-format config file to allow
+users to customize their :doc:`Package Sources <source>`, :doc:`Package
+<package>` installation paths, Bro executable/source paths, and other
+:program:`bro-pkg` options.
 
 See the default/example config file below for explanations of the
 available options and how to customize them:

@@ -4,7 +4,9 @@
     :hidden:
     :numbered:
 
+    quickstart
     bro-pkg
     package
     source
     api/index
+    developers

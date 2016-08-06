@@ -38,74 +38,76 @@ class Manager(object):
     track of package sources, installed packages and their statuses.
 
     Attributes:
-        sources (`dict of (string, string)`): dictionary package sources whose
-        keys and values are the names and git URL, respectively, given to
-        :meth:`add_source()`
+        sources (dict of str -> str): dictionary package sources whose
+            keys and values are the names and git URL, respectively, given to
+            :meth:`add_source()`
 
-        installed_pkgs (`dict of (string`, :class:`.package.InstalledPackage`)):
-        a dictionary of installed packaged keyed on package names (the last
-        component of the packages git URL)
+        installed_pkgs (dict of str -> :class:`.package.InstalledPackage`):
+            a dictionary of installed packaged keyed on package names (the last
+            component of the package's git URL)
 
-        bro_dist (`string`): path to the Bro source code distribution.  This
-        is needed for packages that contain Bro plugins that need to be built
-        source code.
+        bro_dist (str): path to the Bro source code distribution.  This
+            is needed for packages that contain Bro plugins that need to be
+            built from source code.
 
-        statedir (`string`): the directory where the package manager will
-        a maintain manifest file, package/source git clones, and other
-        persistent state the manager needs in order to operate
+        statedir (str): the directory where the package manager will
+            a maintain manifest file, package/source git clones, and other
+            persistent state the manager needs in order to operate
 
-        scratchdir (`string`): a directory where the package manager performs
-        miscellaneous/temporary file operations
+        scratchdir (str): a directory where the package manager performs
+            miscellaneous/temporary file operations
 
-        scriptdir (`string`): the directory where the package manager will
-        copy each installed package's `scriptpath` (as given by its `pkg.meta`
-        file).  Each package gets a subdirectory within `scriptdir` associated
-        with its name.
+        scriptdir (str): the directory where the package manager will
+            copy each installed package's `scriptpath` (as given by its
+            :file:`pkg.meta` file).  Each package gets a subdirectory within
+            `scriptdir` associated with its name.
 
-        plugindir (`string`): the directory where the package manager will
-        copy each installed package's `pluginpath` (as given by its `pkg.meta`
-        file).  Each package gets a subdirectory within `plugindir` associated
-        with its name.
+        plugindir (str): the directory where the package manager will
+            copy each installed package's `pluginpath` (as given by its
+            :file:`pkg.meta` file).  Each package gets a subdirectory within
+            `plugindir` associated with its name.
 
-        source_clone_dir (`string`): the directory where the package manager
-        will clone package sources.  Each source gets a subdirectory associated
-        with its name.
+        source_clone_dir (str): the directory where the package manager
+            will clone package sources.  Each source gets a subdirectory
+            associated with its name.
 
-        package_clone_dir (`string`): the directory where the package manager
-        will clone installed packages.  Each package gets a subdirectory
-        associated with its name.
+        package_clone_dir (str): the directory where the package manager
+            will clone installed packages.  Each package gets a subdirectory
+            associated with its name.
 
-        manifest (`string`): the path to the package manager's manifest file.
-        This file maintains a list of installed packages and their status.
+        manifest (str): the path to the package manager's manifest file.
+            This file maintains a list of installed packages and their status.
 
-        autoload_script (`string`): path to a Bro script named 'packages.bro'
-        that the package manager maintains.  It is a list of `@load` for each
-        installed package that is marked as loaded (see :meth:`load()`).
+        autoload_script (str): path to a Bro script named :file:`packages.bro`
+            that the package manager maintains.  It is a list of ``@load`` for
+            each installed package that is marked as loaded (see
+            :meth:`load()`).
 
-        autoload_package (`string`): path to a Bro `__load__.bro` script
-        which is just a symlink to `autoload_script`.  It's always located in
-        a directory named "packages", so as long as BROPATH is configured
-        correctly, "@load packages" will load all installed packages that have
-        been marked as loaded.
+        autoload_package (str): path to a Bro :file:`__load__.bro` script
+            which is just a symlink to `autoload_script`.  It's always located
+            in a directory named :file:`packages`, so as long as
+            :envvar:`BROPATH` is configured correctly, ``@load packages`` will
+            load all installed packages that have been marked as loaded.
 
-        pkg_metadata_filename (`string`): the expected file name that packages
-        are supposed to use to store their metadata
+        pkg_metadata_filename (str): the expected file name that packages
+            are supposed to use to store their metadata
     """
 
     def __init__(self, statedir, scriptdir, plugindir, bro_dist=''):
-        """Create package manager.
+        """Creates a package manager instance.
 
         Args:
-            statedir (`string`): value to set the `statedir` attribute to
+            statedir (str): value to set the `statedir` attribute to
 
-            scriptdir (`string`): value to set the `scriptdir` attribute to
+            scriptdir (str): value to set the `scriptdir` attribute to
 
-            plugindir (`string`): value to set the `plugindir` attribute to
+            plugindir (str): value to set the `plugindir` attribute to
 
-            bro_dist (`string`): value to set the `bro_dist` attribute to
+            bro_dist (str): value to set the `bro_dist` attribute to
 
-        :raise OSError: when a package manager state directory can't be created
-        :raise IOError: when a package manager state file can't be created
+        Raises:
+            OSError: when a package manager state directory can't be created
+            IOError: when a package manager state file can't be created
         """
         LOG.debug('init Manager version %s', __version__)
         self.sources = {}
@@ -163,9 +165,10 @@ class Manager(object):
         make_symlink('packages.bro', self.autoload_package)
 
     def _write_autoloader(self):
-        """Write the __load__.bro loader script.
+        """Write the :file:`__load__.bro` loader script.
 
-        :raise IOError: if __load__.bro loader script cannot be written
+        Raises:
+            IOError: if :file:`__load__.bro` loader script cannot be written
         """
         with open(self.autoload_script, 'w') as f:
             content = ""
@@ -178,9 +181,11 @@ class Manager(object):
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
 
-        Returns a tuple of (previous scriptdir, previous plugindir)
+        Returns:
+            tuple: (previous scriptdir, previous plugindir)
 
-        :raise IOError: when the manifest file can't be read
+        Raises:
+            IOError: when the manifest file can't be read
         """
         with open(self.manifest, 'r') as f:
             data = json.load(f)
@@ -203,7 +208,8 @@ class Manager(object):
     def _write_manifest(self):
         """Writes the manifest file containing the list of installed packages.
 
-        :raise IOError: when the manifest file can't be written
+        Raises:
+            IOError: when the manifest file can't be written
         """
         pkg_list = []
 
@@ -220,14 +226,16 @@ class Manager(object):
     def bropath(self):
         """Return the path where installed package scripts are located.
 
-        This path can be added to BROPATH for interoperability with Bro.
+        This path can be added to :envvar:`BROPATH` for interoperability with
+        Bro.
         """
         return os.path.dirname(self.scriptdir)
 
     def bro_plugin_path(self):
         """Return the path where installed package plugins are located.
 
-        This path can be added to BRO_PLUGIN_PATH for interoperability with Bro.
+        This path can be added to :envvar:`BRO_PLUGIN_PATH` for
+        interoperability with Bro.
         """
         return os.path.dirname(self.plugindir)
 
@@ -235,14 +243,15 @@ class Manager(object):
         """Add a git repository that acts as a source of packages.
 
         Args:
-            name (`string`): a short name that will be used to reference the
-            package source
+            name (str): a short name that will be used to reference the package
+                source.
 
-            git_url (`string`): the git URL of the package source
+            git_url (str): the git URL of the package source
 
-        Returns True if the source is successfully added.  It may fail to be
-        added if the git URL is invalid or if a source with a different git URL
-        already exists with the same name.
+        Returns:
+            bool: True if the source is successfully added.  It may fail to be
+            added if the git URL is invalid or if a source with a different
+            git URL already exists with the same name.
         """
         if name in self.sources:
             existing_source = self.sources[name]
@@ -269,7 +278,7 @@ class Manager(object):
         return True
 
     def source_packages(self):
-        """Return a list of :class:`.package.Package` contained in all sources."""
+        """Return a list of :class:`.package.Package` within all sources."""
         rval = []
 
         for _, source in self.sources.items():
@@ -282,7 +291,7 @@ class Manager(object):
         return [ipkg for _, ipkg in self.installed_pkgs.items()]
 
     def loaded_packages(self):
-        """Return list of :class:`.package.InstalledPackage` that have been loaded."""
+        """Return list of loaded :class:`.package.InstalledPackage`."""
         rval = []
 
         for _, ipkg in self.installed_pkgs.items():
@@ -295,11 +304,11 @@ class Manager(object):
         """Return the path to the package manager's build log for a package.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
         """
         name = Package.name_from_path(pkg_path)
         return os.path.join(self.package_clonedir, '.build-{}.log'.format(name))
@@ -308,11 +317,11 @@ class Manager(object):
         """Return a list of :class:`.package.Package` that match a given path.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
         """
         rval = []
 
@@ -326,13 +335,13 @@ class Manager(object):
         """Return an :class:`.package.InstalledPackage` if one matches the name.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        A package's "name" is the last component of it's git URL.
+        A package's name is the last component of it's git URL.
         """
         pkg_name = Package.name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
@@ -343,7 +352,8 @@ class Manager(object):
         This retrieves information about new packages and new versions of
         existing packages, but does not yet upgrade installed packaged.
 
-        :raise IOError: if the package manifest file can't be written
+        Raises:
+            IOError: if the package manifest file can't be written
         """
         for name, source in self.sources.items():
             LOG.debug('refresh "%s": pulling %s', name, source.git_url)
@@ -362,16 +372,18 @@ class Manager(object):
         """Upgrade a package to the latest available version.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Return empty string if package upgrade succeeded else an error
-        string explaining why it failed.
+        Returns:
+            str: an empty string if package upgrade succeeded else an error
+            string explaining why it failed.
 
-        :raise IOError: if the manifest can't be written
+        Raises:
+            IOError: if the manifest can't be written
         """
         LOG.debug('upgrading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -405,16 +417,18 @@ class Manager(object):
         """Remove an installed package.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Returns True if an installed package was removed.
+        Returns:
+            bool: True if an installed package was removed, else False.
 
-        :raise IOError: if the package manifest file can't be written
-        :raise OSError: if the installed package's directory can't be deleted
+        Raises:
+            IOError: if the package manifest file can't be written
+            OSError: if the installed package's directory can't be deleted
         """
         LOG.debug('removing "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -445,16 +459,18 @@ class Manager(object):
         Pinned packages are never upgraded when calling :meth:`upgrade()`.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Returns an :class:`.package.InstalledPackage` if successfully pinned or
-        None if no matching installed package could be found.
+        Returns:
+            :class:`.package.InstalledPackage`: if successfully pinned or
+            None if no matching installed package could be found.
 
-        :raise IOError: when the manifest file can't be written
+        Raises:
+            IOError: when the manifest file can't be written
         """
         LOG.debug('pinning "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -477,16 +493,18 @@ class Manager(object):
         """Unpin a currently installed package and allow it to be upgraded.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Returns an :class:`.package.InstalledPackage` if successfully pinned or
-        None if no matching installed package could be found.
+        Returns:
+            :class:`.package.InstalledPackage`: if successfully unpinned or
+            None if no matching installed package could be found.
 
-        :raise IOError: when the manifest file can't be written
+        Raises:
+            IOError: when the manifest file can't be written
         """
         LOG.debug('unpinning "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -506,21 +524,23 @@ class Manager(object):
         return ipkg
 
     def load(self, pkg_path):
-        """Mark an installed package as being 'loaded'.
+        """Mark an installed package as being "loaded".
 
-        The collection of 'loaded' packages is a convenient way for Bro to more
+        The collection of "loaded" packages is a convenient way for Bro to more
         simply load a whole group of packages installed via the package manager.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Returns True if a package is successfully marked as loaded.
+        Returns:
+            bool: True if a package is successfully marked as loaded.
 
-        :raise IOError: if the loader script or manifest can't be written
+        Raises:
+            IOError: if the loader script or manifest can't be written
         """
         LOG.debug('loading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -541,21 +561,23 @@ class Manager(object):
         return True
 
     def unload(self, pkg_path):
-        """Unmark an installed package as being 'loaded'.
+        """Unmark an installed package as being "loaded".
 
-        The collection of 'loaded' packages is a convenient way for Bro to more
+        The collection of "loaded" packages is a convenient way for Bro to more
         simply load a whole group of packages installed via the package manager.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Returns True if a package is successfully unmarked as loaded.
+        Returns:
+            bool: True if a package is successfully unmarked as loaded.
 
-        :raise IOError: if the loader script or manifest can't be written
+        Raises:
+            IOError: if the loader script or manifest can't be written
         """
         LOG.debug('unloading "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -579,13 +601,14 @@ class Manager(object):
         """Retrieves information about a package.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-        Return a :class:`.package.PackageInfo` object.
+        Returns:
+            A :class:`.package.PackageInfo` object.
         """
         LOG.debug('getting info on "%s", pkg_path')
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -628,9 +651,11 @@ class Manager(object):
     def _info(self, package, status):
         """Retrieves information about a package.
 
-        Return a :class:`.package.PackageInfo` object.
+        Returns:
+            A :class:`.package.PackageInfo` object.
 
-        :raise git.exc.GitCommandError: when failing to clone the package repo
+        Raises:
+            git.exc.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratchdir, package.name)
         invalid_reason = self._clone_package(package, clonepath)
@@ -640,10 +665,12 @@ class Manager(object):
     def _clone_package(self, package, clonepath):
         """Clone :class:`.package.Package` git repo and retrieve metadata/info.
 
-        Return empty string if package cloning and metadata/info retrieval
-        succeeded else an error string explaining why it failed.
+        Returns:
+            str: empty string if package cloning and metadata/info retrieval
+            succeeded else an error string explaining why it failed.
 
-        :raise git.exc.GitCommandError: if the git repo is invalid
+        Raises:
+            git.exc.GitCommandError: if the git repo is invalid
         """
         delete_path(clonepath)
         clone = git.Repo.clone_from(package.git_url, clonepath)
@@ -670,21 +697,23 @@ class Manager(object):
         """Install a package.
 
         Args:
-            pkg_path (`string`): the full git URL of a package or the shortened
-            path/name that refers to it within a package source.  E.g. for
-            a package in a source named "default" at submodule path "alice/foo",
-            the following inputs may refer to the package: "foo", "alice/foo",
-            or "default/alice/foo".
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package in a source named "bro" at submodule path "alice/foo",
+                the following inputs may refer to the package: "foo",
+                "alice/foo", or "bro/alice/foo".
 
-            version (`string`): if not given, then the latest git version tag is
-            installed (or if no version tags exist, the 'master' branch is
-            installed).  If given, it may be either a git version tag or a git
-            branch name.
+            version (str): if not given, then the latest git version tag is
+                installed (or if no version tags exist, the "master" branch is
+                installed).  If given, it may be either a git version tag or a
+                git branch name.
 
-        Return empty string if package installation succeeded else an error
-        string explaining why it failed.
+        Returns:
+            str: empty string if package installation succeeded else an error
+            string explaining why it failed.
 
-        :raise IOError: if the manifest can't be written
+        Raises:
+            IOError: if the manifest can't be written
         """
         LOG.debug('installing "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
@@ -739,11 +768,13 @@ class Manager(object):
     def _install(self, package, version=None):
         """Install a :class:`.package.Package`.
 
-        Return empty string if package installation succeeded else an error
-        string explaining why it failed.
+        Returns:
+            str: empty string if package installation succeeded else an error
+            string explaining why it failed.
 
-        :raise git.exc.GitCommandError: if the git repo is invalid
-        :raise IOError: if the package manifest file can't be written
+        Raises:
+            git.exc.GitCommandError: if the git repo is invalid
+            IOError: if the package manifest file can't be written
         """
         # @todo: check if dependencies would be broken by overwriting a
         # previous installed package w/ a new version
@@ -933,8 +964,9 @@ def _get_hash(clone, ref_name):
 def _copy_package_dir(package, dirname, src, dst):
     """Copy a directory from a package to its installation location.
 
-    Return empty string if package dir copy succeeded else an error string
-    explaining why it failed.
+    Returns:
+        str: empty string if package dir copy succeeded else an error string
+        explaining why it failed.
     """
     try:
         if os.path.exists(src):
