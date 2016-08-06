@@ -12,26 +12,31 @@ Dependencies
 Note that following the suggested `Installation`_ process via :program:`pip`
 will automatically install `GitPython` and `semantic_version` for you.
 
-
 Installation
 ------------
 
-Using the latest stable release on PyPI_::
+Using the latest stable release on PyPI_:
 
-  pip install bro-pkg
+.. code-block:: console
 
-Using the latest git development version::
+  $ pip install bro-pkg
 
-  pip install git+git://github.com/bro/package-manager@master
+Using the latest git development version:
+
+.. code-block:: console
+
+  $ pip install git+git://github.com/bro/package-manager@master
 
 Basic Configuration
 -------------------
 
 After first installation via :program:`pip`, additional configuration is
-required::
+required:
 
-  mkdir -p ~/.bro-pkg
-  bro-pkg config > ~/.bro-pkg/config
+.. code-block:: console
+
+  $ mkdir -p ~/.bro-pkg
+  $ bro-pkg config > ~/.bro-pkg/config
 
 Now edit :file:`~/.bro-pkg/config` and fill in appropriate option values.
 Check :ref:`here <bro-pkg-config-file>` for a full explanation of what each
@@ -44,8 +49,8 @@ scenarios:
 - set `plugindir` to the location of Bro's default plugin directory (e.g.
   :file:`{<bro_install_prefix>}/lib/bro/plugins`)
 
-- set `bro_dist` to the location of Bro's source code (if you plan on
-  installing packages that have Bro plugins that require compilation).
+- set `bro_dist` to the location of Bro's source code if you plan on
+  installing packages that have Bro plugins that require compilation.
 
 With those settings, the package manager will install Bro scripts, Bro plugins,
 and BroControl plugins into directories where :program:`bro` and
@@ -53,9 +58,11 @@ and BroControl plugins into directories where :program:`bro` and
 also automatically distribute installed package scripts/plugins to all nodes.
 
 The final step is to edit your :file:`site/local.bro`.  If you want to
-automatically load the scripts from all packages
-:ref:`installed <install-command>` and :ref:`loaded <load-command>`
-via :ref:`bro-pkg <bro-pkg>`, add::
+have Bro automatically load the scripts from all
+:ref:`installed <install-command>` packages that are also marked as
+":ref:`loaded <load-command>`" add:
+
+.. code-block:: bro
 
   @load packages
 
@@ -74,13 +81,29 @@ When using non-standard location, follow these steps to integrate with
 :program:`bro` and :program:`broctl`:
 
 - To get command-line :program:`bro` to be aware of Bro scripts/plugins in a
-  non-standard location, set the `bro_exe` config option and run the
-  :ref:`bro-pkg env <env-command>` command to help you set up your environment.
+  non-standard location, set the `bro_exe` config option and run:
+
+  .. code-block:: console
+
+    $ `bro-pkg env`
+
+  Note that this sets up the environment only for the current shell session.
 
 - To get :program:`broctl` to be aware of scripts/plugins in a non-standard
-  location, edit :file:`broctl.cfg` and adjust `SitePolicyPath`
-  and `SitePluginPath` according to the output of
-  ``bro-pkg config scriptdir`` and ``bro-pkg config plugindir``,
-  respectively.
+  location, run:
+
+  .. code-block:: console
+
+    $ bro-pkg config scriptdir
+
+  And set the `SitePolicyPath` option in :file:`broctl.cfg` based on the output
+  you see.  Similarly, run:
+
+  .. code-block:: console
+
+    $ bro-pkg config plugindir
+
+  And set the `SitePluginPath` option in :file:`broctl.cfg` based on the output
+  you see.
 
 .. _PyPI: https://pypi.python.org/pypi

@@ -16,8 +16,11 @@ with Bro, the package manager, or other packages.
 
 A package's shorthand name is simply the last component of of its git URL.  E.g.
 a package at ``https://github.com/bro/foo`` may be referred to as **foo** and a
-Bro script that wants to load all the scripts within that package can use
-``@load foo``.
+Bro script that wants to load all the scripts within that package can use:
+
+.. code-block:: bro
+
+  @load foo
 
 Metadata
 --------

@@ -2,7 +2,7 @@ Anatomy of a Package Source
 ===========================
 
 :ref:`bro-pkg <bro-pkg>`, by default, is configured to obtain packages from a
-single "package source": the `Bro Packages Git Repository`_, which is hosted by
+single "package source", the `Bro Packages Git Repository`_, which is hosted by
 and loosely curated by the Bro Team. However, users may :ref:`configure bro-pkg
 <bro-pkg-config-file>` to use other package sources: either ones they've set up
 themselves for organization purposes or those hosted by other third parties.

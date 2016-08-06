@@ -21,3 +21,6 @@ because it's hosted there.
 The Bro Package Manager user manual and further documentation can be found at:
 
   http://bro-package-manager.readthedocs.io
+
+Or for offline reading, look in the ``docs/`` directory of the source code
+distribution.
