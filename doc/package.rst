@@ -5,7 +5,7 @@ What is a Package?
 ------------------
 
 The minimum requirement for a package is that it be a git repository containing
-a metadata file named :file:`pkg.meta` at its top-level that begins with the
+a metadata file named :file:`bro-pkg.meta` at its top-level that begins with the
 line::
 
   [package]
@@ -30,7 +30,7 @@ version
 
 The `version` field describes the current version of the package.  Use
 the `Semantic Versioning <http://semver.org>`_ numbering scheme here.  An
-example :file:`pkg.meta`::
+example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0
@@ -51,18 +51,18 @@ package.  E.g. if you have a package named **foo** installed, then it's
 :file:`__load__.bro` will be what Bro loads when doing ``@load foo`` or running
 ``bro foo`` on the command-line.
 
-An example :file:`pkg.meta`::
+An example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0
   scriptpath = scripts
 
-For a :file:`pkg.meta` that looks like the above, the package should have a file
-called :file:`scripts/__load__.bro`.
+For a :file:`bro-pkg.meta` that looks like the above, the package should have a
+file called :file:`scripts/__load__.bro`.
 
-If the `scriptpath` field is not present in :file:`pkg.meta`, it defaults to the
-top-level directory of the package, so a :file:`__load__.bro` script should be
-located there.
+If the `scriptpath` field is not present in :file:`bro-pkg.meta`, it defaults to
+the top-level directory of the package, so a :file:`__load__.bro` script should
+be located there.
 
 pluginpath
 ~~~~~~~~~~
@@ -70,7 +70,7 @@ pluginpath
 The `pluginpath` field is a path relative to the root of the package that
 contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
 
-An example :file:`pkg.meta`::
+An example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0
@@ -80,7 +80,7 @@ An example :file:`pkg.meta`::
 For the above example, Bro and BroControl will load any plugins found in the
 installed package's :file:`plugins/` directory.
 
-If the `pluginpath` field is not present in :file:`pkg.meta`, it defaults to a
+If the `pluginpath` field is not present in :file:`bro-pkg.meta`, it defaults to a
 directory named :file:`build/` at the top-level of the package.  This is the
 default location where Bro binary plugins get placed when building them from
 source code (see `buildcmd`_).
@@ -95,7 +95,7 @@ This is useful for distributing `Bro Plugins`_ as source code and having the
 package manager take care of building it on the user's machine before installing
 the package.
 
-An example :file:`pkg.meta`::
+An example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0

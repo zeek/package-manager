@@ -59,12 +59,12 @@ class Manager(object):
 
         scriptdir (str): the directory where the package manager will
             copy each installed package's `scriptpath` (as given by its
-            :file:`pkg.meta` file).  Each package gets a subdirectory within
+            :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
             `scriptdir` associated with its name.
 
         plugindir (str): the directory where the package manager will
             copy each installed package's `pluginpath` (as given by its
-            :file:`pkg.meta` file).  Each package gets a subdirectory within
+            :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
             `plugindir` associated with its name.
 
         source_clone_dir (str): the directory where the package manager
@@ -123,7 +123,7 @@ class Manager(object):
         self.manifest = os.path.join(self.statedir, 'manifest.json')
         self.autoload_script = os.path.join(self.scriptdir, 'packages.bro')
         self.autoload_package = os.path.join(self.scriptdir, '__load__.bro')
-        self.pkg_metadata_filename = 'pkg.meta'
+        self.pkg_metadata_filename = 'bro-pkg.meta'
         make_dir(self.statedir)
         make_dir(self.scratchdir)
         make_dir(self.source_clonedir)
@@ -685,11 +685,12 @@ class Manager(object):
 
         if not parser.read(metadata_file):
             LOG.warning('cloning "%s": no metadata file', package)
-            return 'missing pkg.meta metadata file'
+            return 'missing {} metadata file'.format(self.pkg_metadata_filename)
 
         if not parser.has_section('package'):
             LOG.warning('cloning "%s": metadata missing [package]', package)
-            return 'pkg.meta metadata file is missing [package] section'
+            return '{} is missing [package] section'.format(
+                self.pkg_metadata_filename)
 
         metadata = {item[0]: item[1] for item in parser.items('package')}
         package.metadata = metadata

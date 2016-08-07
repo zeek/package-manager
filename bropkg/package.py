@@ -106,7 +106,7 @@ class Package(object):
             is not part of a package source.
 
         metadata (dict of str -> str): the contents of the package's
-            :file:`pkg.meta` file
+            :file:`bro-pkg.meta` file
 
         versions (list of str): a list of the package's availabe git version
             tags
