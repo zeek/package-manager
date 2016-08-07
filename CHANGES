@@ -1,4 +1,8 @@
 
+0.2-26 | 2016-08-07 12:05:40 -0500
+
+  * Docs: show actual version in sidebar. (Jon Siwek)
+
 0.2-25 | 2016-08-06 15:08:12 -0500
 
   * Docs: don't restrict argparse-generated table widths. (Jon Siwek)
