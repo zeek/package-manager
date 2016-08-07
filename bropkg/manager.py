@@ -130,6 +130,8 @@ class Manager(object):
         make_dir(self.package_clonedir)
         make_dir(self.scriptdir)
         make_dir(self.plugindir)
+        _create_readme(os.path.join(self.scriptdir, 'README'))
+        _create_readme(os.path.join(self.plugindir, 'README'))
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
@@ -171,7 +173,8 @@ class Manager(object):
             IOError: if :file:`__load__.bro` loader script cannot be written
         """
         with open(self.autoload_script, 'w') as f:
-            content = ""
+            content = ('# WARNING: This file is managed by bro-pkg.\n'
+                       '# Do not make direct modifications here.\n')
 
             for ipkg in self.loaded_packages():
                 content += '@load ./{}\n'.format(ipkg.package.name)
@@ -985,3 +988,12 @@ def _copy_package_dir(package, dirname, src, dst):
         return 'failed to copy package {}: {}'.format(dirname, reasons)
 
     return ''
+
+
+def _create_readme(file_path):
+    if os.path.exists(file_path):
+        return
+
+    with open(file_path, 'w') as f:
+        f.write('WARNING: This directory is managed by bro-pkg.\n')
+        f.write("Don't make direct modifications to anything within it.\n")
