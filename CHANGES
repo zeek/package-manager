@@ -1,4 +1,8 @@
 
+0.2-29 | 2016-08-07 13:08:00 -0500
+
+  * upgrade command: require --all when omitting package list. (Jon Siwek)
+
 0.2-28 | 2016-08-07 12:51:20 -0500
 
   * Docs: adjust bro-pkg --help output. (Jon Siwek)

@@ -202,8 +202,12 @@ def cmd_refresh(manager, args, config):
 def cmd_upgrade(manager, args, config):
     if args.package:
         pkg_list = args.package
-    else:
+    elif args.all:
         pkg_list = outdated(manager)
+    else:
+        print_error('error: either explicitly specify packages to upgrade'
+                    ' or use `upgrade --all`.')
+        sys.exit(1)
 
     for name in pkg_list:
         res = manager.upgrade(name)
@@ -506,6 +510,10 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_upgrade)
     sub_parser.add_argument(
         'package', nargs='*', default=[], help=pkg_name_help)
+    sub_parser.add_argument(
+        '--all', action='store_true',
+        help='When this option is used, all eligible packages will be upgraded'
+        ' without having to explicitly specify each one as an argument.')
 
     # load
     sub_parser = command_parser.add_parser(
