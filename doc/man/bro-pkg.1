@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Aug 07, 2016" "0.2-27" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Aug 07, 2016" "0.2-28" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -71,7 +71,7 @@ Environment Variables:
 .SH COMMANDS
 .SS install
 .sp
-Installs packages from a configured package source or directly from a git URL.  After installing, the package is marked as being "loaded" (see the "load" command).
+Installs packages from a configured package source or directly from a git URL.  After installing, the package is marked as being "loaded" (see the \fBload\fP command).
 
 .INDENT 0.0
 .INDENT 3.5
@@ -101,7 +101,7 @@ The version of the package to install.  Only one package may be specified at a t
 .UNINDENT
 .SS remove
 .sp
-Unloads (see the "unload" command) and uninstalls a previously installed package.
+Unloads (see the \fBunload\fP command) and uninstalls a previously installed package.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -124,7 +124,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .UNINDENT
 .SS refresh
 .sp
-Retrieve latest metadata from package sources and checks whether any installed packages have available upgrades. Note that this does not actually upgrade any packages (see the "upgrade" command for that).
+Retrieve latest metadata from package sources and checks whether any installed packages have available upgrades. Note that this does not actually upgrade any packages (see the \fBupgrade\fP command for that).
 
 .INDENT 0.0
 .INDENT 3.5
@@ -140,7 +140,7 @@ usage: bro\-pkg refresh [\-h]
 .UNINDENT
 .SS upgrade
 .sp
-Uprades the specified package(s) to latest available version.  If no specific packages are specified, then all installed packages that are outdated and not pinned are upgraded.  For packages that are installed with \fI\-\-version\fP using a git branch name, the package is updated to the latest commit on that branch, else the package is updated to the highest available git version tag.
+Uprades the specified package(s) to latest available version.  If no specific packages are specified, then all installed packages that are outdated and not pinned are upgraded.  For packages that are installed with \fB\-\-version\fP using a git branch name, the package is updated to the latest commit on that branch, else the package is updated to the highest available git version tag.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -163,7 +163,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .UNINDENT
 .SS load
 .sp
-The Bro Package Manager keeps track of all packages that are marked as "loaded" and maintains a single Bro script that, when loaded by Bro (e.g. via "@load packages"), will load the scripts from all "loaded" packages at once. This command adds a set of packages to the "loaded packages" list.
+The Bro Package Manager keeps track of all packages that are marked as "loaded" and maintains a single Bro script that, when loaded by Bro (e.g. via \fB@load packages\fP), will load the scripts from all "loaded" packages at once. This command adds a set of packages to the "loaded packages" list.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -209,7 +209,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .UNINDENT
 .SS pin
 .sp
-Pinned packages will be ignored by the "upgrade" command.
+Pinned packages are ignored by the \fBupgrade\fP command.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -232,7 +232,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .UNINDENT
 .SS unpin
 .sp
-Packages that are not pinned are automatically upgraded by the "upgrade" command
+Packages that are not pinned are automatically upgraded by the \fBupgrade\fP command
 
 .INDENT 0.0
 .INDENT 3.5
@@ -281,7 +281,7 @@ Possible choices: all, installed, not_installed, loaded, unloaded, outdated
 .UNINDENT
 .SS search
 .sp
-Perform a substring search on package names and metadata tags.  Surround search text with slashes to indicate it is a regular expression (e.g. "/text/").
+Perform a substring search on package names and metadata tags.  Surround search text with slashes to indicate it is a regular expression (e.g. \fB/text/\fP).
 
 .INDENT 0.0
 .INDENT 3.5
@@ -353,7 +353,7 @@ Possible choices: all, sources, statedir, scriptdir, plugindir, bro_exe, bro_dis
 .UNINDENT
 .SS env
 .sp
-This command returns shell commands that, when executed, will correctly set BROPATH and BRO_PLUGIN_PATH to utilize the scripts and plugins from packages installed by the package manager.  For this command to function properly, either the "bro_exe" field of the config file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH environment variables should already contain valid paths to which this command will append package\-specific paths.
+This command returns shell commands that, when executed, will correctly set \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP to utilize the scripts and plugins from packages installed by the package manager. For this command to function properly, either the \fIbro_exe\fP field of the config file needs to be filled out, or the \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP environment variables should already contain valid paths to which this command will append package\-specific paths.
 
 .INDENT 0.0
 .INDENT 3.5

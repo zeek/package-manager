@@ -458,7 +458,7 @@ def argparser():
         help='Installs Bro packages.',
         description='Installs packages from a configured package source or'
                     ' directly from a git URL.  After installing, the package'
-                    ' is marked as being "loaded" (see the "load" command).',
+                    ' is marked as being "loaded" (see the ``load`` command).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_install)
     sub_parser.add_argument(
@@ -475,7 +475,7 @@ def argparser():
     sub_parser = command_parser.add_parser(
         'remove',
         help='Uninstall a package.',
-        description='Unloads (see the "unload" command) and uninstalls a'
+        description='Unloads (see the ``unload`` command) and uninstalls a'
         ' previously installed package.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_remove)
@@ -488,7 +488,7 @@ def argparser():
         description='Retrieve latest metadata from package sources and checks'
         ' whether any installed packages have available upgrades.'
         ' Note that this does not actually upgrade any packages (see the'
-        ' "upgrade" command for that).',
+        ' ``upgrade`` command for that).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_refresh)
 
@@ -499,7 +499,7 @@ def argparser():
         description='Uprades the specified package(s) to latest available'
         ' version.  If no specific packages are specified, then all installed'
         ' packages that are outdated and not pinned are upgraded.  For packages'
-        ' that are installed with `--version` using a git branch name, the'
+        ' that are installed with ``--version`` using a git branch name, the'
         ' package is updated to the latest commit on that branch, else the'
         ' package is updated to the highest available git version tag.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -513,8 +513,8 @@ def argparser():
         help='Register packages to be be auto-loaded by Bro.',
         description='The Bro Package Manager keeps track of all packages that'
         ' are marked as "loaded" and maintains a single Bro script that, when'
-        ' loaded by Bro (e.g. via "@load packages"), will load the scripts from'
-        ' all "loaded" packages at once.'
+        ' loaded by Bro (e.g. via ``@load packages``), will load the scripts'
+        ' from all "loaded" packages at once.'
         ' This command adds a set of packages to the "loaded packages" list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_load)
@@ -540,7 +540,7 @@ def argparser():
     sub_parser = command_parser.add_parser(
         'pin',
         help='Prevent packages from being automatically upgraded.',
-        description='Pinned packages will be ignored by the "upgrade" command.',
+        description='Pinned packages are ignored by the ``upgrade`` command.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_pin)
     sub_parser.add_argument(
@@ -551,7 +551,7 @@ def argparser():
         'unpin',
         help='Allows packages to be automatically upgraded.',
         description='Packages that are not pinned are automatically upgraded'
-        ' by the "upgrade" command',
+        ' by the ``upgrade`` command',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_unpin)
     sub_parser.add_argument(
@@ -575,7 +575,7 @@ def argparser():
         help='Search packages for matching names.',
         description='Perform a substring search on package names and metadata'
         ' tags.  Surround search text with slashes to indicate it is a regular'
-        ' expression (e.g. "/text/").',
+        ' expression (e.g. ``/text/``).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_search)
     sub_parser.add_argument(
@@ -617,12 +617,13 @@ def argparser():
         help='Show the value of environment variables that need to be set for'
         ' Bro to be able to use installed packages.',
         description='This command returns shell commands that, when executed,'
-        ' will correctly set BROPATH and BRO_PLUGIN_PATH to utilize the scripts'
-        ' and plugins from packages installed by the package manager.  For this'
-        ' command to function properly, either the "bro_exe" field of the config'
-        ' file needs to be filled out, or the BROPATH and BRO_PLUGIN_PATH'
-        ' environment variables should already contain valid paths to which'
-        ' this command will append package-specific paths.',
+        ' will correctly set ``BROPATH`` and ``BRO_PLUGIN_PATH`` to utilize the'
+        ' scripts and plugins from packages installed by the package manager.'
+        ' For this command to function properly, either the `bro_exe` field of'
+        ' the config file needs to be filled out, or the ``BROPATH`` and'
+        ' ``BRO_PLUGIN_PATH`` environment variables should already contain'
+        ' valid paths to which this command will append package-specific'
+        ' paths.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_env)
 
