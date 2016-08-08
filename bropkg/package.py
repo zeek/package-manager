@@ -77,16 +77,19 @@ class PackageInfo(object):
         versions (list of str): a list of the package's availabe git version
             tags
 
+        metadata_version: the package version that the metadata is from
+
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong
     """
 
     def __init__(self, package=None, status=None, metadata=None, versions=None,
-                 invalid_reason=''):
+                 metadata_version='', invalid_reason=''):
         self.package = package
         self.status = status
         self.metadata = {} if metadata is None else metadata
         self.versions = [] if versions is None else versions
+        self.metadata_version = metadata_version
         self.invalid_reason = invalid_reason
 
 

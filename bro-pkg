@@ -331,8 +331,13 @@ def cmd_search(manager, args, config):
 
 
 def cmd_info(manager, args, config):
+    if args.version and len(args.package) > 1:
+        print_error(
+            'error: "info --version" may only be used for a single package')
+        sys.exit(1)
+
     for name in args.package:
-        info = manager.info(name)
+        info = manager.info(name, args.version)
         print('"{}" info:'.format(name))
 
         if info.invalid_reason:
@@ -349,7 +354,7 @@ def cmd_info(manager, args, config):
             for key, value in sorted(info.status.__dict__.items()):
                 print('\t\t{} = {}'.format(key, value))
 
-        print('\tlatest metadata:')
+        print('\tmetadata from version "{}":'.format(info.metadata_version))
 
         for key, value in sorted(info.metadata.items()):
             print('\t\t{} = {}'.format(key, value))
@@ -601,6 +606,15 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_info)
     sub_parser.add_argument(
         'package', nargs='+', default=[], help=pkg_name_help)
+    sub_parser.add_argument(
+        '--version', default=None,
+        help='The version of the package metadata to inspect.  A version tag,'
+        ' branch name, or commit hash and only one package at a time may be'
+        ' given when using this flag.  If unspecified, the behavior depends'
+        ' on whether the package is currently installed.  If installed,'
+        ' the metadata will be pulled from the installed version.  If not'
+        ' installed, the latest version tag is used, or if a package has no'
+        ' version tags, the "master" branch is used.')
 
     # config
     sub_parser = command_parser.add_parser(

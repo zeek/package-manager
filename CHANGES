@@ -1,4 +1,8 @@
 
+0.2-33 | 2016-08-08 16:19:59 -0500
+
+  * info command can now take a --version flag. (Jon Siwek)
+
 0.2-32 | 2016-08-08 15:16:54 -0500
 
   * Fix install command to use the right version of bro-pkg.meta. (Jon Siwek)

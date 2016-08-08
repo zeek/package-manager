@@ -600,7 +600,7 @@ class Manager(object):
         LOG.debug('unloaded "%s"', pkg_path)
         return True
 
-    def info(self, pkg_path):
+    def info(self, pkg_path, version=''):
         """Retrieves information about a package.
 
         Args:
@@ -609,6 +609,14 @@ class Manager(object):
                 a package in a source named "bro" at submodule path "alice/foo",
                 the following inputs may refer to the package: "foo",
                 "alice/foo", or "bro/alice/foo".
+
+            version (str): may be a git version tag, branch name, or commit hash
+                from which metadata will be pulled.  If an empty string is
+                given, then the behavior depends on whether the package is
+                currently installed.  If installed, then metadata from the
+                installed version is pulled.  If not installed, then the latest
+                git version tag is used (or if no version tags exist, the
+                "master" branch is used).
 
         Returns:
             A :class:`.package.PackageInfo` object.
@@ -620,6 +628,9 @@ class Manager(object):
         if ipkg:
             status = ipkg.status
             matches = [ipkg.package]
+
+            if not version:
+                version = status.current_hash
         else:
             status = None
             matches = self.match_source_packages(pkg_path)
@@ -628,7 +639,7 @@ class Manager(object):
             package = Package(git_url=pkg_path)
 
             try:
-                return self._info(package, status)
+                return self._info(package, status, version)
             except git.exc.GitCommandError as error:
                 LOG.info('getting info on "%s": invalid git repo path: %s',
                          pkg_path, error)
@@ -651,7 +662,7 @@ class Manager(object):
         package = matches[0]
 
         try:
-            return self._info(package, status)
+            return self._info(package, status, version)
         except git.exc.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s',
                      pkg_path, error)
@@ -659,7 +670,7 @@ class Manager(object):
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 
-    def _info(self, package, status):
+    def _info(self, package, status, version):
         """Retrieves information about a package.
 
         Returns:
@@ -670,15 +681,34 @@ class Manager(object):
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
         clone = _clone_package(package, clonepath)
+        versions = _get_version_tags(clone)
+
+        if not version:
+            if len(versions):
+                version = versions[-1]
+            else:
+                if 'master' not in _get_branch_names(clone):
+                    reason = 'git repo has no "master" branch or version tags'
+                    return PackageInfo(package=package, status=status,
+                                       invalid_reason=reason)
+
+        try:
+            clone.git.checkout(version)
+        except git.exc.GitCommandError:
+            reason = 'no such commit, branch, or version tag: "{}"'.format(
+                version)
+            return PackageInfo(package=package, status=status,
+                               invalid_reason=reason)
+
         metadata_file = os.path.join(clone.working_dir,
                                      self.pkg_metadata_filename)
         metadata_parser = self._new_package_metadata_parser()
         invalid_reason = self._parse_package_metadata(metadata_parser,
                                                       metadata_file)
         metadata = _get_package_metadata(metadata_parser)
-        versions = _get_version_tags(clone)
         return PackageInfo(package=package, invalid_reason=invalid_reason,
-                           status=status, metadata=metadata, versions=versions)
+                           status=status, metadata=metadata, versions=versions,
+                           metadata_version=version)
 
     def _new_package_metadata_parser(self):
         default_metadata = {
@@ -703,7 +733,7 @@ class Manager(object):
 
         return ''
 
-    def install(self, pkg_path, version=None):
+    def install(self, pkg_path, version=''):
         """Install a package.
 
         Args:
@@ -775,7 +805,7 @@ class Manager(object):
         # @todo: install dependencies
         return ''
 
-    def _install(self, package, version=None):
+    def _install(self, package, version):
         """Install a :class:`.package.Package`.
 
         Returns:
