@@ -38,10 +38,10 @@ example :file:`bro-pkg.meta`::
 Note that the version of a package can be different than the version of any Bro
 or BroControl plugins that are contained in the package.
 
-scriptpath
+script_dir
 ~~~~~~~~~~
 
-The `scriptpath` field is a path relative to the root of the package that
+The `script_dir` field is a path relative to the root of the package that
 contains a file named :file:`__load__.bro` and possibly other Bro scripts.
 
 You may place any valid Bro script code within :file:`__load__.bro`, but a
@@ -55,40 +55,40 @@ An example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0
-  scriptpath = scripts
+  script_dir = scripts
 
 For a :file:`bro-pkg.meta` that looks like the above, the package should have a
 file called :file:`scripts/__load__.bro`.
 
-If the `scriptpath` field is not present in :file:`bro-pkg.meta`, it defaults to
+If the `script_dir` field is not present in :file:`bro-pkg.meta`, it defaults to
 the top-level directory of the package, so a :file:`__load__.bro` script should
 be located there.
 
-pluginpath
+plugin_dir
 ~~~~~~~~~~
 
-The `pluginpath` field is a path relative to the root of the package that
+The `plugin_dir` field is a path relative to the root of the package that
 contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
 
 An example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0
-  scriptpath = scripts
-  pluginpath = plugins
+  script_dir = scripts
+  plugin_dir = plugins
 
 For the above example, Bro and BroControl will load any plugins found in the
 installed package's :file:`plugins/` directory.
 
-If the `pluginpath` field is not present in :file:`bro-pkg.meta`, it defaults to a
-directory named :file:`build/` at the top-level of the package.  This is the
+If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults to
+a directory named :file:`build/` at the top-level of the package.  This is the
 default location where Bro binary plugins get placed when building them from
-source code (see `buildcmd`_).
+source code (see `build_command`_).
 
-buildcmd
-~~~~~~~~
+build_command
+~~~~~~~~~~~~~
 
-The `buildcmd` field is an arbitrary shell command that the package manager
+The `build_command` field is an arbitrary shell command that the package manager
 will run before installing the package.
 
 This is useful for distributing `Bro Plugins`_ as source code and having the
@@ -99,8 +99,8 @@ An example :file:`bro-pkg.meta`::
 
   [package]
   version = 1.0.0
-  scriptpath = scripts/Demo/Rot13
-  buildcmd = ./configure --bro-dist=%(bro_dist)s && make
+  script_dir = scripts/Demo/Rot13
+  build_command = ./configure --bro-dist=%(bro_dist)s && make
 
 In the above example, the ``%(bro_dist)s`` string is substituted for the path 
 the user has set for the `bro_dist` option in the :ref:`package manager config
@@ -108,9 +108,9 @@ file <bro-pkg-config-file>`.
 
 The default CMake skeleton for Bro plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
-value of the omitted `pluginpath` metadata field.
+value of the omitted `plugin_dir` metadata field.
 
-The `scriptpath` field is set to the location where the author has placed custom
+The `script_dir` field is set to the location where the author has placed custom
 scripts for their plugin.  When a package has both a Bro plugin and Bro script
 components, the "plugin" part is always unconditionally loaded by Bro, but the
 "script" components must either be explicitly loaded (e.g.
@@ -132,11 +132,6 @@ dependencies
 ~~~~~~~~~~~~
 
 .. @todo: inter-package dependencies
-
-keywords
-~~~~~~~~
-
-.. @todo: discoverability metadata
 
 .. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
 .. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins

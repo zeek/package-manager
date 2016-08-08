@@ -101,18 +101,18 @@ def create_config(configfile):
 
         return default
 
-    statedir = get_option(config, 'paths', 'statedir',
+    state_dir = get_option(config, 'paths', 'state_dir',
                           os.path.join(os.path.expanduser('~'), '.bro-pkg'))
-    scriptdir = get_option(config, 'paths', 'scriptdir',
-                           os.path.join(statedir, 'scriptdir'))
-    plugindir = get_option(config, 'paths', 'plugindir',
-                           os.path.join(statedir, 'plugindir'))
+    script_dir = get_option(config, 'paths', 'script_dir',
+                           os.path.join(state_dir, 'script_dir'))
+    plugin_dir = get_option(config, 'paths', 'plugin_dir',
+                           os.path.join(state_dir, 'plugin_dir'))
     bro_dist = get_option(config, 'paths', 'bro_dist', '')
     bro_exe = get_option(config, 'paths', 'bro_exe', find_program('bro'))
 
-    config.set('paths', 'statedir', statedir)
-    config.set('paths', 'scriptdir', scriptdir)
-    config.set('paths', 'plugindir', plugindir)
+    config.set('paths', 'state_dir', state_dir)
+    config.set('paths', 'script_dir', script_dir)
+    config.set('paths', 'plugin_dir', plugin_dir)
     config.set('paths', 'bro_exe', bro_exe)
     config.set('paths', 'bro_dist', bro_dist)
 
@@ -120,13 +120,13 @@ def create_config(configfile):
 
 
 def create_manager(config):
-    statedir = config.get('paths', 'statedir')
-    scriptdir = config.get('paths', 'scriptdir')
-    plugindir = config.get('paths', 'plugindir')
+    state_dir = config.get('paths', 'state_dir')
+    script_dir = config.get('paths', 'script_dir')
+    plugin_dir = config.get('paths', 'plugin_dir')
     bro_dist = config.get('paths', 'bro_dist')
 
-    manager = bropkg.Manager(statedir=statedir, scriptdir=scriptdir,
-                             plugindir=plugindir, bro_dist=bro_dist)
+    manager = bropkg.Manager(state_dir=state_dir, script_dir=script_dir,
+                             plugin_dir=plugin_dir, bro_dist=bro_dist)
 
     for key, value in config_items(config, 'sources'):
         if not manager.add_source(name=key, git_url=value):
@@ -615,8 +615,8 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_config)
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
-        choices=['all', 'sources', 'statedir', 'scriptdir',
-                 'plugindir', 'bro_exe', 'bro_dist'],
+        choices=['all', 'sources', 'state_dir', 'script_dir',
+                 'plugin_dir', 'bro_exe', 'bro_dist'],
         help='Name of a specific config file field to output.')
 
     # env

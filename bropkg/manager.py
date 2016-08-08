@@ -50,22 +50,22 @@ class Manager(object):
             is needed for packages that contain Bro plugins that need to be
             built from source code.
 
-        statedir (str): the directory where the package manager will
+        state_dir (str): the directory where the package manager will
             a maintain manifest file, package/source git clones, and other
             persistent state the manager needs in order to operate
 
-        scratchdir (str): a directory where the package manager performs
+        scratch_dir (str): a directory where the package manager performs
             miscellaneous/temporary file operations
 
-        scriptdir (str): the directory where the package manager will
-            copy each installed package's `scriptpath` (as given by its
+        script_dir (str): the directory where the package manager will
+            copy each installed package's `script_dir` (as given by its
             :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
-            `scriptdir` associated with its name.
+            `script_dir` associated with its name.
 
-        plugindir (str): the directory where the package manager will
-            copy each installed package's `pluginpath` (as given by its
+        plugin_dir (str): the directory where the package manager will
+            copy each installed package's `plugin_dir` (as given by its
             :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
-            `plugindir` associated with its name.
+            `plugin_dir` associated with its name.
 
         source_clone_dir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
@@ -93,15 +93,15 @@ class Manager(object):
             are supposed to use to store their metadata
     """
 
-    def __init__(self, statedir, scriptdir, plugindir, bro_dist=''):
+    def __init__(self, state_dir, script_dir, plugin_dir, bro_dist=''):
         """Creates a package manager instance.
 
         Args:
-            statedir (str): value to set the `statedir` attribute to
+            state_dir (str): value to set the `state_dir` attribute to
 
-            scriptdir (str): value to set the `scriptdir` attribute to
+            script_dir (str): value to set the `script_dir` attribute to
 
-            plugindir (str): value to set the `plugindir` attribute to
+            plugin_dir (str): value to set the `plugin_dir` attribute to
 
             bro_dist (str): value to set the `bro_dist` attribute to
 
@@ -113,39 +113,39 @@ class Manager(object):
         self.sources = {}
         self.installed_pkgs = {}
         self.bro_dist = bro_dist
-        self.statedir = statedir
-        self.scratchdir = os.path.join(self.statedir, 'scratch')
-        self.scriptdir = os.path.join(scriptdir, 'packages')
-        self.plugindir = os.path.join(plugindir, 'packages')
-        self.source_clonedir = os.path.join(self.statedir, 'clones', 'source')
+        self.state_dir = state_dir
+        self.scratch_dir = os.path.join(self.state_dir, 'scratch')
+        self.script_dir = os.path.join(script_dir, 'packages')
+        self.plugin_dir = os.path.join(plugin_dir, 'packages')
+        self.source_clonedir = os.path.join(self.state_dir, 'clones', 'source')
         self.package_clonedir = os.path.join(
-            self.statedir, 'clones', 'package')
-        self.manifest = os.path.join(self.statedir, 'manifest.json')
-        self.autoload_script = os.path.join(self.scriptdir, 'packages.bro')
-        self.autoload_package = os.path.join(self.scriptdir, '__load__.bro')
+            self.state_dir, 'clones', 'package')
+        self.manifest = os.path.join(self.state_dir, 'manifest.json')
+        self.autoload_script = os.path.join(self.script_dir, 'packages.bro')
+        self.autoload_package = os.path.join(self.script_dir, '__load__.bro')
         self.pkg_metadata_filename = 'bro-pkg.meta'
-        make_dir(self.statedir)
-        make_dir(self.scratchdir)
+        make_dir(self.state_dir)
+        make_dir(self.scratch_dir)
         make_dir(self.source_clonedir)
         make_dir(self.package_clonedir)
-        make_dir(self.scriptdir)
-        make_dir(self.plugindir)
-        _create_readme(os.path.join(self.scriptdir, 'README'))
-        _create_readme(os.path.join(self.plugindir, 'README'))
+        make_dir(self.script_dir)
+        make_dir(self.plugin_dir)
+        _create_readme(os.path.join(self.script_dir, 'README'))
+        _create_readme(os.path.join(self.plugin_dir, 'README'))
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
 
-        prev_scriptdir, prev_plugindir = self._read_manifest()
+        prev_script_dir, prev_plugin_dir = self._read_manifest()
 
-        if prev_scriptdir != self.scriptdir:
-            LOG.info('moved previous scriptdir %s -> %s', prev_scriptdir,
-                     self.scriptdir)
+        if prev_script_dir != self.script_dir:
+            LOG.info('moved previous script_dir %s -> %s', prev_script_dir,
+                     self.script_dir)
 
-            if os.path.exists(prev_scriptdir):
-                delete_path(self.scriptdir)
-                shutil.move(prev_scriptdir, self.scriptdir)
-                prev_bropath = os.path.dirname(prev_scriptdir)
+            if os.path.exists(prev_script_dir):
+                delete_path(self.script_dir)
+                shutil.move(prev_script_dir, self.script_dir)
+                prev_bropath = os.path.dirname(prev_script_dir)
 
                 for pkg_name in self.installed_pkgs:
                     shutil.move(os.path.join(prev_bropath, pkg_name),
@@ -153,13 +153,13 @@ class Manager(object):
 
             self._write_manifest()
 
-        if prev_plugindir != self.plugindir:
-            LOG.info('moved previous plugindir %s -> %s', prev_plugindir,
-                     self.plugindir)
+        if prev_plugin_dir != self.plugin_dir:
+            LOG.info('moved previous plugin_dir %s -> %s', prev_plugin_dir,
+                     self.plugin_dir)
 
-            if os.path.exists(prev_plugindir):
-                delete_path(self.plugindir)
-                shutil.move(prev_plugindir, self.plugindir)
+            if os.path.exists(prev_plugin_dir):
+                delete_path(self.plugin_dir)
+                shutil.move(prev_plugin_dir, self.plugin_dir)
 
             self._write_manifest()
 
@@ -185,7 +185,7 @@ class Manager(object):
         """Read the manifest file containing the list of installed packages.
 
         Returns:
-            tuple: (previous scriptdir, previous plugindir)
+            tuple: (previous script_dir, previous plugin_dir)
 
         Raises:
             IOError: when the manifest file can't be read
@@ -206,7 +206,7 @@ class Manager(object):
                 status = PackageStatus(**status_dict)
                 self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
-            return data['scriptdir'], data['plugindir']
+            return data['script_dir'], data['plugin_dir']
 
     def _write_manifest(self):
         """Writes the manifest file containing the list of installed packages.
@@ -220,8 +220,8 @@ class Manager(object):
             pkg_list.append({'package_dict': installed_pkg.package.__dict__,
                              'status_dict': installed_pkg.status.__dict__})
 
-        data = {'manifest_version': 0, 'scriptdir': self.scriptdir,
-                'plugindir': self.plugindir, 'installed_packages': pkg_list}
+        data = {'manifest_version': 0, 'script_dir': self.script_dir,
+                'plugin_dir': self.plugin_dir, 'installed_packages': pkg_list}
 
         with open(self.manifest, 'w') as f:
             json.dump(data, f)
@@ -232,7 +232,7 @@ class Manager(object):
         This path can be added to :envvar:`BROPATH` for interoperability with
         Bro.
         """
-        return os.path.dirname(self.scriptdir)
+        return os.path.dirname(self.script_dir)
 
     def bro_plugin_path(self):
         """Return the path where installed package plugins are located.
@@ -240,7 +240,7 @@ class Manager(object):
         This path can be added to :envvar:`BRO_PLUGIN_PATH` for
         interoperability with Bro.
         """
-        return os.path.dirname(self.plugindir)
+        return os.path.dirname(self.plugin_dir)
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
@@ -445,8 +445,8 @@ class Manager(object):
 
         pkg_to_remove = ipkg.package
         delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
-        delete_path(os.path.join(self.scriptdir, pkg_to_remove.name))
-        delete_path(os.path.join(self.plugindir, pkg_to_remove.name))
+        delete_path(os.path.join(self.script_dir, pkg_to_remove.name))
+        delete_path(os.path.join(self.plugin_dir, pkg_to_remove.name))
         delete_path(os.path.join(self.bropath(), pkg_to_remove.name))
 
         del self.installed_pkgs[pkg_to_remove.name]
@@ -660,7 +660,7 @@ class Manager(object):
         Raises:
             git.exc.GitCommandError: when failing to clone the package repo
         """
-        clonepath = os.path.join(self.scratchdir, package.name)
+        clonepath = os.path.join(self.scratch_dir, package.name)
         invalid_reason = self._clone_package(package, clonepath)
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status)
@@ -678,8 +678,12 @@ class Manager(object):
         delete_path(clonepath)
         clone = git.Repo.clone_from(package.git_url, clonepath)
 
-        default_metadata = {'bro_dist': self.bro_dist, 'scriptpath': '',
-                            'pluginpath': 'build', 'buildcmd': ''}
+        default_metadata = {
+            'script_dir': '',
+            'plugin_dir': 'build',
+            'bro_dist': self.bro_dist,
+            'build_command': ''
+        }
         parser = configparser.SafeConfigParser(defaults=default_metadata)
         metadata_file = os.path.join(clonepath, self.pkg_metadata_filename)
 
@@ -824,13 +828,13 @@ class Manager(object):
         clone.git.checkout(version)
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
-        buildcmd = package.metadata['buildcmd']
+        build_command = package.metadata['build_command']
 
-        if buildcmd:
+        if build_command:
             import subprocess
-            LOG.debug('installing "%s": running buildcmd: %s',
-                      package, buildcmd)
-            build = subprocess.Popen(buildcmd,
+            LOG.debug('installing "%s": running build_command: %s',
+                      package, build_command)
+            build = subprocess.Popen(build_command,
                                      shell=True, cwd=clonepath, bufsize=1,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
@@ -860,40 +864,41 @@ class Manager(object):
             returncode = build.wait()
 
             if returncode != 0:
-                return 'package buildcmd failed, see log in {}'.format(buildlog)
+                return 'package build_command failed, see log in {}'.format(
+                    buildlog)
 
-        scriptpath_src = os.path.join(
-            clonepath, package.metadata['scriptpath'])
-        scriptpath_dst = os.path.join(self.scriptdir, package.name)
+        script_dir_src = os.path.join(
+            clonepath, package.metadata['script_dir'])
+        script_dir_dst = os.path.join(self.script_dir, package.name)
 
-        if not os.path.exists(scriptpath_src):
-            return str.format("package's 'scriptpath' does not exist: {0}",
-                              package.metadata['scriptpath'])
+        if not os.path.exists(script_dir_src):
+            return str.format("package's 'script_dir' does not exist: {0}",
+                              package.metadata['script_dir'])
 
-        error = _copy_package_dir(package, 'scriptpath',
-                                  scriptpath_src, scriptpath_dst)
+        error = _copy_package_dir(package, 'script_dir',
+                                  script_dir_src, script_dir_dst)
         make_symlink(os.path.join('packages', package.name),
                      os.path.join(self.bropath(), package.name))
 
         if error:
             return error
 
-        pluginpath = package.metadata['pluginpath']
-        pluginpath_src = os.path.join(clonepath, pluginpath)
-        pluginpath_dst = os.path.join(self.plugindir, package.name)
+        pkg_plugin_dir = package.metadata['plugin_dir']
+        plugin_dir_src = os.path.join(clonepath, pkg_plugin_dir)
+        plugin_dir_dst = os.path.join(self.plugin_dir, package.name)
 
-        if not os.path.exists(pluginpath_src):
-            LOG.info('installing "%s": package "pluginpath" does not exist: %s',
-                     package, pluginpath)
+        if not os.path.exists(plugin_dir_src):
+            LOG.info('installing "%s": package "plugin_dir" does not exist: %s',
+                     package, pkg_plugin_dir)
 
-            if pluginpath != 'build':
+            if pkg_plugin_dir != 'build':
                 # It's common for a package to not have build directory for
                 # for plugins, so don't error out in that case, just log it.
-                return str.format("package's 'pluginpath' does not exist: {0}",
-                                  pluginpath)
+                return str.format("package's 'plugin_dir' does not exist: {0}",
+                                  pkg_plugin_dir)
 
-        error = _copy_package_dir(package, 'pluginpath',
-                                  pluginpath_src, pluginpath_dst)
+        error = _copy_package_dir(package, 'plugin_dir',
+                                  plugin_dir_src, plugin_dir_dst)
 
         if error:
             return error

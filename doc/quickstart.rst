@@ -43,13 +43,13 @@ Check :ref:`here <bro-pkg-config-file>` for a full explanation of what each
 does, or set the following suggested settings that are likely to work for most
 scenarios:
 
-- set `scriptdir` to the location of Bro's :file:`site` scripts directory (e.g.
+- `script_dir`: set to the location of Bro's :file:`site` scripts directory (e.g.
   :file:`{<bro_install_prefix>}/share/bro/site`)
 
-- set `plugindir` to the location of Bro's default plugin directory (e.g.
+- `plugin_dir`: set to the location of Bro's default plugin directory (e.g.
   :file:`{<bro_install_prefix>}/lib/bro/plugins`)
 
-- set `bro_dist` to the location of Bro's source code if you plan on
+- `bro_dist`: set to the location of Bro's source code if you plan on
   installing packages that have Bro plugins that require compilation.
 
 With those settings, the package manager will install Bro scripts, Bro plugins,
@@ -70,10 +70,10 @@ Advanced Configuration
 ----------------------
 
 If you prefer to not use the suggested `Basic Configuration`_ settings for
-`scriptdir` and `plugindir`, the default configuration will install all package
-scripts/plugins within :file:`~/.bro-pkg` or you may change them to whatever
-location you prefer.  These will be referred to as "non-standard" locations in
-the sense that vanilla configurations of either :program:`bro` or
+`script_dir` and `plugin_dir`, the default configuration will install all
+package scripts/plugins within :file:`~/.bro-pkg` or you may change them to
+whatever location you prefer.  These will be referred to as "non-standard"
+locations in the sense that vanilla configurations of either :program:`bro` or
 :program:`broctl` will not detect scripts/plugins in those locations without
 additional configuration.
 
@@ -94,14 +94,14 @@ When using non-standard location, follow these steps to integrate with
 
   .. code-block:: console
 
-    $ bro-pkg config scriptdir
+    $ bro-pkg config script_dir
 
   And set the `SitePolicyPath` option in :file:`broctl.cfg` based on the output
   you see.  Similarly, run:
 
   .. code-block:: console
 
-    $ bro-pkg config plugindir
+    $ bro-pkg config plugin_dir
 
   And set the `SitePluginPath` option in :file:`broctl.cfg` based on the output
   you see.

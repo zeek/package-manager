@@ -1,4 +1,18 @@
 
+0.2-31 | 2016-08-08 12:47:02 -0500
+
+  * Change config/metadata file option names. (Jon Siwek)
+
+    bro-pkg.meta:
+        scriptpath -> script_dir
+        pluginpath -> plugin_dir
+        buildcmd   -> build_command
+
+    bro-pkg config file:
+        statedir  -> state_dir
+        scriptdir -> script_dir
+        plugindir -> plugin_dir
+
 0.2-30 | 2016-08-07 13:45:00 -0500
 
   * Rename pkg.meta to bro-pkg.meta. (Jon Siwek)
