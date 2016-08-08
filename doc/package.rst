@@ -118,10 +118,10 @@ components, the "plugin" part is always unconditionally loaded by Bro, but the
 :ref:`loaded <load-command>`.
 
 Note that if you want to distribute a BroControl plugin along with a Bro plugin,
-you typically need to add the BroControl plugin's python script to the
+you may need to add the BroControl plugin's python script to the
 ``bro_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Bro
 plugin so that it gets copied into :file:`build/` along with the built Bro
-plugin.
+plugin.  Or you could also modify your `build_command` to copy it there.
 
 bro
 ~~~

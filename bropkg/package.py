@@ -71,14 +71,22 @@ class PackageInfo(object):
         status (:class:`PackageStatus`): this attribute is set for installed
             packages
 
+        metadata (dict of str -> str): the contents of the package's
+            :file:`bro-pkg.meta` file
+
+        versions (list of str): a list of the package's availabe git version
+            tags
+
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong
     """
 
-    def __init__(self, package=None, status=None,
+    def __init__(self, package=None, status=None, metadata=None, versions=None,
                  invalid_reason=''):
         self.package = package
         self.status = status
+        self.metadata = {} if metadata is None else metadata
+        self.versions = [] if versions is None else versions
         self.invalid_reason = invalid_reason
 
 
@@ -86,7 +94,7 @@ class Package(object):
     """A Bro package.
 
     This class contains properties of a package that are defined by the package
-    itself, like its metadata, version, URL, and name.
+    git repository itself and the package source it came from.
 
     Attributes:
         git_url (str): the git URL which uniquely identifies where the
@@ -104,26 +112,17 @@ class Package(object):
             has a git submodule at "alice/foo" for the package named "foo", then
             `module_dir` should be "alice".  It may also be empty if the package
             is not part of a package source.
-
-        metadata (dict of str -> str): the contents of the package's
-            :file:`bro-pkg.meta` file
-
-        versions (list of str): a list of the package's availabe git version
-            tags
     """
 
     @classmethod
     def name_from_path(cls, path):
         return remove_trailing_slashes(path).split('/')[-1]
 
-    def __init__(self, git_url, source='', module_dir='', metadata=None,
-                 versions=None):
+    def __init__(self, git_url, source='', module_dir=''):
         self.git_url = remove_trailing_slashes(git_url)
         self.name = Package.name_from_path(git_url)
         self.source = source
         self.module_dir = module_dir
-        self.metadata = {} if metadata is None else metadata
-        self.versions = [] if versions is None else versions
 
     def __str__(self):
         return self.qualified_name()

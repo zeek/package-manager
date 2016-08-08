@@ -613,7 +613,7 @@ class Manager(object):
         Returns:
             A :class:`.package.PackageInfo` object.
         """
-        LOG.debug('getting info on "%s", pkg_path')
+        LOG.debug('getting info on "%s"', pkg_path)
         pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
@@ -649,7 +649,15 @@ class Manager(object):
             return PackageInfo(invalid_reason=reason, status=status)
 
         package = matches[0]
-        return self._info(package, status)
+
+        try:
+            return self._info(package, status)
+        except git.exc.GitCommandError as error:
+            LOG.info('getting info on "%s": invalid git repo path: %s',
+                     pkg_path, error)
+            reason = 'package is no longer a valid git repository'
+            return PackageInfo(package=package, invalid_reason=reason,
+                               status=status)
 
     def _info(self, package, status):
         """Retrieves information about a package.
@@ -661,44 +669,38 @@ class Manager(object):
             git.exc.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
-        invalid_reason = self._clone_package(package, clonepath)
+        clone = _clone_package(package, clonepath)
+        metadata_file = os.path.join(clone.working_dir,
+                                     self.pkg_metadata_filename)
+        metadata_parser = self._new_package_metadata_parser()
+        invalid_reason = self._parse_package_metadata(metadata_parser,
+                                                      metadata_file)
+        metadata = _get_package_metadata(metadata_parser)
+        versions = _get_version_tags(clone)
         return PackageInfo(package=package, invalid_reason=invalid_reason,
-                           status=status)
+                           status=status, metadata=metadata, versions=versions)
 
-    def _clone_package(self, package, clonepath):
-        """Clone :class:`.package.Package` git repo and retrieve metadata/info.
-
-        Returns:
-            str: empty string if package cloning and metadata/info retrieval
-            succeeded else an error string explaining why it failed.
-
-        Raises:
-            git.exc.GitCommandError: if the git repo is invalid
-        """
-        delete_path(clonepath)
-        clone = git.Repo.clone_from(package.git_url, clonepath)
-
+    def _new_package_metadata_parser(self):
         default_metadata = {
             'script_dir': '',
             'plugin_dir': 'build',
             'bro_dist': self.bro_dist,
             'build_command': ''
         }
-        parser = configparser.SafeConfigParser(defaults=default_metadata)
-        metadata_file = os.path.join(clonepath, self.pkg_metadata_filename)
 
+        return configparser.SafeConfigParser(defaults=default_metadata)
+
+    def _parse_package_metadata(self, parser, metadata_file):
+        """Return string explaining why metadata is invalid, or '' if valid. """
         if not parser.read(metadata_file):
-            LOG.warning('cloning "%s": no metadata file', package)
+            LOG.warning('%s: missing metadata file', metadata_file)
             return 'missing {} metadata file'.format(self.pkg_metadata_filename)
 
         if not parser.has_section('package'):
-            LOG.warning('cloning "%s": metadata missing [package]', package)
+            LOG.warning('%s: metadata missing [package]', metadata_file)
             return '{} is missing [package] section'.format(
                 self.pkg_metadata_filename)
 
-        metadata = {item[0]: item[1] for item in parser.items('package')}
-        package.metadata = metadata
-        package.versions = _get_version_tags(clone)
         return ''
 
     def install(self, pkg_path, version=None):
@@ -788,18 +790,14 @@ class Manager(object):
         # previous installed package w/ a new version
         clonepath = os.path.join(self.package_clonedir, package.name)
         ipkg = self.find_installed_package(package.name)
+        clone = git.Repo(clonepath) if ipkg else _clone_package(
+            package, clonepath)
 
-        if not ipkg:
-            res = self._clone_package(package, clonepath)
-
-            if res:
-                return res
-
-        clone = git.Repo(clonepath)
-        version_tags = _get_version_tags(clone)
         status = PackageStatus()
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
         status.is_pinned = ipkg.status.is_pinned if ipkg else False
+
+        version_tags = _get_version_tags(clone)
 
         if version:
             if version in version_tags:
@@ -828,7 +826,20 @@ class Manager(object):
         clone.git.checkout(version)
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
-        build_command = package.metadata['build_command']
+
+        metadata_file = os.path.join(clone.working_dir,
+                                     self.pkg_metadata_filename)
+        metadata_parser = self._new_package_metadata_parser()
+        invalid_reason = self._parse_package_metadata(metadata_parser,
+                                                      metadata_file)
+
+        if invalid_reason:
+            return invalid_reason
+
+        metadata = _get_package_metadata(metadata_parser)
+
+        build_command = metadata['build_command']
+        LOG.debug('installing "%s": version %s', package, version)
 
         if build_command:
             import subprocess
@@ -868,12 +879,12 @@ class Manager(object):
                     buildlog)
 
         script_dir_src = os.path.join(
-            clonepath, package.metadata['script_dir'])
+            clonepath, metadata['script_dir'])
         script_dir_dst = os.path.join(self.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
             return str.format("package's 'script_dir' does not exist: {0}",
-                              package.metadata['script_dir'])
+                              metadata['script_dir'])
 
         error = _copy_package_dir(package, 'script_dir',
                                   script_dir_src, script_dir_dst)
@@ -883,7 +894,7 @@ class Manager(object):
         if error:
             return error
 
-        pkg_plugin_dir = package.metadata['plugin_dir']
+        pkg_plugin_dir = metadata['plugin_dir']
         plugin_dir_src = os.path.join(clonepath, pkg_plugin_dir)
         plugin_dir_dst = os.path.join(self.plugin_dir, package.name)
 
@@ -1003,3 +1014,21 @@ def _create_readme(file_path):
     with open(file_path, 'w') as f:
         f.write('WARNING: This directory is managed by bro-pkg.\n')
         f.write("Don't make direct modifications to anything within it.\n")
+
+
+def _clone_package(package, clonepath):
+    """Clone a :class:`.package.Package` git repo.
+
+    Returns:
+        git.Repo: the cloned packaged
+
+    Raises:
+        git.exc.GitCommandError: if the git repo is invalid
+    """
+    delete_path(clonepath)
+    return git.Repo.clone_from(package.git_url, clonepath)
+
+
+def _get_package_metadata(parser):
+    metadata = {item[0]: item[1] for item in parser.items('package')}
+    return metadata

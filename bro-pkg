@@ -341,7 +341,7 @@ def cmd_info(manager, args, config):
 
         pkg = info.package
         print('\tgit URL: {}'.format(pkg.git_url))
-        print('\tversions: {}'.format(pkg.versions))
+        print('\tversions: {}'.format(info.versions))
 
         if info.status:
             print('\tinstall status:')
@@ -351,7 +351,7 @@ def cmd_info(manager, args, config):
 
         print('\tlatest metadata:')
 
-        for key, value in sorted(pkg.metadata.items()):
+        for key, value in sorted(info.metadata.items()):
             print('\t\t{} = {}'.format(key, value))
 
 

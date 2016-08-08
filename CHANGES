@@ -1,4 +1,8 @@
 
+0.2-32 | 2016-08-08 15:16:54 -0500
+
+  * Fix install command to use the right version of bro-pkg.meta. (Jon Siwek)
+
 0.2-31 | 2016-08-08 12:47:02 -0500
 
   * Change config/metadata file option names. (Jon Siwek)
