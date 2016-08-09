@@ -5,6 +5,7 @@ import os
 import sys
 import argparse
 import logging
+import threading
 
 if sys.version_info[0] < 3:
     import ConfigParser as configparser
@@ -137,17 +138,50 @@ def create_manager(config):
     return manager
 
 
+class InstallWorker(threading.Thread):
+
+    def __init__(self, manager, package_name, package_version):
+        super(InstallWorker, self).__init__()
+        self.manager = manager
+        self.package_name = package_name
+        self.package_version = package_version
+        self.error = ''
+
+    def run(self):
+        self.error = self.manager.install(
+            self.package_name, self.package_version)
+
+
 def cmd_install(manager, args, config):
     if args.version and len(args.package) > 1:
         print_error(
             'error: "install --version" may only be used for a single package')
         sys.exit(1)
 
-    for name in args.package:
-        error = manager.install(name, args.version)
+    join_timeout = 0.01
+    activity_interval = 1
 
-        if error:
-            print_error('failed installing "{}": {}'.format(name, error))
+    for name in args.package:
+        print('installing "{}"'.format(name), end='')
+        sys.stdout.flush()
+        time_accumulator = 0
+        worker = InstallWorker(manager, name, args.version)
+        worker.start()
+
+        while worker.isAlive():
+            worker.join(join_timeout)
+            time_accumulator += join_timeout
+
+            if time_accumulator >= activity_interval:
+                time_accumulator -= activity_interval
+                print('.', end='')
+                sys.stdout.flush()
+
+        print('')
+
+        if worker.error:
+            print_error('failed installing "{}": {}'.format(
+                name, worker.error))
             continue
 
         print('installed "{}"'.format(name))
