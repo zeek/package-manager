@@ -1,4 +1,8 @@
 
+0.2-37 | 2016-08-09 18:55:30 -0500
+
+  * Delay printing installation activity ticks. (Jon Siwek)
+
 0.2-36 | 2016-08-09 18:41:54 -0500
 
   * Change package sources to use index files instead of git submodules.

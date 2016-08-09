@@ -159,12 +159,11 @@ def cmd_install(manager, args, config):
         sys.exit(1)
 
     join_timeout = 0.01
-    activity_interval = 1
+    tick_interval = 1
 
     for name in args.package:
-        print('installing "{}"'.format(name), end='')
-        sys.stdout.flush()
         time_accumulator = 0
+        tick_count = 0
         worker = InstallWorker(manager, name, args.version)
         worker.start()
 
@@ -172,12 +171,18 @@ def cmd_install(manager, args, config):
             worker.join(join_timeout)
             time_accumulator += join_timeout
 
-            if time_accumulator >= activity_interval:
-                time_accumulator -= activity_interval
-                print('.', end='')
-                sys.stdout.flush()
+            if time_accumulator >= tick_interval:
+                if tick_count == 0:
+                    print('installing "{}"'.format(name), end='')
+                else:
+                    print('.', end='')
 
-        print('')
+                sys.stdout.flush()
+                tick_count += 1
+                time_accumulator -= tick_interval
+
+        if tick_count != 0:
+            print('')
 
         if worker.error:
             print_error('failed installing "{}": {}'.format(
