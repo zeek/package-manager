@@ -1,14 +1,26 @@
 """
 A module containing the definition of a "package source": a git repository
-containing a collection of git submodules that point to Bro packages.
+containing a collection of :file:`bro-pkg.index` files.  These are simple INI
+files that can describe many Bro packages.  Each section of the file names
+a Bro package along with the git URL where it is located and metadata tags that
+help classify/describe it.
 """
 
 import os
+import sys
 import shutil
 import git
 
+if sys.version_info[0] < 3:
+    import ConfigParser as configparser
+else:
+    import configparser
+
 from . import LOG
 from .package import Package
+
+#: The name of package index files.
+INDEX_FILENAME = 'bro-pkg.index'
 
 
 class Source(object):
@@ -66,13 +78,59 @@ class Source(object):
     def __repr__(self):
         return self.git_url
 
+    def package_index_files(self):
+        """Return a list paths to package index files in the source."""
+        rval = []
+        visited_dirs = set()
+
+        for root, dirs, files in os.walk(self.clone.working_dir,
+                                         followlinks=True):
+            stat = os.stat(root)
+            visited_dirs.add((stat.st_dev, stat.st_ino))
+            dirs_to_visit_next = []
+
+            for d in dirs:
+                stat = os.stat(os.path.join(root, d))
+
+                if (stat.st_dev, stat.st_ino) not in visited_dirs:
+                    dirs_to_visit_next.append(d)
+
+            dirs[:] = dirs_to_visit_next
+
+            try:
+                dirs.remove('.git')
+            except ValueError:
+                pass
+
+            for filename in files:
+                if filename == INDEX_FILENAME:
+                    rval.append(os.path.join(root, filename))
+
+        return rval
+
     def packages(self):
-        """Return list of :class:`.package.Package` in source repository."""
+        """Return a list of :class:`.package.Package` in the source."""
         rval = []
 
-        for submodule in self.clone.submodules:
-            module_dir = os.path.dirname(submodule.name)
-            rval.append(Package(submodule.url, source=self.name,
-                                module_dir=module_dir))
+        for index_file in self.package_index_files():
+            relative_path = index_file[len(self.clone.working_dir) + 1:]
+            directory = os.path.dirname(relative_path)
+            parser = configparser.SafeConfigParser()
+            parser.read(index_file)
+
+            for section in parser.sections():
+                index_data = {
+                    item[0]: item[1] for item in parser.items(section)
+                }
+
+                if not 'url' in index_data:
+                    LOG.warning(str.format(
+                        'skipped package section "{}" in {}: missing url',
+                        section, index_file))
+                    continue
+
+                package = Package(git_url=index_data['url'], source=self.name,
+                                  directory=directory, index_data=index_data)
+                rval.append(package)
 
         return rval

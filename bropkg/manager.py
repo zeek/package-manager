@@ -24,7 +24,13 @@ from ._util import (
     copy_over_path,
 )
 from .source import Source
-from .package import Package, PackageInfo, PackageStatus, InstalledPackage
+from .package import (
+    METADATA_FILENAME,
+    Package,
+    PackageInfo,
+    PackageStatus,
+    InstalledPackage
+)
 from . import (
     __version__,
     LOG,
@@ -38,9 +44,8 @@ class Manager(object):
     track of package sources, installed packages and their statuses.
 
     Attributes:
-        sources (dict of str -> str): dictionary package sources whose
-            keys and values are the names and git URL, respectively, given to
-            :meth:`add_source()`
+        sources (dict of str -> :class:`.source.Source`): dictionary package
+            sources keyed by the name given to :meth:`add_source()`
 
         installed_pkgs (dict of str -> :class:`.package.InstalledPackage`):
             a dictionary of installed packaged keyed on package names (the last
@@ -88,9 +93,6 @@ class Manager(object):
             in a directory named :file:`packages`, so as long as
             :envvar:`BROPATH` is configured correctly, ``@load packages`` will
             load all installed packages that have been marked as loaded.
-
-        pkg_metadata_filename (str): the expected file name that packages
-            are supposed to use to store their metadata
     """
 
     def __init__(self, state_dir, script_dir, plugin_dir, bro_dist=''):
@@ -123,7 +125,6 @@ class Manager(object):
         self.manifest = os.path.join(self.state_dir, 'manifest.json')
         self.autoload_script = os.path.join(self.script_dir, 'packages.bro')
         self.autoload_package = os.path.join(self.script_dir, '__load__.bro')
-        self.pkg_metadata_filename = 'bro-pkg.meta'
         make_dir(self.state_dir)
         make_dir(self.scratch_dir)
         make_dir(self.source_clonedir)
@@ -309,9 +310,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
         name = Package.name_from_path(pkg_path)
         return os.path.join(self.package_clonedir, '.build-{}.log'.format(name))
@@ -322,9 +323,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
         rval = []
 
@@ -340,9 +341,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         A package's name is the last component of it's git URL.
         """
@@ -377,9 +378,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
             str: an empty string if package upgrade succeeded else an error
@@ -422,9 +423,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
             bool: True if an installed package was removed, else False.
@@ -464,9 +465,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
             :class:`.package.InstalledPackage`: if successfully pinned or
@@ -498,9 +499,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
             :class:`.package.InstalledPackage`: if successfully unpinned or
@@ -535,9 +536,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
             bool: True if a package is successfully marked as loaded.
@@ -572,9 +573,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
             bool: True if a package is successfully unmarked as loaded.
@@ -606,9 +607,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
             version (str): may be a git version tag, branch name, or commit hash
                 from which metadata will be pulled.  If an empty string is
@@ -700,11 +701,9 @@ class Manager(object):
             return PackageInfo(package=package, status=status,
                                invalid_reason=reason)
 
-        metadata_file = os.path.join(clone.working_dir,
-                                     self.pkg_metadata_filename)
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = self._new_package_metadata_parser()
-        invalid_reason = self._parse_package_metadata(metadata_parser,
-                                                      metadata_file)
+        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
         metadata = _get_package_metadata(metadata_parser)
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status, metadata=metadata, versions=versions,
@@ -720,28 +719,15 @@ class Manager(object):
 
         return configparser.SafeConfigParser(defaults=default_metadata)
 
-    def _parse_package_metadata(self, parser, metadata_file):
-        """Return string explaining why metadata is invalid, or '' if valid. """
-        if not parser.read(metadata_file):
-            LOG.warning('%s: missing metadata file', metadata_file)
-            return 'missing {} metadata file'.format(self.pkg_metadata_filename)
-
-        if not parser.has_section('package'):
-            LOG.warning('%s: metadata missing [package]', metadata_file)
-            return '{} is missing [package] section'.format(
-                self.pkg_metadata_filename)
-
-        return ''
-
     def install(self, pkg_path, version=''):
         """Install a package.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package in a source named "bro" at submodule path "alice/foo",
-                the following inputs may refer to the package: "foo",
-                "alice/foo", or "bro/alice/foo".
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
 
             version (str): if not given, then the latest git version tag is
                 installed (or if no version tags exist, the "master" branch is
@@ -857,11 +843,9 @@ class Manager(object):
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
 
-        metadata_file = os.path.join(clone.working_dir,
-                                     self.pkg_metadata_filename)
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = self._new_package_metadata_parser()
-        invalid_reason = self._parse_package_metadata(metadata_parser,
-                                                      metadata_file)
+        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
         if invalid_reason:
             return invalid_reason
@@ -1062,3 +1046,16 @@ def _clone_package(package, clonepath):
 def _get_package_metadata(parser):
     metadata = {item[0]: item[1] for item in parser.items('package')}
     return metadata
+
+
+def _parse_package_metadata(parser, metadata_file):
+    """Return string explaining why metadata is invalid, or '' if valid. """
+    if not parser.read(metadata_file):
+        LOG.warning('%s: missing metadata file', metadata_file)
+        return 'missing {} metadata file'.format(METADATA_FILENAME)
+
+    if not parser.has_section('package'):
+        LOG.warning('%s: metadata missing [package]', metadata_file)
+        return '{} is missing [package] section'.format(METADATA_FILENAME)
+
+    return ''

@@ -11,46 +11,74 @@ Package Source Setup
 --------------------
 
 In order to set up such a package source, one simply has to create a git
-repository and then add `git submodules`_ to it, with those submodules being
-:doc:`Bro Packages <package>`.  The submodules can be created at any path in
-the package source's git repository.  E.g. the `Bro Packages Git Repository`_
-organizes submodules hierarchically at paths based on GitHub usernames such as
-"alice/foo" or "bob/bar" where "alice" and "bob" are usernames and "foo" and
-"bar" are the names of their respective packages.  However, a source is free
-to use a flat organization for submodule paths if desired.
+repository and then add :ref:`Package Index Files <package-index-file>` to it.
+These files may be created at any path in the package source's git repository.
+E.g. the `Bro Packages Git Repository`_ organizes package index files
+hierarchically based on package author names such as :file:`alice/bro-pkg.index`
+or :file:`bob/bro-pkg.index` where ``alice`` and ``bob`` are usually GitHub
+usernames or some unique way of identifying the organization/person that
+maintains Bro packages.  However, a source is free to use a flat organization
+with a single, top-level :file:`bro-pkg.index`.
 
-After creating a git repo for the package source and adding submodules to it,
-it's ready to be used by :ref:`bro-pkg <bro-pkg>`.
+After creating a git repo for the package source and adding package index files
+to it, it's ready to be used by :ref:`bro-pkg <bro-pkg>`.
 
-Package Source Maintenance
---------------------------
+.. _package-index-file:
 
-Once added to a source, package submodules do not have to be updated at all.
-:ref:`bro-pkg <bro-pkg>` may use the git URL referenced by the submodule to
-interact directly with the Package's git repository in order to fetch updated
-versions.
+Package Index Files
+-------------------
+
+Files named :file:`bro-pkg.index` are used to describe the :doc:`Bro Packages
+<package>` found within the package source. They use a simple INI format, for
+example::
+
+  [foo]
+  url = https://github.com/bro/foo
+  tags = example, bro plugin, pity
+
+  [bar]
+  url = https://github.com/bro/bar
+  tags = example, broctl plugin, pub
+
+  [baz]
+  url = https://github.com/bro/baz
+  tags = example, storm
+
+Each section of the file, e.g. ``[foo]``, describes a package.  The logical
+choice to use for these section names is the last component of the git URL as
+that's the shorthand way to refer to the packages when using
+:ref:`bro-pkg <bro-pkg>`.
+
+The `url` option may be set to the URL of any valid git repository.  This
+includes local paths, though that's not a good choice for package sources that
+are meant to be shared with others.
+
+The `tags` option contains a comma-delimited set of metadata tags that further
+classify and describe the purpose of the package.  This is used to help users
+better discover and search for packages.  E.g. the
+:ref:`bro-pkg search <search-command>` command will inspect these tags.
 
 Adding Packages
-~~~~~~~~~~~~~~~
+---------------
 
-Just add a new git submodule to the package source's git repository that points
-to the git URL of the Bro Package.  :ref:`bro-pkg <bro-pkg>` will see the new
-package listed the next time it uses the
-:ref:`refresh command <refresh-command>`.
+Adding packages is as simple as adding new :ref:`Package Index Files
+<package-index-file>` or extending existing ones with new sections and
+commiting/pushing those changes to the package source git repository.
 
-Removing Packages
-~~~~~~~~~~~~~~~~~
-
-Just remove the Package's git submodule from the package source's git
-repository.  :ref:`bro-pkg <bro-pkg>` will no longer see the now-removed package
-listed by the :ref:`list command <list-command>` after the next time they use
+:ref:`bro-pkg <bro-pkg>` will see new packages listed the next time it uses
 the :ref:`refresh command <refresh-command>`.
 
+Removing Packages
+-----------------
+
+Just remove the package's section from the :ref:`Package Index File
+<package-index-file>` that it's contained within.
+
+After the next time :program:`bro-pkg` uses the :ref:`refresh command
+<refresh-command>`, it will no longer see the now-removed package
+when viewing package listings via by the :ref:`list command <list-command>`.
+
 Users that had previously installed the now-removed package may continue to
-use it and receive updates for it -- packages not tied to any package source are
-allowed to be installed if the user refers to the package by a full git URL
-instead of the convienient/shorter submodule path/name that would be available
-if it were a part of a package source.
+use it and receive updates for it.
 
 .. _Bro Packages Git Repository: https://github.com/bro/packages
-.. _git submodules: https://git-scm.com/docs/git-submodule

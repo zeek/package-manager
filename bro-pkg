@@ -362,11 +362,15 @@ def cmd_search(manager, args, config):
             print('invalid regex: {}'.format(error))
             sys.exit(1)
         else:
-            matches = [pkg for pkg in src_pkgs if regex.search(
-                pkg.module_path())]
+            matches = [
+                pkg for pkg in src_pkgs
+                if regex.search(pkg.name_with_source_directory())
+            ]
     else:
         matches = [
-            pkg for pkg in src_pkgs if args.search_text in pkg.module_path()]
+            pkg for pkg in src_pkgs
+            if args.search_text in pkg.name_with_source_directory()
+        ]
 
     if matches:
         for match in matches:
@@ -492,15 +496,15 @@ def argparser():
                     ' may be named in several ways.  If the package is part' \
                     ' of a package source, it may be referred to by the' \
                     ' base name of the package (last component of git URL)' \
-                    ' or the submodule path within the package source.' \
+                    ' or its path within the package source.' \
                     ' If two packages in different package sources' \
-                    ' have conflicting submodule paths, then the package' \
-                    ' name may be prepended to the submodule path to resolve' \
+                    ' have conflicting paths, then the package source' \
+                    ' name may be prepended to the package path to resolve' \
                     ' the ambiguity. A full git URL may also be used to refer' \
                     ' to a package that does not belong to a source. E.g. for' \
-                    ' a packge in a source named "bro" at submodule path' \
-                    ' "alice/foo", the following names work: "foo",' \
-                    ' "alice/foo", "bro/alice/foo".'
+                    ' a package source called "bro" that has a package named' \
+                    ' "foo" located in "alice/bro-pkg.index" the following' \
+                    ' names work: "foo", "alice/foo", "bro/alice/foo".'
 
     top_parser = top_level_parser()
     command_parser = top_parser.add_subparsers(

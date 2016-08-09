@@ -8,6 +8,9 @@ from ._util import (
     remove_trailing_slashes
 )
 
+#: The name of files used by packages to store their metadata.
+METADATA_FILENAME = 'bro-pkg.meta'
+
 
 class InstalledPackage(object):
     """An installed package and its current status.
@@ -110,22 +113,27 @@ class Package(object):
             may be empty if the package is not a part of a source (i.e. the user
             is referring directly to the package's git URL).
 
-        module_dir (str): the directory within the package source where
-            this package is located as a submodule.  E.g. if the package source
-            has a git submodule at "alice/foo" for the package named "foo", then
-            `module_dir` should be "alice".  It may also be empty if the package
-            is not part of a package source.
+        directory (str): the directory within the package source where the
+            :file:`bro-pkg.index` containing this package is located.
+            E.g. if the package source has a package named "foo" declared in
+            :file:`alice/bro-pkg.index`, then `dir` is equal to "alice".
+            It may also be empty if the package is not part of a package source
+            or if it's located in a top-level :file:`bro-pkg.index` file.
+
+        index_data (dict of str -> str): the data from the package's
+            :data:`.source.INDEX_FILENAME`.
     """
 
     @classmethod
     def name_from_path(cls, path):
         return remove_trailing_slashes(path).split('/')[-1]
 
-    def __init__(self, git_url, source='', module_dir=''):
+    def __init__(self, git_url, source='', directory='', index_data=None):
         self.git_url = remove_trailing_slashes(git_url)
         self.name = Package.name_from_path(git_url)
         self.source = source
-        self.module_dir = module_dir
+        self.directory = directory
+        self.index_data = {} if index_data is None else index_data
 
     def __str__(self):
         return self.qualified_name()
@@ -136,15 +144,16 @@ class Package(object):
     def __lt__(self, other):
         return str(self) < str(other)
 
-    def module_path(self):
-        """Return the package's git submodule path within its package source.
+    def name_with_source_directory(self):
+        """Return the package's within its package source.
 
-        E.g. for a package source with a git submodule at "alice/foo" for
-        a package named "foo", this method returns "alice/foo".
-        If the package has no source, then just the package name is returned.
+        E.g. for a package source with a package named "foo" in
+        :file:`alice/bro-pkg.index`, this method returns "alice/foo".
+        If the package has no source or sub-directory within the source, then
+        just the package name is returned.
         """
-        if self.module_dir:
-            return '{}/{}'.format(self.module_dir, self.name)
+        if self.directory:
+            return '{}/{}'.format(self.directory, self.name)
 
         return self.name
 
@@ -152,11 +161,12 @@ class Package(object):
         """Return the shortest name that qualifies/distinguishes the package.
 
         If the package is part of a source, then this returns
-        "source_name/:meth:`module_path()`", else the package's git URL is
-        returned.
+        "source_name/:meth:`name_with_source_directory()`", else the package's
+        git URL is returned.
         """
         if self.source:
-            return '{}/{}'.format(self.source, self.module_path())
+            return '{}/{}'.format(self.source,
+                                  self.name_with_source_directory())
 
         return self.git_url
 
