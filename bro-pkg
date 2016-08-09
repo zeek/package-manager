@@ -102,11 +102,11 @@ def create_config(configfile):
         return default
 
     state_dir = get_option(config, 'paths', 'state_dir',
-                          os.path.join(os.path.expanduser('~'), '.bro-pkg'))
+                           os.path.join(os.path.expanduser('~'), '.bro-pkg'))
     script_dir = get_option(config, 'paths', 'script_dir',
-                           os.path.join(state_dir, 'script_dir'))
+                            os.path.join(state_dir, 'script_dir'))
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
-                           os.path.join(state_dir, 'plugin_dir'))
+                            os.path.join(state_dir, 'plugin_dir'))
     bro_dist = get_option(config, 'paths', 'bro_dist', '')
     bro_exe = get_option(config, 'paths', 'bro_exe', find_program('bro'))
 
@@ -156,6 +156,17 @@ def cmd_install(manager, args, config):
             print('loaded "{}"'.format(name))
         else:
             print('failed to load "{}"'.format(name))
+
+        if args.version:
+            ipkg = manager.pin(name)
+
+            if ipkg:
+                print('pinned "{}" at version: {} ({})'.format(
+                    name, ipkg.status.current_version,
+                    ipkg.status.current_hash))
+            else:
+                print_error(
+                    'failed pinning "{}"'.format(name))
 
 
 def cmd_remove(manager, args, config):
@@ -423,6 +434,7 @@ def cmd_env(manager, args, config):
         print('export BROPATH={}'.format(':'.join(bropaths)))
         print('export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
+
 def top_level_parser():
     top_parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -478,7 +490,8 @@ def argparser():
         ' specified at a time when using this flag.  A version tag or branch'
         ' name may be specified here.  By default, the latest version tag is'
         ' installed, or if a package has no version tags, the "master"'
-        ' branch is installed.')
+        ' branch is installed.  Using this flag also pins the installed'
+        ' package to the given version (see the ``pin`` command).')
 
     # remove
     sub_parser = command_parser.add_parser(

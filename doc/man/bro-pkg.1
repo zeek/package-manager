@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Aug 08, 2016" "0.2-33" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Aug 09, 2016" "0.2-34" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -96,7 +96,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .INDENT 7.0
 .TP
 .B \-\-version
-The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.
+The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.  Using this flag also pins the installed package to the given version (see the \(ga\(gapin\(ga\(ga command).
 .UNINDENT
 .UNINDENT
 .SS remove

@@ -1,4 +1,8 @@
 
+0.2-34 | 2016-08-09 13:06:24 -0500
+
+  * Using ``install --version`` now also pins the package. (Jon Siwek)
+
 0.2-33 | 2016-08-08 16:19:59 -0500
 
   * info command can now take a --version flag. (Jon Siwek)
