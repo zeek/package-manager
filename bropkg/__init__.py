@@ -15,4 +15,6 @@ __all__ = ['manager', 'package', 'source']
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
-from .manager import Manager
+from .manager import *
+from .package import *
+from .source import *

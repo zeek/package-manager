@@ -3,6 +3,7 @@ A module with various data structures used for interacting with and querying
 the properties and status of Bro packages.
 """
 
+import os
 
 from ._util import (
     remove_trailing_slashes
@@ -10,6 +11,21 @@ from ._util import (
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = 'bro-pkg.meta'
+
+
+def name_from_path(path):
+    """Returns the name of a package given a path to its git repository."""
+    return canonical_url(path).split('/')[-1]
+
+
+def canonical_url(path):
+    """Returns the url of a package given a path to its git repo."""
+    url = remove_trailing_slashes(path)
+
+    if url.startswith('.') or url.startswith('/'):
+        url = os.path.realpath(url)
+
+    return url
 
 
 class InstalledPackage(object):
@@ -124,13 +140,9 @@ class Package(object):
             :data:`.source.INDEX_FILENAME`.
     """
 
-    @classmethod
-    def name_from_path(cls, path):
-        return remove_trailing_slashes(path).split('/')[-1]
-
     def __init__(self, git_url, source='', directory='', index_data=None):
-        self.git_url = remove_trailing_slashes(git_url)
-        self.name = Package.name_from_path(git_url)
+        self.git_url = canonical_url(git_url)
+        self.name = name_from_path(git_url)
         self.source = source
         self.directory = directory
         self.index_data = {} if index_data is None else index_data

@@ -18,7 +18,6 @@ import semantic_version as semver
 
 from ._util import (
     make_dir,
-    remove_trailing_slashes,
     delete_path,
     make_symlink,
     copy_over_path,
@@ -26,6 +25,8 @@ from ._util import (
 from .source import Source
 from .package import (
     METADATA_FILENAME,
+    name_from_path,
+    canonical_url,
     Package,
     PackageInfo,
     PackageStatus,
@@ -314,7 +315,7 @@ class Manager(object):
                 :file:`alice/bro-pkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
-        name = Package.name_from_path(pkg_path)
+        name = name_from_path(pkg_path)
         return os.path.join(self.package_clonedir, '.build-{}.log'.format(name))
 
     def match_source_packages(self, pkg_path):
@@ -328,9 +329,10 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
         rval = []
+        canon_url = canonical_url(pkg_path)
 
         for pkg in self.source_packages():
-            if pkg.matches_path(pkg_path):
+            if pkg.matches_path(canon_url):
                 rval.append(pkg)
 
         return rval
@@ -347,7 +349,7 @@ class Manager(object):
 
         A package's name is the last component of it's git URL.
         """
-        pkg_name = Package.name_from_path(pkg_path)
+        pkg_name = name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
 
     def refresh(self):
@@ -389,8 +391,8 @@ class Manager(object):
         Raises:
             IOError: if the manifest can't be written
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('upgrading "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if not ipkg:
@@ -434,8 +436,8 @@ class Manager(object):
             IOError: if the package manifest file can't be written
             OSError: if the installed package's directory can't be deleted
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('removing "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if not ipkg:
@@ -476,8 +478,8 @@ class Manager(object):
         Raises:
             IOError: when the manifest file can't be written
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('pinning "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if not ipkg:
@@ -510,8 +512,8 @@ class Manager(object):
         Raises:
             IOError: when the manifest file can't be written
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('unpinning "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if not ipkg:
@@ -546,8 +548,8 @@ class Manager(object):
         Raises:
             IOError: if the loader script or manifest can't be written
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('loading "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if not ipkg:
@@ -583,8 +585,8 @@ class Manager(object):
         Raises:
             IOError: if the loader script or manifest can't be written
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('unloading "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if not ipkg:
@@ -622,8 +624,8 @@ class Manager(object):
         Returns:
             A :class:`.package.PackageInfo` object.
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('getting info on "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if ipkg:
@@ -703,7 +705,8 @@ class Manager(object):
 
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = self._new_package_metadata_parser()
-        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
+        invalid_reason = _parse_package_metadata(
+            metadata_parser, metadata_file)
         metadata = _get_package_metadata(metadata_parser)
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status, metadata=metadata, versions=versions,
@@ -741,8 +744,8 @@ class Manager(object):
         Raises:
             IOError: if the manifest can't be written
         """
+        pkg_path = canonical_url(pkg_path)
         LOG.debug('installing "%s"', pkg_path)
-        pkg_path = remove_trailing_slashes(pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
         if ipkg:
@@ -845,7 +848,8 @@ class Manager(object):
 
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = self._new_package_metadata_parser()
-        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
+        invalid_reason = _parse_package_metadata(
+            metadata_parser, metadata_file)
 
         if invalid_reason:
             return invalid_reason
@@ -1034,7 +1038,7 @@ def _clone_package(package, clonepath):
     """Clone a :class:`.package.Package` git repo.
 
     Returns:
-        git.Repo: the cloned packaged
+        git.Repo: the cloned package
 
     Raises:
         git.exc.GitCommandError: if the git repo is invalid
