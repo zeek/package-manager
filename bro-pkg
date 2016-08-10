@@ -186,16 +186,17 @@ def cmd_install(manager, args, config):
             print('')
 
         if worker.error:
-            print_error('failed installing "{}": {}'.format(
-                name, worker.error))
+            print('failed installing "{}": {}'.format(name, worker.error))
             continue
 
         print('installed "{}"'.format(name))
 
-        if manager.load(name):
-            print('loaded "{}"'.format(name))
+        load_error = manager.load(name)
+
+        if load_error:
+            print('skipped loading "{}": {}'.format(name, load_error))
         else:
-            print('failed to load "{}"'.format(name))
+            print('loaded "{}"'.format(name))
 
         if args.version:
             ipkg = manager.pin(name)
@@ -205,8 +206,7 @@ def cmd_install(manager, args, config):
                     name, ipkg.status.current_version,
                     ipkg.status.current_hash))
             else:
-                print_error(
-                    'failed pinning "{}"'.format(name))
+                print('failed pinning "{}"'.format(name))
 
 
 def cmd_remove(manager, args, config):
@@ -277,12 +277,12 @@ def cmd_upgrade(manager, args, config):
 def cmd_load(manager, args, config):
     for name in args.package:
         name = bropkg.package.canonical_url(name)
+        load_error = manager.load(name)
 
-        if manager.load(name):
-            print('loaded "{}"'.format(name))
+        if load_error:
+            print('failed to load "{}": {}'.format(name, load_error))
         else:
-            print_error(
-                'failed loading "{}": no such package installed'.format(name))
+            print('loaded "{}"'.format(name))
 
 
 def cmd_unload(manager, args, config):
@@ -292,7 +292,7 @@ def cmd_unload(manager, args, config):
         if manager.unload(name):
             print('unloaded "{}"'.format(name))
         else:
-            print_error(
+            print(
                 'failed unloading "{}": no such package installed'.format(name))
 
 
@@ -305,8 +305,7 @@ def cmd_pin(manager, args, config):
             print('pinned "{}" at version: {} ({})'.format(
                 name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
-            print_error(
-                'failed pinning "{}": no such package installed'.format(name))
+            print('failed pinning "{}": no such package installed'.format(name))
 
 
 def cmd_unpin(manager, args, config):
@@ -318,7 +317,7 @@ def cmd_unpin(manager, args, config):
             print('unpinned "{}" from version: {} ({})'.format(
                 name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
-            print_error(
+            print(
                 'failed unpinning "{}": no such package installed'.format(name))
 
 

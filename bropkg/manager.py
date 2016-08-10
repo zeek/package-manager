@@ -543,7 +543,8 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
-            bool: True if a package is successfully marked as loaded.
+            str: empty string if the package is successfully marked as loaded,
+            else an explanation of why it failed.
 
         Raises:
             IOError: if the loader script or manifest can't be written
@@ -554,17 +555,25 @@ class Manager(object):
 
         if not ipkg:
             LOG.info('loading "%s": no matching package', pkg_path)
-            return False
+            return 'no such package'
 
         if ipkg.status.is_loaded:
             LOG.debug('loading "%s": already loaded', pkg_path)
-            return True
+            return ''
+
+        pkg_load_script = os.path.join(self.script_dir, ipkg.package.name,
+                                       '__load__.bro')
+
+        if not os.path.exists(pkg_load_script):
+            LOG.debug('loading "%s": %s does not exist',
+                      pkg_path, pkg_load_script)
+            return 'no __load__.bro within package script_dir'
 
         ipkg.status.is_loaded = True
         self._write_autoloader()
         self._write_manifest()
         LOG.debug('loaded "%s"', pkg_path)
-        return True
+        return ''
 
     def unload(self, pkg_path):
         """Unmark an installed package as being "loaded".
