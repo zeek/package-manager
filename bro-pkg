@@ -355,31 +355,42 @@ def cmd_list(manager, args, config):
 
 
 def cmd_search(manager, args, config):
-    # @todo: search metadata topics/tags
     src_pkgs = manager.source_packages()
+    matches = set()
 
-    if args.search_text[0] == '/' and args.search_text[-1] == '/':
-        import re
+    for search_text in args.search_text:
+        if search_text[0] == '/' and search_text[-1] == '/':
+            import re
 
-        try:
-            regex = re.compile(args.search_text[1:-1])
-        except re.error as error:
-            print('invalid regex: {}'.format(error))
-            sys.exit(1)
+            try:
+                regex = re.compile(search_text[1:-1])
+            except re.error as error:
+                print('invalid regex: {}'.format(error))
+                sys.exit(1)
+            else:
+                for pkg in src_pkgs:
+                    if regex.search(pkg.name_with_source_directory()):
+                        matches.add(pkg)
+
+                    for tag in pkg.tags():
+                        if regex.search(tag):
+                            matches.add(pkg)
+
         else:
-            matches = [
-                pkg for pkg in src_pkgs
-                if regex.search(pkg.name_with_source_directory())
-            ]
-    else:
-        matches = [
-            pkg for pkg in src_pkgs
-            if args.search_text in pkg.name_with_source_directory()
-        ]
+            for pkg in src_pkgs:
+                if search_text in pkg.name_with_source_directory():
+                    matches.add(pkg)
+
+                for tag in pkg.tags():
+                    if search_text in tag:
+                        matches.add(pkg)
 
     if matches:
-        for match in matches:
+        for match in sorted(matches):
             print(match.qualified_name())
+
+            if 'tags' in match.index_data:
+                print('\ttags: {}'.format(match.index_data['tags']))
     else:
         print("no matches")
 
@@ -648,7 +659,8 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_search)
     sub_parser.add_argument(
-        'search_text', help='The text/pattern to look for.')
+        'search_text', nargs='+', default=[],
+        help='The text(s) or pattern(s) to look for.')
 
     # info
     sub_parser = command_parser.add_parser(

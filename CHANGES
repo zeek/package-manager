@@ -1,4 +1,8 @@
 
+0.2-38 | 2016-08-10 14:29:30 -0500
+
+  * Teach search command to inspect package index tags (Jon Siwek)
+
 0.2-37 | 2016-08-09 18:55:30 -0500
 
   * Delay printing installation activity ticks. (Jon Siwek)

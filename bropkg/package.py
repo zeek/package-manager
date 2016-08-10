@@ -144,6 +144,14 @@ class Package(object):
     def __lt__(self, other):
         return str(self) < str(other)
 
+    def tags(self):
+        """Return a list of tags in the package's `index_data` attribute."""
+        if 'tags' not in self.index_data:
+            return []
+
+        import re
+        return re.split(',\s*', self.index_data['tags'])
+
     def name_with_source_directory(self):
         """Return the package's within its package source.
 
