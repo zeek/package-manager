@@ -66,6 +66,10 @@ have Bro automatically load the scripts from all
 
   @load packages
 
+If you prefer to manually pick the package scripts to load you may instead add
+lines like :samp:`@load {<package_name>}`, where :samp:`{<package_name>}`
+is the :ref:`shorthand name <package-shorthand-name>` of the desired package.
+
 Advanced Configuration
 ----------------------
 
@@ -105,5 +109,17 @@ When using non-standard location, follow these steps to integrate with
 
   And set the `SitePluginPath` option in :file:`broctl.cfg` based on the output
   you see.
+
+Usage
+-----
+
+Check the output of :ref:`bro-pkg --help <bro-pkg>` for an explanation of all
+available functionality of the command-line tool.
+
+.. note::
+  The package manager currently lacks automatic dependency/version analysis,
+  but in those cases the package author will likely document dependencies
+  in their package's :file:`README` so that users can always install them
+  manually.
 
 .. _PyPI: https://pypi.python.org/pypi

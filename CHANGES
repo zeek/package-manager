@@ -1,4 +1,12 @@
 
+0.2-41 | 2016-08-10 19:35:53 -0500
+
+  * Docs: add package creation walkthroughs (Jon Siwek)
+
+  * Don't load packages unless they have a __load__.bro (Jon Siwek)
+
+  * Improve handling of relative paths in package urls (Jon Siwek)
+
 0.2-38 | 2016-08-10 14:29:30 -0500
 
   * Teach search command to inspect package index tags (Jon Siwek)

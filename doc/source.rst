@@ -1,5 +1,5 @@
-Anatomy of a Package Source
-===========================
+How-To: Create a Package Source
+===============================
 
 :ref:`bro-pkg <bro-pkg>`, by default, is configured to obtain packages from a
 single "package source", the `Bro Packages Git Repository`_, which is hosted by
@@ -49,11 +49,11 @@ choice to use for these section names is the last component of the git URL as
 that's the shorthand way to refer to the packages when using
 :ref:`bro-pkg <bro-pkg>`.
 
-The `url` option may be set to the URL of any valid git repository.  This
+The `url` field may be set to the URL of any valid git repository.  This
 includes local paths, though that's not a good choice for package sources that
 are meant to be shared with others.
 
-The `tags` option contains a comma-delimited set of metadata tags that further
+The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
 better discover and search for packages.  E.g. the
 :ref:`bro-pkg search <search-command>` command will inspect these tags.

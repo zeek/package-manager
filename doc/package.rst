@@ -1,8 +1,5 @@
-Anatomy of a Package
-====================
-
-What is a Package?
-------------------
+How-To: Create a Package
+========================
 
 The minimum requirement for a package is that it be a git repository containing
 a metadata file named :file:`bro-pkg.meta` at its top-level that begins with the
@@ -11,19 +8,233 @@ line::
   [package]
 
 This is the package's metadata file in INI file format and may contain
-additional fields that describe the package as well as how it inter-operates
-with Bro, the package manager, or other packages.
+:ref:`additional fields <metadata-fields>` that describe the package as well
+as how it inter-operates with Bro, the package manager, or other packages.
 
-A package's shorthand name is simply the last component of of its git URL.  E.g.
-a package at ``https://github.com/bro/foo`` may be referred to as **foo** and a
-Bro script that wants to load all the scripts within that package can use:
+.. _package-shorthand-name:
+
+Note that the shorthand name for your package that may be used by :ref:`bro-pkg
+<bro-pkg>` and Bro script :samp:`@load {<package_name>}` directives will be the
+last component of its git URL. E.g. a package at ``https://github.com/bro/foo``
+may be referred to as **foo** when using :program:`bro-pkg` and a Bro
+script that wants to load all the scripts within that package can use:
 
 .. code-block:: bro
 
   @load foo
 
-Metadata
---------
+Walkthroughs
+------------
+
+Pure Bro Script Package
+~~~~~~~~~~~~~~~~~~~~~~~
+
+#. Create a git repository:
+
+   .. code-block:: console
+
+      $ mkdir foo && cd foo && git init
+
+#. Create a package metadata file, :file:`bro-pkg.meta`:
+
+   .. code-block:: console
+
+      $ echo '[package]' > bro-pkg.meta
+
+#. Create a :file:`__load__.bro` script with example code in it:
+
+   .. code-block:: console
+
+      $ echo 'event bro_init() { print "foo is loaded"; }' > __load__.bro
+
+#. (Optional) Relocate your :file:`__load__.bro` script to any subdirectory:
+
+   .. code-block:: console
+
+      $ mkdir scripts && mv __load__.bro scripts
+      $ echo 'script_dir = scripts' >> bro-pkg.meta
+
+#. Commit everything to git:
+
+   .. code-block:: console
+
+      $ git add * && git commit -m 'First commit'
+
+#. (Optional) Test that Bro correctly loads the script after installing the
+   package with :program:`bro-pkg`:
+
+   .. code-block:: console
+
+      $ bro-pkg install .
+      $ bro foo
+      $ bro-pkg remove .
+
+#. (Optional) Version your package:
+
+   .. code-block:: console
+
+      $ echo "version = 1.0.0" >> bro-pkg.meta
+      $ git commit -a -m 'Version 1.0.0'
+      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+
+See `Bro Scripting`_ for more information on developing Bro scripts.
+
+Binary Bro Plugin Package
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#. Create a plugin skeleton using :file:`aux/bro-aux/plugin-support/init-plugin`
+   from Bro's source distribution:
+
+   .. code-block:: console
+
+      $ init-plugin ./rot13 Demo Rot13
+
+#. Create a git repository
+
+   .. code-block:: console
+
+      $ cd rot13 && git init
+
+#. Create a package metadata file, :file:`bro-pkg.meta`::
+
+     [package]
+     script_dir = scripts/Demo/Rot13
+     build_command = ./configure --bro-dist=%(bro_dist)s && make
+
+#. Add example script code:
+
+   .. code-block:: console
+
+      $ echo 'event bro_init() { print "rot13 plugin is loaded"; }' >> scripts/__load__.bro
+      $ echo 'event bro_init() { print "rot13 script is loaded"; }' >> scripts/Demo/Rot13/__load__.bro
+
+#. Add an example builtin-function in :file:`src/rot13.bif`:
+
+   .. code-block:: c++
+
+      module Demo;
+
+      function rot13%(s: string%) : string
+          %{
+          char* rot13 = copy_string(s->CheckString());
+
+          for ( char* p = rot13; *p; p++ )
+              {
+              char b = islower(*p) ? 'a' : 'A';
+              *p  = (*p - b + 13) % 26 + b;
+              }
+
+          BroString* bs = new BroString(1, reinterpret_cast<byte_vec>(rot13),
+                                        strlen(rot13));
+          return new StringVal(bs);
+          %}
+
+#. Commit everything to git:
+
+   .. code-block:: console
+
+      $ git add * && git commit -m 'First commit'
+
+#. (Optional) Test that Bro correctly loads the plugin after installing the
+   package with :program:`bro-pkg`:
+
+   .. code-block:: console
+
+      $ bro-pkg install .
+      $ bro rot13 -e 'print Demo::rot13("Hello")'
+      $ bro-pkg remove .
+
+#. (Optional) Version your package:
+
+   .. code-block:: console
+
+      $ echo "version = 1.0.0" >> bro-pkg.meta
+      $ git commit -a -m 'Version 1.0.0'
+      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+
+See `Bro Plugins`_ for more information on developing Bro plugins.
+
+BroControl Plugin Package
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#. Create a git repository:
+
+   .. code-block:: console
+
+      $ mkdir foo && cd foo && git init
+
+#. Create a package metadata file, :file:`bro-pkg.meta`:
+
+   .. code-block:: console
+
+      $ echo '[package]' > bro-pkg.meta
+
+#. Create an example BroControl plugin, :file:`foo.py`:
+
+   .. code-block:: python
+
+      import BroControl.plugin
+      from BroControl import config
+
+      class Foo(BroControl.plugin.Plugin):
+          def __init__(self):
+              super(Foo, self).__init__(apiversion=1)
+
+          def name(self):
+              return "foo"
+
+          def pluginVersion(self):
+              return 1
+
+          def init(self):
+              self.message("foo plugin is initialized")
+              return True
+
+#. Set the `plugin_dir` metadata field to directory where the plugin is located:
+
+   .. code-block:: console
+
+      $ echo 'plugin_dir = .' >> bro-pkg.meta
+
+#. Commit everything to git:
+
+   .. code-block:: console
+
+      $ git add * && git commit -m 'First commit'
+
+#. (Optional) Test that BroControl correctly loads the plugin after installing
+   the package with :program:`bro-pkg`:
+
+   .. code-block:: console
+
+      $ bro-pkg install .
+      $ broctl
+      $ bro-pkg remove .
+
+#. (Optional) Version your package:
+
+   .. code-block:: console
+
+      $ echo "version = 1.0.0" >> bro-pkg.meta
+      $ git commit -a -m 'Version 1.0.0'
+      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+
+See `BroControl Plugins`_ for more information on developing BroControl plugins.
+
+Registering to a Package Source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#) Create a :ref:`Package Index File <package-index-file>` for your package.
+#) Follow the package source's submission process, or if it's your own source,
+   just add the index file to the source's git repository and commit/push.
+
+.. _metadata-fields:
+
+Package Metadata
+----------------
+
+See the following sub-sections for a full list of available fields that may be
+used in :file:`bro-pkg.meta` files.
 
 version
 ~~~~~~~
@@ -60,9 +271,9 @@ An example :file:`bro-pkg.meta`::
 For a :file:`bro-pkg.meta` that looks like the above, the package should have a
 file called :file:`scripts/__load__.bro`.
 
-If the `script_dir` field is not present in :file:`bro-pkg.meta`, it defaults to
-the top-level directory of the package, so a :file:`__load__.bro` script should
-be located there.
+If the `script_dir` field is not present in :file:`bro-pkg.meta`, it defaults
+to the top-level directory of the package, so a :file:`__load__.bro` script
+should be located there.
 
 plugin_dir
 ~~~~~~~~~~
@@ -80,16 +291,16 @@ An example :file:`bro-pkg.meta`::
 For the above example, Bro and BroControl will load any plugins found in the
 installed package's :file:`plugins/` directory.
 
-If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults to
-a directory named :file:`build/` at the top-level of the package.  This is the
-default location where Bro binary plugins get placed when building them from
+If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults
+to a directory named :file:`build/` at the top-level of the package.  This is
+the default location where Bro binary plugins get placed when building them from
 source code (see `build_command`_).
 
 build_command
 ~~~~~~~~~~~~~
 
-The `build_command` field is an arbitrary shell command that the package manager
-will run before installing the package.
+The `build_command` field is an arbitrary shell command that the package
+manager will run before installing the package.
 
 This is useful for distributing `Bro Plugins`_ as source code and having the
 package manager take care of building it on the user's machine before installing
@@ -103,19 +314,18 @@ An example :file:`bro-pkg.meta`::
   build_command = ./configure --bro-dist=%(bro_dist)s && make
 
 In the above example, the ``%(bro_dist)s`` string is substituted for the path 
-the user has set for the `bro_dist` option in the :ref:`package manager config
+the user has set for the `bro_dist` field in the :ref:`package manager config
 file <bro-pkg-config-file>`.
 
 The default CMake skeleton for Bro plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
 value of the omitted `plugin_dir` metadata field.
 
-The `script_dir` field is set to the location where the author has placed custom
-scripts for their plugin.  When a package has both a Bro plugin and Bro script
-components, the "plugin" part is always unconditionally loaded by Bro, but the
-"script" components must either be explicitly loaded (e.g.
-:samp:`@load {<package_name>}`) or the package marked as
-:ref:`loaded <load-command>`.
+The `script_dir` field is set to the location where the author has placed
+custom scripts for their plugin.  When a package has both a Bro plugin and Bro
+script components, the "plugin" part is always unconditionally loaded by Bro,
+but the "script" components must either be explicitly loaded (e.g. :samp:`@load
+{<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
 Note that if you want to distribute a BroControl plugin along with a Bro plugin,
 you may need to add the BroControl plugin's python script to the
@@ -128,10 +338,15 @@ bro
 
 .. @todo: bro version dependency
 
+Not yet implemented.
+
 dependencies
 ~~~~~~~~~~~~
 
 .. @todo: inter-package dependencies
 
+Not yet implemented.
+
+.. _Bro Scripting: https://www.bro.org/sphinx/scripting/index.html
 .. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
 .. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
