@@ -323,10 +323,19 @@ def cmd_unpin(manager, args, config):
 
 def cmd_list(manager, args, config):
     if args.category == 'all':
-        for pkg in sorted(manager.source_packages()):
-            ipkg = manager.find_installed_package(pkg.name)
+        pkg_dict = dict()
+
+        for ipkg in manager.installed_packages():
+            pkg_dict[ipkg.package.qualified_name()] = True
+
+        for pkg in manager.source_packages():
             pkg_qn = pkg.qualified_name()
-            output_fmt = '{} (installed)' if ipkg else '{}'
+
+            if pkg_qn not in pkg_dict:
+                pkg_dict[pkg_qn] = False
+
+        for pkg_qn, is_installed in sorted(pkg_dict.items()):
+            output_fmt = '{} (installed)' if is_installed else '{}'
             print(output_fmt.format(pkg_qn))
 
     elif args.category == 'installed':

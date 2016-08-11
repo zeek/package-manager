@@ -1,4 +1,9 @@
 
+0.2-42 | 2016-08-10 19:58:15 -0500
+
+  * Fix `list all` to show installed packages that don't come from a source
+    (Jon Siwek)
+
 0.2-41 | 2016-08-10 19:35:53 -0500
 
   * Docs: add package creation walkthroughs (Jon Siwek)
