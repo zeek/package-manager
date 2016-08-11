@@ -1,3 +1,6 @@
+.. _Bro package source: https://github.com/bro/packages
+.. _documentation: http://bro-package-manager.readthedocs.io
+
 Bro Package Manager
 ===================
 
@@ -5,22 +8,19 @@ Bro Package Manager
           for use in production environments.
 
 The Bro Package Manager makes it easy for Bro users to install and manage third
-party scripts as well as plugins for Bro and BroControl.  The Bro Package
-Manager command line tool is preconfigured to download packages from a GitHub
+party scripts as well as plugins for Bro and BroControl.  The command-line tool
+is preconfigured to download packages from the `Bro package source`_ , a GitHub
 repository that has been set up such that any developer can request their Bro
-package be included.  This repository is located at:
+package be included. See the ``README`` file of that repository for information
+regarding the package submission process.
 
-    https://github.com/bro/packages
+.. note::
 
-See the README file of that repository for information regarding the package
-submission process.  Note that it's left up to users to decide for themselves
-via code review, GitHub comments/stars, or other metrics whether any given
-package is trustworthy as there is no implied guarantees that it's secure just
-because it's hosted there.
+    It's left up to users to decide for themselves via code review, GitHub
+    comments/stars, or other metrics whether any given package is trustworthy as
+    there is no implied guarantees that it's secure just because it's been
+    accepted into the default package source.
 
-The Bro Package Manager user manual and further documentation can be found at:
-
-  http://bro-package-manager.readthedocs.io
-
-For offline reading, look in the ``docs/`` directory of the source code
-distribution.
+See the package manager documentation_ for further usage information, how-to
+guides, and walkthroughs.  For offline reading, it's also available in the
+``docs/`` directory of the source code distribution.

@@ -1,3 +1,8 @@
+.. _Sphinx: http://www.sphinx-doc.org
+.. _Read the Docs: http://bro-package-manager.readthedocs.io/en/latest
+.. _GitHub: https://github.com/bro/package-manager
+.. _Google Style Docstrings: http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
+
 Developer's Guide
 =================
 
@@ -59,8 +64,3 @@ INI File Option            ```name```                      `name`
 ========================== =============================== ===========================
 
 Python API docstrings roughly follow the `Google Style Docstrings`_ format.
-
-.. _Sphinx: http://www.sphinx-doc.org
-.. _Read the Docs: http://bro-package-manager.readthedocs.io/en/latest
-.. _GitHub: https://github.com/bro/package-manager
-.. _Google Style Docstrings: http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html

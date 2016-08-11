@@ -1,3 +1,5 @@
+.. _Bro Packages Git Repository: https://github.com/bro/packages
+
 How-To: Create a Package Source
 ===============================
 
@@ -80,5 +82,3 @@ when viewing package listings via by the :ref:`list command <list-command>`.
 
 Users that had previously installed the now-removed package may continue to
 use it and receive updates for it.
-
-.. _Bro Packages Git Repository: https://github.com/bro/packages

@@ -1,4 +1,8 @@
 
+0.2-43 | 2016-08-11 14:09:44 -0500
+
+  * Docs: organize external links (Jon Siwek)
+
 0.2-42 | 2016-08-10 19:58:15 -0500
 
   * Fix `list all` to show installed packages that don't come from a source

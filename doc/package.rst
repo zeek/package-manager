@@ -1,3 +1,7 @@
+.. _Bro Scripting: https://www.bro.org/sphinx/scripting/index.html
+.. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
+.. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
+
 How-To: Create a Package
 ========================
 
@@ -346,7 +350,3 @@ dependencies
 .. @todo: inter-package dependencies
 
 Not yet implemented.
-
-.. _Bro Scripting: https://www.bro.org/sphinx/scripting/index.html
-.. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
-.. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins

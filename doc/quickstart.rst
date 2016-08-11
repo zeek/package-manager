@@ -1,3 +1,5 @@
+.. _PyPI: https://pypi.python.org/pypi
+
 Quickstart Guide
 ================
 
@@ -121,5 +123,3 @@ available functionality of the command-line tool.
   but in those cases the package author will likely document dependencies
   in their package's :file:`README` so that users can always install them
   manually.
-
-.. _PyPI: https://pypi.python.org/pypi
