@@ -5,8 +5,9 @@ bro-pkg Command-Line Tool
 
 .. argparse::
     :module: bro-pkg
-    :func: top_level_parser
+    :func: argparser
     :prog: bro-pkg
+    :nosubcommands:
 
     --configfile : @after
         See :ref:`bro-pkg-config-file`.

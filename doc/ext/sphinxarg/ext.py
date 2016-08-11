@@ -374,10 +374,16 @@ class ArgParseDirective(Directive):
         if 'description' in result:
             items.append(self._nested_parse_paragraph(result['description']))
         items.append(nodes.literal_block(text=result['usage']))
+
+        if 'nosubcommands' in self.options:
+            subcommands = None
+        else:
+            subcommands = print_subcommand_list(result, nested_content)
+
         items.append(print_command_args_and_opts(
             print_arg_list(result, nested_content),
             print_opt_list(result, nested_content),
-            print_subcommand_list(result, nested_content)
+            subcommands
         ))
         if 'epilog' in result:
             items.append(self._nested_parse_paragraph(result['epilog']))
