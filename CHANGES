@@ -1,4 +1,8 @@
 
+0.2-46 | 2016-08-11 19:45:21 -0500
+
+  * setup.py packaging improvements (Jon Siwek)
+
 0.2-45 | 2016-08-11 14:35:06 -0500
 
   * Docs: fix sphinx-argparse 'nosubcommands' option (Jon Siwek)

@@ -1,3 +1,6 @@
 *.pyc
+*.egg-info
 .state
 doc/_build
+build
+dist
