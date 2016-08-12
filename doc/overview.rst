@@ -1,10 +1,11 @@
+.. _Bro: https://bro.org
 .. _Bro package source: https://github.com/bro/packages
 .. _documentation: http://bro-package-manager.readthedocs.io
 
 Bro Package Manager
 ===================
 
-The Bro Package Manager makes it easy for Bro users to install and manage third
+The Bro Package Manager makes it easy for Bro_ users to install and manage third
 party scripts as well as plugins for Bro and BroControl.  The command-line tool
 is preconfigured to download packages from the `Bro package source`_ , a GitHub
 repository that has been set up such that any developer can request their Bro
