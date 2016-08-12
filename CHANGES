@@ -1,4 +1,8 @@
 
+0.2-47 | 2016-08-12 15:53:13 -0500
+
+  * Docs: add versioning/release guide for developers (Jon Siwek)
+
 0.2-46 | 2016-08-11 19:45:21 -0500
 
   * setup.py packaging improvements (Jon Siwek)

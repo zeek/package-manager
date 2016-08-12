@@ -2,17 +2,61 @@
 .. _Read the Docs: http://bro-package-manager.readthedocs.io/en/latest
 .. _GitHub: https://github.com/bro/package-manager
 .. _Google Style Docstrings: http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
+.. _bro-aux: https://github.com/bro/bro-aux
+.. _PyPi: https://pypi.python.org/pypi
 
 Developer's Guide
 =================
 
 This a guide for developers working on the Bro Package Manager itself.
 
+Versioning/Releases
+-------------------
+
+After making a commit to the *master* branch, you can use the
+:program:`update-changes` script in the `bro-aux`_ repository to automatically
+adapt version numbers and regenerate the :program:`bro-pkg` man page.  Make sure
+to install the `documentation dependencies`_ before using it.
+
+Releases are hosted at PyPi_.  To build and upload a release:
+
+#. Finalize the git repo tag and version with  ``update-changes -R <version>``
+   if not done already.
+
+#. Get an account at PyPi_ if you don't have one already.
+
+#. Download :program:`twine`, which is used for uploading the release
+   distribution:
+
+   .. code-block:: console
+
+      $ pip install twine
+
+#. Build the :program:`bro-pkg` distribution:
+
+   .. code-block:: console
+
+      $ python setup.py bdist_wheel
+
+#. If :program:`bro-pkg` metadata in :file:`setup.py` has changed, register it:
+
+   .. code-block:: console
+
+      $ twine register -u <username> dist/<package_file>
+
+#. Upload the distribution:
+
+   .. code-block:: console
+
+      $ twine upload -u <username> dist/<package_file>
+
 Documentation
 -------------
 
 Documentation is written in reStructuredText (reST), which Sphinx_ uses to
 generate HTML documentation and a man page.
+
+.. _documentation dependencies:
 
 Dependencies
 ~~~~~~~~~~~~
