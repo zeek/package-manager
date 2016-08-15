@@ -5,6 +5,10 @@
 How-To: Create a Package
 ========================
 
+A Bro package may contain Bro scripts, Bro plugins, or BroControl plugins.  Any
+number or combination of those components may be included within a single
+package.
+
 The minimum requirement for a package is that it be a git repository containing
 a metadata file named :file:`bro-pkg.meta` at its top-level that begins with the
 line::
@@ -225,12 +229,26 @@ BroControl Plugin Package
 
 See `BroControl Plugins`_ for more information on developing BroControl plugins.
 
+If you want to distribute a BroControl plugin along with a Bro plugin in the
+same package, you may need to add the BroControl plugin's python script to the
+``bro_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Bro
+plugin so that it gets copied into :file:`build/` along with the built Bro
+plugin.  Or you could also modify your `build_command` to copy it there, but
+what ultimately matters is that the `plugin_dir` field points to a directory
+that contains both the Bro plugin and the BroControl plugin.
+
 Registering to a Package Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Registering a package to a package source is always the following basic steps:
+
 #) Create a :ref:`Package Index File <package-index-file>` for your package.
-#) Follow the package source's submission process, or if it's your own source,
-   just add the index file to the source's git repository and commit/push.
+#) Add the index file to the package source's git repository.
+
+The full process and conventions for submitting to the default package source
+can be found in the :file:`README` at:
+
+  https://github.com/bro/packages
 
 .. _metadata-fields:
 
@@ -331,14 +349,8 @@ script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
-Note that if you want to distribute a BroControl plugin along with a Bro plugin,
-you may need to add the BroControl plugin's python script to the
-``bro_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Bro
-plugin so that it gets copied into :file:`build/` along with the built Bro
-plugin.  Or you could also modify your `build_command` to copy it there.
-
-bro
-~~~
+bro_version
+~~~~~~~~~~~
 
 .. @todo: bro version dependency
 
