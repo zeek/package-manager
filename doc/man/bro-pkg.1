@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Aug 15, 2016" "0.3-2" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Aug 16, 2016" "0.3-3" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -39,7 +39,7 @@ A command\-line package manager for Bro.
 .nf
 .ft C
 usage: bro\-pkg [\-h] [\-\-version] [\-\-configfile CONFIGFILE] [\-\-verbose]
-               {install,remove,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,env}
+               {install,remove,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env}
                ...
 .ft P
 .fi
@@ -351,7 +351,7 @@ The default output of this command is a valid package manager config file that c
 .nf
 .ft C
 usage: bro\-pkg config [\-h]
-                      [{all,sources,state_dir,script_dir,plugin_dir,bro_exe,bro_dist}]
+                      [{all,sources,state_dir,script_dir,plugin_dir,bro_dist}]
 .ft P
 .fi
 .UNINDENT
@@ -364,12 +364,12 @@ usage: bro\-pkg config [\-h]
 .Bconfig_param
 Name of a specific config file field to output.
 .sp
-Possible choices: all, sources, state_dir, script_dir, plugin_dir, bro_exe, bro_dist
+Possible choices: all, sources, state_dir, script_dir, plugin_dir, bro_dist
 .UNINDENT
 .UNINDENT
 .SS env
 .sp
-This command returns shell commands that, when executed, will correctly set \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP to utilize the scripts and plugins from packages installed by the package manager. For this command to function properly, either the \fIbro_exe\fP field of the config file needs to be filled out, or the \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP environment variables should already contain valid paths to which this command will append package\-specific paths.
+This command returns shell commands that, when executed, will correctly set \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP to utilize the scripts and plugins from packages installed by the package manager. For this command to function properly, either have the \fBbro\-config\fP script (installed by bro) in \fBPATH\fP, or have the \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP environment variables already set so this command can append package\-specific paths to them.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -403,9 +403,7 @@ available options and how to customize them:
 # (1) bro\-pkg \-\-configfile=/path/to/custom/config
 # (2) the BRO_PKG_CONFIG_FILE environment variable
 # (3) a config file located at $HOME/.bro\-pkg/config
-# (4) if bro\-pkg is installed via a Bro CMake build:
-#     <bro_install_prefix>/etc/bro\-pkg.config
-# (5) if none of the above exist, then bro\-pkg uses builtin/default
+# (4) if none of the above exist, then bro\-pkg uses builtin/default
 #     values for all settings shown below
 
 [sources]
@@ -440,14 +438,6 @@ script_dir =
 # If left blank, this defaults to <state_dir>/plugin_dir
 # A typical path to set here is <bro_install_prefix>/lib/bro/plugins
 plugin_dir =
-
-# The path to the "bro" executable (e.g. /usr/local/bro/bin/bro).
-# This is used by the \(ga\(gabro\-pkg env\(ga\(ga command to determine built\-in
-# BROPATH and BRO_PLUGIN_PATH settings that the "bro" executable uses
-# in the case those environment variables aren\(aqt set.
-# If left empty, the PATH environment variable will be searched for
-# the "bro" executable.
-bro_exe =
 
 # The directory containing Bro distribution source code.  This is only
 # needed when installing packages that contain Bro plugins that are

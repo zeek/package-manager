@@ -32,27 +32,28 @@ Using the latest git development version:
 Basic Configuration
 -------------------
 
-After first installation via :program:`pip`, additional configuration is
-required:
+After installing via :program:`pip`, additional configuration is required.
+First, make sure that the :program:`bro-config` script that gets installed with
+:program:`bro` is in your :envvar:`PATH`.  Then run:
 
 .. code-block:: console
 
   $ mkdir -p ~/.bro-pkg
-  $ bro-pkg config > ~/.bro-pkg/config
+  $ bro-pkg autoconfig > ~/.bro-pkg/config
 
-Now edit :file:`~/.bro-pkg/config` and fill in appropriate option values.
-Check :ref:`here <bro-pkg-config-file>` for a full explanation of what each
-does, or set the following suggested settings that are likely to work for most
-scenarios:
+This automatically generates a config file with the following suggested
+settings that should work for most Bro deployments:
 
-- `script_dir`: set to the location of Bro's :file:`site` scripts directory (e.g.
-  :file:`{<bro_install_prefix>}/share/bro/site`)
+- `script_dir`: set to the location of Bro's :file:`site` scripts directory
+  (e.g. :file:`{<bro_install_prefix>}/share/bro/site`)
 
 - `plugin_dir`: set to the location of Bro's default plugin directory (e.g.
   :file:`{<bro_install_prefix>}/lib/bro/plugins`)
 
-- `bro_dist`: set to the location of Bro's source code if you plan on
-  installing packages that have Bro plugins that require compilation.
+- `bro_dist`: set to the location of Bro's source code.
+  If you didn't build/install Bro from source code, this field will not be set,
+  but it's only needed if you plan on installing packages that have uncompiled
+  Bro plugins.
 
 With those settings, the package manager will install Bro scripts, Bro plugins,
 and BroControl plugins into directories where :program:`bro` and
@@ -68,9 +69,14 @@ have Bro automatically load the scripts from all
 
   @load packages
 
-If you prefer to manually pick the package scripts to load you may instead add
+If you prefer to manually pick the package scripts to load, you may instead add
 lines like :samp:`@load {<package_name>}`, where :samp:`{<package_name>}`
 is the :ref:`shorthand name <package-shorthand-name>` of the desired package.
+
+If you want to further customize your configuration, see the `Advanced
+Configuration`_ section and also  check :ref:`here <bro-pkg-config-file>` for a
+full explanation of config file options.  Otherwise you're ready to use
+:ref:`bro-pkg <bro-pkg>`.
 
 Advanced Configuration
 ----------------------
@@ -87,7 +93,8 @@ When using non-standard location, follow these steps to integrate with
 :program:`bro` and :program:`broctl`:
 
 - To get command-line :program:`bro` to be aware of Bro scripts/plugins in a
-  non-standard location, set the `bro_exe` config option and run:
+  non-standard location, make sure the :program:`bro-config` script (that gets
+  installed along with :program:`bro`) is in your :envvar:`PATH` and run:
 
   .. code-block:: console
 

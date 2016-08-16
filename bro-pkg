@@ -12,11 +12,6 @@ if sys.version_info[0] < 3:
 else:
     import configparser
 
-BRO_PYTHON_PATH = '@BRO_ROOT@/lib/python'
-
-if os.path.isdir(BRO_PYTHON_PATH):
-    sys.path.append(BRO_PYTHON_PATH)
-
 import bropkg
 
 
@@ -65,11 +60,6 @@ def find_configfile():
     if file_is_not_empty(configfile):
         return configfile
 
-    configfile = os.path.join('@BRO_ETC_INSTALL_DIR@', 'bro-pkg.config')
-
-    if file_is_not_empty(configfile):
-        return configfile
-
     return None
 
 
@@ -109,12 +99,10 @@ def create_config(configfile):
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
                             os.path.join(state_dir, 'plugin_dir'))
     bro_dist = get_option(config, 'paths', 'bro_dist', '')
-    bro_exe = get_option(config, 'paths', 'bro_exe', find_program('bro'))
 
     config.set('paths', 'state_dir', state_dir)
     config.set('paths', 'script_dir', script_dir)
     config.set('paths', 'plugin_dir', plugin_dir)
-    config.set('paths', 'bro_exe', bro_exe)
     config.set('paths', 'bro_dist', bro_dist)
 
     return config
@@ -462,40 +450,62 @@ def cmd_config(manager, args, config):
         print(config.get('paths', args.config_param))
 
 
+def cmd_autoconfig(manager, args, config):
+    bro_config = find_program('bro-config')
+
+    if not bro_config:
+        print_error('error: "bro-config" not found in PATH')
+        sys.exit(1)
+
+    if sys.version_info[0] < 3:
+        from StringIO import StringIO
+    else:
+        from io import StringIO
+
+    import subprocess
+    cmd = subprocess.Popen([bro_config,
+                            '--site_dir', '--plugin_dir', '--bro_dist'],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           bufsize=1)
+    script_dir, plugin_dir, bro_dist = (line.strip() for line in cmd.stdout)
+
+    autoconfig = configparser.SafeConfigParser()
+    autoconfig.add_section('sources')
+    autoconfig.add_section('paths')
+    autoconfig.set('sources', 'bro', 'https://github.com/bro/packages')
+    autoconfig.set('paths', 'state_dir',
+                   os.path.join(os.path.expanduser('~'), '.bro-pkg'))
+    autoconfig.set('paths', 'script_dir', script_dir)
+    autoconfig.set('paths', 'plugin_dir', plugin_dir)
+    autoconfig.set('paths', 'bro_dist', bro_dist)
+
+    out = StringIO()
+    autoconfig.write(out)
+    print(out.getvalue())
+    out.close()
+
+
 def cmd_env(manager, args, config):
     import subprocess
-    bro_exe = config.get('paths', 'bro_exe')
 
-    if bro_exe:
-        # Parse the output of 'bro --help' to determine starting values for
-        # BROPATH and BRO_PLUGIN_PATH.  e.g. for users that don't set those
-        # in their environment, bro has builtin paths to its installation
-        # directory that it uses and this is an easy way to get things working
-        # in that situation.  Parsing --help output isn't great, but we can
-        # check 'bro --version' here if the output format ever changes or
-        # just formalize some 'bro --config <param>' later to retrieve these
-        # values in a more well-defined manner.
-        cmd = subprocess.Popen([bro_exe, '--help'], stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT, bufsize=1)
+    bro_config = find_program('bro-config')
+    bropath = os.environ.get('BROPATH')
+    pluginpath = os.environ.get('BRO_PLUGIN_PATH')
 
-        for line in cmd.stdout:
-            parts = line.decode().split()
+    if bro_config:
+        cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               bufsize=1)
+        output = [line.strip() for line in cmd.stdout]
 
-            if not parts:
-                continue
+        if not bropath:
+            bropath = output[0]
 
-            if parts[0] == "$BROPATH":
-                bropaths = [p for p in parts[-1][1:-1].split(':')]
-            elif parts[0] == "$BRO_PLUGIN_PATH":
-                pluginpaths = [p for p in parts[-1][1:-1].split(':')]
+        if not pluginpath:
+            pluginpath = output[1]
 
-    else:
-        # Start with whatever values the current environment uses and add
-        # the package manager paths to them.
-        bropath = os.environ.get('BROPATH')
-        pluginpath = os.environ.get('BRO_PLUGIN_PATH')
-        bropaths = [p for p in bropath.split(':')] if bropath else []
-        pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
+    bropaths = [p for p in bropath.split(':')] if bropath else []
+    pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
 
     bropaths.append(manager.bropath())
     pluginpaths.append(manager.bro_plugin_path())
@@ -717,8 +727,20 @@ def argparser():
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
         choices=['all', 'sources', 'state_dir', 'script_dir',
-                 'plugin_dir', 'bro_exe', 'bro_dist'],
+                 'plugin_dir', 'bro_dist'],
         help='Name of a specific config file field to output.')
+
+    # autoconfig
+    sub_parser = command_parser.add_parser(
+        'autoconfig',
+        help='Generate a Bro Package Manager configuration file.',
+        description='The output of this command is a valid package manager'
+        ' config file that is generated by using the ``bro-config`` script'
+        ' that is installed along with Bro.  It is the suggested configuration'
+        ' to use for most Bro installations.  For this command to work, the'
+        ' ``bro-config`` script must be in ``PATH``.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_autoconfig)
 
     # env
     sub_parser = command_parser.add_parser(
@@ -728,11 +750,10 @@ def argparser():
         description='This command returns shell commands that, when executed,'
         ' will correctly set ``BROPATH`` and ``BRO_PLUGIN_PATH`` to utilize the'
         ' scripts and plugins from packages installed by the package manager.'
-        ' For this command to function properly, either the `bro_exe` field of'
-        ' the config file needs to be filled out, or the ``BROPATH`` and'
-        ' ``BRO_PLUGIN_PATH`` environment variables should already contain'
-        ' valid paths to which this command will append package-specific'
-        ' paths.',
+        ' For this command to function properly, either have the ``bro-config``'
+        ' script (installed by bro) in ``PATH``, or have the ``BROPATH`` and'
+        ' ``BRO_PLUGIN_PATH`` environment variables already set so this command'
+        ' can append package-specific paths to them.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_env)
 
