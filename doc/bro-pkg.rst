@@ -135,6 +135,16 @@ config
     :prog: bro-pkg
     :path: config
 
+.. _autoconfig-command:
+
+autoconfig
+~~~~~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: autoconfig
+
 .. _env-command:
 
 env
