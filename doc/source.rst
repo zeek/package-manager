@@ -37,14 +37,22 @@ example::
   [foo]
   url = https://github.com/bro/foo
   tags = example, bro plugin, pity
+  description = An example package.
 
   [bar]
   url = https://github.com/bro/bar
   tags = example, broctl plugin, pub
+  description = Another example package.
+      This time with a longer description
+      that spans multiple lines.
+      When adding line breaks, just indent
+      the new lines so they are parsed as
+      part of the 'description' value.
 
   [baz]
   url = https://github.com/bro/baz
   tags = example, storm
+  description = Can you feel the storm?
 
 Each section of the file, e.g. ``[foo]``, describes a package.  The logical
 choice to use for these section names is the last component of the git URL as
@@ -59,6 +67,9 @@ The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
 better discover and search for packages.  E.g. the
 :ref:`bro-pkg search <search-command>` command will inspect these tags.
+
+The `description` field may be used to give users a general overview of the
+package and its purpose.
 
 Adding Packages
 ---------------

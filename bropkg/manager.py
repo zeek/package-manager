@@ -704,6 +704,8 @@ class Manager(object):
                     return PackageInfo(package=package, status=status,
                                        invalid_reason=reason)
 
+                version = 'master'
+
         try:
             clone.git.checkout(version)
         except git.exc.GitCommandError:
@@ -712,6 +714,7 @@ class Manager(object):
             return PackageInfo(package=package, status=status,
                                invalid_reason=reason)
 
+        LOG.debug('checked out "%s", branch/version "%s"', package, version)
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = self._new_package_metadata_parser()
         invalid_reason = _parse_package_metadata(

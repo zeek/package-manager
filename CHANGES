@@ -1,4 +1,8 @@
 
+0.4-1 | 2016-09-05 14:09:55 -0500
+
+  * Improve output of 'info' command. (Jon Siwek)
+
 0.4 | 2016-08-16 16:55:48 -0500
 
   * Release 0.4.

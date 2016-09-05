@@ -416,8 +416,6 @@ def cmd_info(manager, args, config):
             print('\tinvalid package: {}'.format(info.invalid_reason))
             continue
 
-        pkg = info.package
-        print('\tgit URL: {}'.format(pkg.git_url))
         print('\tversions: {}'.format(info.versions))
 
         if info.status:
@@ -426,9 +424,18 @@ def cmd_info(manager, args, config):
             for key, value in sorted(info.status.__dict__.items()):
                 print('\t\t{} = {}'.format(key, value))
 
-        print('\tmetadata from version "{}":'.format(info.metadata_version))
+        print('\tpackage metadata (from version "{}"):'.format(
+            info.metadata_version))
 
         for key, value in sorted(info.metadata.items()):
+            value = value.replace('\n', '\n\t\t\t')
+            print('\t\t{} = {}'.format(key, value))
+
+        print('\tindex metadata:')
+        index_data = info.package.index_data
+
+        for key, value in sorted(index_data.items()):
+            value = value.replace('\n', '\n\t\t\t')
             print('\t\t{} = {}'.format(key, value))
 
 
