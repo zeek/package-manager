@@ -1,4 +1,8 @@
 
+0.5 | 2016-09-05 15:03:14 -0500
+
+  * Release 0.5.
+
 0.4-2 | 2016-09-05 15:01:38 -0500
 
   * Improve error message for insufficient permissions (Jon Siwek)
