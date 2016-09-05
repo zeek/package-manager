@@ -3,6 +3,7 @@
 from __future__ import print_function
 import os
 import sys
+import errno
 import argparse
 import logging
 import threading
@@ -114,8 +115,26 @@ def create_manager(config):
     plugin_dir = config.get('paths', 'plugin_dir')
     bro_dist = config.get('paths', 'bro_dist')
 
-    manager = bropkg.Manager(state_dir=state_dir, script_dir=script_dir,
-                             plugin_dir=plugin_dir, bro_dist=bro_dist)
+    try:
+        manager = bropkg.Manager(state_dir=state_dir, script_dir=script_dir,
+                                 plugin_dir=plugin_dir, bro_dist=bro_dist)
+    except (OSError, IOError) as error:
+        if error.errno == errno.EACCES:
+            print_error('{}: {}'.format(type(error).__name__, error))
+
+            def check_permission(d):
+                if os.access(d, os.W_OK):
+                    return
+
+                print_error(
+                    'error: user does not have write access in {}'.format(d))
+
+            check_permission(state_dir)
+            check_permission(script_dir)
+            check_permission(plugin_dir)
+            sys.exit(1)
+
+        raise
 
     for key, value in config_items(config, 'sources'):
         if not manager.add_source(name=key, git_url=value):

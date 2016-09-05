@@ -34,7 +34,8 @@ Basic Configuration
 
 After installing via :program:`pip`, additional configuration is required.
 First, make sure that the :program:`bro-config` script that gets installed with
-:program:`bro` is in your :envvar:`PATH`.  Then run:
+:program:`bro` is in your :envvar:`PATH`.  Then, as the user you want to run
+:program:`bro-pkg` with, do:
 
 .. code-block:: console
 
@@ -59,6 +60,18 @@ With those settings, the package manager will install Bro scripts, Bro plugins,
 and BroControl plugins into directories where :program:`bro` and
 :program:`broctl` will, by default, look for them.  BroControl clusters will
 also automatically distribute installed package scripts/plugins to all nodes.
+
+.. note::
+
+  If your Bro installation is owned by "root" and you intend to run
+  :program:`bro-pkg` as a different user, then you should grant "write" access
+  to the directories specified by `script_dir` and `plugin_dir`.  E.g. you could
+  do something like:
+
+  .. code-block:: console
+
+    $ sudo chgrp $USER $(bro-config --site_dir) $(bro-config --plugin_dir)
+    $ sudo chmod g+rwX $(bro-config --site_dir) $(bro-config --plugin_dir)
 
 The final step is to edit your :file:`site/local.bro`.  If you want to
 have Bro automatically load the scripts from all

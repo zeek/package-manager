@@ -1,4 +1,8 @@
 
+0.4-2 | 2016-09-05 15:01:38 -0500
+
+  * Improve error message for insufficient permissions (Jon Siwek)
+
 0.4-1 | 2016-09-05 14:09:55 -0500
 
   * Improve output of 'info' command. (Jon Siwek)
