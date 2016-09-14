@@ -141,22 +141,31 @@ class Manager(object):
         prev_script_dir, prev_plugin_dir = self._read_manifest()
 
         if prev_script_dir != self.script_dir:
-            LOG.info('moved previous script_dir %s -> %s', prev_script_dir,
+            LOG.info('relocating script_dir %s -> %s', prev_script_dir,
                      self.script_dir)
 
             if os.path.exists(prev_script_dir):
                 delete_path(self.script_dir)
                 shutil.move(prev_script_dir, self.script_dir)
-                prev_bropath = os.path.dirname(prev_script_dir)
 
-                for pkg_name in self.installed_pkgs:
-                    shutil.move(os.path.join(prev_bropath, pkg_name),
-                                os.path.join(self.bropath(), pkg_name))
+            prev_bropath = os.path.dirname(prev_script_dir)
+
+            for pkg_name in self.installed_pkgs:
+                old_link = os.path.join(prev_bropath, pkg_name)
+                new_link = os.path.join(self.bropath(), pkg_name)
+
+                if os.path.lexists(old_link):
+                    LOG.info('moving package link %s -> %s',
+                             old_link, new_link)
+                    shutil.move(old_link, new_link)
+                else:
+                    LOG.info('skip moving package link %s -> %s',
+                             old_link, new_link)
 
             self._write_manifest()
 
         if prev_plugin_dir != self.plugin_dir:
-            LOG.info('moved previous plugin_dir %s -> %s', prev_plugin_dir,
+            LOG.info('relocating plugin_dir %s -> %s', prev_plugin_dir,
                      self.plugin_dir)
 
             if os.path.exists(prev_plugin_dir):

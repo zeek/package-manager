@@ -1,4 +1,8 @@
 
+0.5-1 | 2016-09-14 15:09:12 -0500
+
+  * Improve automatic relocation of script_dir.  (Jon Siwek)
+
 0.5 | 2016-09-05 15:03:14 -0500
 
   * Release 0.5.
