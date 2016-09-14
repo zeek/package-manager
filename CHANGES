@@ -1,4 +1,8 @@
 
+0.5-2 | 2016-09-14 15:15:50 -0500
+
+  * Improve docs for script_dir/plugin_dir config file options. (Jon Siwek)
+
 0.5-1 | 2016-09-14 15:09:12 -0500
 
   * Improve automatic relocation of script_dir.  (Jon Siwek)

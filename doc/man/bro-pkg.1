@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 14, 2016" "0.5-1" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 14, 2016" "0.5-2" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -444,6 +444,9 @@ state_dir =
 # file there.
 # If left blank, this defaults to <state_dir>/script_dir
 # A typical path to set here is <bro_install_prefix>/share/bro/site
+# If you decide to change this location after having already
+# installed packages, bro\-pkg will automatically relocate them
+# the next time you run any bro\-pkg command.
 script_dir =
 
 # The directory where package plugins are copied upon installation.
@@ -453,6 +456,9 @@ script_dir =
 # file there.
 # If left blank, this defaults to <state_dir>/plugin_dir
 # A typical path to set here is <bro_install_prefix>/lib/bro/plugins
+# If you decide to change this location after having already
+# installed packages, bro\-pkg will automatically relocate them
+# the next time you run any bro\-pkg command.
 plugin_dir =
 
 # The directory containing Bro distribution source code.  This is only
