@@ -1,4 +1,9 @@
 
+0.6-3 | 2016-09-19 13:29:27 -0500
+
+  * BIT-1698: autoconfig command now directly writes to config file.
+    (Jon Siwek)
+
 0.6-2 | 2016-09-19 12:09:52 -0500
 
   * BIT-1697: Add description field to list/search output. (Jon Siwek)

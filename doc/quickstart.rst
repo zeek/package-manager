@@ -39,8 +39,7 @@ First, make sure that the :program:`bro-config` script that gets installed with
 
 .. code-block:: console
 
-  $ mkdir -p ~/.bro-pkg
-  $ bro-pkg autoconfig > ~/.bro-pkg/config
+  $ bro-pkg autoconfig
 
 This automatically generates a config file with the following suggested
 settings that should work for most Bro deployments:

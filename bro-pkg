@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 
 from __future__ import print_function
+from bropkg._util import make_dir
+
 import os
 import sys
 import errno
@@ -56,12 +58,16 @@ def find_configfile():
     if configfile and file_is_not_empty(configfile):
         return configfile
 
-    configfile = os.path.join(os.path.expanduser('~'), '.bro-pkg', 'config')
+    configfile = os.path.join(config_dir(), 'config')
 
     if file_is_not_empty(configfile):
         return configfile
 
     return None
+
+
+def config_dir():
+    return os.path.join(os.path.expanduser('~'), '.bro-pkg')
 
 
 def create_config(configfile):
@@ -94,7 +100,7 @@ def create_config(configfile):
         return default
 
     state_dir = get_option(config, 'paths', 'state_dir',
-                           os.path.join(os.path.expanduser('~'), '.bro-pkg'))
+                           os.path.join(config_dir()))
     script_dir = get_option(config, 'paths', 'script_dir',
                             os.path.join(state_dir, 'script_dir'))
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
@@ -495,11 +501,6 @@ def cmd_autoconfig(manager, args, config):
         print_error('error: "bro-config" not found in PATH')
         sys.exit(1)
 
-    if sys.version_info[0] < 3:
-        from StringIO import StringIO
-    else:
-        from io import StringIO
-
     import subprocess
     cmd = subprocess.Popen([bro_config,
                             '--site_dir', '--plugin_dir', '--bro_dist'],
@@ -507,20 +508,48 @@ def cmd_autoconfig(manager, args, config):
                            bufsize=1)
     script_dir, plugin_dir, bro_dist = (line.strip() for line in cmd.stdout)
 
-    autoconfig = configparser.SafeConfigParser()
-    autoconfig.add_section('sources')
-    autoconfig.add_section('paths')
-    autoconfig.set('sources', 'bro', 'https://github.com/bro/packages')
-    autoconfig.set('paths', 'state_dir',
-                   os.path.join(os.path.expanduser('~'), '.bro-pkg'))
-    autoconfig.set('paths', 'script_dir', script_dir)
-    autoconfig.set('paths', 'plugin_dir', plugin_dir)
-    autoconfig.set('paths', 'bro_dist', bro_dist)
+    make_dir(config_dir())
+    config_file = os.path.join(config_dir(), 'config')
+    config_file_exists = os.path.isfile(config_file)
 
-    out = StringIO()
-    autoconfig.write(out)
-    print(out.getvalue())
-    out.close()
+    def change_config_value(config, section, option, new_value, use_prompt):
+        if not use_prompt:
+            config.set(section, option, new_value)
+            return
+
+        old_value = config.get(section, option)
+
+        if old_value == new_value:
+            return
+
+        print('Set "{}" config option to: {} ?'.format(option, new_value))
+
+        if old_value:
+            prompt = '(previous value: {}) [Y/n] '.format(old_value)
+        else:
+            prompt = '[Y/n] '
+
+        choice = raw_input(prompt).lower()
+        no = {'n', 'no'}
+        yes = {'y', 'ye', 'yes'}
+
+        while choice not in no and choice not in yes:
+            choice = raw_input('Please enter "yes" or "no" [Y/n] ').lower()
+
+        if choice in yes:
+            config.set(section, option, new_value)
+
+    change_config_value(config, 'paths', 'script_dir',
+                        script_dir, config_file_exists)
+    change_config_value(config, 'paths', 'plugin_dir',
+                        plugin_dir, config_file_exists)
+    change_config_value(config, 'paths', 'bro_dist',
+                        bro_dist, config_file_exists)
+
+    with open(config_file, 'w') as f:
+        config.write(f)
+
+    print('Successfully wrote config file to {}'.format(config_file))
 
 
 def cmd_env(manager, args, config):
