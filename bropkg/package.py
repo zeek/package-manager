@@ -164,6 +164,25 @@ class Package(object):
         import re
         return re.split(',\s*', self.index_data['tags'])
 
+    def short_description(self):
+        """Return the first sentence of the index metdata 'description' field"""
+        if 'description' not in self.index_data:
+            return ''
+
+        description = self.index_data['description']
+        lines = description.split('\n')
+        rval = ''
+
+        for line in lines:
+            line = line.lstrip()
+            period_idx = line.find('.')
+            rval += line[:period_idx + 1]
+
+            if period_idx != -1:
+                break
+
+        return rval
+
     def name_with_source_directory(self):
         """Return the package's within its package source.
 

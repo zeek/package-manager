@@ -329,54 +329,58 @@ def cmd_unpin(manager, args, config):
 
 
 def cmd_list(manager, args, config):
+    pkg_dict = dict()
+
+    for ipkg in manager.installed_packages():
+        pkg_dict[ipkg.package.qualified_name()] = ipkg
+
+    for pkg in manager.source_packages():
+        pkg_qn = pkg.qualified_name()
+
+        if pkg_qn not in pkg_dict:
+            pkg_dict[pkg_qn] = pkg
+
     if args.category == 'all':
-        pkg_dict = dict()
-
-        for ipkg in manager.installed_packages():
-            pkg_dict[ipkg.package.qualified_name()] = True
-
-        for pkg in manager.source_packages():
-            pkg_qn = pkg.qualified_name()
-
-            if pkg_qn not in pkg_dict:
-                pkg_dict[pkg_qn] = False
-
-        for pkg_qn, is_installed in sorted(pkg_dict.items()):
-            output_fmt = '{} (installed)' if is_installed else '{}'
-            print(output_fmt.format(pkg_qn))
-
+        filtered_pkgs = pkg_dict
     elif args.category == 'installed':
-        installed_pkgs = [
-            ipkg.package for ipkg in manager.installed_packages()]
-
-        for pkg in sorted(installed_pkgs):
-            print(pkg.qualified_name())
-
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage)}
     elif args.category == 'not_installed':
-        for pkg in sorted(manager.source_packages()):
-            ipkg = manager.find_installed_package(pkg.name)
-
-            if not ipkg:
-                print(pkg.qualified_name())
-
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if not isinstance(value, bropkg.InstalledPackage)}
     elif args.category == 'loaded':
-        loaded_pkgs = [ipkg.package for ipkg in manager.loaded_packages()]
-
-        for pkg in sorted(loaded_pkgs):
-            print(pkg.qualified_name())
-
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage) and
+                         value.status.is_loaded}
     elif args.category == 'unloaded':
-        for ipkg in sorted(manager.installed_packages()):
-            if not ipkg.status.is_loaded:
-                print(ipkg.package.qualified_name())
-
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage) and
+                         not value.status.is_loaded}
     elif args.category == 'outdated':
-        for ipkg in sorted(manager.installed_packages()):
-            if ipkg.status.is_outdated:
-                print(ipkg.package.qualified_name())
-
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage) and
+                         value.status.is_outdated}
     else:
         raise NotImplementedError
+
+    for pkg_name, val in sorted(filtered_pkgs.items()):
+        if isinstance(val, bropkg.InstalledPackage):
+            pkg = val.package
+            print('{} (installed)'.format(pkg_name))
+        else:
+            pkg = val
+            print(pkg_name)
+
+        desc = pkg.short_description()
+        tags = pkg.index_data.get('tags', '')
+
+        if desc:
+            print('\t{}'.format(desc))
+
+        if tags:
+            print('\ttags: {}'.format(tags))
+
+        print('')
 
 
 def cmd_search(manager, args, config):
@@ -413,9 +417,17 @@ def cmd_search(manager, args, config):
     if matches:
         for match in sorted(matches):
             print(match.qualified_name())
+            desc = match.short_description()
+            tags = match.index_data.get('tags', '')
 
-            if 'tags' in match.index_data:
-                print('\ttags: {}'.format(match.index_data['tags']))
+            if desc:
+                print('\t{}'.format(desc))
+
+            if tags:
+                print('\ttags: {}'.format(tags))
+
+            print('')
+
     else:
         print("no matches")
 
