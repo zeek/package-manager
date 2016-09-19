@@ -1,4 +1,9 @@
 
+0.6-1 | 2016-09-19 10:52:51 -0500
+
+  * BIT-1701: Improve error message when 'install' can't create symlink.
+    (Jon Siwek)
+
 0.6 | 2016-09-14 15:16:30 -0500
 
   * Release 0.6.

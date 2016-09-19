@@ -925,10 +925,17 @@ class Manager(object):
             return str.format("package's 'script_dir' does not exist: {0}",
                               metadata['script_dir'])
 
+        symlink_path = os.path.join(self.bropath(), package.name)
+
+        try:
+            make_symlink(os.path.join('packages', package.name), symlink_path)
+        except OSError as exception:
+            error = 'could not create symlink at {}'.format(symlink_path)
+            error += ': {}: {}'.format(type(exception).__name__, exception)
+            return error
+
         error = _copy_package_dir(package, 'script_dir',
                                   script_dir_src, script_dir_dst)
-        make_symlink(os.path.join('packages', package.name),
-                     os.path.join(self.bropath(), package.name))
 
         if error:
             return error
