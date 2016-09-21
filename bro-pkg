@@ -189,22 +189,23 @@ def cmd_install(manager, args, config):
     join_timeout = 0.01
     tick_interval = 1
 
-    package_listing = ''
+    if not args.force:
+        package_listing = ''
 
-    for name in args.package:
-        name = bropkg.package.canonical_url(name)
-        external = ''
+        for name in args.package:
+            name = bropkg.package.canonical_url(name)
+            external = ''
 
-        if not manager.match_source_packages(name):
-            external = '(external package)'
+            if not manager.match_source_packages(name):
+                external = '(external package)'
 
-        package_listing += '  {} {}\n'.format(name, external)
+            package_listing += '  {} {}\n'.format(name, external)
 
-    print('The following packages will be INSTALLED:')
-    print(package_listing)
+        print('The following packages will be INSTALLED:')
+        print(package_listing)
 
-    if not confirmation_prompt('Proceed?'):
-        return
+        if not confirmation_prompt('Proceed?'):
+            return
 
     for name in args.package:
         name = bropkg.package.canonical_url(name)
@@ -256,22 +257,24 @@ def cmd_install(manager, args, config):
 
 
 def cmd_remove(manager, args, config):
-    package_listing = ''
+    if not args.force:
+        package_listing = ''
 
-    for name in args.package:
-        name = bropkg.package.canonical_url(name)
+        for name in args.package:
+            name = bropkg.package.canonical_url(name)
 
-        if not manager.find_installed_package(name):
-            print_error('error: package "{}" is not installed'.format(name))
-            sys.exit(1)
+            if not manager.find_installed_package(name):
+                print_error(
+                    'error: package "{}" is not installed'.format(name))
+                sys.exit(1)
 
-        package_listing += '  {}\n'.format(name)
+            package_listing += '  {}\n'.format(name)
 
-    print('The following packages will be REMOVED:')
-    print(package_listing)
+        print('The following packages will be REMOVED:')
+        print(package_listing)
 
-    if not confirmation_prompt('Proceed?'):
-        return
+        if not confirmation_prompt('Proceed?'):
+            return
 
     for name in args.package:
         name = bropkg.package.canonical_url(name)
@@ -342,11 +345,12 @@ def cmd_upgrade(manager, args, config):
         print('All packages already up-to-date.')
         return
 
-    print('The following packages will be UPGRADED:')
-    print(package_listing)
+    if not args.force:
+        print('The following packages will be UPGRADED:')
+        print(package_listing)
 
-    if not confirmation_prompt('Proceed?'):
-        return
+        if not confirmation_prompt('Proceed?'):
+            return
 
     for name in outdated_packages:
         name = bropkg.package.canonical_url(name)
@@ -695,6 +699,9 @@ def argparser():
     sub_parser.add_argument(
         'package', nargs='+', help=pkg_name_help)
     sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
         ' specified at a time when using this flag.  A version tag or branch'
@@ -712,6 +719,9 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_remove)
     sub_parser.add_argument('package', nargs='+', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
 
     # refresh
     sub_parser = command_parser.add_parser(
@@ -738,6 +748,9 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_upgrade)
     sub_parser.add_argument(
         'package', nargs='*', default=[], help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
 
     # load
     sub_parser = command_parser.add_parser(

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 21, 2016" "0.6-5" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 21, 2016" "0.6-6" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -80,7 +80,8 @@ Installs packages from a configured package source or directly from a git URL.  
 .sp
 .nf
 .ft C
-usage: bro\-pkg install [\-h] [\-\-version VERSION] package [package ...]
+usage: bro\-pkg install [\-h] [\-\-force] [\-\-version VERSION]
+                       package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -97,6 +98,9 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .B Options:
 .INDENT 7.0
 .TP
+.B \-\-force=False
+Skip the confirmation prompt.
+.TP
 .B \-\-version
 The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.  Using this flag also pins the installed package to the given version (see the \(ga\(gapin\(ga\(ga command).
 .UNINDENT
@@ -110,7 +114,7 @@ Unloads (see the \fBunload\fP command) and uninstalls a previously installed pac
 .sp
 .nf
 .ft C
-usage: bro\-pkg remove [\-h] package [package ...]
+usage: bro\-pkg remove [\-h] [\-\-force] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -122,6 +126,13 @@ usage: bro\-pkg remove [\-h] package [package ...]
 .TP
 .Bpackage
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-force=False
+Skip the confirmation prompt.
 .UNINDENT
 .UNINDENT
 .SS refresh
@@ -149,7 +160,7 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .sp
 .nf
 .ft C
-usage: bro\-pkg upgrade [\-h] [package [package ...]]
+usage: bro\-pkg upgrade [\-h] [\-\-force] [package [package ...]]
 .ft P
 .fi
 .UNINDENT
@@ -161,6 +172,13 @@ usage: bro\-pkg upgrade [\-h] [package [package ...]]
 .TP
 .Bpackage
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-force=False
+Skip the confirmation prompt.
 .UNINDENT
 .UNINDENT
 .SS load

@@ -1,4 +1,8 @@
 
+0.6-6 | 2016-09-21 12:59:01 -0500
+
+  * BIT-1699: Add --force flag for install/remove/upgrade. (Jon Siwek)
+
 0.6-5 | 2016-09-21 12:22:18 -0500
 
   * BIT-1699: Add confirmation prompts for install/upgrade/remove.
