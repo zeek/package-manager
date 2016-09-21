@@ -6,7 +6,8 @@ the properties and status of Bro packages.
 import os
 
 from ._util import (
-    remove_trailing_slashes
+    remove_trailing_slashes,
+    find_sentence_end,
 )
 
 #: The name of files used by packages to store their metadata.
@@ -175,11 +176,13 @@ class Package(object):
 
         for line in lines:
             line = line.lstrip()
-            period_idx = line.find('.')
-            rval += line[:period_idx + 1]
+            period_idx = find_sentence_end(line)
 
-            if period_idx != -1:
+            if period_idx == -1:
+                rval += line
                 break
+
+            rval += line[:period_idx + 1]
 
         return rval
 

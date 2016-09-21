@@ -57,3 +57,22 @@ def make_symlink(target_path, link_path, force=True):
             os.symlink(target_path, link_path)
         else:
             raise error
+
+def find_sentence_end(s):
+    beg = 0
+
+    while True:
+        period_idx = s.find('.', beg)
+
+        if period_idx == -1:
+            return -1
+
+        if period_idx == len(s) -1:
+            return period_idx
+
+        next_char = s[period_idx + 1]
+
+        if next_char.isspace():
+            return period_idx
+
+        beg = period_idx + 1

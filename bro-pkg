@@ -372,21 +372,17 @@ def cmd_list(manager, args, config):
     for pkg_name, val in sorted(filtered_pkgs.items()):
         if isinstance(val, bropkg.InstalledPackage):
             pkg = val.package
-            print('{} (installed)'.format(pkg_name))
+            out = pkg_name + ' (installed)'
         else:
             pkg = val
-            print(pkg_name)
+            out = pkg_name
 
         desc = pkg.short_description()
-        tags = pkg.index_data.get('tags', '')
 
         if desc:
-            print('\t{}'.format(desc))
+            out += ' - ' + desc
 
-        if tags:
-            print('\ttags: {}'.format(tags))
-
-        print('')
+        print(out)
 
 
 def cmd_search(manager, args, config):
@@ -422,17 +418,17 @@ def cmd_search(manager, args, config):
 
     if matches:
         for match in sorted(matches):
-            print(match.qualified_name())
+            out = match.qualified_name()
+
+            if manager.find_installed_package(match.qualified_name()):
+                out += ' (installed)'
+
             desc = match.short_description()
-            tags = match.index_data.get('tags', '')
 
             if desc:
-                print('\t{}'.format(desc))
+                out += ' - ' + desc
 
-            if tags:
-                print('\ttags: {}'.format(tags))
-
-            print('')
+            print(out)
 
     else:
         print("no matches")
