@@ -18,6 +18,21 @@ else:
 import bropkg
 
 
+def confirmation_prompt(prompt):
+    no = {'n', 'no'}
+    yes = {'y', 'ye', 'yes'}
+    prompt += ' [Y/n] '
+    choice = raw_input(prompt).lower()
+
+    while choice not in no and choice not in yes:
+        choice = raw_input('Please enter "yes" or "no" [Y/n] ').lower()
+
+    if choice in no:
+        return False
+
+    return True
+
+
 def print_error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
@@ -174,6 +189,23 @@ def cmd_install(manager, args, config):
     join_timeout = 0.01
     tick_interval = 1
 
+    package_listing = ''
+
+    for name in args.package:
+        name = bropkg.package.canonical_url(name)
+        external = ''
+
+        if not manager.match_source_packages(name):
+            external = '(external package)'
+
+        package_listing += '  {} {}\n'.format(name, external)
+
+    print('The following packages will be INSTALLED:')
+    print(package_listing)
+
+    if not confirmation_prompt('Proceed?'):
+        return
+
     for name in args.package:
         name = bropkg.package.canonical_url(name)
         time_accumulator = 0
@@ -202,7 +234,8 @@ def cmd_install(manager, args, config):
             print('failed installing "{}": {}'.format(name, worker.error))
             continue
 
-        print('installed "{}"'.format(name))
+        ipkg = manager.find_installed_package(name)
+        print('installed "{}" ({})'.format(name, ipkg.status.current_version))
 
         load_error = manager.load(name)
 
@@ -223,6 +256,23 @@ def cmd_install(manager, args, config):
 
 
 def cmd_remove(manager, args, config):
+    package_listing = ''
+
+    for name in args.package:
+        name = bropkg.package.canonical_url(name)
+
+        if not manager.find_installed_package(name):
+            print_error('error: package "{}" is not installed'.format(name))
+            sys.exit(1)
+
+        package_listing += '  {}\n'.format(name)
+
+    print('The following packages will be REMOVED:')
+    print(package_listing)
+
+    if not confirmation_prompt('Proceed?'):
+        return
+
     for name in args.package:
         name = bropkg.package.canonical_url(name)
 
@@ -246,9 +296,9 @@ def cmd_refresh(manager, args, config):
     outdated_after = {i for i in outdated(manager)}
 
     if src_pkgs_before == src_pkgs_after:
-        print('refreshed source packages: no changes')
+        print('Refreshed source packages: no changes')
     else:
-        print('source package changes:')
+        print('Source package changes:')
         diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
 
         for name in diff:
@@ -256,9 +306,9 @@ def cmd_refresh(manager, args, config):
             print('\t{} {}'.format(change, name))
 
     if outdated_before == outdated_after:
-        print('refreshed installed packages: no new outdated packages')
+        print('Refreshed installed packages: no new outdated packages')
     else:
-        print('installed packages are outdated:')
+        print('The following installed packages are outdated:')
         diff = outdated_before.symmetric_difference(outdated_after)
 
         for name in diff:
@@ -268,14 +318,37 @@ def cmd_refresh(manager, args, config):
 def cmd_upgrade(manager, args, config):
     if args.package:
         pkg_list = args.package
-    elif args.all:
-        pkg_list = outdated(manager)
     else:
-        print_error('error: either explicitly specify packages to upgrade'
-                    ' or use `upgrade --all`.')
-        sys.exit(1)
+        pkg_list = outdated(manager)
+
+    outdated_packages = []
+    package_listing = ''
 
     for name in pkg_list:
+        name = bropkg.package.canonical_url(name)
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print_error('error: package "{}" is not installed'.format(name))
+            sys.exit(1)
+
+        if not ipkg.status.is_outdated:
+            continue
+
+        outdated_packages.append(name)
+        package_listing += '  {}\n'.format(name)
+
+    if not outdated_packages:
+        print('All packages already up-to-date.')
+        return
+
+    print('The following packages will be UPGRADED:')
+    print(package_listing)
+
+    if not confirmation_prompt('Proceed?'):
+        return
+
+    for name in outdated_packages:
         name = bropkg.package.canonical_url(name)
         res = manager.upgrade(name)
 
@@ -518,21 +591,12 @@ def cmd_autoconfig(manager, args, config):
         if old_value == new_value:
             return
 
-        print('Set "{}" config option to: {} ?'.format(option, new_value))
+        prompt = 'Set "{}" config option to: {} ?'.format(option, new_value)
 
         if old_value:
-            prompt = '(previous value: {}) [Y/n] '.format(old_value)
-        else:
-            prompt = '[Y/n] '
+            prompt += '\n(previous value: {})'.format(old_value)
 
-        choice = raw_input(prompt).lower()
-        no = {'n', 'no'}
-        yes = {'y', 'ye', 'yes'}
-
-        while choice not in no and choice not in yes:
-            choice = raw_input('Please enter "yes" or "no" [Y/n] ').lower()
-
-        if choice in yes:
+        if confirmation_prompt(prompt):
             config.set(section, option, new_value)
 
     change_config_value(config, 'paths', 'script_dir',
@@ -674,10 +738,6 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_upgrade)
     sub_parser.add_argument(
         'package', nargs='*', default=[], help=pkg_name_help)
-    sub_parser.add_argument(
-        '--all', action='store_true',
-        help='When this option is used, all eligible packages will be upgraded'
-        ' without having to explicitly specify each one as an argument.')
 
     # load
     sub_parser = command_parser.add_parser(

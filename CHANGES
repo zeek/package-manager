@@ -1,4 +1,10 @@
 
+0.6-5 | 2016-09-21 12:22:18 -0500
+
+  * BIT-1699: Add confirmation prompts for install/upgrade/remove.
+
+    Removed the --all flag for upgrade command. (Jon Siwek)
+
 0.6-4 | 2016-09-21 10:47:53 -0500
 
   * BIT-1697: Improve output format of list/search. (Jon Siwek)
