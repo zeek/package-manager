@@ -186,20 +186,31 @@ def cmd_install(manager, args, config):
             'error: "install --version" may only be used for a single package')
         sys.exit(1)
 
-    join_timeout = 0.01
-    tick_interval = 1
+    package_infos = []
+
+    for name in args.package:
+        package_info = manager.info(name)
+
+        if package_info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   package_info.invalid_reason))
+            sys.exit(1)
+
+        package_infos.append(package_info)
 
     if not args.force:
         package_listing = ''
 
-        for name in args.package:
-            name = bropkg.package.canonical_url(name)
-            external = ''
+        for info in package_infos:
+            name = info.package.qualified_name()
+            version = "master"
 
-            if not manager.match_source_packages(name):
-                external = '(external package)'
+            if args.version:
+                version = args.version
+            elif info.versions:
+                version = info.versions[-1]
 
-            package_listing += '  {} {}\n'.format(name, external)
+            package_listing += '  {} ({})\n'.format(name, version)
 
         print('The following packages will be INSTALLED:')
         print(package_listing)
@@ -207,8 +218,11 @@ def cmd_install(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
-    for name in args.package:
-        name = bropkg.package.canonical_url(name)
+    join_timeout = 0.01
+    tick_interval = 1
+
+    for info in package_infos:
+        name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
         worker = InstallWorker(manager, name, args.version)
@@ -220,7 +234,7 @@ def cmd_install(manager, args, config):
 
             if time_accumulator >= tick_interval:
                 if tick_count == 0:
-                    print('installing "{}"'.format(name), end='')
+                    print('Installing "{}"'.format(name), end='')
                 else:
                     print('.', end='')
 
@@ -232,42 +246,48 @@ def cmd_install(manager, args, config):
             print('')
 
         if worker.error:
-            print('failed installing "{}": {}'.format(name, worker.error))
+            print('Failed installing "{}": {}'.format(name, worker.error))
             continue
 
         ipkg = manager.find_installed_package(name)
-        print('installed "{}" ({})'.format(name, ipkg.status.current_version))
+        print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
 
         load_error = manager.load(name)
 
         if load_error:
-            print('skipped loading "{}": {}'.format(name, load_error))
+            print('Skipped loading "{}": {}'.format(name, load_error))
         else:
-            print('loaded "{}"'.format(name))
+            print('Loaded "{}"'.format(name))
 
         if args.version:
             ipkg = manager.pin(name)
 
             if ipkg:
-                print('pinned "{}" at version: {} ({})'.format(
+                print('Pinned "{}" at version: {} ({})'.format(
                     name, ipkg.status.current_version,
                     ipkg.status.current_hash))
             else:
-                print('failed pinning "{}"'.format(name))
+                print('Failed pinning "{}"'.format(name))
 
 
 def cmd_remove(manager, args, config):
+    packages_to_remove = []
+
+    for name in args.package:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print_error(
+                'error: package "{}" is not installed'.format(name))
+            sys.exit(1)
+
+        packages_to_remove.append(ipkg)
+
     if not args.force:
         package_listing = ''
 
-        for name in args.package:
-            name = bropkg.package.canonical_url(name)
-
-            if not manager.find_installed_package(name):
-                print_error(
-                    'error: package "{}" is not installed'.format(name))
-                sys.exit(1)
-
+        for ipkg in packages_to_remove:
+            name = ipkg.package.qualified_name()
             package_listing += '  {}\n'.format(name)
 
         print('The following packages will be REMOVED:')
@@ -276,13 +296,13 @@ def cmd_remove(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
-    for name in args.package:
-        name = bropkg.package.canonical_url(name)
+    for ipkg in packages_to_remove:
+        name = ipkg.package.qualified_name()
 
         if manager.remove(name):
-            print('removed "{}"'.format(name))
+            print('Removed "{}"'.format(name))
         else:
-            print('failed removing "{}": no such package installed'.format(name))
+            print('Failed removing "{}": no such package installed'.format(name))
 
 
 def cmd_purge(manager, args, config):
@@ -328,7 +348,7 @@ def cmd_refresh(manager, args, config):
         diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
 
         for name in diff:
-            change = 'added' if name in src_pkgs_after else 'removed'
+            change = 'Added' if name in src_pkgs_after else 'Removed'
             print('\t{} {}'.format(change, name))
 
     if outdated_before == outdated_after:
@@ -338,7 +358,27 @@ def cmd_refresh(manager, args, config):
         diff = outdated_before.symmetric_difference(outdated_after)
 
         for name in diff:
-            print('\t{}'.format(name))
+            ipkg = manager.find_installed_package(name)
+            version_change = version_change_string(manager, ipkg)
+            print('\t{} {}'.format(name, version_change))
+
+
+def version_change_string(manager, installed_package):
+    old_version = installed_package.status.current_version
+    new_version = old_version
+    version_change = ''
+
+    if installed_package.status.tracking_method == 'version':
+        versions = manager.package_versions(installed_package)
+
+        if len(versions):
+            new_version = versions[-1]
+
+        version_change = '({} -> {})'.format(old_version, new_version)
+    else:
+        version_change = '({})'.format(new_version)
+
+    return version_change
 
 
 def cmd_upgrade(manager, args, config):
@@ -351,18 +391,20 @@ def cmd_upgrade(manager, args, config):
     package_listing = ''
 
     for name in pkg_list:
-        name = bropkg.package.canonical_url(name)
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
             print_error('error: package "{}" is not installed'.format(name))
             sys.exit(1)
 
+        name = ipkg.package.qualified_name()
+
         if not ipkg.status.is_outdated:
             continue
 
+        version_change = version_change_string(manager, ipkg)
         outdated_packages.append(name)
-        package_listing += '  {}\n'.format(name)
+        package_listing += '  {} {}\n'.format(name, version_change)
 
     if not outdated_packages:
         print('All packages already up-to-date.')
@@ -376,62 +418,85 @@ def cmd_upgrade(manager, args, config):
             return
 
     for name in outdated_packages:
-        name = bropkg.package.canonical_url(name)
         res = manager.upgrade(name)
 
         if res:
-            print('failed upgrading "{}": {}'.format(name, res))
+            print('Failed upgrading "{}": {}'.format(name, res))
         else:
             ipkg = manager.find_installed_package(name)
-            print('upgraded "{}" ({})'.format(
+            print('Upgraded "{}" ({})'.format(
                 name, ipkg.status.current_version))
 
 
 def cmd_load(manager, args, config):
     for name in args.package:
-        name = bropkg.package.canonical_url(name)
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print('Failed to load "{}": no such package installed'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
         load_error = manager.load(name)
 
         if load_error:
-            print('failed to load "{}": {}'.format(name, load_error))
+            print('Failed to load "{}": {}'.format(name, load_error))
         else:
-            print('loaded "{}"'.format(name))
+            print('Loaded "{}"'.format(name))
 
 
 def cmd_unload(manager, args, config):
     for name in args.package:
-        name = bropkg.package.canonical_url(name)
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print('Failed to unload "{}": no such package installed'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
 
         if manager.unload(name):
-            print('unloaded "{}"'.format(name))
+            print('Unloaded "{}"'.format(name))
         else:
             print(
-                'failed unloading "{}": no such package installed'.format(name))
+                'Failed unloading "{}": no such package installed'.format(name))
 
 
 def cmd_pin(manager, args, config):
     for name in args.package:
-        name = bropkg.package.canonical_url(name)
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print('Failed to pin "{}": no such package installed'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
         ipkg = manager.pin(name)
 
         if ipkg:
-            print('pinned "{}" at version: {} ({})'.format(
+            print('Pinned "{}" at version: {} ({})'.format(
                 name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
-            print('failed pinning "{}": no such package installed'.format(name))
+            print('Failed pinning "{}": no such package installed'.format(name))
 
 
 def cmd_unpin(manager, args, config):
     for name in args.package:
-        name = bropkg.package.canonical_url(name)
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print('Failed to unpin "{}": no such package installed'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
         ipkg = manager.unpin(name)
 
         if ipkg:
-            print('unpinned "{}" from version: {} ({})'.format(
+            print('Unpinned "{}" from version: {} ({})'.format(
                 name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
             print(
-                'failed unpinning "{}": no such package installed'.format(name))
+                'Failed unpinning "{}": no such package installed'.format(name))
 
 
 def cmd_list(manager, args, config):
@@ -472,7 +537,8 @@ def cmd_list(manager, args, config):
     for pkg_name, val in sorted(filtered_pkgs.items()):
         if isinstance(val, bropkg.InstalledPackage):
             pkg = val.package
-            out = pkg_name + ' (installed)'
+            out = '{} (installed: {})'.format(
+                pkg_name, val.status.current_version)
         else:
             pkg = val
             out = pkg_name
@@ -520,8 +586,10 @@ def cmd_search(manager, args, config):
         for match in sorted(matches):
             out = match.qualified_name()
 
-            if manager.find_installed_package(match.qualified_name()):
-                out += ' (installed)'
+            ipkg = manager.find_installed_package(match.qualified_name())
+
+            if ipkg:
+                out += ' (installed: {})'.format(ipkg.status.current_version)
 
             desc = match.short_description()
 
@@ -541,14 +609,14 @@ def cmd_info(manager, args, config):
         sys.exit(1)
 
     for name in args.package:
-        name = bropkg.package.canonical_url(name)
         info = manager.info(name, args.version)
-        print('"{}" info:'.format(name))
 
         if info.invalid_reason:
             print('\tinvalid package: {}'.format(info.invalid_reason))
             continue
 
+        name = info.package.qualified_name()
+        print('"{}" info:'.format(name))
         print('\tversions: {}'.format(info.versions))
 
         if info.status:

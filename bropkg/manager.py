@@ -733,6 +733,21 @@ class Manager(object):
                            status=status, metadata=metadata, versions=versions,
                            metadata_version=version)
 
+    def package_versions(self, installed_package):
+        """Returns a list of version number tags available for a package.
+
+        Args:
+            installed_package (:class:`.package.InstalledPackage`): the package
+                for which version number tags will be retrieved.
+
+        Returns:
+            A list of strings corresponding to version number tags.
+        """
+        name = installed_package.package.name
+        clonepath = os.path.join(self.package_clonedir, name)
+        clone = git.Repo(clonepath)
+        return _get_version_tags(clone)
+
     def _new_package_metadata_parser(self):
         default_metadata = {
             'script_dir': '',
