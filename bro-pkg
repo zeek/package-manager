@@ -285,6 +285,29 @@ def cmd_remove(manager, args, config):
             print('failed removing "{}": no such package installed'.format(name))
 
 
+def cmd_purge(manager, args, config):
+    packages_to_remove = [ipkg.package.qualified_name()
+                          for ipkg in manager.installed_packages()]
+
+    if not args.force:
+        package_listing = ''
+
+        for name in packages_to_remove:
+            package_listing += '  {}\n'.format(name)
+
+        print('The following packages will be REMOVED:')
+        print(package_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    for name in packages_to_remove:
+        if manager.remove(name):
+            print('Removed "{}"'.format(name))
+        else:
+            print('Unknown error removing "{}"'.format(name))
+
+
 def outdated(manager):
     return [ipkg.package.qualified_name()
             for ipkg in manager.installed_packages()
@@ -719,6 +742,18 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_remove)
     sub_parser.add_argument('package', nargs='+', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+
+    # purge
+    sub_parser = command_parser.add_parser(
+        'purge',
+        help='Uninstall all packages.',
+        description='Unloads (see the ``unload`` command) and uninstalls all'
+        ' previously installed packages.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_purge)
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
