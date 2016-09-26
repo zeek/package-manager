@@ -67,7 +67,7 @@ def find_sentence_end(s):
         if period_idx == -1:
             return -1
 
-        if period_idx == len(s) -1:
+        if period_idx == len(s) - 1:
             return period_idx
 
         next_char = s[period_idx + 1]

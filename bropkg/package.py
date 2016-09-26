@@ -176,15 +176,16 @@ class Package(object):
 
         for line in lines:
             line = line.lstrip()
+            rval += ' '
             period_idx = find_sentence_end(line)
 
             if period_idx == -1:
                 rval += line
+            else:
+                rval += line[:period_idx + 1]
                 break
 
-            rval += line[:period_idx + 1]
-
-        return rval
+        return rval.lstrip()
 
     def name_with_source_directory(self):
         """Return the package's within its package source.
