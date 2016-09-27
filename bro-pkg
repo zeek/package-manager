@@ -225,7 +225,14 @@ def cmd_install(manager, args, config):
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
-        worker = InstallWorker(manager, name, args.version)
+        version = ''
+
+        if args.version:
+            version = args.version
+        elif info.versions:
+            version = info.versions[-1]
+
+        worker = InstallWorker(manager, name, version)
         worker.start()
 
         while worker.isAlive():

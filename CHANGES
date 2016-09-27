@@ -1,4 +1,8 @@
 
+0.6-10 | 2016-09-27 13:56:08 -0500
+
+  * Fix potential race condition in package installation. (Jon Siwek)
+
 0.6-9 | 2016-09-26 15:31:50 -0500
 
   * Improve formatting of package short descriptions. (Jon Siwek)
