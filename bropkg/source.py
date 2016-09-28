@@ -7,14 +7,10 @@ help classify/describe it.
 """
 
 import os
-import sys
 import shutil
 import git
 
-if sys.version_info[0] < 3:
-    import ConfigParser as configparser
-else:
-    import configparser
+from backports import configparser
 
 from . import LOG
 from .package import Package

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 27, 2016" "0.6-10" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 28, 2016" "0.6-11" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -39,7 +39,7 @@ A command\-line package manager for Bro.
 .nf
 .ft C
 usage: bro\-pkg [\-h] [\-\-version] [\-\-configfile CONFIGFILE] [\-\-verbose]
-               {install,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env}
+               {install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env}
                ...
 .ft P
 .fi
@@ -102,7 +102,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 Skip the confirmation prompt.
 .TP
 .B \-\-version
-The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.  Using this flag also pins the installed package to the given version (see the \(ga\(gapin\(ga\(ga command).
+The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.
 .UNINDENT
 .UNINDENT
 .SS remove
@@ -133,6 +133,96 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .TP
 .B \-\-force=False
 Skip the confirmation prompt.
+.UNINDENT
+.UNINDENT
+.SS purge
+.sp
+Unloads (see the \fBunload\fP command) and uninstalls all previously installed packages.
+
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+usage: bro\-pkg purge [\-h] [\-\-force]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-force=False
+Skip the confirmation prompt.
+.UNINDENT
+.UNINDENT
+.SS bundle
+.sp
+This command creates a bundle file containing a collection of Bro packages.  If \fB\-\-manifest\fP is used, the user suplies the list of packages to put in the bundle, else all currently installed packages are put in the bundle. A bundle file can be unpacked on any target system, resulting in a repeatable/specific set of packages being installed on that target system (see the \fBunbundle\fP command).  This command may be useful for those that want to manage packages on a system that otherwise has limited network connectivity.  E.g. one can use a system with an internet connection to create a bundle, transport that bundle to the target machine using whatever means are appropriate, and finally unbundle/install it on the target machine.
+
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-manifest MANIFEST [MANIFEST ...]]
+                      bundle_filename
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Positional arguments:
+.INDENT 7.0
+.TP
+.Bbundle_filename
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-force=False
+Skip the confirmation prompt.
+.TP
+.B \-\-manifest
+This may either be a file name or a list of packages to include in the bundle.  If a file name is supplied, it should be in INI format with a single \(ga\(ga[bundle]\(ga\(ga section.  The keys in that section correspond to package names and their values correspond to git version tags or branch names.  The values may be left blank to indicate that the latest available version should be used.
+.UNINDENT
+.UNINDENT
+.SS unbundle
+.sp
+This command unpacks a bundle file formerly created by the \fBbundle\fP command and installs all the packages contained within.
+
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+usage: bro\-pkg unbundle [\-h] [\-\-force] [\-\-replace] bundle_filename
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Positional arguments:
+.INDENT 7.0
+.TP
+.Bbundle_filename
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-force=False
+Skip the confirmation prompt.
+.TP
+.B \-\-replace=False
+Using this flag first removes all installed packages before then installing the packages from the bundle.
 .UNINDENT
 .UNINDENT
 .SS refresh

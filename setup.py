@@ -12,7 +12,7 @@ setup(
     url='https://github.com/bro/package-manager',
     scripts=['bro-pkg'],
     packages=['bropkg'],
-    install_requires=['gitpython', 'semantic_version'],
+    install_requires=['gitpython', 'semantic_version', 'configparser'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

@@ -3,16 +3,12 @@ A module defining the main Bro Package Manager interface which supplies methods
 to interact with and operate on Bro packages.
 """
 
-import sys
 import os
 import json
 import shutil
+import tarfile
 
-if sys.version_info[0] < 3:
-    import ConfigParser as configparser
-else:
-    import configparser
-
+from backports import configparser
 import git
 import semantic_version as semver
 
@@ -758,6 +754,80 @@ class Manager(object):
 
         return configparser.SafeConfigParser(defaults=default_metadata)
 
+    def bundle(self, bundle_file, package_list):
+        """Creates a package bundle.
+
+        Args:
+            bundle_file (str): filesystem path of the zip file to create.
+
+            package_list (list of str, str): a list of (git URL, version)
+                string tuples to put in the bundle.  If the version string is,
+                empty the latest available version of the package is used.
+
+            Returns:
+                str: empty string if the the bundle is successfully created,
+                else an error string explaining what failed.
+        """
+        bundle_dir = os.path.join(self.scratch_dir, 'bundle')
+        delete_path(bundle_dir)
+        make_dir(bundle_dir)
+        manifest_file = os.path.join(bundle_dir, 'manifest.txt')
+        config = configparser.SafeConfigParser(delimiters='=')
+        config.add_section('bundle')
+
+        for git_url, version in package_list:
+            name = name_from_path(git_url)
+            clonepath = os.path.join(bundle_dir, name)
+            config.set('bundle', git_url, version)
+
+            try:
+                git.Repo.clone_from(git_url, clonepath)
+            except git.exc.GitCommandError as error:
+                return 'failed to clone {}: {}'.format(git_url, error)
+
+        with open(manifest_file, 'w') as f:
+            config.write(f)
+
+        archive = shutil.make_archive(bundle_dir, 'gztar', bundle_dir)
+        delete_path(bundle_file)
+        os.rename(archive, bundle_file)
+        return ''
+
+    def unbundle(self, bundle_file):
+        bundle_dir = os.path.join(self.scratch_dir, 'bundle')
+        delete_path(bundle_dir)
+        make_dir(bundle_dir)
+
+        try:
+            with tarfile.open(bundle_file) as tf:
+                tf.extractall(bundle_dir)
+        except Exception as error:
+            return str(error)
+
+        manifest_file = os.path.join(bundle_dir, 'manifest.txt')
+        config = configparser.SafeConfigParser(delimiters='=')
+
+        if not config.read(manifest_file):
+            return 'invalid bundle: no manifest file'
+
+        if not config.has_section('bundle'):
+            return 'invalid bundle: no [bundle] section in manifest file'
+
+        manifest = config.items('bundle')
+
+        for git_url, version in manifest:
+            package = Package(git_url=git_url)
+            clonepath = os.path.join(self.package_clonedir, package.name)
+            delete_path(clonepath)
+            os.rename(os.path.join(bundle_dir, package.name), clonepath)
+
+            error = self._install(package, version, use_existing_clone=True)
+
+            if error:
+                return error
+
+        return ''
+
     def install(self, pkg_path, version=''):
         """Install a package.
 
@@ -830,7 +900,7 @@ class Manager(object):
         # @todo: install dependencies
         return ''
 
-    def _install(self, package, version):
+    def _install(self, package, version, use_existing_clone=False):
         """Install a :class:`.package.Package`.
 
         Returns:
@@ -845,8 +915,11 @@ class Manager(object):
         # previous installed package w/ a new version
         clonepath = os.path.join(self.package_clonedir, package.name)
         ipkg = self.find_installed_package(package.name)
-        clone = git.Repo(clonepath) if ipkg else _clone_package(
-            package, clonepath)
+
+        if use_existing_clone or ipkg:
+            clone = git.Repo(clonepath)
+        else:
+            clone = _clone_package(package, clonepath)
 
         status = PackageStatus()
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
@@ -974,6 +1047,15 @@ class Manager(object):
 
         if error:
             return error
+
+        if not package.source:
+            # If installing directly from git URL, see if it actually is found
+            # in a package source and fill in those details.
+            for pkg in self.source_packages():
+                if pkg.git_url == package.git_url:
+                    package.source = pkg.source
+                    package.directory = pkg.directory
+                    break
 
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()

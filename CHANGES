@@ -1,4 +1,8 @@
 
+0.6-11 | 2016-09-28 18:11:44 -0500
+
+  * Add 'bundle' and 'unbundle' commands. (Jon Siwek)
+
 0.6-10 | 2016-09-27 13:56:08 -0500
 
   * Fix potential race condition in package installation. (Jon Siwek)

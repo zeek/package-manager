@@ -35,6 +35,36 @@ remove
     :prog: bro-pkg
     :path: remove
 
+.. _purge-command:
+
+purge
+~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: purge
+
+.. _bundle-command:
+
+bundle
+~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: bundle
+
+.. _unbundle-command:
+
+unbundle
+~~~~~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: unbundle
+
 .. _refresh-command:
 
 refresh

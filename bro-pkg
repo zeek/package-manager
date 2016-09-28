@@ -9,11 +9,9 @@ import errno
 import argparse
 import logging
 import threading
+import tarfile
 
-if sys.version_info[0] < 3:
-    import ConfigParser as configparser
-else:
-    import configparser
+from backports import configparser
 
 import bropkg
 
@@ -262,19 +260,159 @@ def cmd_install(manager, args, config):
         load_error = manager.load(name)
 
         if load_error:
-            print('Skipped loading "{}": {}'.format(name, load_error))
+            print('Failed loading "{}": {}'.format(name, load_error))
         else:
             print('Loaded "{}"'.format(name))
 
-        if args.version:
-            ipkg = manager.pin(name)
 
-            if ipkg:
-                print('Pinned "{}" at version: {} ({})'.format(
-                    name, ipkg.status.current_version,
-                    ipkg.status.current_hash))
-            else:
-                print('Failed pinning "{}"'.format(name))
+def cmd_bundle(manager, args, config):
+    packages_to_bundle = []
+
+    if args.manifest:
+        manifest_is_file = False
+
+        if len(args.manifest) == 1:
+            config = configparser.SafeConfigParser(delimiters='=')
+
+            if config.read(args.manifest[0]) and config.has_section('bundle'):
+                packages = config.items('bundle')
+                manifest_is_file = True
+
+        if not manifest_is_file:
+            packages = [(name, '') for name in args.manifest]
+
+        for name, version in packages:
+            info = manager.info(name)
+
+            if info.invalid_reason:
+                print_error(str.format('error: invalid package "{}": {}', name,
+                                       info.invalid_reason))
+                sys.exit(1)
+
+            if not version:
+                version = 'master'
+
+                if info.versions:
+                    version = info.versions[-1]
+
+            packages_to_bundle.append((info.package.qualified_name(),
+                                       info.package.git_url, version))
+    else:
+        for ipkg in manager.installed_packages():
+            packages_to_bundle.append((ipkg.package.qualified_name(),
+                                       ipkg.package.git_url,
+                                       ipkg.status.current_version))
+
+    if not packages_to_bundle:
+        print_error('error: no packages to put bundle')
+        sys.exit(1)
+
+    if not args.force:
+        package_listing = ''
+
+        for name, _, version in packages_to_bundle:
+            package_listing += '  {} ({})\n'.format(name, version)
+
+        print('The following packages will be BUNDLED into {}:'.format(
+            args.bundle_filename))
+        print(package_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    git_urls = [(git_url, version)
+                for _, git_url, version in packages_to_bundle]
+    error = manager.bundle(args.bundle_filename, git_urls)
+
+    if error:
+        print_error('error: failed to create bundle: {}'.format(error))
+        sys.exit(1)
+
+
+def cmd_unbundle(manager, args, config):
+    prev_load_status = {}
+
+    for ipkg in manager.installed_packages():
+        prev_load_status[ipkg.package.git_url] = ipkg.status.is_loaded
+
+    if args.replace:
+        cmd_purge(manager, args, config)
+
+    packages_in_bundle = []
+
+    try:
+        with tarfile.open(args.bundle_filename) as tf:
+            config = configparser.ConfigParser(delimiters='=')
+            mf = tf.extractfile('./manifest.txt')
+            config.readfp(mf)
+            mf.close()
+
+            if not config.has_section('bundle'):
+                print_error('error: {} is not a valid package bundle'.format(
+                    args.bundle_filename))
+                sys.exit(1)
+
+            packages_in_bundle = config.items('bundle')
+    except Exception as error:
+        raise
+        print_error('error: invalid bundle {}: {}'.format(
+            args.bundle_filename, error))
+        sys.exit(1)
+
+    if not packages_in_bundle:
+        print('No packages in bundle.')
+        return
+
+    if not args.force:
+        package_listing = ''
+
+        for git_url, version in packages_in_bundle:
+            name = git_url
+
+            for pkg in manager.source_packages():
+                if pkg.git_url == git_url:
+                    name = pkg.qualified_name()
+                    break
+
+            package_listing += '  {} ({})\n'.format(name, version)
+
+        print('The following packages will be INSTALLED:')
+        print(package_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    error = manager.unbundle(args.bundle_filename)
+
+    if error:
+        print_error('error: failed to unbundle {}: {}'.format(
+            args.bundle_filename, error))
+        sys.exit(1)
+
+    for git_url, _ in packages_in_bundle:
+        if git_url in prev_load_status:
+            need_load = prev_load_status[git_url]
+        else:
+            need_load = True
+
+        ipkg = manager.find_installed_package(git_url)
+
+        if not ipkg:
+            print('Skipped loading "{}": failed to install'.format(git_url))
+            continue
+
+        name = ipkg.package.qualified_name()
+
+        if not need_load:
+            print('Skipped loading "{}"'.format(name))
+            continue
+
+        load_error = manager.load(name)
+
+        if load_error:
+            print('Failed loading "{}": {}'.format(name, load_error))
+        else:
+            print('Loaded "{}"'.format(name))
 
 
 def cmd_remove(manager, args, config):
@@ -315,6 +453,10 @@ def cmd_remove(manager, args, config):
 def cmd_purge(manager, args, config):
     packages_to_remove = [ipkg.package.qualified_name()
                           for ipkg in manager.installed_packages()]
+
+    if not packages_to_remove:
+        print('No packages to remove.')
+        return
 
     if not args.force:
         package_listing = ''
@@ -805,8 +947,60 @@ def argparser():
         ' specified at a time when using this flag.  A version tag or branch'
         ' name may be specified here.  By default, the latest version tag is'
         ' installed, or if a package has no version tags, the "master"'
-        ' branch is installed.  Using this flag also pins the installed'
-        ' package to the given version (see the ``pin`` command).')
+        ' branch is installed.')
+
+    # bundle
+    sub_parser = command_parser.add_parser(
+        'bundle',
+        help='Creates a bundle file containing a collection of Bro packages.',
+        description='This command creates a bundle file containing a collection'
+                    ' of Bro packages.  If ``--manifest`` is used, the user'
+                    ' suplies the list of packages to put in the bundle, else'
+                    ' all currently installed packages are put in the bundle.'
+                    ' A bundle file can be unpacked on any target system,'
+                    ' resulting in a repeatable/specific set of packages'
+                    ' being installed on that target system (see the'
+                    ' ``unbundle`` command).  This command may be useful for'
+                    ' those that want to manage packages on a system that'
+                    ' otherwise has limited network connectivity.  E.g. one can'
+                    ' use a system with an internet connection to create a'
+                    ' bundle, transport that bundle to the target machine'
+                    ' using whatever means are appropriate, and finally'
+                    ' unbundle/install it on the target machine.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_bundle)
+    sub_parser.add_argument(
+        'bundle_filename', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--manifest', nargs='+',
+        help='This may either be a file name or a list of packages to include'
+        ' in the bundle.  If a file name is supplied, it should be in INI'
+        ' format with a single ``[bundle]`` section.  The keys in that section'
+        ' correspond to package names and their values correspond to git'
+        ' version tags or branch names.  The values may be left blank to'
+        ' indicate that the latest available version should be used.')
+
+    # unbundle
+    sub_parser = command_parser.add_parser(
+        'unbundle',
+        help='Unpacks Bro packages from a bundle file and installs them.',
+        description='This command unpacks a bundle file formerly created by the'
+                    ' ``bundle`` command and installs all the packages'
+                    ' contained within.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_unbundle)
+    sub_parser.add_argument(
+        'bundle_filename', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--replace', action='store_true',
+        help='Using this flag first removes all installed packages before then'
+        ' installing the packages from the bundle.')
 
     # remove
     sub_parser = command_parser.add_parser(

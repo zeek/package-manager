@@ -2,3 +2,4 @@ Sphinx
 sphinxcontrib-napoleon
 GitPython
 semantic_version
+configparser
