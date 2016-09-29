@@ -15,11 +15,13 @@ from backports import configparser
 
 import bropkg
 
+
 def get_input(prompt):
     if sys.version_info[0] < 3:
         return raw_input(prompt)
 
     return input(prompt)
+
 
 def confirmation_prompt(prompt):
     no = {'n', 'no'}
@@ -333,6 +335,8 @@ def cmd_bundle(manager, args, config):
         print_error('error: failed to create bundle: {}'.format(error))
         sys.exit(1)
 
+    print('Bundle successfully written: {}'.format(args.bundle_filename))
+
 
 def cmd_unbundle(manager, args, config):
     prev_load_status = {}
@@ -423,6 +427,8 @@ def cmd_unbundle(manager, args, config):
             print('Failed loading "{}": {}'.format(name, load_error))
         else:
             print('Loaded "{}"'.format(name))
+
+    print('Unbundling complete.')
 
 
 def cmd_remove(manager, args, config):

@@ -1,4 +1,8 @@
 
+0.6-13 | 2016-09-29 14:59:31 -0500
+
+  * Tweak output of bundle/unbundle. (Jon Siwek)
+
 0.6-12 | 2016-09-29 14:43:11 -0500
 
   * Python 3 compatibility fixes. (Jon Siwek)
