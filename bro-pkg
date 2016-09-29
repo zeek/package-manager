@@ -15,15 +15,20 @@ from backports import configparser
 
 import bropkg
 
+def get_input(prompt):
+    if sys.version_info[0] < 3:
+        return raw_input(prompt)
+
+    return input(prompt)
 
 def confirmation_prompt(prompt):
     no = {'n', 'no'}
     yes = {'y', 'ye', 'yes'}
     prompt += ' [Y/n] '
-    choice = raw_input(prompt).lower()
+    choice = get_input(prompt).lower()
 
     while choice not in no and choice not in yes:
-        choice = raw_input('Please enter "yes" or "no" [Y/n] ').lower()
+        choice = get_input('Please enter "yes" or "no" [Y/n] ').lower()
 
     if choice in no:
         return False
@@ -344,8 +349,13 @@ def cmd_unbundle(manager, args, config):
         with tarfile.open(args.bundle_filename) as tf:
             config = configparser.ConfigParser(delimiters='=')
             mf = tf.extractfile('./manifest.txt')
-            config.readfp(mf)
+            config_string = ''
+
+            for line in mf.readlines():
+                config_string += line.decode()
+
             mf.close()
+            config.read_string(config_string)
 
             if not config.has_section('bundle'):
                 print_error('error: {} is not a valid package bundle'.format(
@@ -819,7 +829,8 @@ def cmd_autoconfig(manager, args, config):
                             '--site_dir', '--plugin_dir', '--bro_dist'],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1)
-    script_dir, plugin_dir, bro_dist = (line.strip() for line in cmd.stdout)
+    script_dir, plugin_dir, bro_dist = (line.decode().strip()
+                                        for line in cmd.stdout)
 
     make_dir(config_dir())
     config_file = os.path.join(config_dir(), 'config')
@@ -867,7 +878,7 @@ def cmd_env(manager, args, config):
         cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                bufsize=1)
-        output = [line.strip() for line in cmd.stdout]
+        output = [line.decode().strip() for line in cmd.stdout]
 
         if not bropath:
             bropath = output[0]

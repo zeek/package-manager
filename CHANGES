@@ -1,4 +1,8 @@
 
+0.6-12 | 2016-09-29 14:43:11 -0500
+
+  * Python 3 compatibility fixes. (Jon Siwek)
+
 0.6-11 | 2016-09-28 18:11:44 -0500
 
   * Add 'bundle' and 'unbundle' commands. (Jon Siwek)
