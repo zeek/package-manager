@@ -776,12 +776,15 @@ def cmd_info(manager, args, config):
     for name in args.package:
         info = manager.info(name, args.version)
 
+        if info.package:
+            name = info.package.qualified_name()
+
+        print('"{}" info:'.format(name))
+
         if info.invalid_reason:
-            print('\tinvalid package: {}'.format(info.invalid_reason))
+            print('\tinvalid package: {}\n'.format(info.invalid_reason))
             continue
 
-        name = info.package.qualified_name()
-        print('"{}" info:'.format(name))
         print('\tversions: {}'.format(info.versions))
 
         if info.status:
@@ -803,6 +806,8 @@ def cmd_info(manager, args, config):
         for key, value in sorted(index_data.items()):
             value = value.replace('\n', '\n\t\t\t')
             print('\t\t{} = {}'.format(key, value))
+
+        print()
 
 
 def cmd_config(manager, args, config):

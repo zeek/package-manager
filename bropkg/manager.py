@@ -724,7 +724,14 @@ class Manager(object):
         metadata_parser = self._new_package_metadata_parser()
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
+
+        if invalid_reason:
+            return PackageInfo(package=package, invalid_reason=invalid_reason,
+                               status=status, versions=versions,
+                               metadata_version=version)
+
         metadata = _get_package_metadata(metadata_parser)
+
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status, metadata=metadata, versions=versions,
                            metadata_version=version)
@@ -1055,6 +1062,7 @@ class Manager(object):
                 if pkg.git_url == package.git_url:
                     package.source = pkg.source
                     package.directory = pkg.directory
+                    package.index_data = pkg.index_data
                     break
 
         self.installed_pkgs[package.name] = InstalledPackage(package, status)

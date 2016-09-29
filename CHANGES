@@ -1,4 +1,8 @@
 
+0.6-14 | 2016-09-29 15:25:44 -0500
+
+  * Improve output of 'info' command. (Jon Siwek)
+
 0.6-13 | 2016-09-29 14:59:31 -0500
 
   * Tweak output of bundle/unbundle. (Jon Siwek)
