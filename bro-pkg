@@ -132,6 +132,21 @@ def create_config(configfile):
     config.set('paths', 'plugin_dir', plugin_dir)
     config.set('paths', 'bro_dist', bro_dist)
 
+    def expand_config_values(config, section):
+        for key, value in config.items(section):
+            value = os.path.expandvars(os.path.expanduser(value))
+            config.set(section, key, value)
+
+    expand_config_values(config, 'sources')
+    expand_config_values(config, 'paths')
+
+    for key, value in config.items('paths'):
+        if not os.path.isabs(value):
+            print_error(str.format('error: invalid config file value for key'
+                                   ' "{}" in section [paths]: "{}" is not'
+                                   ' an absolute path', key, value))
+            sys.exit(1)
+
     return config
 
 

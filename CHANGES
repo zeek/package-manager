@@ -1,4 +1,10 @@
 
+0.7-1 | 2016-10-03 15:55:00 -0500
+
+  * BIT-1714: expand '~' and env. vars in config file values.
+
+    And reject relative paths in [paths] section. (Jon Siwek)
+
 0.7 | 2016-09-29 15:26:14 -0500
 
   * Release 0.7.
