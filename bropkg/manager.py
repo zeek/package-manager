@@ -17,6 +17,7 @@ from ._util import (
     delete_path,
     make_symlink,
     copy_over_path,
+    git_clone_shallow,
 )
 from .source import Source
 from .package import (
@@ -698,6 +699,7 @@ class Manager(object):
         versions = _get_version_tags(clone)
 
         if not version:
+
             if len(versions):
                 version = versions[-1]
             else:
@@ -785,7 +787,7 @@ class Manager(object):
             config.set('bundle', git_url, version)
 
             try:
-                git.Repo.clone_from(git_url, clonepath)
+                git_clone_shallow(git_url, clonepath)
             except git.exc.GitCommandError as error:
                 return 'failed to clone {}: {}'.format(git_url, error)
 
@@ -1072,7 +1074,7 @@ def _get_version_tags(clone):
     tags = []
 
     for tagref in clone.tags:
-        tag = tagref.name
+        tag = str(tagref.name)
 
         try:
             semver.Version.coerce(tag)
@@ -1089,7 +1091,7 @@ def _get_branch_names(clone):
     rval = []
 
     for ref in clone.references:
-        branch_name = ref.name
+        branch_name = str(ref.name)
 
         if not branch_name.startswith('origin/'):
             continue
@@ -1174,7 +1176,7 @@ def _clone_package(package, clonepath):
         git.exc.GitCommandError: if the git repo is invalid
     """
     delete_path(clonepath)
-    return git.Repo.clone_from(package.git_url, clonepath)
+    return git_clone_shallow(package.git_url, clonepath)
 
 
 def _get_package_metadata(parser):

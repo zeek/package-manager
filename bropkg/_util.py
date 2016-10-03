@@ -5,6 +5,7 @@ These are meant to be private utility methods for internal use.
 import os
 import errno
 import shutil
+import git
 
 
 def make_dir(path):
@@ -58,6 +59,7 @@ def make_symlink(target_path, link_path, force=True):
         else:
             raise error
 
+
 def find_sentence_end(s):
     beg = 0
 
@@ -76,3 +78,10 @@ def find_sentence_end(s):
             return period_idx
 
         beg = period_idx + 1
+
+
+def git_clone_shallow(git_url, dst_path):
+    git.Git().clone(git_url, dst_path, depth=1)
+    rval = git.Repo(dst_path)
+    rval.git.fetch(tags=True)
+    return rval

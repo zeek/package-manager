@@ -1,4 +1,8 @@
 
+0.7-4 | 2016-10-03 18:20:57 -0500
+
+  * BIT-1716: do shallow git clones of packages to use less space (Jon Siwek)
+
 0.7-3 | 2016-10-03 17:08:31 -0500
 
   * BIT-1715: improve message when failing to clone a package source
