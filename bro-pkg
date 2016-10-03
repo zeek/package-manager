@@ -141,7 +141,7 @@ def create_config(configfile):
     expand_config_values(config, 'paths')
 
     for key, value in config.items('paths'):
-        if not os.path.isabs(value):
+        if value and not os.path.isabs(value):
             print_error(str.format('error: invalid config file value for key'
                                    ' "{}" in section [paths]: "{}" is not'
                                    ' an absolute path', key, value))

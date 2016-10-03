@@ -1,4 +1,8 @@
 
+0.7-2 | 2016-10-03 16:49:24 -0500
+
+  * Allow empty values for paths in config file. (Jon Siwek)
+
 0.7-1 | 2016-10-03 15:55:00 -0500
 
   * BIT-1714: expand '~' and env. vars in config file values.
