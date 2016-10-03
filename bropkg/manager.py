@@ -259,9 +259,8 @@ class Manager(object):
             git_url (str): the git URL of the package source
 
         Returns:
-            bool: True if the source is successfully added.  It may fail to be
-            added if the git URL is invalid or if a source with a different
-            git URL already exists with the same name.
+            str: empty string if the source is successfully added, else the
+            reason why it failed.
         """
         if name in self.sources:
             existing_source = self.sources[name]
@@ -270,22 +269,20 @@ class Manager(object):
                 LOG.debug('duplicate source "%s"', name)
                 return True
 
-            LOG.warning('conflicting source URLs with name "%s": %s and %s',
-                        name, git_url, existing_source.git_url)
-            return False
+            return 'source already exists with different URL: {}'.format(
+                existing_source.git_url)
 
         clone_path = os.path.join(self.source_clonedir, name)
 
         try:
             source = Source(name=name, clone_path=clone_path, git_url=git_url)
         except git.exc.GitCommandError as error:
-            LOG.warning('failed to clone source "%s", git url %s: %s', name,
-                        git_url, error)
-            return False
+            LOG.warning('failed to clone git repo: %s', error)
+            return 'failed to clone git repo'
         else:
             self.sources[name] = source
 
-        return True
+        return ''
 
     def source_packages(self):
         """Return a list of :class:`.package.Package` within all sources."""
@@ -683,7 +680,7 @@ class Manager(object):
         except git.exc.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s',
                      pkg_path, error)
-            reason = 'package is no longer a valid git repository'
+            reason = 'package is no longer a valid or reachable git repo'
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 

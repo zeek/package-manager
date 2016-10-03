@@ -178,10 +178,12 @@ def create_manager(config):
         raise
 
     for key, value in config_items(config, 'sources'):
-        if not manager.add_source(name=key, git_url=value):
-            print_error(
-                'error: invalid source repo "{}" in config file '.format(key))
-            sys.exit(1)
+        error = manager.add_source(name=key, git_url=value)
+
+        if error:
+            print_error(str.format(
+                'warning: skipped using package source named "{}": {}',
+                key, error))
 
     return manager
 

@@ -1,4 +1,10 @@
 
+0.7-3 | 2016-10-03 17:08:31 -0500
+
+  * BIT-1715: improve message when failing to clone a package source
+
+    And make that situation a warning instead of a fatal error. (Jon Siwek)
+
 0.7-2 | 2016-10-03 16:49:24 -0500
 
   * Allow empty values for paths in config file. (Jon Siwek)
