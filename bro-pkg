@@ -965,6 +965,7 @@ def argparser():
     command_parser = top_parser.add_subparsers(
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
+    command_parser.required = True
 
     # install
     sub_parser = command_parser.add_parser(

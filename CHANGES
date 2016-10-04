@@ -1,4 +1,9 @@
 
+0.7-5 | 2016-10-04 14:05:50 -0500
+
+  * BIT-1713: in python3, show usage info when bro-pkg is given no args
+    (Jon siwek)
+
 0.7-4 | 2016-10-03 18:20:57 -0500
 
   * BIT-1716: do shallow git clones of packages to use less space (Jon Siwek)
