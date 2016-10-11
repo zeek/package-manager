@@ -760,7 +760,7 @@ class Manager(object):
 
         return configparser.SafeConfigParser(defaults=default_metadata)
 
-    def bundle(self, bundle_file, package_list):
+    def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
 
         Args:
@@ -769,6 +769,11 @@ class Manager(object):
             package_list (list of str, str): a list of (git URL, version)
                 string tuples to put in the bundle.  If the version string is,
                 empty the latest available version of the package is used.
+
+            prefer_existing_clones (bool): if True and the package list contains
+                a package at a version that is already installed, then the
+                existing git clone of that package is put into the bundle
+                instead of cloning from the remote repository.
 
             Returns:
                 str: empty string if the the bundle is successfully created,
@@ -781,10 +786,34 @@ class Manager(object):
         config = configparser.SafeConfigParser(delimiters='=')
         config.add_section('bundle')
 
+        def match_package_url_and_version(git_url, version):
+            for ipkg in self.installed_packages():
+                if ipkg.package.git_url != git_url:
+                    continue
+
+                if ipkg.status.current_version != version:
+                    continue
+
+                return ipkg
+
+            return None
+
         for git_url, version in package_list:
             name = name_from_path(git_url)
             clonepath = os.path.join(bundle_dir, name)
             config.set('bundle', git_url, version)
+
+            if prefer_existing_clones:
+                ipkg = match_package_url_and_version(git_url, version)
+
+                if ipkg:
+                    src = os.path.join(
+                        self.package_clonedir, ipkg.package.name)
+                    shutil.copytree(src, clonepath, symlinks=True)
+                    clone = git.Repo(clonepath)
+                    clone.git.reset(hard=True)
+                    clone.git.clean('-f', '-x', '-d')
+                    continue
 
             try:
                 git_clone_shallow(git_url, clonepath)

@@ -291,6 +291,7 @@ def cmd_install(manager, args, config):
 
 def cmd_bundle(manager, args, config):
     packages_to_bundle = []
+    prefer_existing_clones = False
 
     if args.manifest:
         manifest_is_file = False
@@ -322,6 +323,8 @@ def cmd_bundle(manager, args, config):
             packages_to_bundle.append((info.package.qualified_name(),
                                        info.package.git_url, version))
     else:
+        prefer_existing_clones = True
+
         for ipkg in manager.installed_packages():
             packages_to_bundle.append((ipkg.package.qualified_name(),
                                        ipkg.package.git_url,
@@ -346,7 +349,8 @@ def cmd_bundle(manager, args, config):
 
     git_urls = [(git_url, version)
                 for _, git_url, version in packages_to_bundle]
-    error = manager.bundle(args.bundle_filename, git_urls)
+    error = manager.bundle(args.bundle_filename, git_urls,
+                           prefer_existing_clones=prefer_existing_clones)
 
     if error:
         print_error('error: failed to create bundle: {}'.format(error))

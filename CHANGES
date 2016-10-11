@@ -1,4 +1,12 @@
 
+0.7-6 | 2016-10-11 18:54:50 -0500
+
+  * BIT-1725: allow bundling on offline machines
+
+    When requesting to bundle the set of installed packages, they
+    are directly copied into the bundle instead of trying to clone
+    from the remote git repo. (Jon Siwek)
+
 0.7-5 | 2016-10-04 14:05:50 -0500
 
   * BIT-1713: in python3, show usage info when bro-pkg is given no args
