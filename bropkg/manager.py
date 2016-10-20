@@ -825,7 +825,7 @@ class Manager(object):
 
         archive = shutil.make_archive(bundle_dir, 'gztar', bundle_dir)
         delete_path(bundle_file)
-        os.rename(archive, bundle_file)
+        shutil.move(archive, bundle_file)
         return ''
 
     def unbundle(self, bundle_file):
@@ -854,7 +854,7 @@ class Manager(object):
             package = Package(git_url=git_url)
             clonepath = os.path.join(self.package_clonedir, package.name)
             delete_path(clonepath)
-            os.rename(os.path.join(bundle_dir, package.name), clonepath)
+            shutil.move(os.path.join(bundle_dir, package.name), clonepath)
 
             error = self._install(package, version, use_existing_clone=True)
 
