@@ -1,4 +1,9 @@
 
+0.7-8 | 2016-10-21 10:13:16 -0500
+
+  * Using shutil.move instead of os.rename, which works across file systems.
+    (Robin Sommer)
+
 0.7-6 | 2016-10-11 18:54:50 -0500
 
   * BIT-1725: allow bundling on offline machines
