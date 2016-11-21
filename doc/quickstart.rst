@@ -137,6 +137,15 @@ Usage
 Check the output of :ref:`bro-pkg --help <bro-pkg>` for an explanation of all
 available functionality of the command-line tool.
 
+When installing packages, note that the :ref:`install command
+<install-command>`, has a ``--version`` flag that may be used to install
+specific package versions which may either be git release tags or branch
+names.  The way that :program:`bro-pkg` receives updates for a package
+depends on whether the package is first installed to track stable
+releases or a specific git branch.  See the :ref:`package versioning
+<package-versioning>` documentation to learn how bro-pkg treats each
+situation.
+
 .. note::
   The package manager currently lacks automatic dependency/version analysis,
   but in those cases the package author will likely document dependencies

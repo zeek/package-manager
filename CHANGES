@@ -1,4 +1,8 @@
 
+0.7-9 | 2016-11-21 12:15:14 -0600
+
+  * Update docs regarding package versioning. (Jon Siwek)
+
 0.7-8 | 2016-10-21 10:13:16 -0500
 
   * Using shutil.move instead of os.rename, which works across file systems.

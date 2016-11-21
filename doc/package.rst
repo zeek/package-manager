@@ -81,7 +81,6 @@ Pure Bro Script Package
 
    .. code-block:: console
 
-      $ echo "version = 1.0.0" >> bro-pkg.meta
       $ git commit -a -m 'Version 1.0.0'
       $ git tag -a 1.0.0 -m 'Release 1.0.0'
 
@@ -156,7 +155,6 @@ Binary Bro Plugin Package
 
    .. code-block:: console
 
-      $ echo "version = 1.0.0" >> bro-pkg.meta
       $ git commit -a -m 'Version 1.0.0'
       $ git tag -a 1.0.0 -m 'Release 1.0.0'
 
@@ -223,7 +221,6 @@ BroControl Plugin Package
 
    .. code-block:: console
 
-      $ echo "version = 1.0.0" >> bro-pkg.meta
       $ git commit -a -m 'Version 1.0.0'
       $ git tag -a 1.0.0 -m 'Release 1.0.0'
 
@@ -258,18 +255,8 @@ Package Metadata
 See the following sub-sections for a full list of available fields that may be
 used in :file:`bro-pkg.meta` files.
 
-version
-~~~~~~~
 
-The `version` field describes the current version of the package.  Use
-the `Semantic Versioning <http://semver.org>`_ numbering scheme here.  An
-example :file:`bro-pkg.meta`::
 
-  [package]
-  version = 1.0.0
-
-Note that the version of a package can be different than the version of any Bro
-or BroControl plugins that are contained in the package.
 
 script_dir
 ~~~~~~~~~~
@@ -287,7 +274,6 @@ package.  E.g. if you have a package named **foo** installed, then it's
 An example :file:`bro-pkg.meta`::
 
   [package]
-  version = 1.0.0
   script_dir = scripts
 
 For a :file:`bro-pkg.meta` that looks like the above, the package should have a
@@ -306,7 +292,6 @@ contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
 An example :file:`bro-pkg.meta`::
 
   [package]
-  version = 1.0.0
   script_dir = scripts
   plugin_dir = plugins
 
@@ -331,7 +316,6 @@ the package.
 An example :file:`bro-pkg.meta`::
 
   [package]
-  version = 1.0.0
   script_dir = scripts/Demo/Rot13
   build_command = ./configure --bro-dist=%(bro_dist)s && make
 
@@ -362,3 +346,36 @@ dependencies
 .. @todo: inter-package dependencies
 
 Not yet implemented.
+
+.. _package-versioning:
+
+Package Versioning
+------------------
+
+The :ref:`install command <install-command>` will either install a
+stable release version or the latest commit on a specific git branch of
+a package.  Package's should use git tags for versioning their releases.
+Use the `Semantic Versioning <http://semver.org>`_ numbering scheme
+here.  For example, to create a new tag for a package:
+
+   .. code-block:: console
+
+      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+
+The default installation behavior of :program:`bro-pkg` is to look for
+the latest release version tag and install that.  If there are no such
+version tags, it will fall back to installing the latest commit of the
+package's *master* branch, so if you expect to have a simple development
+process for your package, you may choose to not create any version tags.
+
+Upon installing a package via a git version tag, the
+:ref:`upgrade command <upgrade-command>` will only upgrade the local
+installation of that package if a greater version tag is available.  In
+other words, you only receive stable release upgrades for packages
+installed in this way.
+
+Upon installing a package via a git branch name, the :ref:`upgrade
+command <upgrade-command>` will upgrade the local installation of the
+package whenever a new commit becomes available at the end of the
+branch.  This method of tracking packages is suitable for testing out
+development/experimental versions of packages.
