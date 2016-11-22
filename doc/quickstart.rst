@@ -142,9 +142,9 @@ When installing packages, note that the :ref:`install command
 specific package versions which may either be git release tags or branch
 names.  The way that :program:`bro-pkg` receives updates for a package
 depends on whether the package is first installed to track stable
-releases or a specific git branch.  See the :ref:`package versioning
-<package-versioning>` documentation to learn how bro-pkg treats each
-situation.
+releases or a specific git branch.  See the :ref:`package upgrade
+process <package-upgrade-process>` documentation to learn how
+:program:`bro-pkg` treats each situation.
 
 .. note::
   The package manager currently lacks automatic dependency/version analysis,

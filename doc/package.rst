@@ -77,12 +77,7 @@ Pure Bro Script Package
       $ bro foo
       $ bro-pkg remove .
 
-#. (Optional) Version your package:
-
-   .. code-block:: console
-
-      $ git commit -a -m 'Version 1.0.0'
-      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+#. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
 See `Bro Scripting`_ for more information on developing Bro scripts.
 
@@ -151,12 +146,7 @@ Binary Bro Plugin Package
       $ bro rot13 -e 'print Demo::rot13("Hello")'
       $ bro-pkg remove .
 
-#. (Optional) Version your package:
-
-   .. code-block:: console
-
-      $ git commit -a -m 'Version 1.0.0'
-      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+#. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
 See `Bro Plugins`_ for more information on developing Bro plugins.
 
@@ -217,12 +207,7 @@ BroControl Plugin Package
       $ broctl
       $ bro-pkg remove .
 
-#. (Optional) Version your package:
-
-   .. code-block:: console
-
-      $ git commit -a -m 'Version 1.0.0'
-      $ git tag -a 1.0.0 -m 'Release 1.0.0'
+#. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
 See `BroControl Plugins`_ for more information on developing BroControl plugins.
 
@@ -352,9 +337,10 @@ Not yet implemented.
 Package Versioning
 ------------------
 
-The :ref:`install command <install-command>` will either install a
-stable release version or the latest commit on a specific git branch of
-a package.  Package's should use git tags for versioning their releases.
+Creating New Package Release Versions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Package's should use git tags for versioning their releases.
 Use the `Semantic Versioning <http://semver.org>`_ numbering scheme
 here.  For example, to create a new tag for a package:
 
@@ -362,11 +348,35 @@ here.  For example, to create a new tag for a package:
 
       $ git tag -a 1.0.0 -m 'Release 1.0.0'
 
+Then, assuming you've already set up a public/remote git repository
+(e.g. on GitHub) for your package, remember to push the tag to the
+remote repository:
+
+   .. code-block:: console
+
+      $ git push --tags
+
+Alternatively, if you expect to have a simple development process for
+your package, you may choose to not create any version tags and just
+always make commits directly to your package's *master* branch.  Users
+will receive package updates differently depending on whether you decide
+to use release version tags or not.  See the :ref:`package upgrade
+process <package-upgrade-process>` documentation for more details on
+the differences.
+
+.. _package-upgrade-process:
+
+Package Upgrade Process
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The :ref:`install command <install-command>` will either install a
+stable release version or the latest commit on a specific git branch of
+a package.
+
 The default installation behavior of :program:`bro-pkg` is to look for
 the latest release version tag and install that.  If there are no such
 version tags, it will fall back to installing the latest commit of the
-package's *master* branch, so if you expect to have a simple development
-process for your package, you may choose to not create any version tags.
+package's *master* branch
 
 Upon installing a package via a git version tag, the
 :ref:`upgrade command <upgrade-command>` will only upgrade the local
