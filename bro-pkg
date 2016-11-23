@@ -521,32 +521,52 @@ def outdated(manager):
 
 
 def cmd_refresh(manager, args, config):
-    src_pkgs_before = {i.qualified_name() for i in manager.source_packages()}
+
+    if not args.sources:
+        args.sources = list(manager.sources.keys())
+
+    for source in args.sources:
+        print('Refresh package source: {}'.format(source))
+
+        src_pkgs_before = {i.qualified_name()
+                           for i in manager.source_packages()}
+
+        error = manager.refresh_source(
+            source, aggregate=args.aggregate, push=args.push)
+
+        if error:
+            print_error(
+                'error: failed to refresh "{}": {}'.format(source, error))
+            continue
+
+        src_pkgs_after = {i.qualified_name()
+                          for i in manager.source_packages()}
+
+        if src_pkgs_before == src_pkgs_after:
+            print('\tNo changes')
+        else:
+            print('\tChanges:')
+            diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
+
+            for name in diff:
+                change = 'Added' if name in src_pkgs_after else 'Removed'
+                print('\t\t{} {}'.format(change, name))
+
     outdated_before = {i for i in outdated(manager)}
-    manager.refresh()
-    src_pkgs_after = {i.qualified_name() for i in manager.source_packages()}
+    print('Refresh installed packages')
+    manager.refresh_installed_packages()
     outdated_after = {i for i in outdated(manager)}
 
-    if src_pkgs_before == src_pkgs_after:
-        print('Refreshed source packages: no changes')
-    else:
-        print('Source package changes:')
-        diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
-
-        for name in diff:
-            change = 'Added' if name in src_pkgs_after else 'Removed'
-            print('\t{} {}'.format(change, name))
-
     if outdated_before == outdated_after:
-        print('Refreshed installed packages: no new outdated packages')
+        print('\tNo new outdated packages')
     else:
-        print('The following installed packages are outdated:')
+        print('\tNew outdated packages:')
         diff = outdated_before.symmetric_difference(outdated_after)
 
         for name in diff:
             ipkg = manager.find_installed_package(name)
             version_change = version_change_string(manager, ipkg)
-            print('\t{} {}'.format(name, version_change))
+            print('\t\t{} {}'.format(name, version_change))
 
 
 def version_change_string(manager, installed_package):
@@ -821,10 +841,10 @@ def cmd_info(manager, args, config):
             value = value.replace('\n', '\n\t\t\t')
             print('\t\t{} = {}'.format(key, value))
 
-        print('\tindex metadata:')
-        index_data = info.package.index_data
+        print('\taggregated metadata:')
+        metadata = info.package.metadata
 
-        for key, value in sorted(index_data.items()):
+        for key, value in sorted(metadata.items()):
             value = value.replace('\n', '\n\t\t\t')
             print('\t\t{} = {}'.format(key, value))
 
@@ -1074,13 +1094,28 @@ def argparser():
     # refresh
     sub_parser = command_parser.add_parser(
         'refresh',
-        help='Retrieve updated package information.',
-        description='Retrieve latest metadata from package sources and checks'
+        help='Retrieve updated package metadata.',
+        description='Retrieve latest package metadata from sources and checks'
         ' whether any installed packages have available upgrades.'
         ' Note that this does not actually upgrade any packages (see the'
         ' ``upgrade`` command for that).',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_refresh)
+    sub_parser.add_argument(
+        '--aggregate', action='store_true',
+        help='Crawls the urls listed in package source bro-pkg.index files and'
+        ' aggregates the metadata found in their bro-pkg.meta files.  The'
+        ' aggregated metadata is stored in the local clone of the package'
+        ' source that bro-pkg uses internally locating package metadata.'
+        ' For each package, the metadata is taken from the highest available'
+        ' git version tag or the master branch if no version tags exist')
+    sub_parser.add_argument(
+        '--push', action='store_true',
+        help='Push all local changes to package sources to upstream repos')
+    sub_parser.add_argument('--sources', nargs='+',
+                            help='A list of package source names to operate on.  If this argument'
+                            ' is not used, then the command will operate on all configured'
+                            ' sources.')
 
     # upgrade
     sub_parser = command_parser.add_parser(

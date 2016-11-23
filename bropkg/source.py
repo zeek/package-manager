@@ -13,11 +13,16 @@ import git
 from backports import configparser
 
 from . import LOG
-from .package import Package
+from .package import (
+    name_from_path,
+    Package
+)
 from ._util import git_clone_shallow
 
 #: The name of package index files.
 INDEX_FILENAME = 'bro-pkg.index'
+#: The name of the package source file where package metadata gets aggregated.
+AGGREGATE_DATA_FILE = 'aggregate.meta'
 
 
 class Source(object):
@@ -108,26 +113,30 @@ class Source(object):
     def packages(self):
         """Return a list of :class:`.package.Package` in the source."""
         rval = []
+        parser = configparser.SafeConfigParser()
+        aggregate_file = os.path.join(
+            self.clone.working_dir, AGGREGATE_DATA_FILE)
+        parser.read(aggregate_file)
 
         for index_file in self.package_index_files():
             relative_path = index_file[len(self.clone.working_dir) + 1:]
             directory = os.path.dirname(relative_path)
-            parser = configparser.SafeConfigParser()
-            parser.read(index_file)
+            lines = []
 
-            for section in parser.sections():
-                index_data = {
-                    item[0]: item[1] for item in parser.items(section)
-                }
+            with open(index_file) as f:
+                lines = [line.rstrip('\n') for line in f]
 
-                if not 'url' in index_data:
-                    LOG.warning(str.format(
-                        'skipped package section "{}" in {}: missing url',
-                        section, index_file))
-                    continue
+            for url in lines:
+                pkg_name = name_from_path(url)
+                agg_key = os.path.join(directory, pkg_name)
+                metadata = {}
 
-                package = Package(git_url=index_data['url'], source=self.name,
-                                  directory=directory, index_data=index_data)
+                if parser.has_section(agg_key):
+                    metadata = {key: value for key,
+                                value in parser.items(agg_key)}
+
+                package = Package(git_url=url, source=self.name,
+                                  directory=directory, metadata=metadata)
                 rval.append(package)
 
         return rval
