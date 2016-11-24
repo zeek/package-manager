@@ -240,8 +240,30 @@ Package Metadata
 See the following sub-sections for a full list of available fields that may be
 used in :file:`bro-pkg.meta` files.
 
+description
+~~~~~~~~~~~
+The description field may be used to give users a general overview of the
+package and its purpose. The :ref:`bro-pkg list <list-command>` will display
+the first sentence of description fields in the listings it displays.  An
+example :file:`bro-pkg.meta` using a description field::
 
+  [package]
+  description = Another example package.
+      The description text may span multiple
+      line: when adding line breaks, just
+      indent the new lines so they are parsed
+      as part of the 'description' value.
 
+tags
+~~~~
+The `tags` field contains a comma-delimited set of metadata tags that further
+classify and describe the purpose of the package.  This is used to help users
+better discover and search for packages.  The
+:ref:`bro-pkg search <search-command>` command will inspect these tags.  An
+example :file:`bro-pkg.meta` using tags::
+
+  [package]
+  tags = bro plugin, broctl plugin, scan detection, intel
 
 script_dir
 ~~~~~~~~~~
