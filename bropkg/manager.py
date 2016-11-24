@@ -799,10 +799,11 @@ class Manager(object):
 
         if ipkg:
             status = ipkg.status
-            matches = [ipkg.package]
-
-            if not version:
-                version = status.current_hash
+            pkg_name = ipkg.package.name
+            clonepath = os.path.join(self.package_clonedir, pkg_name)
+            clone = git.Repo(clonepath)
+            return _info_from_clone(clone, ipkg.package, status,
+                                    status.current_version)
         else:
             status = None
             matches = self.match_source_packages(pkg_path)
@@ -838,7 +839,7 @@ class Manager(object):
         except git.exc.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s',
                      pkg_path, error)
-            reason = 'package is no longer a valid or reachable git repo'
+            reason = 'git repository is either invalid or unreachable'
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 
@@ -876,21 +877,7 @@ class Manager(object):
                                invalid_reason=reason)
 
         LOG.debug('checked out "%s", branch/version "%s"', package, version)
-        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
-        metadata_parser = self._new_package_metadata_parser()
-        invalid_reason = _parse_package_metadata(
-            metadata_parser, metadata_file)
-
-        if invalid_reason:
-            return PackageInfo(package=package, invalid_reason=invalid_reason,
-                               status=status, versions=versions,
-                               metadata_version=version)
-
-        metadata = _get_package_metadata(metadata_parser)
-
-        return PackageInfo(package=package, invalid_reason=invalid_reason,
-                           status=status, metadata=metadata, versions=versions,
-                           metadata_version=version)
+        return _info_from_clone(clone, package, status, version)
 
     def package_versions(self, installed_package):
         """Returns a list of version number tags available for a package.
@@ -906,16 +893,6 @@ class Manager(object):
         clonepath = os.path.join(self.package_clonedir, name)
         clone = git.Repo(clonepath)
         return _get_version_tags(clone)
-
-    def _new_package_metadata_parser(self):
-        default_metadata = {
-            'script_dir': '',
-            'plugin_dir': 'build',
-            'bro_dist': self.bro_dist,
-            'build_command': ''
-        }
-
-        return configparser.SafeConfigParser(defaults=default_metadata)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
@@ -1148,7 +1125,14 @@ class Manager(object):
             clone, version, status.tracking_method)
 
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
-        metadata_parser = self._new_package_metadata_parser()
+        default_metadata = {
+            'script_dir': '',
+            'plugin_dir': 'build',
+            'bro_dist': self.bro_dist,
+            'build_command': ''
+        }
+        metadata_parser = configparser.SafeConfigParser(
+            defaults=default_metadata)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
 
@@ -1381,3 +1365,28 @@ def _parse_package_metadata(parser, metadata_file):
         return '{} is missing [package] section'.format(METADATA_FILENAME)
 
     return ''
+
+
+def _info_from_clone(clone, package, status, version):
+    """Retrieves information about a package.
+
+    Returns:
+        A :class:`.package.PackageInfo` object.
+    """
+    versions = _get_version_tags(clone)
+    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
+    # Use raw parser so no value interpolation takes place.
+    metadata_parser = configparser.RawConfigParser()
+    invalid_reason = _parse_package_metadata(
+        metadata_parser, metadata_file)
+
+    if invalid_reason:
+        return PackageInfo(package=package, invalid_reason=invalid_reason,
+                           status=status, versions=versions,
+                           metadata_version=version)
+
+    metadata = _get_package_metadata(metadata_parser)
+
+    return PackageInfo(package=package, invalid_reason=invalid_reason,
+                       status=status, metadata=metadata, versions=versions,
+                       metadata_version=version)
