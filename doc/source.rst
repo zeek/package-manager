@@ -79,7 +79,7 @@ example:
 The optional ``--push`` flag is helpful for setting up cron jobs to
 automatically perform this task periodically, assuming you've set up your
 git configuration to push changesets without interactive prompts.  E.g.
-to set up pushing to remote servers you could set upG SSH public key
+to set up pushing to remote servers you could set up SSH public key
 authentication.
 
 Aggregated metadata gets written to a file named :file:`aggregate.meta`
