@@ -242,6 +242,7 @@ used in :file:`bro-pkg.meta` files.
 
 description
 ~~~~~~~~~~~
+
 The description field may be used to give users a general overview of the
 package and its purpose. The :ref:`bro-pkg list <list-command>` will display
 the first sentence of description fields in the listings it displays.  An
@@ -256,6 +257,7 @@ example :file:`bro-pkg.meta` using a description field::
 
 tags
 ~~~~
+
 The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
 better discover and search for packages.  The
@@ -264,6 +266,40 @@ example :file:`bro-pkg.meta` using tags::
 
   [package]
   tags = bro plugin, broctl plugin, scan detection, intel
+
+Suggested Tags
+^^^^^^^^^^^^^^
+
+Some ideas for what to put in the `tags` field for packages:
+
+- bro scripting
+
+  - conn
+  - intel
+  - geolocation
+  - file analysis
+  - sumstats, summary statistics
+  - input
+  - log, logging
+  - notices
+
+- *<network protocol name>*
+
+- *<file format name>*
+
+- signatures
+
+- bro plugin
+
+  - protocol analyzer
+  - file analyzer
+  - bifs
+  - packet source
+  - packet dumper
+  - input reader
+  - log writer
+
+- broctl plugin
 
 script_dir
 ~~~~~~~~~~
