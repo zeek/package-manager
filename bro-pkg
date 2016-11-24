@@ -552,6 +552,12 @@ def cmd_refresh(manager, args, config):
                 change = 'Added' if name in src_pkgs_after else 'Removed'
                 print('\t\t{} {}'.format(change, name))
 
+        if args.aggregate:
+            print('\tMetadata aggregated')
+
+        if args.push:
+            print('\tPushed aggregated metadata')
+
     outdated_before = {i for i in outdated(manager)}
     print('Refresh installed packages')
     manager.refresh_installed_packages()
