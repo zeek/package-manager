@@ -396,14 +396,22 @@ class Manager(object):
         LOG.debug('refresh "%s": pulling %s', name, source.git_url)
         aggregate_file = os.path.join(source.clone.working_dir,
                                       AGGREGATE_DATA_FILE)
-        aggregate_file_bak = os.path.join(
+        agg_file_ours = os.path.join(
             self.scratch_dir, AGGREGATE_DATA_FILE)
-        aggregate_file_orig = os.path.join(self.scratch_dir,
+        agg_file_their_orig = os.path.join(self.scratch_dir,
                                            AGGREGATE_DATA_FILE + '.orig')
 
-        shutil.copy2(aggregate_file, aggregate_file_bak)
-        source.clone.git.checkout('--', AGGREGATE_DATA_FILE)
-        shutil.copy2(aggregate_file, aggregate_file_orig)
+        delete_path(agg_file_ours)
+        delete_path(agg_file_their_orig)
+
+        if os.path.isfile(aggregate_file):
+            shutil.copy2(aggregate_file, agg_file_ours)
+
+        source.clone.git.reset(hard=True)
+        source.clone.git.clean('-f', '-x', '-d')
+
+        if os.path.isfile(aggregate_file):
+            shutil.copy2(aggregate_file, agg_file_their_orig)
 
         try:
             source.clone.remote().pull()
@@ -411,8 +419,24 @@ class Manager(object):
             LOG.error('failed to pull source %s: %s', name, error)
             return 'failed to pull from remote source'
 
-        if filecmp.cmp(aggregate_file, aggregate_file_orig):
-            shutil.copy2(aggregate_file_bak, aggregate_file)
+        if os.path.isfile(agg_file_ours):
+            if os.path.isfile(aggregate_file):
+                # There's a tracked version of the file after pull.
+                if os.path.isfile(agg_file_their_orig):
+                    # We had local modifications to the file.
+                    if filecmp.cmp(aggregate_file, agg_file_their_orig):
+                        # Their file hasn't changed, use ours.
+                        shutil.copy2(agg_file_ours, aggregate_file)
+                    else:
+                        # Their file changed, use theirs.
+                        pass
+                else:
+                    # File was untracked before pull and tracked after,
+                    # use their version.
+                    pass
+            else:
+                # They don't have the file after pulling, so restore ours.
+                shutil.copy2(agg_file_ours, aggregate_file)
 
         if aggregate:
             parser = configparser.SafeConfigParser()
@@ -446,7 +470,8 @@ class Manager(object):
 
                     metadata_file = os.path.join(
                         clone.working_dir, METADATA_FILENAME)
-                    metadata_parser = configparser.SafeConfigParser()
+                    # Use raw parser so no value interpolation takes place.
+                    metadata_parser = configparser.RawConfigParser()
                     invalid_reason = _parse_package_metadata(
                         metadata_parser, metadata_file)
 
@@ -461,11 +486,12 @@ class Manager(object):
                     qualified_name = os.path.join(index_dir, pkg_name)
 
                     parser.add_section(qualified_name)
-                    parser.set(qualified_name, 'url', url)
-                    parser.set(qualified_name, 'version', version)
 
                     for key, value in metadata.items():
                         parser.set(qualified_name, key, value)
+
+                    parser.set(qualified_name, 'url', url)
+                    parser.set(qualified_name, 'version', version)
 
             with open(aggregate_file, 'w') as f:
                 parser.write(f)
@@ -792,7 +818,7 @@ class Manager(object):
 
             LOG.info('getting info on "%s": matched no source package',
                      pkg_path)
-            reason = 'package not found in sources and not a valid git URL'
+            reason = 'package name not found in sources and not a valid git URL'
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 

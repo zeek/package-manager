@@ -113,7 +113,8 @@ class Source(object):
     def packages(self):
         """Return a list of :class:`.package.Package` in the source."""
         rval = []
-        parser = configparser.SafeConfigParser()
+        # Use raw parser so no value interpolation takes place.
+        parser = configparser.RawConfigParser()
         aggregate_file = os.path.join(
             self.clone.working_dir, AGGREGATE_DATA_FILE)
         parser.read(aggregate_file)
