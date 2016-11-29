@@ -1,4 +1,8 @@
 
+0.8 | 2016-11-29 11:21:29 -0600
+
+  * Release 0.8.
+
 0.7-19 | 2016-11-29 11:19:17 -0600
   * Improve output of info command and allow offline usage. (Jon Siwek)
 
