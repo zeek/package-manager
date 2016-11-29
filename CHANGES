@@ -1,4 +1,23 @@
 
+0.7-19 | 2016-11-29 11:19:17 -0600
+  * Improve output of info command and allow offline usage. (Jon Siwek)
+
+  * Update documentation related to metadata aggregation. (Jon Siwek)
+
+  * Metadata aggregation changes:
+
+    - bro-pkg.index is now expected to be a simple list of package urls
+
+    - add --aggregate flag to refresh command that will crawl packages and
+      aggregate their metadata into an aggregate.meta file within local
+      package source clones
+
+    - add --sources flag to refresh command to explicitly specify operation
+      on a specific set of package sources
+
+    - add --push flag to refresh command to push local package source
+      aggregate.meta changes to the remote repo (Jon Siwek)
+
 0.7-10 | 2016-11-21 18:04:08 -0600
 
   * Package versioning doc improvements. (Jon Siwek)

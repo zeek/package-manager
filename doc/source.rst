@@ -31,51 +31,21 @@ Package Index Files
 -------------------
 
 Files named :file:`bro-pkg.index` are used to describe the :doc:`Bro Packages
-<package>` found within the package source. They use a simple INI format, for
-example::
+<package>` found within the package source.  They are simply a list of
+git URLs pointing to the git repositories of packages.  For example::
 
-  [foo]
-  url = https://github.com/bro/foo
-  tags = example, bro plugin, pity
-  description = An example package.
+  https://github.com/bro/foo
+  https://github.com/bro/bar
+  https://github.com/bro/baz
 
-  [bar]
-  url = https://github.com/bro/bar
-  tags = example, broctl plugin, pub
-  description = Another example package.
-      This time with a longer description
-      that spans multiple lines.
-      When adding line breaks, just indent
-      the new lines so they are parsed as
-      part of the 'description' value.
-
-  [baz]
-  url = https://github.com/bro/baz
-  tags = example, storm
-  description = Can you feel the storm?
-
-Each section of the file, e.g. ``[foo]``, describes a package.  The logical
-choice to use for these section names is the last component of the git URL as
-that's the shorthand way to refer to the packages when using
-:ref:`bro-pkg <bro-pkg>`.
-
-The `url` field may be set to the URL of any valid git repository.  This
-includes local paths, though that's not a good choice for package sources that
-are meant to be shared with others.
-
-The `tags` field contains a comma-delimited set of metadata tags that further
-classify and describe the purpose of the package.  This is used to help users
-better discover and search for packages.  E.g. the
-:ref:`bro-pkg search <search-command>` command will inspect these tags.
-
-The `description` field may be used to give users a general overview of the
-package and its purpose.
+Local filesystem paths are also valid if the package source is only meant for
+your own private usage or testing.
 
 Adding Packages
 ---------------
 
 Adding packages is as simple as adding new :ref:`Package Index Files
-<package-index-file>` or extending existing ones with new sections and
+<package-index-file>` or extending existing ones with new URLs and then
 commiting/pushing those changes to the package source git repository.
 
 :ref:`bro-pkg <bro-pkg>` will see new packages listed the next time it uses
@@ -84,7 +54,7 @@ the :ref:`refresh command <refresh-command>`.
 Removing Packages
 -----------------
 
-Just remove the package's section from the :ref:`Package Index File
+Just remove the package's URL from the :ref:`Package Index File
 <package-index-file>` that it's contained within.
 
 After the next time :program:`bro-pkg` uses the :ref:`refresh command
@@ -93,3 +63,30 @@ when viewing package listings via by the :ref:`list command <list-command>`.
 
 Users that had previously installed the now-removed package may continue to
 use it and receive updates for it.
+
+Aggregating Metadata
+--------------------
+
+The maintainer/operator of a package source may choose to periodically aggregate
+the metadata contained in its package's :file:`bro-pkg.meta` files.  The
+:ref:`bro-pkg refresh <refresh-command>` is used to perform the task.  For
+example:
+
+.. code-block:: console
+
+  $ bro-pkg refresh --aggregate --push --sources my_source
+
+The optional ``--push`` flag is helpful for setting up cron jobs to
+automatically perform this task periodically, assuming you've set up your
+git configuration to push changesets without interactive prompts.  E.g.
+to set up pushing to remote servers you could set up SSH public key
+authentication.
+
+Aggregated metadata gets written to a file named :file:`aggregate.meta`
+at the top-level of a package source and the :ref:`list <list-command>`,
+:ref:`search <search-command>`, and :ref:`info <info-command>` all may access
+this file.  Having access to the aggregated metadata in this way
+is beneficial to all :program:`bro-pkg` users because they then will not have
+to crawl the set of packages listed in a source in order to obtain this metadata
+as it will have already been pre-aggregated by the operator of the package
+source.

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Nov 21, 2016" "0.7-10" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Nov 29, 2016" "0.7-19" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -227,19 +227,33 @@ Using this flag first removes all installed packages before then installing the 
 .UNINDENT
 .SS refresh
 .sp
-Retrieve latest metadata from package sources and checks whether any installed packages have available upgrades. Note that this does not actually upgrade any packages (see the \fBupgrade\fP command for that).
+Retrieve latest package metadata from sources and checks whether any installed packages have available upgrades. Note that this does not actually upgrade any packages (see the \fBupgrade\fP command for that).
 
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-usage: bro\-pkg refresh [\-h]
+usage: bro\-pkg refresh [\-h] [\-\-aggregate] [\-\-push]
+                       [\-\-sources SOURCES [SOURCES ...]]
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-aggregate=False
+Crawls the urls listed in package source bro\-pkg.index files and aggregates the metadata found in their bro\-pkg.meta files.  The aggregated metadata is stored in the local clone of the package source that bro\-pkg uses internally locating package metadata. For each package, the metadata is taken from the highest available git version tag or the master branch if no version tags exist
+.TP
+.B \-\-push=False
+Push all local changes to package sources to upstream repos
+.TP
+.B \-\-sources
+A list of package source names to operate on.  If this argument is not used, then the command will operate on all configured sources.
+.UNINDENT
 .UNINDENT
 .SS upgrade
 .sp

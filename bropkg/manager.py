@@ -6,6 +6,7 @@ to interact with and operate on Bro packages.
 import os
 import json
 import shutil
+import filecmp
 import tarfile
 
 from backports import configparser
@@ -19,7 +20,10 @@ from ._util import (
     copy_over_path,
     git_clone_shallow,
 )
-from .source import Source
+from .source import (
+    AGGREGATE_DATA_FILE,
+    Source
+)
 from .package import (
     METADATA_FILENAME,
     name_from_path,
@@ -200,6 +204,7 @@ class Manager(object):
         """
         with open(self.manifest, 'r') as f:
             data = json.load(f)
+            version = data['manifest_version']
             pkg_list = data['installed_packages']
             self.installed_pkgs = {}
 
@@ -209,6 +214,9 @@ class Manager(object):
 
                 pkg_name = pkg_dict['name']
                 del pkg_dict['name']
+
+                if version == 0 and 'index_data' in pkg_dict:
+                    del pkg_dict['index_data']
 
                 pkg = Package(**pkg_dict)
                 status = PackageStatus(**status_dict)
@@ -228,7 +236,7 @@ class Manager(object):
             pkg_list.append({'package_dict': installed_pkg.package.__dict__,
                              'status_dict': installed_pkg.status.__dict__})
 
-        data = {'manifest_version': 0, 'script_dir': self.script_dir,
+        data = {'manifest_version': 1, 'script_dir': self.script_dir,
                 'plugin_dir': self.plugin_dir, 'installed_packages': pkg_list}
 
         with open(self.manifest, 'w') as f:
@@ -355,23 +363,176 @@ class Manager(object):
         pkg_name = name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
 
-    def refresh(self):
-        """Fetch latest git versions for sources and installed packages.
+    def refresh_source(self, name, aggregate=False, push=False):
+        """Pull latest git information from a package source.
 
-        This retrieves information about new packages and new versions of
-        existing packages, but does not yet upgrade installed packaged.
+        This makes the latest pre-aggregated package metadata available or
+        performs the aggregation locally in order to push it to the actual
+        package source.  Locally aggregated data also takes precedence over
+        the source's pre-aggregated data, so it can be useful in the case
+        the operator of the source does not update their pre-aggregated data
+        at a frequent enough interval.
+
+        Args:
+            name(str): the name of the package source.  E.g. the same name
+                used as a key to :meth:`add_source()`.
+
+            aggregate (bool): whether to perform a local metadata aggregation
+                by crawling all packages listed in the source's index files.
+
+            push (bool): whether to push local changes to the aggregated
+                metadata to the remote package source.  If the `aggregate`
+                flag is set, the data will be pushed after the aggregation
+                is finished.
+
+        Returns:
+            str: an empty string if no errors occurred, else a description
+            of what went wrong.
+        """
+        if name not in self.sources:
+            return 'source name does not exist'
+
+        source = self.sources[name]
+        LOG.debug('refresh "%s": pulling %s', name, source.git_url)
+        aggregate_file = os.path.join(source.clone.working_dir,
+                                      AGGREGATE_DATA_FILE)
+        agg_file_ours = os.path.join(
+            self.scratch_dir, AGGREGATE_DATA_FILE)
+        agg_file_their_orig = os.path.join(self.scratch_dir,
+                                           AGGREGATE_DATA_FILE + '.orig')
+
+        delete_path(agg_file_ours)
+        delete_path(agg_file_their_orig)
+
+        if os.path.isfile(aggregate_file):
+            shutil.copy2(aggregate_file, agg_file_ours)
+
+        source.clone.git.reset(hard=True)
+        source.clone.git.clean('-f', '-x', '-d')
+
+        if os.path.isfile(aggregate_file):
+            shutil.copy2(aggregate_file, agg_file_their_orig)
+
+        try:
+            source.clone.remote().pull()
+        except git.exc.GitCommandError as error:
+            LOG.error('failed to pull source %s: %s', name, error)
+            return 'failed to pull from remote source'
+
+        if os.path.isfile(agg_file_ours):
+            if os.path.isfile(aggregate_file):
+                # There's a tracked version of the file after pull.
+                if os.path.isfile(agg_file_their_orig):
+                    # We had local modifications to the file.
+                    if filecmp.cmp(aggregate_file, agg_file_their_orig):
+                        # Their file hasn't changed, use ours.
+                        shutil.copy2(agg_file_ours, aggregate_file)
+                        LOG.debug(
+                            "aggegrate file in source unchanged, restore local one")
+                    else:
+                        # Their file changed, use theirs.
+                        LOG.debug(
+                            "aggegrate file in source changed, discard local one")
+                else:
+                    # File was untracked before pull and tracked after,
+                    # use their version.
+                    LOG.debug("new aggegrate file in source, discard local one")
+            else:
+                # They don't have the file after pulling, so restore ours.
+                shutil.copy2(agg_file_ours, aggregate_file)
+                LOG.debug("no aggegrate file in source, restore local one")
+
+        if aggregate:
+            parser = configparser.SafeConfigParser()
+
+            for index_file in source.package_index_files():
+                urls = []
+
+                with open(index_file) as f:
+                    urls = [line.rstrip('\n') for line in f]
+
+                for url in urls:
+                    pkg_name = name_from_path(url)
+                    clonepath = os.path.join(self.scratch_dir, pkg_name)
+                    delete_path(clonepath)
+
+                    try:
+                        clone = git_clone_shallow(url, clonepath)
+                    except git.exc.GitCommandError as error:
+                        LOG.warn('failed to clone %s, skipping aggregation: %s',
+                                 url, error)
+                        continue
+
+                    version_tags = _get_version_tags(clone)
+
+                    if len(version_tags):
+                        version = version_tags[-1]
+                    else:
+                        version = 'master'
+
+                    clone.git.checkout(version)
+
+                    metadata_file = os.path.join(
+                        clone.working_dir, METADATA_FILENAME)
+                    # Use raw parser so no value interpolation takes place.
+                    metadata_parser = configparser.RawConfigParser()
+                    invalid_reason = _parse_package_metadata(
+                        metadata_parser, metadata_file)
+
+                    if invalid_reason:
+                        LOG.warn('skipping aggregation of %s: bad metadata: %s',
+                                 url, invalid_reason)
+                        continue
+
+                    metadata = _get_package_metadata(metadata_parser)
+                    index_dir = os.path.dirname(index_file)[len(
+                        self.source_clonedir) + len(name) + 2:]
+                    qualified_name = os.path.join(index_dir, pkg_name)
+
+                    parser.add_section(qualified_name)
+
+                    for key, value in metadata.items():
+                        parser.set(qualified_name, key, value)
+
+                    parser.set(qualified_name, 'url', url)
+                    parser.set(qualified_name, 'version', version)
+
+            with open(aggregate_file, 'w') as f:
+                parser.write(f)
+
+        if push:
+            if os.path.isfile(os.path.join(source.clone.working_dir,
+                                           AGGREGATE_DATA_FILE)):
+                source.clone.git.add(AGGREGATE_DATA_FILE)
+
+            if source.clone.is_dirty():
+                source.clone.git.commit(
+                    '--message', 'Update aggregated metadata.')
+
+            source.clone.git.push()
+
+        return ''
+
+    def refresh_installed_packages(self):
+        """Fetch latest git information for installed packages.
+
+        This retrieves information about outdated packages, but does
+        not actually upgrade their installations.
 
         Raises:
             IOError: if the package manifest file can't be written
         """
-        for name, source in self.sources.items():
-            LOG.debug('refresh "%s": pulling %s', name, source.git_url)
-            source.clone.remote().pull()
-
         for ipkg in self.installed_packages():
             clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
             clone = git.Repo(clonepath)
-            clone.remote().fetch()
+            LOG.debug('fetch package %s', ipkg.package.qualified_name())
+
+            try:
+                clone.remote().fetch()
+            except git.exc.GitCommandError as error:
+                LOG.warn('failed to fetch package %s: %s',
+                         ipkg.package.qualified_name(), error)
+
             ipkg.status.is_outdated = _is_clone_outdated(
                 clone, ipkg.status.current_version, ipkg.status.tracking_method)
 
@@ -642,10 +803,11 @@ class Manager(object):
 
         if ipkg:
             status = ipkg.status
-            matches = [ipkg.package]
-
-            if not version:
-                version = status.current_hash
+            pkg_name = ipkg.package.name
+            clonepath = os.path.join(self.package_clonedir, pkg_name)
+            clone = git.Repo(clonepath)
+            return _info_from_clone(clone, ipkg.package, status,
+                                    status.current_version)
         else:
             status = None
             matches = self.match_source_packages(pkg_path)
@@ -661,7 +823,7 @@ class Manager(object):
 
             LOG.info('getting info on "%s": matched no source package',
                      pkg_path)
-            reason = 'package not found in sources and not a valid git URL'
+            reason = 'package name not found in sources and not a valid git URL'
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 
@@ -681,7 +843,7 @@ class Manager(object):
         except git.exc.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s',
                      pkg_path, error)
-            reason = 'package is no longer a valid or reachable git repo'
+            reason = 'git repository is either invalid or unreachable'
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 
@@ -719,21 +881,7 @@ class Manager(object):
                                invalid_reason=reason)
 
         LOG.debug('checked out "%s", branch/version "%s"', package, version)
-        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
-        metadata_parser = self._new_package_metadata_parser()
-        invalid_reason = _parse_package_metadata(
-            metadata_parser, metadata_file)
-
-        if invalid_reason:
-            return PackageInfo(package=package, invalid_reason=invalid_reason,
-                               status=status, versions=versions,
-                               metadata_version=version)
-
-        metadata = _get_package_metadata(metadata_parser)
-
-        return PackageInfo(package=package, invalid_reason=invalid_reason,
-                           status=status, metadata=metadata, versions=versions,
-                           metadata_version=version)
+        return _info_from_clone(clone, package, status, version)
 
     def package_versions(self, installed_package):
         """Returns a list of version number tags available for a package.
@@ -749,16 +897,6 @@ class Manager(object):
         clonepath = os.path.join(self.package_clonedir, name)
         clone = git.Repo(clonepath)
         return _get_version_tags(clone)
-
-    def _new_package_metadata_parser(self):
-        default_metadata = {
-            'script_dir': '',
-            'plugin_dir': 'build',
-            'bro_dist': self.bro_dist,
-            'build_command': ''
-        }
-
-        return configparser.SafeConfigParser(defaults=default_metadata)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
@@ -991,7 +1129,14 @@ class Manager(object):
             clone, version, status.tracking_method)
 
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
-        metadata_parser = self._new_package_metadata_parser()
+        default_metadata = {
+            'script_dir': '',
+            'plugin_dir': 'build',
+            'bro_dist': self.bro_dist,
+            'build_command': ''
+        }
+        metadata_parser = configparser.SafeConfigParser(
+            defaults=default_metadata)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
 
@@ -1090,7 +1235,7 @@ class Manager(object):
                 if pkg.git_url == package.git_url:
                     package.source = pkg.source
                     package.directory = pkg.directory
-                    package.index_data = pkg.index_data
+                    package.metadata = pkg.metadata
                     break
 
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
@@ -1224,3 +1369,28 @@ def _parse_package_metadata(parser, metadata_file):
         return '{} is missing [package] section'.format(METADATA_FILENAME)
 
     return ''
+
+
+def _info_from_clone(clone, package, status, version):
+    """Retrieves information about a package.
+
+    Returns:
+        A :class:`.package.PackageInfo` object.
+    """
+    versions = _get_version_tags(clone)
+    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
+    # Use raw parser so no value interpolation takes place.
+    metadata_parser = configparser.RawConfigParser()
+    invalid_reason = _parse_package_metadata(
+        metadata_parser, metadata_file)
+
+    if invalid_reason:
+        return PackageInfo(package=package, invalid_reason=invalid_reason,
+                           status=status, versions=versions,
+                           metadata_version=version)
+
+    metadata = _get_package_metadata(metadata_parser)
+
+    return PackageInfo(package=package, invalid_reason=invalid_reason,
+                       status=status, metadata=metadata, versions=versions,
+                       metadata_version=version)

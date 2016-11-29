@@ -137,16 +137,17 @@ class Package(object):
             It may also be empty if the package is not part of a package source
             or if it's located in a top-level :file:`bro-pkg.index` file.
 
-        index_data (dict of str -> str): the data from the package's
-            :data:`.source.INDEX_FILENAME`.
+        metadata (dict of str -> str): the contents of the package's
+            :file:`bro-pkg.meta` file as it was last aggregated into a source's
+            :file:`aggregate.meta` file.
     """
 
-    def __init__(self, git_url, source='', directory='', index_data=None):
+    def __init__(self, git_url, source='', directory='', metadata=None):
         self.git_url = canonical_url(git_url)
         self.name = name_from_path(git_url)
         self.source = source
         self.directory = directory
-        self.index_data = {} if index_data is None else index_data
+        self.metadata = {} if metadata is None else metadata
 
     def __str__(self):
         return self.qualified_name()
@@ -159,18 +160,18 @@ class Package(object):
 
     def tags(self):
         """Return a list of tags in the package's `index_data` attribute."""
-        if 'tags' not in self.index_data:
+        if 'tags' not in self.metadata:
             return []
 
         import re
-        return re.split(',\s*', self.index_data['tags'])
+        return re.split(',\s*', self.metadata['tags'])
 
     def short_description(self):
         """Return the first sentence of the index metdata 'description' field"""
-        if 'description' not in self.index_data:
+        if 'description' not in self.metadata:
             return ''
 
-        description = self.index_data['description']
+        description = self.metadata['description']
         lines = description.split('\n')
         rval = ''
 
