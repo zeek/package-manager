@@ -427,16 +427,20 @@ class Manager(object):
                     if filecmp.cmp(aggregate_file, agg_file_their_orig):
                         # Their file hasn't changed, use ours.
                         shutil.copy2(agg_file_ours, aggregate_file)
+                        LOG.debug(
+                            "aggegrate file in source unchanged, restore local one")
                     else:
                         # Their file changed, use theirs.
-                        pass
+                        LOG.debug(
+                            "aggegrate file in source changed, discard local one")
                 else:
                     # File was untracked before pull and tracked after,
                     # use their version.
-                    pass
+                    LOG.debug("new aggegrate file in source, discard local one")
             else:
                 # They don't have the file after pulling, so restore ours.
                 shutil.copy2(agg_file_ours, aggregate_file)
+                LOG.debug("no aggegrate file in source, restore local one")
 
         if aggregate:
             parser = configparser.SafeConfigParser()
