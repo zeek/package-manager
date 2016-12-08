@@ -29,6 +29,38 @@ def canonical_url(path):
     return url
 
 
+def tags(metadata_dict):
+    """Return a list of tag strings found in the metadata's 'tags' field."""
+    if 'tags' not in metadata_dict:
+        return []
+
+    import re
+    return re.split(',\s*', metadata_dict['tags'])
+
+
+def short_description(metadata_dict):
+    """Returns the first sentence of the metadata's 'desciption' field."""
+    if 'description' not in metadata_dict:
+        return ''
+
+    description = metadata_dict['description']
+    lines = description.split('\n')
+    rval = ''
+
+    for line in lines:
+        line = line.lstrip()
+        rval += ' '
+        period_idx = find_sentence_end(line)
+
+        if period_idx == -1:
+            rval += line
+        else:
+            rval += line[:period_idx + 1]
+            break
+
+    return rval.lstrip()
+
+
 class InstalledPackage(object):
     """An installed package and its current status.
 
@@ -112,6 +144,18 @@ class PackageInfo(object):
         self.metadata_version = metadata_version
         self.invalid_reason = invalid_reason
 
+    def tags(self):
+        """Return a list of keyword tags associated with the package.
+
+        This will be the contents of the package's `tags` field."""
+        return tags(self.metadata)
+
+    def short_description(self):
+        """Return a short description of the package.
+
+        This will be the first sentence of the package's 'description' field."""
+        return short_description(self.metadata)
+
 
 class Package(object):
     """A Bro package.
@@ -159,34 +203,18 @@ class Package(object):
         return str(self) < str(other)
 
     def tags(self):
-        """Return a list of tags in the package's `index_data` attribute."""
-        if 'tags' not in self.metadata:
-            return []
+        """Return a list of keyword tags associated with the package.
 
-        import re
-        return re.split(',\s*', self.metadata['tags'])
+        This will be the contents of the package's `tags` field as contained
+        within the source's aggregated metadata."""
+        return tags(self.metadata)
 
     def short_description(self):
-        """Return the first sentence of the index metdata 'description' field"""
-        if 'description' not in self.metadata:
-            return ''
+        """Return a short description of the package.
 
-        description = self.metadata['description']
-        lines = description.split('\n')
-        rval = ''
-
-        for line in lines:
-            line = line.lstrip()
-            rval += ' '
-            period_idx = find_sentence_end(line)
-
-            if period_idx == -1:
-                rval += line
-            else:
-                rval += line[:period_idx + 1]
-                break
-
-        return rval.lstrip()
+        This will be the first sentence of the package's 'description' field
+        as contained within the source's aggregated metadata."""
+        return short_description(self.metadata)
 
     def name_with_source_directory(self):
         """Return the package's within its package source.
