@@ -1,4 +1,8 @@
 
+0.8-1 | 2016-12-07 20:09:58 -0600
+
+  * BIT-1767: improve handling of non-ascii character encoding (Jon Siwek)
+
 0.8 | 2016-11-29 11:21:29 -0600
 
   * Release 0.8.

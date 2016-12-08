@@ -4,6 +4,7 @@ from __future__ import print_function
 from bropkg._util import make_dir
 
 import os
+import io
 import sys
 import errno
 import argparse
@@ -16,9 +17,20 @@ from backports import configparser
 import bropkg
 
 
+def read_bro_config_line(stdout):
+    rval = stdout.readline()
+
+    # Python 2 returned bytes, Python 3 returned unicode
+    if isinstance(rval, bytes):
+        rval = rval.decode(sys.stdout.encoding)
+
+    return rval.strip()
+
+
 def get_input(prompt):
     if sys.version_info[0] < 3:
-        return raw_input(prompt)
+        prompt_bytes = prompt.encode(sys.stdout.encoding)
+        return raw_input(prompt_bytes).decode(sys.stdin.encoding)
 
     return input(prompt)
 
@@ -880,9 +892,11 @@ def cmd_autoconfig(manager, args, config):
     cmd = subprocess.Popen([bro_config,
                             '--site_dir', '--plugin_dir', '--bro_dist'],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           bufsize=1)
-    script_dir, plugin_dir, bro_dist = (line.decode().strip()
-                                        for line in cmd.stdout)
+                           bufsize=1, universal_newlines=True)
+
+    script_dir = read_bro_config_line(cmd.stdout)
+    plugin_dir = read_bro_config_line(cmd.stdout)
+    bro_dist = read_bro_config_line(cmd.stdout)
 
     make_dir(config_dir())
     config_file = os.path.join(config_dir(), 'config')
@@ -898,10 +912,10 @@ def cmd_autoconfig(manager, args, config):
         if old_value == new_value:
             return
 
-        prompt = 'Set "{}" config option to: {} ?'.format(option, new_value)
+        prompt = u'Set "{}" config option to: {} ?'.format(option, new_value)
 
         if old_value:
-            prompt += '\n(previous value: {})'.format(old_value)
+            prompt += u'\n(previous value: {})'.format(old_value)
 
         if confirmation_prompt(prompt):
             config.set(section, option, new_value)
@@ -913,7 +927,7 @@ def cmd_autoconfig(manager, args, config):
     change_config_value(config, 'paths', 'bro_dist',
                         bro_dist, config_file_exists)
 
-    with open(config_file, 'w') as f:
+    with io.open(config_file, 'w', encoding=sys.stdout.encoding) as f:
         config.write(f)
 
     print('Successfully wrote config file to {}'.format(config_file))
@@ -929,14 +943,15 @@ def cmd_env(manager, args, config):
     if bro_config:
         cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               bufsize=1)
-        output = [line.decode().strip() for line in cmd.stdout]
+                               bufsize=1, universal_newlines=True)
+        line1 = read_bro_config_line(cmd.stdout)
+        line2 = read_bro_config_line(cmd.stdout)
 
         if not bropath:
-            bropath = output[0]
+            bropath = line1
 
         if not pluginpath:
-            pluginpath = output[1]
+            pluginpath = line2
 
     bropaths = [p for p in bropath.split(':')] if bropath else []
     pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
@@ -945,11 +960,11 @@ def cmd_env(manager, args, config):
     pluginpaths.append(manager.bro_plugin_path())
 
     if os.environ['SHELL'].endswith('csh'):
-        print('setenv BROPATH {}'.format(':'.join(bropaths)))
-        print('setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
+        print(u'setenv BROPATH {}'.format(':'.join(bropaths)))
+        print(u'setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
     else:
-        print('export BROPATH={}'.format(':'.join(bropaths)))
-        print('export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
+        print(u'export BROPATH={}'.format(':'.join(bropaths)))
+        print(u'export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
 
 def top_level_parser():

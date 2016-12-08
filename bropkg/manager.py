@@ -4,6 +4,7 @@ to interact with and operate on Bro packages.
 """
 
 import os
+import sys
 import json
 import shutil
 import filecmp
@@ -1152,27 +1153,38 @@ class Manager(object):
             import subprocess
             LOG.debug('installing "%s": running build_command: %s',
                       package, build_command)
+            bufsize = 4096
             build = subprocess.Popen(build_command,
-                                     shell=True, cwd=clonepath, bufsize=1,
+                                     shell=True, cwd=clonepath, bufsize=bufsize,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
 
             try:
                 buildlog = self.package_build_log(clonepath)
 
-                with open(buildlog, 'w') as f:
+                with open(buildlog, 'wb') as f:
                     LOG.warning('installing "%s": writing build log: %s',
                                 package, buildlog)
 
-                    f.write('=== STDERR ===\n')
+                    f.write(u'=== STDERR ===\n'.encode(sys.stdout.encoding))
 
-                    for line in build.stderr:
-                        f.write(line.decode())
+                    while True:
+                        data = build.stderr.read(bufsize)
 
-                    f.write('=== STDOUT ===\n')
+                        if data:
+                            f.write(data)
+                        else:
+                            break
 
-                    for line in build.stdout:
-                        f.write(line.decode())
+                    f.write(u'=== STDOUT ===\n'.encode(sys.stdout.encoding))
+
+                    while True:
+                        data = build.stdout.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
 
             except EnvironmentError as error:
                 LOG.warning(
