@@ -322,9 +322,12 @@ An example :file:`bro-pkg.meta`::
 For a :file:`bro-pkg.meta` that looks like the above, the package should have a
 file called :file:`scripts/__load__.bro`.
 
-If the `script_dir` field is not present in :file:`bro-pkg.meta`, it defaults
-to the top-level directory of the package, so a :file:`__load__.bro` script
-should be located there.
+If the `script_dir` field is not present in :file:`bro-pkg.meta`, it
+defaults to checking the top-level directory of the package for a
+:file:`__load__.bro` script.  If it's found there, :program:`bro-pkg`
+use the top-level package directory as the value for `script_dir`.  If
+it's not found, then :program:`bro-pkg` assumes the package contains no
+Bro scripts (which may be the case for some plugins).
 
 plugin_dir
 ~~~~~~~~~~

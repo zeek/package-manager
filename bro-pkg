@@ -293,12 +293,13 @@ def cmd_install(manager, args, config):
         ipkg = manager.find_installed_package(name)
         print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
 
-        load_error = manager.load(name)
+        if manager.has_scripts(ipkg):
+            load_error = manager.load(name)
 
-        if load_error:
-            print('Failed loading "{}": {}'.format(name, load_error))
-        else:
-            print('Loaded "{}"'.format(name))
+            if load_error:
+                print('Failed loading "{}": {}'.format(name, load_error))
+            else:
+                print('Loaded "{}"'.format(name))
 
 
 def cmd_bundle(manager, args, config):

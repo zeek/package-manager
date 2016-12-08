@@ -1,4 +1,8 @@
 
+0.8-3 | 2016-12-07 22:54:49 -0600
+
+  * BIT-1768: improve handling of packages that have no Bro scripts (Jon Siwek)
+
 0.8-2 | 2016-12-07 20:46:44 -0600
 
   * BIT-1766: add tags() and short_description() to PackageInfo API (Jon Siwek)

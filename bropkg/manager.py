@@ -364,6 +364,16 @@ class Manager(object):
         pkg_name = name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
 
+    def has_scripts(self, installed_pkg):
+        """Return whether a :class:`.package.InstalledPackage` installed scripts.
+
+        Args:
+            installed_pkg(:class:`.package.InstalledPackage`): the installed
+                package to check for whether it has installed any Bro scripts.
+        """
+        return os.path.exists(os.path.join(self.script_dir,
+                                           installed_pkg.package.name))
+
     def refresh_source(self, name, aggregate=False, push=False):
         """Pull latest git information from a package source.
 
@@ -1131,10 +1141,7 @@ class Manager(object):
 
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         default_metadata = {
-            'script_dir': '',
-            'plugin_dir': 'build',
             'bro_dist': self.bro_dist,
-            'build_command': ''
         }
         metadata_parser = configparser.SafeConfigParser(
             defaults=default_metadata)
@@ -1146,11 +1153,21 @@ class Manager(object):
 
         metadata = _get_package_metadata(metadata_parser)
 
-        build_command = metadata['build_command']
+        # Use raw parser so no value interpolation takes place.
+        raw_metadata_parser = configparser.RawConfigParser()
+        invalid_reason = _parse_package_metadata(
+            raw_metadata_parser, metadata_file)
+
+        if invalid_reason:
+            return invalid_reason
+
+        raw_metadata = _get_package_metadata(metadata_parser)
+
         LOG.debug('installing "%s": version %s', package, version)
 
-        if build_command:
+        if 'build_command' in metadata:
             import subprocess
+            build_command = metadata['build_command']
             LOG.debug('installing "%s": running build_command: %s',
                       package, build_command)
             bufsize = 4096
@@ -1197,30 +1214,48 @@ class Manager(object):
                 return 'package build_command failed, see log in {}'.format(
                     buildlog)
 
-        script_dir_src = os.path.join(
-            clonepath, metadata['script_dir'])
+        pkg_script_dir = ''
+
+        if 'script_dir' in metadata:
+            pkg_script_dir = metadata['script_dir']
+
+        script_dir_src = os.path.join(clonepath, pkg_script_dir)
         script_dir_dst = os.path.join(self.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
             return str.format("package's 'script_dir' does not exist: {0}",
-                              metadata['script_dir'])
+                              pkg_script_dir)
 
-        symlink_path = os.path.join(self.bropath(), package.name)
+        if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
+            symlink_path = os.path.join(self.bropath(), package.name)
 
-        try:
-            make_symlink(os.path.join('packages', package.name), symlink_path)
-        except OSError as exception:
-            error = 'could not create symlink at {}'.format(symlink_path)
-            error += ': {}: {}'.format(type(exception).__name__, exception)
-            return error
+            try:
+                make_symlink(os.path.join(
+                    'packages', package.name), symlink_path)
+            except OSError as exception:
+                error = 'could not create symlink at {}'.format(symlink_path)
+                error += ': {}: {}'.format(type(exception).__name__, exception)
+                return error
 
-        error = _copy_package_dir(package, 'script_dir',
-                                  script_dir_src, script_dir_dst)
+            error = _copy_package_dir(package, 'script_dir',
+                                      script_dir_src, script_dir_dst)
 
-        if error:
-            return error
+            if error:
+                return error
+        else:
+            if 'script_dir' in metadata:
+                return str.format("no __load__.bro file found"
+                                  " in package's 'script_dir' : {0}",
+                                  pkg_script_dir)
+            else:
+                LOG.info('installing "%s": no __load__.bro in implicit'
+                         ' script_dir, skipped installing scripts', package)
 
-        pkg_plugin_dir = metadata['plugin_dir']
+        pkg_plugin_dir = 'build'
+
+        if 'plugin_dir' in metadata:
+            pkg_plugin_dir = metadata['plugin_dir']
+
         plugin_dir_src = os.path.join(clonepath, pkg_plugin_dir)
         plugin_dir_dst = os.path.join(self.plugin_dir, package.name)
 
@@ -1250,6 +1285,7 @@ class Manager(object):
                     package.metadata = pkg.metadata
                     break
 
+        package.metadata = raw_metadata
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()
         LOG.debug('installed "%s"', package)

@@ -182,8 +182,10 @@ class Package(object):
             or if it's located in a top-level :file:`bro-pkg.index` file.
 
         metadata (dict of str -> str): the contents of the package's
-            :file:`bro-pkg.meta` file as it was last aggregated into a source's
-            :file:`aggregate.meta` file.
+            :file:`bro-pkg.meta` file.  If the package has not been installed
+            then this information may come from the last aggregation of the
+            source's :file:`aggregate.meta` file (it may not be
+            accurate/up-to-date).
     """
 
     def __init__(self, git_url, source='', directory='', metadata=None):
@@ -205,15 +207,17 @@ class Package(object):
     def tags(self):
         """Return a list of keyword tags associated with the package.
 
-        This will be the contents of the package's `tags` field as contained
-        within the source's aggregated metadata."""
+        This will be the contents of the package's `tags` field and may
+        return results from the source's aggregated metadata if the package
+        has not been installed yet."""
         return tags(self.metadata)
 
     def short_description(self):
         """Return a short description of the package.
 
         This will be the first sentence of the package's 'description' field
-        as contained within the source's aggregated metadata."""
+        and may return results from the source's aggregated metadata if the
+        package has not been installed yet."""
         return short_description(self.metadata)
 
     def name_with_source_directory(self):
