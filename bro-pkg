@@ -11,6 +11,8 @@ import argparse
 import logging
 import threading
 import tarfile
+import filecmp
+import shutil
 
 from backports import configparser
 
@@ -266,6 +268,16 @@ def cmd_install(manager, args, config):
         elif info.versions:
             version = info.versions[-1]
 
+        is_overwriting = False
+        ipkg = manager.find_installed_package(name)
+
+        if ipkg:
+            is_overwriting = True
+            modifications = manager.modified_config_files(ipkg)
+            backup_files = manager.backup_modified_files(name, modifications)
+            prev_upstream_config_files = manager.save_temporary_config_files(
+                ipkg)
+
         worker = InstallWorker(manager, name, version)
         worker.start()
 
@@ -292,6 +304,29 @@ def cmd_install(manager, args, config):
 
         ipkg = manager.find_installed_package(name)
         print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+
+        if is_overwriting:
+            for i, mf in enumerate(modifications):
+                next_upstream_config_file = mf[1]
+
+                if not os.path.isfile(next_upstream_config_file):
+                    print("\tConfig file no longer exists:")
+                    print("\t\t" + next_upstream_config_file)
+                    print("\tPrevious, locally modified version backed up to:")
+                    print("\t\t" + backup_files[i])
+                    continue
+
+                prev_upstream_config_file = prev_upstream_config_files[i][1]
+
+                if filecmp.cmp(prev_upstream_config_file, next_upstream_config_file):
+                    # Safe to restore user's version
+                    shutil.copy2(backup_files[i], next_upstream_config_file)
+                    continue
+
+                print("\tConfig file has been overwritten with a different version:")
+                print("\t\t" + next_upstream_config_file)
+                print("\tPrevious, locally modified version backed up to:")
+                print("\t\t" + backup_files[i])
 
         if manager.has_scripts(ipkg):
             load_error = manager.load(name)
@@ -493,16 +528,24 @@ def cmd_remove(manager, args, config):
 
     for ipkg in packages_to_remove:
         name = ipkg.package.qualified_name()
+        modifications = manager.modified_config_files(ipkg)
+        backup_files = manager.backup_modified_files(name, modifications)
 
         if manager.remove(name):
             print('Removed "{}"'.format(name))
+
+            if backup_files:
+                print('\tCreated backups of locally modified config files:')
+
+                for backup_file in backup_files:
+                    print('\t' + backup_file)
+
         else:
             print('Failed removing "{}": no such package installed'.format(name))
 
 
 def cmd_purge(manager, args, config):
-    packages_to_remove = [ipkg.package.qualified_name()
-                          for ipkg in manager.installed_packages()]
+    packages_to_remove = manager.installed_packages()
 
     if not packages_to_remove:
         print('No packages to remove.')
@@ -510,8 +553,10 @@ def cmd_purge(manager, args, config):
 
     if not args.force:
         package_listing = ''
+        names_to_remove = [ipkg.package.qualified_name()
+                           for ipkg in packages_to_remove]
 
-        for name in packages_to_remove:
+        for name in names_to_remove:
             package_listing += '  {}\n'.format(name)
 
         print('The following packages will be REMOVED:')
@@ -520,9 +565,20 @@ def cmd_purge(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
-    for name in packages_to_remove:
+    for ipkg in packages_to_remove:
+        name = ipkg.package.qualified_name()
+        modifications = manager.modified_config_files(ipkg)
+        backup_files = manager.backup_modified_files(name, modifications)
+
         if manager.remove(name):
             print('Removed "{}"'.format(name))
+
+            if backup_files:
+                print('\tCreated backups of locally modified config files:')
+
+                for backup_file in backup_files:
+                    print('\t' + backup_file)
+
         else:
             print('Unknown error removing "{}"'.format(name))
 
@@ -643,6 +699,11 @@ def cmd_upgrade(manager, args, config):
             return
 
     for name in outdated_packages:
+        ipkg = manager.find_installed_package(name)
+        modifications = manager.modified_config_files(ipkg)
+        backup_files = manager.backup_modified_files(name, modifications)
+        prev_upstream_config_files = manager.save_temporary_config_files(ipkg)
+
         res = manager.upgrade(name)
 
         if res:
@@ -651,6 +712,28 @@ def cmd_upgrade(manager, args, config):
             ipkg = manager.find_installed_package(name)
             print('Upgraded "{}" ({})'.format(
                 name, ipkg.status.current_version))
+
+        for i, mf in enumerate(modifications):
+            next_upstream_config_file = mf[1]
+
+            if not os.path.isfile(next_upstream_config_file):
+                print("\tConfig file no longer exists:")
+                print("\t\t" + next_upstream_config_file)
+                print("\tPrevious, locally modified version backed up to:")
+                print("\t\t" + backup_files[i])
+                continue
+
+            prev_upstream_config_file = prev_upstream_config_files[i][1]
+
+            if filecmp.cmp(prev_upstream_config_file, next_upstream_config_file):
+                # Safe to restore user's version
+                shutil.copy2(backup_files[i], next_upstream_config_file)
+                continue
+
+            print("\tConfig file has been updated to a newer version:")
+            print("\t\t" + next_upstream_config_file)
+            print("\tPrevious, locally modified version backed up to:")
+            print("\t\t" + backup_files[i])
 
 
 def cmd_load(manager, args, config):

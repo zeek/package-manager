@@ -62,6 +62,9 @@ class Manager(object):
             a maintain manifest file, package/source git clones, and other
             persistent state the manager needs in order to operate
 
+        backup_dir (str): a directory where the package manager will
+            store backup files (e.g. locally modified package config files)
+
         scratch_dir (str): a directory where the package manager performs
             miscellaneous/temporary file operations
 
@@ -119,6 +122,7 @@ class Manager(object):
         self.installed_pkgs = {}
         self.bro_dist = bro_dist
         self.state_dir = state_dir
+        self.backup_dir = os.path.join(self.state_dir, 'backups')
         self.scratch_dir = os.path.join(self.state_dir, 'scratch')
         self.script_dir = os.path.join(script_dir, 'packages')
         self.plugin_dir = os.path.join(plugin_dir, 'packages')
@@ -241,7 +245,7 @@ class Manager(object):
                 'plugin_dir': self.plugin_dir, 'installed_packages': pkg_list}
 
         with open(self.manifest, 'w') as f:
-            json.dump(data, f)
+            json.dump(data, f, indent=2, sort_keys=True)
 
     def bropath(self):
         """Return the path where installed package scripts are located.
@@ -370,9 +374,146 @@ class Manager(object):
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
                 package to check for whether it has installed any Bro scripts.
+
+        Returns:
+            bool: True if the package has installed Bro scripts.
         """
         return os.path.exists(os.path.join(self.script_dir,
                                            installed_pkg.package.name))
+
+    def save_temporary_config_files(self, installed_pkg):
+        """Return a list of temporary package config file backups.
+
+        Args:
+            installed_pkg(:class:`.package.InstalledPackage`): the installed
+                package to save temporary config file backups for.
+
+        Returns:
+            list of (str, str): tuples that describe the config files backups.
+            The first element is the config file as specified in the package
+            metadata (a file path relative to the package's root directory).
+            The second element is an absolute file system path to where that
+            config file has been copied.  It should be considered temporary,
+            so make use of it before doing any further operations on packages.
+        """
+        import re
+        metadata = installed_pkg.package.metadata
+        config_files = re.split(',\s*', metadata.get('config_files', ''))
+
+        if not config_files:
+            return []
+
+        pkg_name = installed_pkg.package.name
+        clone_dir = os.path.join(self.package_clonedir, pkg_name)
+        rval = []
+
+        for config_file in config_files:
+            config_file_path = os.path.join(clone_dir, config_file)
+
+            if not os.path.isfile(config_file_path):
+                LOG.info("package '%s' claims config file at '%s',"
+                         " but it does not exist", pkg_name, config_file)
+                continue
+
+            backup_file = os.path.join(self.scratch_dir, 'tmpcfg', config_file)
+            make_dir(os.path.dirname(backup_file))
+            shutil.copy2(config_file_path, backup_file)
+            rval.append((config_file, backup_file))
+
+        return rval
+
+    def modified_config_files(self, installed_pkg):
+        """Return a list of package config files that the user has modified.
+
+        Args:
+            installed_pkg(:class:`.package.InstalledPackage`): the installed
+                package to check for whether it has installed any Bro scripts.
+
+        Returns:
+            list of (str, str): tuples that describe the modified config files.
+            The first element is the config file as specified in the package
+            metadata (a file path relative to the package's root directory).
+            The second element is an absolute file system path to where that
+            config file is currently installed.
+        """
+        import re
+        metadata = installed_pkg.package.metadata
+        config_files = re.split(',\s*', metadata.get('config_files', ''))
+
+        if not config_files:
+            return []
+
+        pkg_name = installed_pkg.package.name
+        script_install_dir = os.path.join(self.script_dir, pkg_name)
+        plugin_install_dir = os.path.join(self.plugin_dir, pkg_name)
+        clone_dir = os.path.join(self.package_clonedir, pkg_name)
+        script_dir = metadata.get('script_dir', '')
+        plugin_dir = metadata.get('plugin_dir', 'build')
+        rval = []
+
+        for config_file in config_files:
+            their_config_file_path = os.path.join(clone_dir, config_file)
+
+            if not os.path.isfile(their_config_file_path):
+                LOG.info("package '%s' claims config file at '%s',"
+                         " but it does not exist", pkg_name, config_file)
+                continue
+
+            if config_file.startswith(plugin_dir):
+                our_config_file_path = os.path.join(
+                    plugin_install_dir, config_file[len(plugin_dir):])
+
+                if not os.path.isfile(our_config_file_path):
+                    LOG.info("package '%s' config file '%s' not found"
+                             " in plugin_dir: %s", pkg_name, config_file,
+                             our_config_file_path)
+                    continue
+            elif config_file.startswith(script_dir):
+                our_config_file_path = os.path.join(
+                    script_install_dir, config_file[len(script_dir):])
+
+                if not os.path.isfile(our_config_file_path):
+                    LOG.info("package '%s' config file '%s' not found"
+                             " in script_dir: %s", pkg_name, config_file,
+                             our_config_file_path)
+                    continue
+
+            if not filecmp.cmp(our_config_file_path, their_config_file_path):
+                rval.append((config_file, our_config_file_path))
+
+        return rval
+
+    def backup_modified_files(self, backup_subdir, modified_files):
+        """Creates backups of modified config files
+
+        Args:
+            modified_files(list of (str, str)): the return value of
+                :meth:`modified_config_files()`.
+
+            backup_subdir(str): the subdir of `backup_dir` in which 
+
+        Returns:
+            list of str: paths indicating the backup locations.  The order
+            of the returned list corresponds directly to the order of
+            `modified_files`.
+        """
+        import time
+        rval = []
+
+        for modified_file in modified_files:
+            config_file = modified_file[0]
+            config_file_dir = os.path.dirname(config_file)
+            install_path = modified_file[1]
+            filename = os.path.basename(install_path)
+            backup_dir = os.path.join(
+                self.backup_dir, backup_subdir, config_file_dir)
+            timestamp = time.strftime('.%Y-%m-%d-%H:%M:%S')
+            backup_path = os.path.join(backup_dir, filename + timestamp)
+            make_dir(backup_dir)
+            shutil.copy2(install_path, backup_path)
+            rval.append(backup_path)
+
+        return rval
 
     def refresh_source(self, name, aggregate=False, push=False):
         """Pull latest git information from a package source.
@@ -647,8 +788,8 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
-            :class:`.package.InstalledPackage`: if successfully pinned or
-            None if no matching installed package could be found.
+            :class:`.package.InstalledPackage`: None if no matching installed
+            package could be found, else the installed package that was pinned.
 
         Raises:
             IOError: when the manifest file can't be written
@@ -681,8 +822,8 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
-            :class:`.package.InstalledPackage`: if successfully unpinned or
-            None if no matching installed package could be found.
+            :class:`.package.InstalledPackage`: None if no matching installed
+            package could be found, else the installed package that was unpinned.
 
         Raises:
             IOError: when the manifest file can't be written
@@ -902,7 +1043,7 @@ class Manager(object):
                 for which version number tags will be retrieved.
 
         Returns:
-            A list of strings corresponding to version number tags.
+            list of str: the version number tags.
         """
         name = installed_package.package.name
         clonepath = os.path.join(self.package_clonedir, name)
@@ -915,7 +1056,7 @@ class Manager(object):
         Args:
             bundle_file (str): filesystem path of the zip file to create.
 
-            package_list (list of str, str): a list of (git URL, version)
+            package_list (list of (str, str)): a list of (git URL, version)
                 string tuples to put in the bundle.  If the version string is,
                 empty the latest available version of the package is used.
 
@@ -962,6 +1103,11 @@ class Manager(object):
                     clone = git.Repo(clonepath)
                     clone.git.reset(hard=True)
                     clone.git.clean('-f', '-x', '-d')
+
+                    for modified_config in self.modified_config_files(ipkg):
+                        dst = os.path.join(clonepath, modified_config[0])
+                        shutil.copy2(modified_config[1], dst)
+
                     continue
 
             try:
@@ -1120,6 +1266,9 @@ class Manager(object):
                 if version in branches:
                     status.tracking_method = 'branch'
                 else:
+                    LOG.info(
+                        'branch "%s" not in available branches: %s', version,
+                        branches)
                     return 'no such branch or version tag: "{}"'.format(version)
 
         else:
@@ -1161,13 +1310,14 @@ class Manager(object):
         if invalid_reason:
             return invalid_reason
 
-        raw_metadata = _get_package_metadata(metadata_parser)
+        raw_metadata = _get_package_metadata(raw_metadata_parser)
 
         LOG.debug('installing "%s": version %s', package, version)
 
-        if 'build_command' in metadata:
+        build_command = metadata.get('build_command', '')
+
+        if build_command:
             import subprocess
-            build_command = metadata['build_command']
             LOG.debug('installing "%s": running build_command: %s',
                       package, build_command)
             bufsize = 4096
@@ -1214,16 +1364,12 @@ class Manager(object):
                 return 'package build_command failed, see log in {}'.format(
                     buildlog)
 
-        pkg_script_dir = ''
-
-        if 'script_dir' in metadata:
-            pkg_script_dir = metadata['script_dir']
-
+        pkg_script_dir = metadata.get('script_dir', '')
         script_dir_src = os.path.join(clonepath, pkg_script_dir)
         script_dir_dst = os.path.join(self.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
-            return str.format("package's 'script_dir' does not exist: {0}",
+            return str.format("package's 'script_dir' does not exist: {}",
                               pkg_script_dir)
 
         if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
@@ -1245,17 +1391,13 @@ class Manager(object):
         else:
             if 'script_dir' in metadata:
                 return str.format("no __load__.bro file found"
-                                  " in package's 'script_dir' : {0}",
+                                  " in package's 'script_dir' : {}",
                                   pkg_script_dir)
             else:
                 LOG.info('installing "%s": no __load__.bro in implicit'
                          ' script_dir, skipped installing scripts', package)
 
-        pkg_plugin_dir = 'build'
-
-        if 'plugin_dir' in metadata:
-            pkg_plugin_dir = metadata['plugin_dir']
-
+        pkg_plugin_dir = metadata.get('plugin_dir', 'build')
         plugin_dir_src = os.path.join(clonepath, pkg_plugin_dir)
         plugin_dir_dst = os.path.join(self.plugin_dir, package.name)
 
@@ -1266,7 +1408,7 @@ class Manager(object):
             if pkg_plugin_dir != 'build':
                 # It's common for a package to not have build directory for
                 # for plugins, so don't error out in that case, just log it.
-                return str.format("package's 'plugin_dir' does not exist: {0}",
+                return str.format("package's 'plugin_dir' does not exist: {}",
                                   pkg_plugin_dir)
 
         error = _copy_package_dir(package, 'plugin_dir',

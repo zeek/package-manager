@@ -1,4 +1,13 @@
 
+0.8-4 | 2016-12-08 19:50:49 -0600
+
+  * Add new bro-pkg.meta field: config_files
+
+    This allows package authors to specify a list of files that users may
+    directly modify.  The upgrade, remove, install, and bundle operations
+    all work in a way that attempts to either preserve a user's local
+    changes or save a backup of their version. (Jon Siwek)
+
 0.8-3 | 2016-12-07 22:54:49 -0600
 
   * BIT-1768: improve handling of packages that have no Bro scripts (Jon Siwek)

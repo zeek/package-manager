@@ -379,6 +379,25 @@ script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
+config_files
+~~~~~~~~~~~~
+
+TThe `config_files` field may be used to specify a list of files that users
+are intended to directly modify after installation.  Then, on operations that
+would otherwise destroy a user's local modifications to a config file, such
+as upgrading to a newer package version, :program:`bro-pkg` can instead save
+a backup and possibly prompt the user to review the differences.
+
+An example :file:`bro-pkg.meta`::
+
+  [package]
+  script_dir = scripts
+  config_files = scripts/foo_config.bro, scripts/bar_config.bro
+
+The value of `config_files` is a comma-delimited string of config file paths
+that are relative to the root directory of the package.  Config files should
+either be located within the `script_dir` or `plugin_dir`.
+
 bro_version
 ~~~~~~~~~~~
 
