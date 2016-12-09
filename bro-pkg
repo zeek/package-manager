@@ -346,6 +346,7 @@ def cmd_bundle(manager, args, config):
 
         if len(args.manifest) == 1:
             config = configparser.SafeConfigParser(delimiters='=')
+            config.optionxform = str
 
             if config.read(args.manifest[0]) and config.has_section('bundle'):
                 packages = config.items('bundle')
@@ -421,6 +422,7 @@ def cmd_unbundle(manager, args, config):
     try:
         with tarfile.open(args.bundle_filename) as tf:
             config = configparser.ConfigParser(delimiters='=')
+            config.optionxform = str
             mf = tf.extractfile('./manifest.txt')
             config_string = ''
 

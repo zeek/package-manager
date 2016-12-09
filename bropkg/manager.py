@@ -1074,6 +1074,7 @@ class Manager(object):
         make_dir(bundle_dir)
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
         config = configparser.SafeConfigParser(delimiters='=')
+        config.optionxform = str
         config.add_section('bundle')
 
         def match_package_url_and_version(git_url, version):
@@ -1136,6 +1137,7 @@ class Manager(object):
 
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
         config = configparser.SafeConfigParser(delimiters='=')
+        config.optionxform = str
 
         if not config.read(manifest_file):
             return 'invalid bundle: no manifest file'

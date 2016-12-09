@@ -1,4 +1,9 @@
 
+0.8-5 | 2016-12-08 20:04:53 -0600
+
+  * Fix bundle/unbundle automatic lower-casing of urls in bundle manifest
+    (Jon Siwek)
+
 0.8-4 | 2016-12-08 19:50:49 -0600
 
   * Add new bro-pkg.meta field: config_files
