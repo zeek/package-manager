@@ -382,7 +382,7 @@ but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 config_files
 ~~~~~~~~~~~~
 
-TThe `config_files` field may be used to specify a list of files that users
+The `config_files` field may be used to specify a list of files that users
 are intended to directly modify after installation.  Then, on operations that
 would otherwise destroy a user's local modifications to a config file, such
 as upgrading to a newer package version, :program:`bro-pkg` can instead save
