@@ -81,7 +81,7 @@ def find_sentence_end(s):
 
 
 def git_clone_shallow(git_url, dst_path):
-    git.Git().clone(git_url, dst_path, depth=1)
+    git.Git().clone(git_url, dst_path, '--no-single-branch', depth=1)
     rval = git.Repo(dst_path)
     rval.git.fetch(tags=True)
     return rval

@@ -1,4 +1,11 @@
 
+0.8-6 | 2016-12-08 21:15:06 -0600
+
+  * Fix tracking package versions/changes via branches.
+
+    A previous change to use shallow git clones broke the tracking of
+    package versioning via git branches. (Jon Siwek)
+
 0.8-5 | 2016-12-08 20:04:53 -0600
 
   * Fix bundle/unbundle automatic lower-casing of urls in bundle manifest
