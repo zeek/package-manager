@@ -398,19 +398,23 @@ The value of `config_files` is a comma-delimited string of config file paths
 that are relative to the root directory of the package.  Config files should
 either be located within the `script_dir` or `plugin_dir`.
 
-bro_version
-~~~~~~~~~~~
+.. _package-dependencies:
+[dependencies]
+~~~~~~~~~~~~~~
 
-.. @todo: bro version dependency
+@todo: explain that this is a separate section for dependencies
+@todo: explain special 'bro' key
+@todo: explain valid semver spec strings
 
-Not yet implemented.
+An example :file:`bro-pkg.meta`::
 
-dependencies
-~~~~~~~~~~~~
+  [package]
+  script_dir = scripts
 
-.. @todo: inter-package dependencies
-
-Not yet implemented.
+  [dependencies]
+  bro = >=2.5
+  https://github.com/bro/foo = >=1.0.0
+  https://github.com/bro/bar = >=2.0.0
 
 .. _package-versioning:
 
