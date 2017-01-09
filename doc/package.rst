@@ -1,6 +1,7 @@
 .. _Bro Scripting: https://www.bro.org/sphinx/scripting/index.html
 .. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
 .. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
+.. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
 
 How-To: Create a Package
 ========================
@@ -399,22 +400,58 @@ that are relative to the root directory of the package.  Config files should
 either be located within the `script_dir` or `plugin_dir`.
 
 .. _package-dependencies:
-[dependencies]
-~~~~~~~~~~~~~~
 
-@todo: explain that this is a separate section for dependencies
-@todo: explain special 'bro' key
-@todo: explain valid semver spec strings
+depends
+~~~~~~~
+
+The `depends` field may be used to specify a list of dependencies that the
+package requires.
 
 An example :file:`bro-pkg.meta`::
 
   [package]
-  script_dir = scripts
+  depends =
+    bro >=2.5.0
+    https://github.com/bro/bar >=2.0.0
+    foo *
 
-  [dependencies]
-  bro = >=2.5
-  https://github.com/bro/foo = >=1.0.0
-  https://github.com/bro/bar = >=2.0.0
+The field is a list of dependency names and their semantic version requirement
+specifications.
+
+A dependency name may be either `bro`, a full git URL of the package, or a
+:ref:`package shorthand name <package-shorthand-name>`.
+
+- The special `bro` dependency refers not to a package, but the version of
+  Bro that the package requires in order to function.
+
+- The full git URL may be directly specified in the `depends` metadata if you
+  want to force the dependency to always resolve to a single, canonical git
+  repository.  Typically this is the safe approach to take when listing
+  package dependencies and for publicly visible packages.
+
+- When using shorthand package dependency names, the user's :program:`bro-pkg`
+  will try to resolve the name into a full git URL based on the package sources
+  they have configured.  Typically this approach may be most useful for internal
+  or testing environments.
+
+
+See the full `Semantic Version Specification`_ documentation for the complete
+rule set for what version requirement string are acceptable.  Here's a summary:
+
+  - ``*``: any version
+  - ``<1.0.0``: versions less than 1.0.0
+  - ``<=1.0.0``: versions less than or equal to 1.0.0
+  - ``>1.0.0``: versions greater than 1.0.0
+  - ``>=1.0.0``: versions greater than or equal to 1.0.0
+  - ``==1.0.0``: exactly version 1.0.0
+  - ``!=1.0.0``: versions not equal to 1.0.0
+  - ``^1.3.4``: versions between 1.3.4 and 2.0.0 (not including 2.0.0)
+  - ``~1.2.3``: versions between 1.2.3 and  1.3.0 (not including 1.3.0)
+  - ``~=2.2``: versions between 2.2.0 and 3.0.0 (not included 3.0.0)
+  - ``~=1.4.5``: versions between 1.4.5 and 1.5.0 (not including 3.0.0)
+  - Any of the above may be combined by a separating comma to logically "and"
+    the requirements together.  E.g. ``>=1.0.0,<2.0.0`` means "greater or equal
+    to 1.0.0 and less than 2.0.0".
 
 .. _package-versioning:
 
