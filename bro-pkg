@@ -15,6 +15,7 @@ import filecmp
 import shutil
 
 from backports import configparser
+import semantic_version as semver
 
 import bropkg
 
@@ -216,6 +217,54 @@ class InstallWorker(threading.Thread):
             self.package_name, self.package_version)
 
 
+def get_bro_version():
+    bro_config = find_program('bro-config')
+
+    if not bro_config:
+        bropkg.LOG.warning('bro-config not found in PATH')
+        return ''
+
+    import subprocess
+    cmd = subprocess.Popen([bro_config, '--version'],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           bufsize=1, universal_newlines=True)
+
+    return read_bro_config_line(cmd.stdout)
+
+
+def validate_dependencies(package_infos, bro_version=None):
+    new_pkgs = []
+
+    for info in package_infos:
+        name = info.package.qualified_name()
+        depends = info.dependencies()
+
+        if not depends:
+            continue
+
+        if 'bro' in depends:
+            if bro_version is None:
+                bro_version = semver.Version.coerce(get_bro_version())
+
+            try:
+                bro_req = semver.Spec(depends['bro'])
+            except ValueError:
+                print_error('error: {} has invalid semver spec: {}'.format(
+                    name, depends['bro']))
+                sys.exit(1)
+
+            if bro_version not in bro_req:
+                print_error('error: {} needs bro {}, but {} is installed'.format(
+                    name, bro_req, bro_version))
+                sys.exit(1)
+
+        for dep_name, dep_version in depends.items():
+            # @todo: recursively check package dependencies
+            break
+
+    return new_pkgs
+
+
 def cmd_install(manager, args, config):
     if args.version and len(args.package) > 1:
         print_error(
@@ -225,7 +274,8 @@ def cmd_install(manager, args, config):
     package_infos = []
 
     for name in args.package:
-        package_info = manager.info(name)
+        package_info = manager.info(name, version=args.version,
+                                    prefer_installed=False)
 
         if package_info.invalid_reason:
             print_error(str.format('error: invalid package "{}": {}', name,
@@ -233,6 +283,8 @@ def cmd_install(manager, args, config):
             sys.exit(1)
 
         package_infos.append(package_info)
+
+    new_pkgs = validate_dependencies(package_infos)
 
     if not args.force:
         package_listing = ''
@@ -250,6 +302,16 @@ def cmd_install(manager, args, config):
 
         print('The following packages will be INSTALLED:')
         print(package_listing)
+
+        if new_pkgs:
+            dependency_listing = ''
+
+            for info, version in new_pkgs:
+                name = info.package.qualified_name()
+                dependency_listing += '  {} {}\n'.format(name, version)
+
+            print('The following dependencies will be INSTALLED:')
+            print(dependency_listing)
 
         if not confirmation_prompt('Proceed?'):
             return
@@ -356,7 +418,7 @@ def cmd_bundle(manager, args, config):
             packages = [(name, '') for name in args.manifest]
 
         for name, version in packages:
-            info = manager.info(name)
+            info = manager.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
                 print_error(str.format('error: invalid package "{}": {}', name,
@@ -685,22 +747,43 @@ def cmd_upgrade(manager, args, config):
         if not ipkg.status.is_outdated:
             continue
 
+        info = manager.info(name, version=ipkg.status.current_version,
+                            prefer_installed=False)
+
+        if info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   info.invalid_reason))
+            sys.exit(1)
+
+        outdated_packages.append(info)
         version_change = version_change_string(manager, ipkg)
-        outdated_packages.append(name)
         package_listing += '  {} {}\n'.format(name, version_change)
 
     if not outdated_packages:
         print('All packages already up-to-date.')
         return
 
+    new_pkgs = validate_dependencies(outdated_packages)
+
     if not args.force:
         print('The following packages will be UPGRADED:')
         print(package_listing)
 
+        if new_pkgs:
+            dependency_listing = ''
+
+            for info, version in new_pkgs:
+                name = info.package.qualified_name()
+                dependency_listing += '  {} {}\n'.format(name, version)
+
+            print('The following dependencies will be INSTALLED:')
+            print(dependency_listing)
+
         if not confirmation_prompt('Proceed?'):
             return
 
-    for name in outdated_packages:
+    for info in outdated_packages:
+        name = info.package.name
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
@@ -919,7 +1002,7 @@ def cmd_info(manager, args, config):
         sys.exit(1)
 
     for name in args.package:
-        info = manager.info(name, args.version)
+        info = manager.info(name, version=args.version, prefer_installed=True)
 
         if info.package:
             name = info.package.qualified_name()

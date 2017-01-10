@@ -771,7 +771,6 @@ class Manager(object):
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
 
-        # @todo: check dependencies
         LOG.debug('removed "%s"', pkg_path)
         return True
 
@@ -928,7 +927,7 @@ class Manager(object):
         LOG.debug('unloaded "%s"', pkg_path)
         return True
 
-    def info(self, pkg_path, version=''):
+    def info(self, pkg_path, version='', prefer_installed=True):
         """Retrieves information about a package.
 
         Args:
@@ -940,11 +939,14 @@ class Manager(object):
 
             version (str): may be a git version tag, branch name, or commit hash
                 from which metadata will be pulled.  If an empty string is
-                given, then the behavior depends on whether the package is
-                currently installed.  If installed, then metadata from the
-                installed version is pulled.  If not installed, then the latest
-                git version tag is used (or if no version tags exist, the
-                "master" branch is used).
+                given, then the latest git version tag is used (or the "master"
+                branch if no version tags exist).
+
+            prefer_installed (bool): if this is set, then the information from
+                any current installation of the package is returned instead of
+                retrieving the latest information from the package's git repo.
+                The `version` parameter is also ignored when this is set as
+                it uses whatever version of the package is currently installed.
 
         Returns:
             A :class:`.package.PackageInfo` object.
@@ -953,7 +955,7 @@ class Manager(object):
         LOG.debug('getting info on "%s"', pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 
-        if ipkg:
+        if prefer_installed and ipkg:
             status = ipkg.status
             pkg_name = ipkg.package.name
             clonepath = os.path.join(self.package_clonedir, pkg_name)
@@ -1229,7 +1231,6 @@ class Manager(object):
                         pkg_path)
             return 'failed to clone package "{}": {}'.format(pkg_path, error)
 
-        # @todo: install dependencies
         return ''
 
     def _install(self, package, version, use_existing_clone=False):
@@ -1243,8 +1244,6 @@ class Manager(object):
             git.exc.GitCommandError: if the git repo is invalid
             IOError: if the package manifest file can't be written
         """
-        # @todo: check if dependencies would be broken by overwriting a
-        # previous installed package w/ a new version
         clonepath = os.path.join(self.package_clonedir, package.name)
         ipkg = self.find_installed_package(package.name)
 

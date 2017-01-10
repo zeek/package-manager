@@ -422,7 +422,10 @@ A dependency name may be either `bro`, a full git URL of the package, or a
 :ref:`package shorthand name <package-shorthand-name>`.
 
 - The special `bro` dependency refers not to a package, but the version of
-  Bro that the package requires in order to function.
+  Bro that the package requires in order to function.  If the user has
+  :program:`bro-config` in their :envvar:`PATH` when installing/upgrading a
+  package that specifies a `bro` dependency, then :program:`bro-pkg` will
+  enforce that the requirement is satisfied.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git
