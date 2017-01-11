@@ -20,6 +20,7 @@ from ._util import (
     make_symlink,
     copy_over_path,
     git_clone_shallow,
+    get_bro_version,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -1052,6 +1053,93 @@ class Manager(object):
         clone = git.Repo(clonepath)
         return _get_version_tags(clone)
 
+    def validate_dependencies(self, package_list, dependencies):
+        """Validates package dependencies.
+
+        package_list (list of (str, str)): a list of (package name or git URL,
+            version) string tuples validate.  If the version string is
+            empty, the latest available version of the package is used.
+
+        dependencies (list of (:class:`.package.PackageInfo`, str)): a list that
+            will be populated by this method with the entire set of dependency
+            packages.  The second element of the tuple is the version string
+            of the associated package that satisfies dependency requirements.
+
+        Returns:
+            str: empty string if the the bundle is successfully created,
+            else an error string explaining what failed.
+        """
+        return self._validate_dependencies(package_list, dependencies)
+
+    def _validate_dependencies(self, package_list, dependencies,
+                               pkg_to_resolve=None, bro_version=None):
+
+        package_infos = []
+
+        for name, version in package_list:
+            info = self.info(name, version=version, prefer_installed=False)
+
+            if info.invalid_reason:
+                rval = str.format('invalid package "{}": {}', name,
+                                  info.invalid_reason)
+
+                if pkg_to_resolve:
+                    rval += ' (resolving dependencies of {})'.format(
+                        pkg_to_resolve)
+
+                return rval
+
+            package_infos.append(info)
+
+        for info in package_infos:
+            name = info.package.qualified_name()
+            depends = info.dependencies()
+
+            if not depends:
+                continue
+
+            if 'bro' in depends:
+                if bro_version is None:
+                    bro_version = get_bro_version()
+
+                    if not bro_version:
+                        LOG.warning(
+                            'could not get bro version: no bro-config in PATH?')
+
+                if not bro_version:
+                    continue
+
+                bro_semver = semver.Version.coerce(bro_version)
+                bro_req_string = depends['bro']
+
+                try:
+                    bro_semver_req = semver.Spec(bro_req_string)
+                except ValueError:
+                    rval = str.format('"{}" has invalid semver spec "{}"',
+                                      name, bro_req_string)
+
+                    if pkg_to_resolve:
+                        rval += ' (resolving dependencies of {})'.format(
+                            pkg_to_resolve)
+
+                    return rval
+
+                if bro_semver not in bro_semver_req:
+                    rval = str.format('"{}" needs bro {}, but {} is installed',
+                                      name, bro_req_string, bro_version)
+
+                    if pkg_to_resolve:
+                        rval += ' (resolving dependencies of {})'.format(
+                            pkg_to_resolve)
+
+                    return rval
+
+            for dep_name, dep_version in depends.items():
+                # @todo: recursively check package dependencies
+                break
+
+        return ''
+
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
 
@@ -1059,17 +1147,17 @@ class Manager(object):
             bundle_file (str): filesystem path of the zip file to create.
 
             package_list (list of (str, str)): a list of (git URL, version)
-                string tuples to put in the bundle.  If the version string is,
-                empty the latest available version of the package is used.
+                string tuples to put in the bundle.  If the version string is
+                empty, the latest available version of the package is used.
 
             prefer_existing_clones (bool): if True and the package list contains
                 a package at a version that is already installed, then the
                 existing git clone of that package is put into the bundle
                 instead of cloning from the remote repository.
 
-            Returns:
-                str: empty string if the the bundle is successfully created,
-                else an error string explaining what failed.
+        Returns:
+            str: empty string if the the bundle is successfully created,
+            else an error string explaining what failed.
         """
         bundle_dir = os.path.join(self.scratch_dir, 'bundle')
         delete_path(bundle_dir)
