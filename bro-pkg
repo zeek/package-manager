@@ -1,7 +1,11 @@
 #! /usr/bin/env python
 
 from __future__ import print_function
-from bropkg._util import make_dir
+from bropkg._util import (
+    make_dir,
+    find_program,
+    read_bro_config_line,
+)
 
 import os
 import io
@@ -17,16 +21,6 @@ import shutil
 from backports import configparser
 
 import bropkg
-
-
-def read_bro_config_line(stdout):
-    rval = stdout.readline()
-
-    # Python 2 returned bytes, Python 3 returned unicode
-    if isinstance(rval, bytes):
-        rval = rval.decode(sys.stdout.encoding)
-
-    return rval.strip()
 
 
 def get_input(prompt):
@@ -61,25 +55,6 @@ def config_items(config, section):
     defaults = {key for key, _ in config.items('DEFAULT')}
     items = sorted(config.items(section))
     return [(key, value) for (key, value) in items if key not in defaults]
-
-
-def is_exe(path):
-    return os.path.isfile(path) and os.access(path, os.X_OK)
-
-
-def find_program(prog_name):
-    path, _ = os.path.split(prog_name)
-
-    if path:
-        return prog_name if is_exe(prog_name) else ''
-
-    for path in os.environ["PATH"].split(os.pathsep):
-        path = os.path.join(path.strip('"'), prog_name)
-
-        if is_exe(path):
-            return path
-
-    return ''
 
 
 def file_is_not_empty(path):
@@ -225,48 +200,63 @@ def cmd_install(manager, args, config):
     package_infos = []
 
     for name in args.package:
-        package_info = manager.info(name)
+        package_info = manager.info(name, version=args.version,
+                                    prefer_installed=False)
 
         if package_info.invalid_reason:
             print_error(str.format('error: invalid package "{}": {}', name,
                                    package_info.invalid_reason))
             sys.exit(1)
 
-        package_infos.append(package_info)
+        version = 'master'
+
+        if args.version:
+            version = args.version
+        elif package_info.versions:
+            version = package_info.versions[-1]
+
+        package_infos.append((package_info, version))
+
+    new_pkgs = []
+    to_validate = [(info.package.qualified_name(), version)
+                   for info, version in package_infos]
+    invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
+
+    if invalid_reason:
+        print_error('error: failed to resolve dependencies:', invalid_reason)
+        sys.exit(1)
 
     if not args.force:
         package_listing = ''
 
-        for info in package_infos:
+        for info, version in package_infos:
             name = info.package.qualified_name()
-            version = "master"
-
-            if args.version:
-                version = args.version
-            elif info.versions:
-                version = info.versions[-1]
-
             package_listing += '  {} ({})\n'.format(name, version)
 
         print('The following packages will be INSTALLED:')
         print(package_listing)
 
+        if new_pkgs:
+            dependency_listing = ''
+
+            for info, version in new_pkgs:
+                name = info.package.qualified_name()
+                dependency_listing += '  {} ({})\n'.format(name, version)
+
+            print('The following dependencies will be INSTALLED:')
+            print(dependency_listing)
+
         if not confirmation_prompt('Proceed?'):
             return
 
+    package_infos += new_pkgs
     join_timeout = 0.01
     tick_interval = 1
 
-    for info in package_infos:
+    for info, version in package_infos:
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
-        version = ''
-
-        if args.version:
-            version = args.version
-        elif info.versions:
-            version = info.versions[-1]
 
         is_overwriting = False
         ipkg = manager.find_installed_package(name)
@@ -355,8 +345,10 @@ def cmd_bundle(manager, args, config):
         if not manifest_is_file:
             packages = [(name, '') for name in args.manifest]
 
+        to_validate = []
+
         for name, version in packages:
-            info = manager.info(name)
+            info = manager.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
                 print_error(str.format('error: invalid package "{}": {}', name,
@@ -369,25 +361,43 @@ def cmd_bundle(manager, args, config):
                 if info.versions:
                     version = info.versions[-1]
 
+            to_validate.append((info.package.qualified_name(), version))
             packages_to_bundle.append((info.package.qualified_name(),
-                                       info.package.git_url, version))
+                                       info.package.git_url, version, False))
+
+        new_pkgs = []
+        invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
+
+        if invalid_reason:
+            print_error('error: failed to resolve dependencies:',
+                        invalid_reason)
+            sys.exit(1)
+
+        for info, version in new_pkgs:
+            packages_to_bundle.append((info.package.qualified_name(),
+                                       info.package.git_url, version, True))
     else:
         prefer_existing_clones = True
 
         for ipkg in manager.installed_packages():
             packages_to_bundle.append((ipkg.package.qualified_name(),
                                        ipkg.package.git_url,
-                                       ipkg.status.current_version))
+                                       ipkg.status.current_version, False))
 
     if not packages_to_bundle:
-        print_error('error: no packages to put bundle')
+        print_error('error: no packages to put in bundle')
         sys.exit(1)
 
     if not args.force:
         package_listing = ''
 
-        for name, _, version in packages_to_bundle:
-            package_listing += '  {} ({})\n'.format(name, version)
+        for name, _, version, is_dependency in packages_to_bundle:
+            package_listing += '  {} ({})'.format(name, version)
+
+            if is_dependency:
+                package_listing += ' (dependency)'
+
+            package_listing += '\n'
 
         print('The following packages will be BUNDLED into {}:'.format(
             args.bundle_filename))
@@ -397,7 +407,7 @@ def cmd_bundle(manager, args, config):
             return
 
     git_urls = [(git_url, version)
-                for _, git_url, version in packages_to_bundle]
+                for _, git_url, version, _ in packages_to_bundle]
     error = manager.bundle(args.bundle_filename, git_urls,
                            prefer_existing_clones=prefer_existing_clones)
 
@@ -685,22 +695,97 @@ def cmd_upgrade(manager, args, config):
         if not ipkg.status.is_outdated:
             continue
 
+        info = manager.info(name, version=ipkg.status.current_version,
+                            prefer_installed=False)
+
+        if info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   info.invalid_reason))
+            sys.exit(1)
+
+        next_version = ipkg.status.current_version
+
+        if ipkg.status.tracking_method == 'version' and info.versions:
+            next_version = info.versions[-1]
+
+        outdated_packages.append((info, next_version))
         version_change = version_change_string(manager, ipkg)
-        outdated_packages.append(name)
         package_listing += '  {} {}\n'.format(name, version_change)
 
     if not outdated_packages:
         print('All packages already up-to-date.')
         return
 
+    new_pkgs = []
+    to_validate = [(info.package.qualified_name(), next_version)
+                   for info, next_version in outdated_packages]
+    invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
+
+    if invalid_reason:
+        print_error('error: failed to resolve dependencies:', invalid_reason)
+        sys.exit(1)
+
     if not args.force:
         print('The following packages will be UPGRADED:')
         print(package_listing)
 
+        if new_pkgs:
+            dependency_listing = ''
+
+            for info, version in new_pkgs:
+                name = info.package.qualified_name()
+                dependency_listing += '  {} ({})\n'.format(name, version)
+
+            print('The following dependencies will be INSTALLED:')
+            print(dependency_listing)
+
         if not confirmation_prompt('Proceed?'):
             return
 
-    for name in outdated_packages:
+    join_timeout = 0.01
+    tick_interval = 1
+
+    for info, version in new_pkgs:
+        name = info.package.qualified_name()
+        time_accumulator = 0
+        tick_count = 0
+        worker = InstallWorker(manager, name, version)
+        worker.start()
+
+        while worker.isAlive():
+            worker.join(join_timeout)
+            time_accumulator += join_timeout
+
+            if time_accumulator >= tick_interval:
+                if tick_count == 0:
+                    print('Installing "{}"'.format(name), end='')
+                else:
+                    print('.', end='')
+
+                sys.stdout.flush()
+                tick_count += 1
+                time_accumulator -= tick_interval
+
+        if tick_count != 0:
+            print('')
+
+        if worker.error:
+            print('Failed installing "{}": {}'.format(name, worker.error))
+            continue
+
+        ipkg = manager.find_installed_package(name)
+        print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+
+        if manager.has_scripts(ipkg):
+            load_error = manager.load(name)
+
+            if load_error:
+                print('Failed loading "{}": {}'.format(name, load_error))
+            else:
+                print('Loaded "{}"'.format(name))
+
+    for info, next_version in outdated_packages:
+        name = info.package.name
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
@@ -919,7 +1004,7 @@ def cmd_info(manager, args, config):
         sys.exit(1)
 
     for name in args.package:
-        info = manager.info(name, args.version)
+        info = manager.info(name, version=args.version, prefer_installed=True)
 
         if info.package:
             name = info.package.qualified_name()

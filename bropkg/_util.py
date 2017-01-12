@@ -3,6 +3,7 @@ These are meant to be private utility methods for internal use.
 """
 
 import os
+import sys
 import errno
 import shutil
 import git
@@ -85,3 +86,46 @@ def git_clone_shallow(git_url, dst_path):
     rval = git.Repo(dst_path)
     rval.git.fetch(tags=True)
     return rval
+
+
+def is_exe(path):
+    return os.path.isfile(path) and os.access(path, os.X_OK)
+
+
+def find_program(prog_name):
+    path, _ = os.path.split(prog_name)
+
+    if path:
+        return prog_name if is_exe(prog_name) else ''
+
+    for path in os.environ["PATH"].split(os.pathsep):
+        path = os.path.join(path.strip('"'), prog_name)
+
+        if is_exe(path):
+            return path
+
+    return ''
+
+
+def read_bro_config_line(stdout):
+    rval = stdout.readline()
+
+    # Python 2 returned bytes, Python 3 returned unicode
+    if isinstance(rval, bytes):
+        rval = rval.decode(sys.stdout.encoding)
+
+    return rval.strip()
+
+
+def get_bro_version():
+    bro_config = find_program('bro-config')
+
+    if not bro_config:
+        return ''
+
+    import subprocess
+    cmd = subprocess.Popen([bro_config, '--version'],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           bufsize=1, universal_newlines=True)
+
+    return read_bro_config_line(cmd.stdout)

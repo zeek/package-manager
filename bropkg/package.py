@@ -61,6 +61,30 @@ def short_description(metadata_dict):
     return rval.lstrip()
 
 
+def dependencies(metadata_dict):
+    """Returns a dictionary of (str, str) based on metadata's 'depends' field.
+
+    The keys indicate the name of a package (shorthand name or full git URL)
+    or just 'bro' to indicate a dependency on a particular bro version.
+
+    The values indicate a semantic version requirement.
+    """
+    if 'depends' not in metadata_dict:
+        return dict()
+
+    rval = dict()
+    depends = metadata_dict['depends']
+    parts = depends.split()
+    keys = parts[::2]
+    values = parts[1::2]
+
+    for i, k in enumerate(keys):
+        if i < len(values):
+            rval[k] = values[i]
+
+    return rval
+
+
 class InstalledPackage(object):
     """An installed package and its current status.
 
@@ -156,6 +180,27 @@ class PackageInfo(object):
         This will be the first sentence of the package's 'description' field."""
         return short_description(self.metadata)
 
+    def dependencies(self):
+        """Returns a dictionary of dependency -> version strings.
+
+        The keys indicate the name of a package (shorthand name or full git URL)
+        or just 'bro' to indicate a dependency on a particular bro version.
+
+        The values indicate a semantic version requirement.
+        """
+        return dependencies(self.metadata)
+
+    def best_version(self):
+        """Returns the best/latest version of the package that is available.
+
+        If the package has any git release tags, this returns the highest one,
+        else it returns the 'master' branch.
+        """
+        if self.versions:
+            return self.versions[-1]
+
+        return 'master'
+
 
 class Package(object):
     """A Bro package.
@@ -219,6 +264,16 @@ class Package(object):
         and may return results from the source's aggregated metadata if the
         package has not been installed yet."""
         return short_description(self.metadata)
+
+    def dependencies(self):
+        """Returns a dictionary of dependency -> version strings.
+
+        The keys indicate the name of a package (shorthand name or full git URL)
+        or just 'bro' to indicate a dependency on a particular bro version.
+
+        The values indicate a semantic version requirement.
+        """
+        return dependencies(self.metadata)
 
     def name_with_source_directory(self):
         """Return the package's within its package source.
