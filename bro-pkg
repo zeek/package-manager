@@ -208,11 +208,18 @@ def cmd_install(manager, args, config):
                                    package_info.invalid_reason))
             sys.exit(1)
 
-        package_infos.append(package_info)
+        version = 'master'
+
+        if args.version:
+            version = args.version
+        elif package_info.versions:
+            version = package_info.versions[-1]
+
+        package_infos.append((package_info, version))
 
     new_pkgs = []
-    to_validate = [(info.package.qualified_name(), args.version)
-                   for info in package_infos]
+    to_validate = [(info.package.qualified_name(), version)
+                   for info, version in package_infos]
     invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
 
     if invalid_reason:
@@ -222,15 +229,8 @@ def cmd_install(manager, args, config):
     if not args.force:
         package_listing = ''
 
-        for info in package_infos:
+        for info, version in package_infos:
             name = info.package.qualified_name()
-            version = "master"
-
-            if args.version:
-                version = args.version
-            elif info.versions:
-                version = info.versions[-1]
-
             package_listing += '  {} ({})\n'.format(name, version)
 
         print('The following packages will be INSTALLED:')
@@ -241,7 +241,7 @@ def cmd_install(manager, args, config):
 
             for info, version in new_pkgs:
                 name = info.package.qualified_name()
-                dependency_listing += '  {} {}\n'.format(name, version)
+                dependency_listing += '  {} ({})\n'.format(name, version)
 
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
@@ -249,19 +249,14 @@ def cmd_install(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
+    package_infos += new_pkgs
     join_timeout = 0.01
     tick_interval = 1
 
-    for info in package_infos:
+    for info, version in package_infos:
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
-        version = ''
-
-        if args.version:
-            version = args.version
-        elif info.versions:
-            version = info.versions[-1]
 
         is_overwriting = False
         ipkg = manager.find_installed_package(name)
@@ -739,7 +734,7 @@ def cmd_upgrade(manager, args, config):
 
             for info, version in new_pkgs:
                 name = info.package.qualified_name()
-                dependency_listing += '  {} {}\n'.format(name, version)
+                dependency_listing += '  {} ({})\n'.format(name, version)
 
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
@@ -780,6 +775,14 @@ def cmd_upgrade(manager, args, config):
 
         ipkg = manager.find_installed_package(name)
         print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+
+        if manager.has_scripts(ipkg):
+            load_error = manager.load(name)
+
+            if load_error:
+                print('Failed loading "{}": {}'.format(name, load_error))
+            else:
+                print('Loaded "{}"'.format(name))
 
     for info, next_version in outdated_packages:
         name = info.package.name

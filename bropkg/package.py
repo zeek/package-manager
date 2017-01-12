@@ -190,6 +190,17 @@ class PackageInfo(object):
         """
         return dependencies(self.metadata)
 
+    def best_version(self):
+        """Returns the best/latest version of the package that is available.
+
+        If the package has any git release tags, this returns the highest one,
+        else it returns the 'master' branch.
+        """
+        if self.versions:
+            return self.versions[-1]
+
+        return 'master'
+
 
 class Package(object):
     """A Bro package.

@@ -5,6 +5,7 @@ to interact with and operate on Bro packages.
 
 import os
 import sys
+import copy
 import json
 import shutil
 import filecmp
@@ -1053,90 +1054,317 @@ class Manager(object):
         clone = git.Repo(clonepath)
         return _get_version_tags(clone)
 
-    def validate_dependencies(self, package_list, dependencies):
+    def validate_dependencies(self, requested_packages, new_dependencies):
         """Validates package dependencies.
 
-        package_list (list of (str, str)): a list of (package name or git URL,
-            version) string tuples validate.  If the version string is
+        requested_packages (list of (str, str)): a list of (package name or git
+            URL, version) string tuples validate.  If the version string is
             empty, the latest available version of the package is used.
 
-        dependencies (list of (:class:`.package.PackageInfo`, str)): a list that
-            will be populated by this method with the entire set of dependency
-            packages.  The second element of the tuple is the version string
-            of the associated package that satisfies dependency requirements.
+        new_dependencies (list of (:class:`.package.PackageInfo`, str)): a list
+            that will be populated by this method with the entire set of
+            dependency packages that would need to be installed in order to
+            satisfy the dependencies of the requested packages (the new
+            value will not include any packages that are already installed or
+            that are in the `requested_packages` argument).
+            The second element of the tuple is the version string of the
+            associated package that satisfies dependency requirements.
 
         Returns:
             str: empty string if the the bundle is successfully created,
             else an error string explaining what failed.
         """
-        return self._validate_dependencies(package_list, dependencies)
+        class Node(object):
 
-    def _validate_dependencies(self, package_list, dependencies,
-                               pkg_to_resolve=None, bro_version=None):
+            def __init__(self, name):
+                self.name = name
+                self.info = None
+                self.requested_version = None  # (tracking method, version)
+                self.installed_version = None  # (tracking method, version)
+                self.dependers = dict()  # name -> version
 
-        package_infos = []
+            def __str__(self):
+                return str.format(
+                    '{}\n\trequested: {}\n\tinstalled: {}\n\tdependers: {}',
+                    self.name, self.requested_version, self.installed_version,
+                    self.dependers)
 
-        for name, version in package_list:
+        graph = dict()
+
+        # 1. Try to make nodes for everything in the dependency graph...
+
+        # Add nodes for packages that are requested for installation
+        for name, version in requested_packages:
             info = self.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                rval = str.format('invalid package "{}": {}', name,
-                                  info.invalid_reason)
+                return 'invalid package "{}": {}'.format(name,
+                                                         info.invalid_reason)
 
-                if pkg_to_resolve:
-                    rval += ' (resolving dependencies of {})'.format(
-                        pkg_to_resolve)
+            node = Node(info.package.qualified_name())
+            node.info = info
+            method = 'version' if version in node.info.versions else 'branch'
+            node.requested_version = (method, version)
+            graph[node.name] = node
 
-                return rval
+        # Recursively add nodes for all dependencies of requested packages
+        to_process = copy.copy(graph)
 
-            package_infos.append(info)
+        while to_process:
+            (_, node) = to_process.popitem()
 
-        for info in package_infos:
-            name = info.package.qualified_name()
-            depends = info.dependencies()
-
-            if not depends:
-                continue
-
-            if 'bro' in depends:
-                if bro_version is None:
-                    bro_version = get_bro_version()
-
-                    if not bro_version:
-                        LOG.warning(
-                            'could not get bro version: no bro-config in PATH?')
-
-                if not bro_version:
+            for dep_name, _ in node.info.dependencies().items():
+                if dep_name == 'bro':
+                    # A bro node will get added later.
                     continue
 
-                bro_semver = semver.Version.coerce(bro_version)
-                bro_req_string = depends['bro']
+                info = self.info(dep_name, prefer_installed=False)
 
-                try:
-                    bro_semver_req = semver.Spec(bro_req_string)
-                except ValueError:
-                    rval = str.format('"{}" has invalid semver spec "{}"',
-                                      name, bro_req_string)
+                if info.invalid_reason:
+                    return str.format(
+                        'package "{}" has invalid dependency "{}": {}',
+                        node.name, dep_name, info.invalid_reason)
 
-                    if pkg_to_resolve:
-                        rval += ' (resolving dependencies of {})'.format(
-                            pkg_to_resolve)
+                dep_name = info.package.qualified_name()
 
-                    return rval
+                if dep_name in graph:
+                    continue
 
-                if bro_semver not in bro_semver_req:
-                    rval = str.format('"{}" needs bro {}, but {} is installed',
-                                      name, bro_req_string, bro_version)
+                if dep_name in to_process:
+                    continue
 
-                    if pkg_to_resolve:
-                        rval += ' (resolving dependencies of {})'.format(
-                            pkg_to_resolve)
+                node = Node(dep_name)
+                node.info = info
+                graph[node.name] = node
+                to_process[node.name] = node
 
-                    return rval
+        # Add nodes for things that are already installed (including bro)
+        bro_version = get_bro_version()
 
-            for dep_name, dep_version in depends.items():
-                # @todo: recursively check package dependencies
-                break
+        if bro_version:
+            node = Node('bro')
+            node.installed_version = ('version', bro_version)
+            graph['bro'] = node
+        else:
+            LOG.warning('could not get bro version: no bro_config in PATH?')
+
+        for ipkg in self.installed_packages():
+            name = ipkg.package.qualified_name()
+            status = ipkg.status
+
+            if name not in graph:
+                info = self.info(name, prefer_installed=True)
+                node = Node(name)
+                node.info = info
+                graph[node.name] = node
+
+            graph[name].installed_version = (
+                status.tracking_method, status.current_version)
+
+        # 2. Fill in the edges of the graph with dependency information.
+        for name, node in graph.items():
+            if name == 'bro':
+                continue
+
+            for dep_name, dep_version in node.info.dependencies().items():
+                if dep_name == 'bro':
+                    if 'bro' in graph:
+                        graph['bro'].dependers[name] = dep_version
+                else:
+                    for _, dependency_node in graph.items():
+                        if dependency_node.name == 'bro':
+                            continue
+
+                        if dependency_node.info.package.matches_path(dep_name):
+                            dependency_node.dependers[name] = dep_version
+                            break
+
+        # 3. Try to solve for a connected graph with no edge conflicts.
+        for name, node in graph.items():
+            if not node.dependers:
+                if node.installed_version:
+                    continue
+
+                if node.requested_version:
+                    continue
+
+                new_dependencies.append((node.info, node.info.best_version()))
+                continue
+
+            if node.requested_version:
+                # Check that requested version doesn't conflict with dependers.
+                track_method, required_version = node.requested_version
+
+                if track_method == 'branch':
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec == '*':
+                            continue
+
+                        if version_spec.startswith('branch='):
+                            version_spec = version_spec[len('branch='):]
+
+                        if version_spec == required_version:
+                            continue
+
+                        return str.format(
+                            'unsatisfiable dependency: requested "{}" ({}),'
+                            ' but "{}" requires {}', node.name,
+                            required_version, depender_name, version_spec)
+                else:
+                    req_semver = semver.Version.coerce(required_version)
+
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec.startswith('branch='):
+                            version_spec = version_spec[len('branch='):]
+                            return str.format(
+                                'unsatisfiable dependency: requested "{}" ({}),'
+                                ' but "{}" requires {}', node.name,
+                                required_version, depender_name, version_spec)
+                        else:
+                            try:
+                                semver_spec = semver.Spec(version_spec)
+                            except ValueError:
+                                return str.format(
+                                    'package "{}" has invalid semver spec: {}',
+                                    depender_name, version_spec)
+
+                            if req_semver not in semver_spec:
+                                return str.format(
+                                    'unsatisfiable dependency: requested "{}" ({}),'
+                                    ' but "{}" requires {}', node.name,
+                                    required_version, depender_name, version_spec)
+            elif node.installed_version:
+                # Check that installed version doesn't conflict with dependers.
+                track_method, required_version = node.installed_version
+
+                if track_method == 'branch':
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec == '*':
+                            continue
+
+                        if version_spec.startswith('branch='):
+                            version_spec = version_spec[len('branch='):]
+
+                        if version_spec == required_version:
+                            continue
+
+                        return str.format(
+                            'unsatisfiable dependency: "{}" ({}) is installed,'
+                            ' but "{}" requires {}', node.name,
+                            required_version, depender_name, version_spec)
+                else:
+                    req_semver = semver.Version.coerce(required_version)
+
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec.startswith('branch='):
+                            version_spec = version_spec[len('branch='):]
+                            return str.format(
+                                'unsatisfiable dependency: "{}" ({}) is installed,'
+                                ' but "{}" requires {}', node.name,
+                                required_version, depender_name, version_spec)
+                        else:
+                            try:
+                                semver_spec = semver.Spec(version_spec)
+                            except ValueError:
+                                return str.format(
+                                    'package "{}" has invalid semver spec: {}',
+                                    depender_name, version_spec)
+
+                            if req_semver not in semver_spec:
+                                return str.format(
+                                    'unsatisfiable dependency: "{}" ({}) is installed,'
+                                    ' but "{}" requires {}', node.name,
+                                    required_version, depender_name, version_spec)
+            else:
+                # Choose best version that satisfies constraints
+                if not node.info.versions:
+                    best_version = 'master'
+
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec == '*':
+                            continue
+
+                        if version_spec.startswith('branch='):
+                            version_spec = version_spec[len('branch='):]
+
+                        if version_spec == best_version:
+                            continue
+
+                        return str.format(
+                            'unsatisfiable dependency "{}": "{}" requires {}',
+                            node.name, depender_name, version_spec)
+                else:
+                    best_version = None
+                    need_branch = False
+                    need_version = False
+
+                    def no_best_version_string(node):
+                        rval = str.format(
+                            '"{}" has no version satisfying dependencies:\n',
+                            node.name)
+
+                        for depender_name, version_spec in node.dependers.items():
+                            rval += str.format('\t{} needs {}\n',
+                                               depender_name, version_spec)
+
+                        return rval
+
+                    for _, version_spec in node.dependers.items():
+                        if version_spec.startswith('branch='):
+                            need_branch = True
+                        elif version_spec != '*':
+                            need_version = True
+
+                    if need_branch and need_version:
+                        return no_best_version_string(node)
+
+                    if need_branch:
+                        branch_name = None
+
+                        for depender_name, version_spec in node.dependers.items():
+                            if version_spec == '*':
+                                continue
+
+                            if not branch_name:
+                                branch_name = version_spec[len('branch='):]
+                                continue
+
+                            if branch_name != version_spec[len('branch='):]:
+                                return no_best_version_string()
+
+                        if branch_name:
+                            best_version = branch_name
+                        else:
+                            best_version = 'master'
+                    elif need_version:
+                        for version in node.info.versions[::-1]:
+                            req_semver = semver.Version.coerce(version)
+
+                            satisfied = True
+
+                            for depender_name, version_spec in node.dependers.items():
+                                try:
+                                    semver_spec = semver.Spec(version_spec)
+                                except ValueError:
+                                    return str.format(
+                                        'package "{}" has invalid semver spec: {}',
+                                        depender_name, version_spec)
+
+                                if req_semver not in semver_spec:
+                                    satisfied = False
+                                    break
+
+                            if satisfied:
+                                best_version = version
+                                break
+
+                        if not best_version:
+                            return no_best_version_string(node)
+                    else:
+                        # Must have been all '*' wildcards
+                        best_version = node.info.best_version()
+
+                new_dependencies.append((node.info, best_version))
 
         return ''
 

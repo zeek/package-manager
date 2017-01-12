@@ -412,10 +412,11 @@ An example :file:`bro-pkg.meta`::
   [package]
   depends =
     bro >=2.5.0
-    https://github.com/bro/bar >=2.0.0
     foo *
+    https://github.com/bro/bar >=2.0.0
+    package_source/path/bar branch=name_of_git_branch
 
-The field is a list of dependency names and their semantic version requirement
+The field is a list of dependency names and their version requirement
 specifications.
 
 A dependency name may be either `bro`, a full git URL of the package, or a
@@ -437,11 +438,13 @@ A dependency name may be either `bro`, a full git URL of the package, or a
   they have configured.  Typically this approach may be most useful for internal
   or testing environments.
 
+A version requirement may be either a git branch name or a semantic version
+specification. When using a branch as a version requirement, prefix the
+branchname with ``branch=``, else see the `Semantic Version Specification`_
+documentation for the complete rule set of acceptable version requirement
+strings.  Here's a summary:
 
-See the full `Semantic Version Specification`_ documentation for the complete
-rule set for what version requirement string are acceptable.  Here's a summary:
-
-  - ``*``: any version
+  - ``*``: any version (this will also satisfy/match on git branches)
   - ``<1.0.0``: versions less than 1.0.0
   - ``<=1.0.0``: versions less than or equal to 1.0.0
   - ``>1.0.0``: versions greater than 1.0.0
