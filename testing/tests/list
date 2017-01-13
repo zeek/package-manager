@@ -1,0 +1,2 @@
+# @TEST-EXEC: bro-pkg list all > all.out
+# @TEST-EXEC: btest-diff all.out

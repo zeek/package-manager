@@ -1,0 +1,4 @@
+#! /usr/bin/env bash
+
+thisdir="$( cd "$( dirname "$0" )" && pwd )"
+$thisdir/../../bro-pkg --configfile=config "$@"
