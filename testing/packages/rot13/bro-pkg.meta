@@ -1,0 +1,3 @@
+[package]
+script_dir = scripts/Demo/Rot13
+build_command = ./configure --bro-dist=%(bro_dist)s && make

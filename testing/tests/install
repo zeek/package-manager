@@ -17,7 +17,7 @@
 
 # @TEST-EXEC: bro-pkg remove corge
 # @TEST-EXEC: bro-pkg install corge --version=master
-# @TEST-EXEC: cat scripts/packages/corge/__load__.bro > corge.master
+# @TEST-EXEC: cp scripts/packages/corge/__load__.bro corge.master
 # @TEST-EXEC: btest-diff corge.master
 
 cd packages/corge
@@ -41,5 +41,5 @@ git tag -a 1.0.2 -m 1.0.2
 
 # @TEST-EXEC: bro-pkg remove grault
 # @TEST-EXEC: bro-pkg install grault --version=1.0.1
-# @TEST-EXEC: cat scripts/packages/grault/__load__.bro > grault.1.0.1
+# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.1.0.1
 # @TEST-EXEC: btest-diff grault.1.0.1

@@ -1,0 +1,16 @@
+module Demo;
+
+function rot13%(s: string%) : string
+    %{
+    char* rot13 = copy_string(s->CheckString());
+
+    for ( char* p = rot13; *p; p++ )
+        {
+        char b = islower(*p) ? 'a' : 'A';
+        *p  = (*p - b + 13) % 26 + b;
+        }
+
+    BroString* bs = new BroString(1, reinterpret_cast<byte_vec>(rot13),
+                                  strlen(rot13));
+    return new StringVal(bs);
+    %}

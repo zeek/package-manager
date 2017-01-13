@@ -22,6 +22,7 @@ from ._util import (
     copy_over_path,
     git_clone_shallow,
     get_bro_version,
+    stdout_encoding,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -1650,7 +1651,7 @@ class Manager(object):
                     LOG.warning('installing "%s": writing build log: %s',
                                 package, buildlog)
 
-                    f.write(u'=== STDERR ===\n'.encode(sys.stdout.encoding))
+                    f.write(u'=== STDERR ===\n'.encode(stdout_encoding()))
 
                     while True:
                         data = build.stderr.read(bufsize)
@@ -1660,7 +1661,7 @@ class Manager(object):
                         else:
                             break
 
-                    f.write(u'=== STDOUT ===\n'.encode(sys.stdout.encoding))
+                    f.write(u'=== STDOUT ===\n'.encode(stdout_encoding()))
 
                     while True:
                         data = build.stdout.read(bufsize)

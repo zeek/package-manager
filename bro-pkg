@@ -785,7 +785,7 @@ def cmd_upgrade(manager, args, config):
                 print('Loaded "{}"'.format(name))
 
     for info, next_version in outdated_packages:
-        name = info.package.name
+        name = info.package.qualified_name()
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
