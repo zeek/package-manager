@@ -1,0 +1,5 @@
+one/alice/bar (installed: 1.0.0)
+one/alice/baz (installed: 2.0.0)
+one/alice/foo (installed: master)
+one/bob/corge (installed: 1.0.1)
+one/bob/grault (installed: master)
