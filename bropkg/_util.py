@@ -45,9 +45,9 @@ def delete_path(path):
         os.remove(path)
 
 
-def copy_over_path(src, dst):
+def copy_over_path(src, dst, ignore=None):
     delete_path(dst)
-    shutil.copytree(src, dst, symlinks=True)
+    shutil.copytree(src, dst, symlinks=True, ignore=ignore)
 
 
 def make_symlink(target_path, link_path, force=True):

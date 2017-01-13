@@ -1821,7 +1821,16 @@ def _copy_package_dir(package, dirname, src, dst):
     """
     try:
         if os.path.exists(src):
-            copy_over_path(src, dst)
+            def ignore(_, files):
+                rval = []
+
+                for f in files:
+                    if f in {'.git', 'bro-pkg.meta'}:
+                        rval.append(f)
+
+                return rval
+
+            copy_over_path(src, dst, ignore=ignore)
     except shutil.Error as error:
         errors = error.args[0]
         reasons = ""
