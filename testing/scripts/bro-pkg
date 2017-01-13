@@ -1,4 +1,26 @@
 #! /usr/bin/env bash
 
-thisdir="$( cd "$( dirname "$0" )" && pwd )"
-$thisdir/../../bro-pkg --configfile=config "$@"
+force=""
+
+case "$1" in
+    install)
+        force="--force"
+    ;;
+    upgrade)
+        force="--force"
+    ;;
+    bundle)
+        force="--force"
+    ;;
+    unbundle)
+        force="--force"
+    ;;
+    remove)
+        force="--force"
+    ;;
+    purge)
+        force="--force"
+    ;;
+esac
+
+$TEST_BASE/../bro-pkg --configfile=config "$@" $force

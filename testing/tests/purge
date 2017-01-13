@@ -1,0 +1,10 @@
+# @TEST-EXEC: bro-pkg install foo bar baz
+# @TEST-EXEC: test -f scripts/packages/foo/__load__.bro
+# @TEST-EXEC: test -f scripts/packages/bar/__load__.bro
+# @TEST-EXEC: test -f scripts/packages/baz/__load__.bro
+
+# @TEST-EXEC: bro-pkg purge
+# @TEST-EXEC: test ! -d scripts/packages/foo
+# @TEST-EXEC: test ! -d scripts/packages/bar
+# @TEST-EXEC: test ! -d scripts/packages/baz
+# @TEST-EXEC: btest-diff scripts/packages/packages.bro

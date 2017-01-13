@@ -1,2 +1,32 @@
 # @TEST-EXEC: bro-pkg list all > all.out
 # @TEST-EXEC: btest-diff all.out
+
+# @TEST-EXEC: bro-pkg install foo bar
+# @TEST-EXEC: bro-pkg unload bar
+# @TEST-EXEC: bro-pkg list installed > installed.out
+# @TEST-EXEC: btest-diff installed.out
+
+# @TEST-EXEC: bro-pkg list > list.out
+# @TEST-EXEC: cmp list.out installed.out
+
+# @TEST-EXEC: bro-pkg list loaded > loaded.out
+# @TEST-EXEC: btest-diff loaded.out
+
+# @TEST-EXEC: bro-pkg list unloaded > unloaded.out
+# @TEST-EXEC: btest-diff unloaded.out
+
+# @TEST-EXEC: bro-pkg list not_installed > not_installed.out
+# @TEST-EXEC: btest-diff not_installed.out
+
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: bro-pkg refresh
+# @TEST-EXEC: bro-pkg list outdated > outdated.out
+# @TEST-EXEC: btest-diff outdated.out
+
+# @TEST-EXEC: bro-pkg upgrade
+# @TEST-EXEC: bro-pkg list outdated > after_upgrade.out
+# @TEST-EXEC: btest-diff after_upgrade.out
+
+cd packages/foo
+echo 'print "hello";' >> __load__.bro
+git commit -am 'new stuff'
