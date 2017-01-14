@@ -1,0 +1,26 @@
+#! /usr/bin/env bash
+
+cp -R $PACKAGES .
+
+for p in packages/*; do
+    ( cd $p && git init && git add * && git commit -m 'init' )
+done
+
+cp -R $SOURCES .
+
+find sources -name 'bro-pkg.index' -exec sed -i -e "s#^#$(pwd)/packages/#" {} \;
+
+for s in sources/*; do
+    ( cd $s && git init && git add * && git commit -m 'init' )
+done
+
+echo "\
+[sources]
+one = $(pwd)/sources/one
+[paths]
+state_dir = $(pwd)/state
+script_dir = $(pwd)/scripts
+plugin_dir = $(pwd)/plugins
+" >> config
+
+type bro-config > /dev/null 2>&1 && echo "bro_dist = $(bro-config --bro_dist)" >> config || true

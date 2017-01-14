@@ -1,4 +1,15 @@
 
+0.9-16 | 2017-01-13 18:50:52 -0600
+
+  * Fix non-deterministic order of {installed,loaded}_packages() (Jon Siwek)
+
+  * Add unit tests. (Jon Siwek)
+
+  * Fix bundle/unbundle --help output. (Jon Siwek)
+
+  * Don't copy a package's .git or bro-pkg.meta when installing them.
+    (Jon Siwek)
+
 0.9-8 | 2017-01-12 10:23:26 -0600
 
   * Add 'depends' bro-pkg.meta field. (Jon Siwek)

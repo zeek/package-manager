@@ -1,0 +1,45 @@
+# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: btest-diff scripts/packages/foo/__load__.bro
+
+# @TEST-EXEC: bro-pkg install alice/bar
+# @TEST-EXEC: btest-diff scripts/packages/bar/__load__.bro
+
+# @TEST-EXEC: bro-pkg install one/alice/baz
+# @TEST-EXEC: btest-diff scripts/packages/baz/__load__.bro
+
+# @TEST-EXEC: bro-pkg install $(pwd)/packages/qux
+# @TEST-EXEC: btest-diff scripts/packages/qux/__load__.bro
+
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: bro-pkg install corge
+# @TEST-EXEC: btest-diff scripts/packages/corge/__load__.bro
+
+# @TEST-EXEC: bro-pkg remove corge
+# @TEST-EXEC: bro-pkg install corge --version=master
+# @TEST-EXEC: cp scripts/packages/corge/__load__.bro corge.master
+# @TEST-EXEC: btest-diff corge.master
+
+cd packages/corge
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "hello";' >> __load__.bro
+git commit -am 'new stuff'
+
+cd ../grault
+echo 'print "grault 1.0.0";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "grault 1.0.1";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.1 -m 1.0.1
+echo 'print "grault 1.0.2";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.2 -m 1.0.2
+
+# @TEST-EXEC: bro-pkg install grault
+# @TEST-EXEC: btest-diff scripts/packages/grault/__load__.bro
+
+# @TEST-EXEC: bro-pkg remove grault
+# @TEST-EXEC: bro-pkg install grault --version=1.0.1
+# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.1.0.1
+# @TEST-EXEC: btest-diff grault.1.0.1

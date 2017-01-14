@@ -1,3 +1,6 @@
+.PHONY: all
+all:
+
 .PHONY: doc
 doc: man html
 
@@ -23,3 +26,7 @@ gh-pages:
 	git add .
 	@echo "You are now in the 'gh-pages' branch."
 	@echo "Make sure 'git status' looks ok, push, then switch back to 'master'"
+
+.PHONY: test
+test:
+	@( cd testing && make )

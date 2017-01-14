@@ -1,0 +1,49 @@
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: bro-pkg install foo baz
+# @TEST-EXEC: bro-pkg install bar --version 1.0.0
+# @TEST-EXEC: bro-pkg bundle test.bundle
+# @TEST-EXEC: bro-pkg purge
+# @TEST-EXEC: bro-pkg unbundle test.bundle
+# @TEST-EXEC: bro-pkg list installed > snapshot.out
+# @TEST-EXEC: btest-diff snapshot.out
+
+# @TEST-EXEC: bro-pkg purge
+# @TEST-EXEC: bro-pkg bundle test.bundle --manifest foo bar baz
+# @TEST-EXEC: bro-pkg unbundle test.bundle
+# @TEST-EXEC: bro-pkg list installed > args.out
+# @TEST-EXEC: btest-diff args.out
+
+# @TEST-EXEC: bro-pkg purge
+# @TEST-EXEC: bro-pkg bundle test.bundle --manifest manifest.txt
+# @TEST-EXEC: bro-pkg unbundle test.bundle
+# @TEST-EXEC: bro-pkg list installed > manifest.out
+# @TEST-EXEC: btest-diff manifest.out
+
+cd packages/foo
+echo 'print "foo 1.0.0";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "foo 1.0.1";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.1 -m 1.0.1
+echo 'print "foo 1.0.2";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.2 -m 1.0.2
+
+cd ../bar
+echo 'print "bar 1.0.0";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "bar 1.0.1";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.1 -m 1.0.1
+echo 'print "bar 1.0.2";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 1.0.2 -m 1.0.2
+
+@TEST-START-FILE manifest.txt
+[bundle]
+foo = 1.0.0
+bar = 1.0.1
+baz = master
+@TEST-END-FILE

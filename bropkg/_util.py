@@ -45,9 +45,9 @@ def delete_path(path):
         os.remove(path)
 
 
-def copy_over_path(src, dst):
+def copy_over_path(src, dst, ignore=None):
     delete_path(dst)
-    shutil.copytree(src, dst, symlinks=True)
+    shutil.copytree(src, dst, symlinks=True, ignore=ignore)
 
 
 def make_symlink(target_path, link_path, force=True):
@@ -107,12 +107,20 @@ def find_program(prog_name):
     return ''
 
 
+def stdout_encoding():
+    if sys.stdout.encoding:
+        return sys.stdout.encoding
+
+    import locale
+    return locale.getpreferredencoding()
+
+
 def read_bro_config_line(stdout):
     rval = stdout.readline()
 
     # Python 2 returned bytes, Python 3 returned unicode
     if isinstance(rval, bytes):
-        rval = rval.decode(sys.stdout.encoding)
+        rval = rval.decode(stdout_encoding())
 
     return rval.strip()
 

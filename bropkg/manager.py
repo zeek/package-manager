@@ -22,6 +22,7 @@ from ._util import (
     copy_over_path,
     git_clone_shallow,
     get_bro_version,
+    stdout_encoding,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -311,13 +312,13 @@ class Manager(object):
 
     def installed_packages(self):
         """Return list of :class:`.package.InstalledPackage`."""
-        return [ipkg for _, ipkg in self.installed_pkgs.items()]
+        return [ipkg for _, ipkg in sorted(self.installed_pkgs.items())]
 
     def loaded_packages(self):
         """Return list of loaded :class:`.package.InstalledPackage`."""
         rval = []
 
-        for _, ipkg in self.installed_pkgs.items():
+        for _, ipkg in sorted(self.installed_pkgs.items()):
             if ipkg.status.is_loaded:
                 rval.append(ipkg)
 
@@ -1650,7 +1651,7 @@ class Manager(object):
                     LOG.warning('installing "%s": writing build log: %s',
                                 package, buildlog)
 
-                    f.write(u'=== STDERR ===\n'.encode(sys.stdout.encoding))
+                    f.write(u'=== STDERR ===\n'.encode(stdout_encoding()))
 
                     while True:
                         data = build.stderr.read(bufsize)
@@ -1660,7 +1661,7 @@ class Manager(object):
                         else:
                             break
 
-                    f.write(u'=== STDOUT ===\n'.encode(sys.stdout.encoding))
+                    f.write(u'=== STDOUT ===\n'.encode(stdout_encoding()))
 
                     while True:
                         data = build.stdout.read(bufsize)
@@ -1821,7 +1822,16 @@ def _copy_package_dir(package, dirname, src, dst):
     """
     try:
         if os.path.exists(src):
-            copy_over_path(src, dst)
+            def ignore(_, files):
+                rval = []
+
+                for f in files:
+                    if f in {'.git', 'bro-pkg.meta'}:
+                        rval.append(f)
+
+                return rval
+
+            copy_over_path(src, dst, ignore=ignore)
     except shutil.Error as error:
         errors = error.args[0]
         reasons = ""

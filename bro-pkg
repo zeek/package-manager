@@ -785,7 +785,7 @@ def cmd_upgrade(manager, args, config):
                 print('Loaded "{}"'.format(name))
 
     for info, next_version in outdated_packages:
-        name = info.package.name
+        name = info.package.qualified_name()
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
@@ -1223,7 +1223,8 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_bundle)
     sub_parser.add_argument(
-        'bundle_filename', help=pkg_name_help)
+        'bundle_filename', help='The path of the bundle file to create.'
+                                ' It will be overwritten if it already exists.')
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
@@ -1246,7 +1247,7 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_unbundle)
     sub_parser.add_argument(
-        'bundle_filename', help=pkg_name_help)
+        'bundle_filename', help='The path of the bundle file to install.')
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
