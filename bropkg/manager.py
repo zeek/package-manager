@@ -312,13 +312,13 @@ class Manager(object):
 
     def installed_packages(self):
         """Return list of :class:`.package.InstalledPackage`."""
-        return [ipkg for _, ipkg in self.installed_pkgs.items()]
+        return [ipkg for _, ipkg in sorted(self.installed_pkgs.items())]
 
     def loaded_packages(self):
         """Return list of loaded :class:`.package.InstalledPackage`."""
         rval = []
 
-        for _, ipkg in self.installed_pkgs.items():
+        for _, ipkg in sorted(self.installed_pkgs.items()):
             if ipkg.status.is_loaded:
                 rval.append(ipkg)
 
