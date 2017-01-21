@@ -1551,7 +1551,7 @@ class Manager(object):
         pkgs.append((pkg_info, version))
 
         for info, version in new_pkgs:
-            pkgs.append(info, version)
+            pkgs.append((info, version))
 
         # Clone all packages, checkout right version, and build/install to
         # staging area.
