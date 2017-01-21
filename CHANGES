@@ -1,4 +1,8 @@
 
+0.9-21 | 2017-01-21 12:40:09 -0600
+
+  * Doc fixes. (Jon Siwek)
+
 0.9-20 | 2017-01-21 12:29:48 -0600
 
   * Run package tests before install/upgrade. (Jon Siwek)

@@ -1071,18 +1071,20 @@ class Manager(object):
                               ignore_installed_packages=False):
         """Validates package dependencies.
 
-        requested_packages (list of (str, str)): a list of (package name or git
-            URL, version) string tuples validate.  If the version string is
-            empty, the latest available version of the package is used.
+        Args:
 
-        new_dependencies (list of (:class:`.package.PackageInfo`, str)): a list
-            that will be populated by this method with the entire set of
-            dependency packages that would need to be installed in order to
-            satisfy the dependencies of the requested packages (the new
-            value will not include any packages that are already installed or
-            that are in the `requested_packages` argument).
-            The second element of the tuple is the version string of the
-            associated package that satisfies dependency requirements.
+            requested_packages (list of (str, str)): a list of (package name or
+                git URL, version) string tuples validate.  If the version string
+                is empty, the latest available version of the package is used.
+
+            new_dependencies (list of (:class:`.package.PackageInfo`, str)): a
+                list that will be populated by this method with the entire set
+                of dependency packages that would need to be installed in order
+                to satisfy the dependencies of the requested packages (the new
+                value will not include any packages that are already installed
+                or that are in the `requested_packages` argument).
+                The second element of the tuple is the version string of the
+                associated package that satisfies dependency requirements.
 
         Returns:
             str: empty string if dependency graph was successfully validated,
@@ -1496,6 +1498,7 @@ class Manager(object):
 
     def test(self, pkg_path, version=''):
         """Test a package.
+
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
