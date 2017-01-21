@@ -17,6 +17,7 @@ import threading
 import tarfile
 import filecmp
 import shutil
+import subprocess
 
 from backports import configparser
 
@@ -191,6 +192,62 @@ class InstallWorker(threading.Thread):
             self.package_name, self.package_version)
 
 
+def cmd_test(manager, args, config):
+    if args.version and len(args.package) > 1:
+        print_error(
+            'error: "install --version" may only be used for a single package')
+        sys.exit(1)
+
+    package_infos = []
+
+    for name in args.package:
+        package_info = manager.info(name, version=args.version,
+                                    prefer_installed=False)
+
+        if package_info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   package_info.invalid_reason))
+            sys.exit(1)
+
+        version = 'master'
+
+        if args.version:
+            version = args.version
+        elif package_info.versions:
+            version = package_info.versions[-1]
+
+        package_infos.append((package_info, version))
+
+    all_passed = True
+
+    for info, version in package_infos:
+        name = info.package.qualified_name()
+
+        if 'test_command' not in info.metadata:
+            print(str.format('{}: no test_command found in metadata, skipping',
+                             name))
+            continue
+
+        error_msg, passed, test_dir = manager.test(name, version)
+
+        if error_msg:
+            all_passed = False
+            print_error(str.format('error: package "{}" tests could be run: {}',
+                                   name, error_msg))
+            continue
+
+        if passed:
+            print(str.format('{}: all tests passed', name))
+        else:
+            all_passed = False
+            print_error(str.format('error: package "{}" tests failed, inspect'
+                                   ' contents of {} for details.',
+                                   name, test_dir))
+
+    if not all_passed:
+        sys.exit(1)
+
+
 def cmd_install(manager, args, config):
     if args.version and len(args.package) > 1:
         print_error(
@@ -250,6 +307,31 @@ def cmd_install(manager, args, config):
             return
 
     package_infos += new_pkgs
+
+    if not args.skiptests:
+        for info, version in package_infos:
+            name = info.package.qualified_name()
+            print('Running unit tests for "{}"'.format(name))
+            error, passed, test_dir = manager.test(name, version)
+            error_msg = ''
+
+            if error:
+                error_msg = str.format(
+                    'failed to run tests for {}: {}', name, error)
+            elif not passed:
+                error_msg = str.format(
+                    '{} tests failed, inspect contents of {} for details',
+                    name, test_dir)
+
+            if error_msg:
+                print_error('error: {}'.format(error_msg))
+
+                if args.force:
+                    continue
+
+                if not confirmation_prompt('Proceed to install anyway?'):
+                    return
+
     join_timeout = 0.01
     tick_interval = 1
 
@@ -366,7 +448,8 @@ def cmd_bundle(manager, args, config):
                                        info.package.git_url, version, False))
 
         new_pkgs = []
-        invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
+        invalid_reason = manager.validate_dependencies(to_validate, new_pkgs,
+                                                       True)
 
         if invalid_reason:
             print_error('error: failed to resolve dependencies:',
@@ -742,6 +825,36 @@ def cmd_upgrade(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
+    if not args.skiptests:
+        to_test = [(info, next_version)
+                   for info, next_version in outdated_packages]
+
+        for info, version in new_pkgs:
+            to_test.append((info, version))
+
+        for info, version in to_test:
+            name = info.package.qualified_name()
+            print('Running unit tests for "{}"'.format(name))
+            error, passed, test_dir = manager.test(name, version)
+            error_msg = ''
+
+            if error:
+                error_msg = str.format(
+                    'failed to run tests for {}: {}', name, error)
+            elif not passed:
+                error_msg = str.format(
+                    '{} tests failed, inspect contents of {} for details',
+                    name, test_dir)
+
+            if error_msg:
+                print_error('error: {}'.format(error_msg))
+
+                if args.force:
+                    continue
+
+                if not confirmation_prompt('Proceed to install anyway?'):
+                    return
+
     join_timeout = 0.01
     tick_interval = 1
 
@@ -1062,7 +1175,6 @@ def cmd_autoconfig(manager, args, config):
         print_error('error: "bro-config" not found in PATH')
         sys.exit(1)
 
-    import subprocess
     cmd = subprocess.Popen([bro_config,
                             '--site_dir', '--plugin_dir', '--bro_dist'],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -1108,7 +1220,6 @@ def cmd_autoconfig(manager, args, config):
 
 
 def cmd_env(manager, args, config):
-    import subprocess
 
     bro_config = find_program('bro-config')
     bropath = os.environ.get('BROPATH')
@@ -1180,6 +1291,25 @@ def argparser():
         help='See `%(prog)s <command> -h` for per-command usage info.')
     command_parser.required = True
 
+    # test
+    sub_parser = command_parser.add_parser(
+        'test',
+        help='Runs unit tests for Bro packages.',
+        description='Runs the unit tests for the specified Bro packages.'
+                    ' In most cases, the "bro" and "bro-config" programs will'
+                    ' need to be in PATH before running this command.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_test)
+    sub_parser.add_argument(
+        'package', nargs='+', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--version', default=None,
+        help='The version of the package to test.  Only one package may be'
+        ' specified at a time when using this flag.  A version tag or branch'
+        ' name may be specified here.  By default, the latest version tag is'
+        ' installed, or if a package has no version tags, the "master"'
+        ' branch is installed.')
+
     # install
     sub_parser = command_parser.add_parser(
         'install',
@@ -1194,6 +1324,9 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--skiptests', action='store_true',
+        help='Skip running unit tests for packages before installation.')
     sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
@@ -1324,6 +1457,9 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--skiptests', action='store_true',
+        help='Skip running unit tests for packages before installation.')
 
     # load
     sub_parser = command_parser.add_parser(

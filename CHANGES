@@ -1,4 +1,10 @@
 
+0.9-20 | 2017-01-21 12:29:48 -0600
+
+  * Run package tests before install/upgrade. (Jon Siwek)
+
+  * Add 'test' command and 'test_command' metadata field. (Jon Siwek)
+
 0.9-16 | 2017-01-13 18:50:52 -0600
 
   * Fix non-deterministic order of {installed,loaded}_packages() (Jon Siwek)

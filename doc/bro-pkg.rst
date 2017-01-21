@@ -15,6 +15,16 @@ bro-pkg Command-Line Tool
 Commands
 --------
 
+.. _test-command:
+
+test
+~~~~
+.. argparse::
+    :module: bro-pkg
+    :func: argparser
+    :prog: bro-pkg
+    :path: test
+
 .. _install-command:
 
 install

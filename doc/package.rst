@@ -2,6 +2,7 @@
 .. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
 .. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
 .. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
+.. _btest: https://github.com/bro/btest
 
 How-To: Create a Package
 ========================
@@ -379,6 +380,21 @@ custom scripts for their plugin.  When a package has both a Bro plugin and Bro
 script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
+
+test_command
+~~~~~~~~~~~~
+
+The `test_command` field is an arbitrary shell command that the package manager
+will run when a user either manually runs the :ref:`test command <test-command>`
+or before the package is installed or upgraded.
+
+An example :file:`bro-pkg.meta`::
+
+  [package]
+  test_command = cd testing && btest -d tests
+
+The recommended test framework for writing package unit tests is `btest`_.
+See its documentation for further explanation and examples.
 
 config_files
 ~~~~~~~~~~~~
