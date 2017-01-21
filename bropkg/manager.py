@@ -4,12 +4,12 @@ to interact with and operate on Bro packages.
 """
 
 import os
-import sys
 import copy
 import json
 import shutil
 import filecmp
 import tarfile
+import subprocess
 
 from backports import configparser
 import git
@@ -23,6 +23,8 @@ from ._util import (
     git_clone_shallow,
     get_bro_version,
     stdout_encoding,
+    find_program,
+    read_bro_config_line,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -68,6 +70,9 @@ class Manager(object):
         backup_dir (str): a directory where the package manager will
             store backup files (e.g. locally modified package config files)
 
+        log_dir (str): a directory where the package manager will
+            store misc. logs files (e.g. package build logs)
+
         scratch_dir (str): a directory where the package manager performs
             miscellaneous/temporary file operations
 
@@ -81,12 +86,16 @@ class Manager(object):
             :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
             `plugin_dir` associated with its name.
 
-        source_clone_dir (str): the directory where the package manager
+        source_clonedir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
             associated with its name.
 
-        package_clone_dir (str): the directory where the package manager
+        package_clonedir (str): the directory where the package manager
             will clone installed packages.  Each package gets a subdirectory
+            associated with its name.
+
+        package_testdir (str): the directory where the package manager
+            will run tests.  Each package gets a subdirectory
             associated with its name.
 
         manifest (str): the path to the package manager's manifest file.
@@ -126,16 +135,19 @@ class Manager(object):
         self.bro_dist = bro_dist
         self.state_dir = state_dir
         self.backup_dir = os.path.join(self.state_dir, 'backups')
+        self.log_dir = os.path.join(self.state_dir, 'logs')
         self.scratch_dir = os.path.join(self.state_dir, 'scratch')
         self.script_dir = os.path.join(script_dir, 'packages')
         self.plugin_dir = os.path.join(plugin_dir, 'packages')
         self.source_clonedir = os.path.join(self.state_dir, 'clones', 'source')
         self.package_clonedir = os.path.join(
             self.state_dir, 'clones', 'package')
+        self.package_testdir = os.path.join(self.state_dir, 'testing')
         self.manifest = os.path.join(self.state_dir, 'manifest.json')
         self.autoload_script = os.path.join(self.script_dir, 'packages.bro')
         self.autoload_package = os.path.join(self.script_dir, '__load__.bro')
         make_dir(self.state_dir)
+        make_dir(self.log_dir)
         make_dir(self.scratch_dir)
         make_dir(self.source_clonedir)
         make_dir(self.package_clonedir)
@@ -335,7 +347,7 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
         name = name_from_path(pkg_path)
-        return os.path.join(self.package_clonedir, '.build-{}.log'.format(name))
+        return os.path.join(self.log_dir, '{}-build.log'.format(name))
 
     def match_source_packages(self, pkg_path):
         """Return a list of :class:`.package.Package` that match a given path.
@@ -1055,7 +1067,8 @@ class Manager(object):
         clone = git.Repo(clonepath)
         return _get_version_tags(clone)
 
-    def validate_dependencies(self, requested_packages, new_dependencies):
+    def validate_dependencies(self, requested_packages, new_dependencies,
+                              ignore_installed_packages=False):
         """Validates package dependencies.
 
         requested_packages (list of (str, str)): a list of (package name or git
@@ -1072,8 +1085,8 @@ class Manager(object):
             associated package that satisfies dependency requirements.
 
         Returns:
-            str: empty string if the the bundle is successfully created,
-            else an error string explaining what failed.
+            str: empty string if dependency graph was successfully validated,
+            else an error string explaining what is invalid.
         """
         class Node(object):
 
@@ -1140,27 +1153,29 @@ class Manager(object):
                 to_process[node.name] = node
 
         # Add nodes for things that are already installed (including bro)
-        bro_version = get_bro_version()
+        if not ignore_installed_packages:
+            bro_version = get_bro_version()
 
-        if bro_version:
-            node = Node('bro')
-            node.installed_version = ('version', bro_version)
-            graph['bro'] = node
-        else:
-            LOG.warning('could not get bro version: no bro_config in PATH?')
+            if bro_version:
+                node = Node('bro')
+                node.installed_version = ('version', bro_version)
+                graph['bro'] = node
+            else:
+                LOG.warning(
+                    'could not get bro version: no bro_config in PATH?')
 
-        for ipkg in self.installed_packages():
-            name = ipkg.package.qualified_name()
-            status = ipkg.status
+            for ipkg in self.installed_packages():
+                name = ipkg.package.qualified_name()
+                status = ipkg.status
 
-            if name not in graph:
-                info = self.info(name, prefer_installed=True)
-                node = Node(name)
-                node.info = info
-                graph[node.name] = node
+                if name not in graph:
+                    info = self.info(name, prefer_installed=True)
+                    node = Node(name)
+                    node.info = info
+                    graph[node.name] = node
 
-            graph[name].installed_version = (
-                status.tracking_method, status.current_version)
+                graph[name].installed_version = (
+                    status.tracking_method, status.current_version)
 
         # 2. Fill in the edges of the graph with dependency information.
         for name, node in graph.items():
@@ -1385,7 +1400,7 @@ class Manager(object):
                 instead of cloning from the remote repository.
 
         Returns:
-            str: empty string if the the bundle is successfully created,
+            str: empty string if the bundle is successfully created,
             else an error string explaining what failed.
         """
         bundle_dir = os.path.join(self.scratch_dir, 'bundle')
@@ -1478,6 +1493,247 @@ class Manager(object):
                 return error
 
         return ''
+
+    def test(self, pkg_path, version=''):
+        """Test a package.
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "bro" with package named "foo" in
+                :file:`alice/bro-pkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "bro/alice/foo".
+
+            version (str): if not given, then the latest git version tag is
+                used (or if no version tags exist, the "master" branch is
+                used).  If given, it may be either a git version tag or a
+                git branch name.
+
+        Returns:
+            (str, bool, str): a tuple containing an error message string,
+            a boolean indicating whether the tests passed, as well as a path
+            to the directory in which the tests were run.  In the case
+            where tests failed, the directory can be inspected to figure out
+            what went wrong.  In the case where the error message string is
+            not empty, the error message indicates the reason why tests could
+            not be run.
+        """
+        pkg_path = canonical_url(pkg_path)
+        LOG.debug('testing "%s"', pkg_path)
+        pkg_info = self.info(pkg_path, version=version, prefer_installed=False)
+
+        if pkg_info.invalid_reason:
+            return (pkg_info.invalid_reason, 'False', '')
+
+        if 'test_command' not in pkg_info.metadata:
+            return ('Package does not specify a test_command', False, '')
+
+        if not version:
+            version = pkg_info.metadata_version
+
+        package = pkg_info.package
+        test_dir = os.path.join(self.package_testdir, package.name)
+        clone_dir = os.path.join(test_dir, 'clones')
+        stage_script_dir = os.path.join(test_dir, 'scripts', 'packages')
+        stage_plugin_dir = os.path.join(test_dir, 'plugins', 'packages')
+        delete_path(test_dir)
+        make_dir(clone_dir)
+        make_dir(stage_script_dir)
+        make_dir(stage_plugin_dir)
+
+        new_pkgs = []
+        request = [(package.qualified_name(), version)]
+        invalid_deps = self.validate_dependencies(request, new_pkgs, True)
+
+        if invalid_deps:
+            return (invalid_deps, False, test_dir)
+
+        pkgs = []
+        pkgs.append((pkg_info, version))
+
+        for info, version in new_pkgs:
+            pkgs.append(info, version)
+
+        # Clone all packages, checkout right version, and build/install to
+        # staging area.
+        for info, version in pkgs:
+            clonepath = os.path.join(clone_dir, info.package.name)
+
+            try:
+                clone = _clone_package(info.package, clonepath)
+            except git.exc.GitCommandError as error:
+                LOG.warning('failed to clone git repo: %s', error)
+                return ('failed to clone {}'.format(info.package.git_url),
+                        False, test_dir)
+
+            try:
+                clone.git.checkout(version)
+            except git.exc.GitCommandError as error:
+                LOG.warning('failed to checkout git repo version: %s', error)
+                return (str.format('failed to checkout {} of {}',
+                                   version, info.package.git_url),
+                        False, test_dir)
+
+            fail_msg = self._stage(info.package, version,
+                                   clone, stage_script_dir, stage_plugin_dir)
+
+            if fail_msg:
+                return (fail_msg, False, test_dir)
+
+        # Finally, run tests (with correct environment set)
+        test_command = pkg_info.metadata['test_command']
+        LOG.debug('running test_command for %s: %s',
+                  package.name, test_command)
+
+        bro_config = find_program('bro-config')
+        bropath = os.environ.get('BROPATH')
+        pluginpath = os.environ.get('BRO_PLUGIN_PATH')
+
+        if bro_config:
+            cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT,
+                                   bufsize=1, universal_newlines=True)
+            line1 = read_bro_config_line(cmd.stdout)
+            line2 = read_bro_config_line(cmd.stdout)
+
+            if not bropath:
+                bropath = line1
+
+            if not pluginpath:
+                pluginpath = line2
+        else:
+            LOG.warning('bro-config not found when running tests for %s',
+                        package.name)
+
+        bropath = os.path.dirname(stage_script_dir) + ':' + bropath
+        pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath
+
+        env = os.environ.copy()
+        env['BROPATH'] = bropath
+        env['BRO_PLUGIN_PATH'] = pluginpath
+        cwd = os.path.join(clone_dir, package.name)
+        cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env)
+        return ('', cmd.wait() == 0, test_dir)
+
+    def _stage(self, package, version, clone,
+               stage_script_dir, stage_plugin_dir):
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
+        default_metadata = {
+            'bro_dist': self.bro_dist,
+        }
+        metadata_parser = configparser.SafeConfigParser(
+            defaults=default_metadata)
+        invalid_reason = _parse_package_metadata(
+            metadata_parser, metadata_file)
+
+        if invalid_reason:
+            return invalid_reason
+
+        metadata = _get_package_metadata(metadata_parser)
+        LOG.debug('building "%s": version %s', package, version)
+        build_command = metadata.get('build_command', '')
+
+        if build_command:
+            LOG.debug('building "%s": running build_command: %s',
+                      package, build_command)
+            bufsize = 4096
+            build = subprocess.Popen(build_command,
+                                     shell=True, cwd=clone.working_dir,
+                                     bufsize=bufsize,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+
+            try:
+                buildlog = self.package_build_log(clone.working_dir)
+
+                with open(buildlog, 'wb') as f:
+                    LOG.warning('installing "%s": writing build log: %s',
+                                package, buildlog)
+
+                    f.write(u'=== STDERR ===\n'.encode(stdout_encoding()))
+
+                    while True:
+                        data = build.stderr.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
+
+                    f.write(u'=== STDOUT ===\n'.encode(stdout_encoding()))
+
+                    while True:
+                        data = build.stdout.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
+
+            except EnvironmentError as error:
+                LOG.warning(
+                    'installing "%s": failed to write build log %s %s: %s',
+                    package, buildlog, error.errno, error.strerror)
+
+            returncode = build.wait()
+
+            if returncode != 0:
+                return 'package build_command failed, see log in {}'.format(
+                    buildlog)
+
+        pkg_script_dir = metadata.get('script_dir', '')
+        script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
+        script_dir_dst = os.path.join(stage_script_dir, package.name)
+
+        if not os.path.exists(script_dir_src):
+            return str.format("package's 'script_dir' does not exist: {}",
+                              pkg_script_dir)
+
+        if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
+            symlink_path = os.path.join(os.path.dirname(stage_script_dir),
+                                        package.name)
+
+            try:
+                make_symlink(os.path.join(
+                    'packages', package.name), symlink_path)
+            except OSError as exception:
+                error = 'could not create symlink at {}'.format(symlink_path)
+                error += ': {}: {}'.format(type(exception).__name__, exception)
+                return error
+
+            error = _copy_package_dir(package, 'script_dir',
+                                      script_dir_src, script_dir_dst)
+
+            if error:
+                return error
+        else:
+            if 'script_dir' in metadata:
+                return str.format("no __load__.bro file found"
+                                  " in package's 'script_dir' : {}",
+                                  pkg_script_dir)
+            else:
+                LOG.info('installing "%s": no __load__.bro in implicit'
+                         ' script_dir, skipped installing scripts', package)
+
+        pkg_plugin_dir = metadata.get('plugin_dir', 'build')
+        plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
+        plugin_dir_dst = os.path.join(stage_plugin_dir, package.name)
+
+        if not os.path.exists(plugin_dir_src):
+            LOG.info('installing "%s": package "plugin_dir" does not exist: %s',
+                     package, pkg_plugin_dir)
+
+            if pkg_plugin_dir != 'build':
+                # It's common for a package to not have build directory for
+                # for plugins, so don't error out in that case, just log it.
+                return str.format("package's 'plugin_dir' does not exist: {}",
+                                  pkg_plugin_dir)
+
+        error = _copy_package_dir(package, 'plugin_dir',
+                                  plugin_dir_src, plugin_dir_dst)
+
+        if error:
+            return error
 
     def install(self, pkg_path, version=''):
         """Install a package.
@@ -1607,19 +1863,6 @@ class Manager(object):
             clone, version, status.tracking_method)
 
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
-        default_metadata = {
-            'bro_dist': self.bro_dist,
-        }
-        metadata_parser = configparser.SafeConfigParser(
-            defaults=default_metadata)
-        invalid_reason = _parse_package_metadata(
-            metadata_parser, metadata_file)
-
-        if invalid_reason:
-            return invalid_reason
-
-        metadata = _get_package_metadata(metadata_parser)
-
         # Use raw parser so no value interpolation takes place.
         raw_metadata_parser = configparser.RawConfigParser()
         invalid_reason = _parse_package_metadata(
@@ -1630,110 +1873,11 @@ class Manager(object):
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
 
-        LOG.debug('installing "%s": version %s', package, version)
+        fail_msg = self._stage(package, version, clone, self.script_dir,
+                               self.plugin_dir)
 
-        build_command = metadata.get('build_command', '')
-
-        if build_command:
-            import subprocess
-            LOG.debug('installing "%s": running build_command: %s',
-                      package, build_command)
-            bufsize = 4096
-            build = subprocess.Popen(build_command,
-                                     shell=True, cwd=clonepath, bufsize=bufsize,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-
-            try:
-                buildlog = self.package_build_log(clonepath)
-
-                with open(buildlog, 'wb') as f:
-                    LOG.warning('installing "%s": writing build log: %s',
-                                package, buildlog)
-
-                    f.write(u'=== STDERR ===\n'.encode(stdout_encoding()))
-
-                    while True:
-                        data = build.stderr.read(bufsize)
-
-                        if data:
-                            f.write(data)
-                        else:
-                            break
-
-                    f.write(u'=== STDOUT ===\n'.encode(stdout_encoding()))
-
-                    while True:
-                        data = build.stdout.read(bufsize)
-
-                        if data:
-                            f.write(data)
-                        else:
-                            break
-
-            except EnvironmentError as error:
-                LOG.warning(
-                    'installing "%s": failed to write build log %s %s: %s',
-                    package, buildlog, error.errno, error.strerror)
-
-            returncode = build.wait()
-
-            if returncode != 0:
-                return 'package build_command failed, see log in {}'.format(
-                    buildlog)
-
-        pkg_script_dir = metadata.get('script_dir', '')
-        script_dir_src = os.path.join(clonepath, pkg_script_dir)
-        script_dir_dst = os.path.join(self.script_dir, package.name)
-
-        if not os.path.exists(script_dir_src):
-            return str.format("package's 'script_dir' does not exist: {}",
-                              pkg_script_dir)
-
-        if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
-            symlink_path = os.path.join(self.bropath(), package.name)
-
-            try:
-                make_symlink(os.path.join(
-                    'packages', package.name), symlink_path)
-            except OSError as exception:
-                error = 'could not create symlink at {}'.format(symlink_path)
-                error += ': {}: {}'.format(type(exception).__name__, exception)
-                return error
-
-            error = _copy_package_dir(package, 'script_dir',
-                                      script_dir_src, script_dir_dst)
-
-            if error:
-                return error
-        else:
-            if 'script_dir' in metadata:
-                return str.format("no __load__.bro file found"
-                                  " in package's 'script_dir' : {}",
-                                  pkg_script_dir)
-            else:
-                LOG.info('installing "%s": no __load__.bro in implicit'
-                         ' script_dir, skipped installing scripts', package)
-
-        pkg_plugin_dir = metadata.get('plugin_dir', 'build')
-        plugin_dir_src = os.path.join(clonepath, pkg_plugin_dir)
-        plugin_dir_dst = os.path.join(self.plugin_dir, package.name)
-
-        if not os.path.exists(plugin_dir_src):
-            LOG.info('installing "%s": package "plugin_dir" does not exist: %s',
-                     package, pkg_plugin_dir)
-
-            if pkg_plugin_dir != 'build':
-                # It's common for a package to not have build directory for
-                # for plugins, so don't error out in that case, just log it.
-                return str.format("package's 'plugin_dir' does not exist: {}",
-                                  pkg_plugin_dir)
-
-        error = _copy_package_dir(package, 'plugin_dir',
-                                  plugin_dir_src, plugin_dir_dst)
-
-        if error:
-            return error
+        if fail_msg:
+            return fail_msg
 
         if not package.source:
             # If installing directly from git URL, see if it actually is found

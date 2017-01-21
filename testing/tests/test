@@ -1,0 +1,15 @@
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: bro-pkg test rot13
+
+# @TEST-EXEC: bash we_need_to_go_deeper
+# @TEST-EXEC-FAIL: bro-pkg test rot13
+
+echo "$(pwd)/packages/rot13" >> sources/one/bob/bro-pkg.index
+cd sources/one
+git commit -am 'add rot13 package'
+
+@TEST-START-FILE we_need_to_go_deeper
+cd packages/rot13
+echo 'hello' > testing/Baseline/tests.rot13/output
+git commit -am 'new stuff'
+@TEST-END-FILE 

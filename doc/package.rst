@@ -380,6 +380,19 @@ script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
+test_command
+~~~~~~~~~~~~
+
+The `test_command` field is an arbitrary shell command that the package manager
+will run when a user either manually runs the :ref:`test command <test-command>`
+or before the package is installed or upgraded.
+
+@todo: give an example
+
+@todo: reference relevant config file options
+
+@todo: reference btest documentation
+
 config_files
 ~~~~~~~~~~~~
 
