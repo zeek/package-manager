@@ -307,6 +307,31 @@ def cmd_install(manager, args, config):
             return
 
     package_infos += new_pkgs
+
+    if not args.skiptests:
+        for info, version in package_infos:
+            name = info.package.qualified_name()
+            print('Running unit tests for "{}"'.format(name))
+            error, passed, test_dir = manager.test(name, version)
+            error_msg = ''
+
+            if error:
+                error_msg = str.format(
+                    'failed to run tests for {}: {}', name, error)
+            elif not passed:
+                error_msg = str.format(
+                    '{} tests failed, inspect contents of {} for details',
+                    name, test_dir)
+
+            if error_msg:
+                print_error('error: {}'.format(error_msg))
+
+                if args.force:
+                    continue
+
+                if not confirmation_prompt('Proceed to install anyway?'):
+                    return
+
     join_timeout = 0.01
     tick_interval = 1
 
@@ -800,6 +825,36 @@ def cmd_upgrade(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
+    if not args.skiptests:
+        to_test = [(info, next_version)
+                   for info, next_version in outdated_packages]
+
+        for info, version in new_pkgs:
+            to_test.append((info, version))
+
+        for info, version in to_test:
+            name = info.package.qualified_name()
+            print('Running unit tests for "{}"'.format(name))
+            error, passed, test_dir = manager.test(name, version)
+            error_msg = ''
+
+            if error:
+                error_msg = str.format(
+                    'failed to run tests for {}: {}', name, error)
+            elif not passed:
+                error_msg = str.format(
+                    '{} tests failed, inspect contents of {} for details',
+                    name, test_dir)
+
+            if error_msg:
+                print_error('error: {}'.format(error_msg))
+
+                if args.force:
+                    continue
+
+                if not confirmation_prompt('Proceed to install anyway?'):
+                    return
+
     join_timeout = 0.01
     tick_interval = 1
 
@@ -1270,6 +1325,9 @@ def argparser():
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
     sub_parser.add_argument(
+        '--skiptests', action='store_true',
+        help='Skip running unit tests for packages before installation.')
+    sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
         ' specified at a time when using this flag.  A version tag or branch'
@@ -1399,6 +1457,9 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--skiptests', action='store_true',
+        help='Skip running unit tests for packages before installation.')
 
     # load
     sub_parser = command_parser.add_parser(
