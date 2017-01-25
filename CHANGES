@@ -1,4 +1,8 @@
 
+0.9-24 | 2017-01-24 19:53:27 -0600
+
+  * Simply directions for uploading to PyPi. (Jon Siwek)
+
 0.9-23 | 2017-01-24 19:41:22 -0600
 
   * Add dependency on btest. (Jon Siwek)

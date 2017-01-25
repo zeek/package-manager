@@ -23,32 +23,12 @@ Releases are hosted at PyPi_.  To build and upload a release:
 #. Finalize the git repo tag and version with  ``update-changes -R <version>``
    if not done already.
 
-#. Get an account at PyPi_ if you don't have one already.
-
-#. Download :program:`twine`, which is used for uploading the release
-   distribution:
+#. Upload the distribution (you will need the credentials for the 'bro'
+   account on PyPi):
 
    .. code-block:: console
 
-      $ pip install twine
-
-#. Build the :program:`bro-pkg` distribution:
-
-   .. code-block:: console
-
-      $ python setup.py bdist_wheel
-
-#. If :program:`bro-pkg` metadata in :file:`setup.py` has changed, register it:
-
-   .. code-block:: console
-
-      $ twine register -u <username> dist/<package_file>
-
-#. Upload the distribution:
-
-   .. code-block:: console
-
-      $ twine upload -u <username> dist/<package_file>
+      $ make upload
 
 Documentation
 -------------
