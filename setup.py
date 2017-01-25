@@ -12,9 +12,9 @@ setup(
     url='https://github.com/bro/package-manager',
     scripts=['bro-pkg'],
     packages=['bropkg'],
-    install_requires=['gitpython', 'semantic_version', 'configparser'],
+    install_requires=['gitpython', 'semantic_version', 'configparser', 'btest'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'License :: OSI Approved :: University of Illinois/NCSA Open Source License',
         'Operating System :: POSIX :: Linux',

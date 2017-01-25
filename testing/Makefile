@@ -9,7 +9,7 @@ btest-installation-check:
 		echo "btest was not located in PATH."; \
 		echo "Install it and/or make sure it is in PATH."; \
 		echo "E.g. you could use the following command to install it:"; \
-		echo "\tpip install git+git://github.com/bro/btest@master"; \
+		echo "\tpip install btest"; \
 		echo ; \
 		exit 1; \
 		}

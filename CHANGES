@@ -1,4 +1,8 @@
 
+0.9-23 | 2017-01-24 19:41:22 -0600
+
+  * Add dependency on btest. (Jon Siwek)
+
 0.9-22 | 2017-01-24 18:09:28 -0600
 
   * Change manager.validate_dependencies API (Jon Siwek)
