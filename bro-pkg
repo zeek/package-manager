@@ -274,10 +274,9 @@ def cmd_install(manager, args, config):
 
         package_infos.append((package_info, version))
 
-    new_pkgs = []
     to_validate = [(info.package.qualified_name(), version)
                    for info, version in package_infos]
-    invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
+    invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
 
     if invalid_reason:
         print_error('error: failed to resolve dependencies:', invalid_reason)
@@ -447,9 +446,8 @@ def cmd_bundle(manager, args, config):
             packages_to_bundle.append((info.package.qualified_name(),
                                        info.package.git_url, version, False))
 
-        new_pkgs = []
-        invalid_reason = manager.validate_dependencies(to_validate, new_pkgs,
-                                                       True)
+        invalid_reason, new_pkgs = manager.validate_dependencies(to_validate,
+                                                                 True)
 
         if invalid_reason:
             print_error('error: failed to resolve dependencies:',
@@ -799,10 +797,9 @@ def cmd_upgrade(manager, args, config):
         print('All packages already up-to-date.')
         return
 
-    new_pkgs = []
     to_validate = [(info.package.qualified_name(), next_version)
                    for info, next_version in outdated_packages]
-    invalid_reason = manager.validate_dependencies(to_validate, new_pkgs)
+    invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
 
     if invalid_reason:
         print_error('error: failed to resolve dependencies:', invalid_reason)

@@ -1067,28 +1067,32 @@ class Manager(object):
         clone = git.Repo(clonepath)
         return _get_version_tags(clone)
 
-    def validate_dependencies(self, requested_packages, new_dependencies,
+    def validate_dependencies(self, requested_packages,
                               ignore_installed_packages=False):
         """Validates package dependencies.
 
         Args:
-
             requested_packages (list of (str, str)): a list of (package name or
                 git URL, version) string tuples validate.  If the version string
                 is empty, the latest available version of the package is used.
 
-            new_dependencies (list of (:class:`.package.PackageInfo`, str)): a
-                list that will be populated by this method with the entire set
-                of dependency packages that would need to be installed in order
-                to satisfy the dependencies of the requested packages (the new
-                value will not include any packages that are already installed
-                or that are in the `requested_packages` argument).
-                The second element of the tuple is the version string of the
-                associated package that satisfies dependency requirements.
+
+            ignore_installed_packages (bool): whether the dependency analysis
+                should consider installed packages as satisfying dependency
+                requirements.
 
         Returns:
-            str: empty string if dependency graph was successfully validated,
-            else an error string explaining what is invalid.
+            (str, list of (:class:`.package.PackageInfo`, str)):
+            the first element of the tuple is an empty string if dependency
+            graph was successfully validated, else an error string explaining
+            what is invalid.  In the case it was validated, the second element
+            is a list of tuples where the first elements are dependency packages
+            that would need to be installed in order to satisfy the
+            dependencies of the requested packages (it will not include any
+            packages that are already installed or that are in the
+            `requested_packages` argument).
+            The second element of tuples in the list is a version string of
+            the associated package that satisfies dependency requirements.
         """
         class Node(object):
 
@@ -1105,6 +1109,7 @@ class Manager(object):
                     self.name, self.requested_version, self.installed_version,
                     self.dependers)
 
+        new_pkgs = []
         graph = dict()
 
         # 1. Try to make nodes for everything in the dependency graph...
@@ -1114,8 +1119,9 @@ class Manager(object):
             info = self.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                return 'invalid package "{}": {}'.format(name,
-                                                         info.invalid_reason)
+                return ('invalid package "{}": {}'.format(name,
+                                                          info.invalid_reason),
+                        new_pkgs)
 
             node = Node(info.package.qualified_name())
             node.info = info
@@ -1137,9 +1143,9 @@ class Manager(object):
                 info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
-                    return str.format(
+                    return (str.format(
                         'package "{}" has invalid dependency "{}": {}',
-                        node.name, dep_name, info.invalid_reason)
+                        node.name, dep_name, info.invalid_reason), new_pkgs)
 
                 dep_name = info.package.qualified_name()
 
@@ -1206,7 +1212,7 @@ class Manager(object):
                 if node.requested_version:
                     continue
 
-                new_dependencies.append((node.info, node.info.best_version()))
+                new_pkgs.append((node.info, node.info.best_version()))
                 continue
 
             if node.requested_version:
@@ -1224,33 +1230,36 @@ class Manager(object):
                         if version_spec == required_version:
                             continue
 
-                        return str.format(
+                        return (str.format(
                             'unsatisfiable dependency: requested "{}" ({}),'
                             ' but "{}" requires {}', node.name,
-                            required_version, depender_name, version_spec)
+                            required_version, depender_name, version_spec),
+                            new_pkgs)
                 else:
                     req_semver = semver.Version.coerce(required_version)
 
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec.startswith('branch='):
                             version_spec = version_spec[len('branch='):]
-                            return str.format(
+                            return (str.format(
                                 'unsatisfiable dependency: requested "{}" ({}),'
                                 ' but "{}" requires {}', node.name,
-                                required_version, depender_name, version_spec)
+                                required_version, depender_name, version_spec),
+                                new_pkgs)
                         else:
                             try:
                                 semver_spec = semver.Spec(version_spec)
                             except ValueError:
-                                return str.format(
+                                return (str.format(
                                     'package "{}" has invalid semver spec: {}',
-                                    depender_name, version_spec)
+                                    depender_name, version_spec), new_pkgs)
 
                             if req_semver not in semver_spec:
-                                return str.format(
+                                return (str.format(
                                     'unsatisfiable dependency: requested "{}" ({}),'
                                     ' but "{}" requires {}', node.name,
-                                    required_version, depender_name, version_spec)
+                                    required_version, depender_name, version_spec),
+                                    new_pkgs)
             elif node.installed_version:
                 # Check that installed version doesn't conflict with dependers.
                 track_method, required_version = node.installed_version
@@ -1266,33 +1275,36 @@ class Manager(object):
                         if version_spec == required_version:
                             continue
 
-                        return str.format(
+                        return (str.format(
                             'unsatisfiable dependency: "{}" ({}) is installed,'
                             ' but "{}" requires {}', node.name,
-                            required_version, depender_name, version_spec)
+                            required_version, depender_name, version_spec),
+                            new_pkgs)
                 else:
                     req_semver = semver.Version.coerce(required_version)
 
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec.startswith('branch='):
                             version_spec = version_spec[len('branch='):]
-                            return str.format(
+                            return (str.format(
                                 'unsatisfiable dependency: "{}" ({}) is installed,'
                                 ' but "{}" requires {}', node.name,
-                                required_version, depender_name, version_spec)
+                                required_version, depender_name, version_spec),
+                                new_pkgs)
                         else:
                             try:
                                 semver_spec = semver.Spec(version_spec)
                             except ValueError:
-                                return str.format(
+                                return (str.format(
                                     'package "{}" has invalid semver spec: {}',
-                                    depender_name, version_spec)
+                                    depender_name, version_spec), new_pkgs)
 
                             if req_semver not in semver_spec:
-                                return str.format(
+                                return (str.format(
                                     'unsatisfiable dependency: "{}" ({}) is installed,'
                                     ' but "{}" requires {}', node.name,
-                                    required_version, depender_name, version_spec)
+                                    required_version, depender_name, version_spec),
+                                    new_pkgs)
             else:
                 # Choose best version that satisfies constraints
                 if not node.info.versions:
@@ -1308,9 +1320,9 @@ class Manager(object):
                         if version_spec == best_version:
                             continue
 
-                        return str.format(
+                        return (str.format(
                             'unsatisfiable dependency "{}": "{}" requires {}',
-                            node.name, depender_name, version_spec)
+                            node.name, depender_name, version_spec), new_pkgs)
                 else:
                     best_version = None
                     need_branch = False
@@ -1325,7 +1337,7 @@ class Manager(object):
                             rval += str.format('\t{} needs {}\n',
                                                depender_name, version_spec)
 
-                        return rval
+                        return (rval, new_pkgs)
 
                     for _, version_spec in node.dependers.items():
                         if version_spec.startswith('branch='):
@@ -1334,7 +1346,7 @@ class Manager(object):
                             need_version = True
 
                     if need_branch and need_version:
-                        return no_best_version_string(node)
+                        return (no_best_version_string(node), new_pkgs)
 
                     if need_branch:
                         branch_name = None
@@ -1348,7 +1360,7 @@ class Manager(object):
                                 continue
 
                             if branch_name != version_spec[len('branch='):]:
-                                return no_best_version_string()
+                                return (no_best_version_string(), new_pkgs)
 
                         if branch_name:
                             best_version = branch_name
@@ -1364,9 +1376,9 @@ class Manager(object):
                                 try:
                                     semver_spec = semver.Spec(version_spec)
                                 except ValueError:
-                                    return str.format(
+                                    return (str.format(
                                         'package "{}" has invalid semver spec: {}',
-                                        depender_name, version_spec)
+                                        depender_name, version_spec), new_pkgs)
 
                                 if req_semver not in semver_spec:
                                     satisfied = False
@@ -1377,14 +1389,14 @@ class Manager(object):
                                 break
 
                         if not best_version:
-                            return no_best_version_string(node)
+                            return (no_best_version_string(node), new_pkgs)
                     else:
                         # Must have been all '*' wildcards
                         best_version = node.info.best_version()
 
-                new_dependencies.append((node.info, best_version))
+                new_pkgs.append((node.info, best_version))
 
-        return ''
+        return ('', new_pkgs)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
@@ -1543,9 +1555,8 @@ class Manager(object):
         make_dir(stage_script_dir)
         make_dir(stage_plugin_dir)
 
-        new_pkgs = []
         request = [(package.qualified_name(), version)]
-        invalid_deps = self.validate_dependencies(request, new_pkgs, True)
+        invalid_deps, new_pkgs = self.validate_dependencies(request, True)
 
         if invalid_deps:
             return (invalid_deps, False, test_dir)

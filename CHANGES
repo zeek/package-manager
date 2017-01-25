@@ -1,4 +1,8 @@
 
+0.9-22 | 2017-01-24 18:09:28 -0600
+
+  * Change manager.validate_dependencies API (Jon Siwek)
+
 0.9-21 | 2017-01-21 12:40:09 -0600
 
   * Doc fixes. (Jon Siwek)
