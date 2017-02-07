@@ -1618,6 +1618,7 @@ class Manager(object):
         else:
             LOG.warning('bro-config not found when running tests for %s',
                         package.name)
+            return ('bro-config not found in PATH', False, test_dir)
 
         bropath = os.path.dirname(stage_script_dir) + ':' + bropath
         pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath
