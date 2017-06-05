@@ -1,4 +1,11 @@
 
+1.0-3 | 2017-06-05 09:54:31 -0500
+
+  * Improved handling of packages without scripts.
+
+    The 'load' and 'unload' commands now return more precise messages if
+    used for packages without scripts. (Jan Grashoefer)
+
 1.0-1 | 2017-02-06 21:02:31 -0600
 
   * Return a proper "bro-config not found" message when running tests.

@@ -941,6 +941,10 @@ def cmd_load(manager, args, config):
             print('Failed to load "{}": no such package installed'.format(name))
             continue
 
+        if not manager.has_scripts(ipkg):
+            print('The package "{}" does not contain scripts to load.'.format(name))
+            continue
+
         name = ipkg.package.qualified_name()
         load_error = manager.load(name)
 
@@ -956,6 +960,10 @@ def cmd_unload(manager, args, config):
 
         if not ipkg:
             print('Failed to unload "{}": no such package installed'.format(name))
+            continue
+
+        if not manager.has_scripts(ipkg):
+            print('The package "{}" does not contain scripts to unload.'.format(name))
             continue
 
         name = ipkg.package.qualified_name()
