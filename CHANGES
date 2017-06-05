@@ -1,4 +1,8 @@
 
+1.0.1 | 2017-06-05 09:54:59 -0500
+
+  * Release 1.0.1.
+
 1.0-3 | 2017-06-05 09:54:31 -0500
 
   * Improved handling of packages without scripts.
