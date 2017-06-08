@@ -33,18 +33,15 @@ def get_input(prompt):
 
 
 def confirmation_prompt(prompt):
-    no = {'n', 'no'}
     yes = {'y', 'ye', 'yes'}
     prompt += ' [Y/n] '
     choice = get_input(prompt).lower()
 
-    while choice not in no and choice not in yes:
-        choice = get_input('Please enter "yes" or "no" [Y/n] ').lower()
+    if not choice or choice in yes:
+        return True
 
-    if choice in no:
-        return False
-
-    return True
+    print('Abort.')
+    return False
 
 
 def print_error(*args, **kwargs):

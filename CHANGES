@@ -1,4 +1,17 @@
 
+1.0.2 | 2017-06-07 22:11:20 -0500
+
+  * Release 1.0.2.
+
+1.0.1-1 | 2017-06-07 22:04:55 -0500
+
+  * Improve confirmation prompt behavior.
+
+    Just pressing enter defaults to "yes" and anything besides y/ye/yes
+    (case insensitive) is treated as "no" and aborts.
+
+    Addresses https://github.com/bro/package-manager/issues/5 (Jon Siwek)
+
 1.0.1 | 2017-06-05 09:54:59 -0500
 
   * Release 1.0.1.
