@@ -1,4 +1,5 @@
 .. _PyPI: https://pypi.python.org/pypi
+.. _BroControl: https://www.bro.org/sphinx/components/broctl/README.html
 
 Quickstart Guide
 ================
@@ -137,6 +138,9 @@ Usage
 Check the output of :ref:`bro-pkg --help <bro-pkg>` for an explanation of all
 available functionality of the command-line tool.
 
+Package Upgrades/Versioning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 When installing packages, note that the :ref:`install command
 <install-command>`, has a ``--version`` flag that may be used to install
 specific package versions which may either be git release tags or branch
@@ -146,8 +150,43 @@ releases or a specific git branch.  See the :ref:`package upgrade
 process <package-upgrade-process>` documentation to learn how
 :program:`bro-pkg` treats each situation.
 
-.. note::
-  The package manager currently lacks automatic dependency/version analysis,
-  but in those cases the package author will likely document dependencies
-  in their package's :file:`README` so that users can always install them
-  manually.
+Offline Usage
+~~~~~~~~~~~~~
+
+It's common to have limited network/internet access on the systems where
+Bro is deployed.  To accomodate those scenarios, :program:`bro-pkg` can
+be used as normally on a system that does have network access and create
+bundles of its package installation environment using the :ref:`bundle
+command <bundle-command>`.  Those bundles can then be transferred to the
+deployment systems via whatever means are appropriate (SSH, USB flash
+drive, etc).
+
+For example, on the package management system you can do typical package
+management tasks, like install and update packages:
+
+.. code-block:: console
+
+    $ bro-pkg install <package name>
+
+Then create a bundle file, which is a snapshot of all currently installed
+packages compressed into a single file:
+
+.. code-block:: console
+
+    $ bro-pkg bundle bro-packages.bundle
+
+Then transfer :file:`bro-packages.bundle` to the Bro deployment
+management host.  For Bro clusters using BroControl_, this will
+be the system acting as the "manager" node.  Then on that system
+(assuming it already as :program:`bro-pkg` installed and configured):
+
+.. code-block:: console
+
+    $ bro-pkg unbundle bro-packages.bundle
+
+Finally, if you're using BroControl_, and the unbundling process
+was successful, you need to deploy the changes to worker nodes:
+
+.. code-block:: console
+
+    $ broctl deploy
