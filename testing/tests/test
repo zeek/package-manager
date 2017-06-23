@@ -13,9 +13,9 @@ echo 'depends = bar *' >> bro-pkg.meta
 echo -e "@load bar\n$(cat scripts/Demo/Rot13/__load__.bro)" > scripts/Demo/Rot13/__load__.bro
 
 cd testing/Baseline/tests.main
-echo "rot13 script is loaded" > output
+echo "rot13 plugin is loaded" > output
 echo "bar loaded" >> output
-echo "rot13 plugin is loaded" >> output
+echo "rot13 script is loaded" >> output
 
 git commit -am 'new stuff'
 
