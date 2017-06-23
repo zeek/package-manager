@@ -307,6 +307,12 @@ def cmd_install(manager, args, config):
     if not args.skiptests:
         for info, version in package_infos:
             name = info.package.qualified_name()
+
+            if 'test_command' not in info.metadata:
+                print(str.format('Skipping unit tests for "{}":'
+                      ' no test_command in metadata', name))
+                continue
+
             print('Running unit tests for "{}"'.format(name))
             error, passed, test_dir = manager.test(name, version)
             error_msg = ''

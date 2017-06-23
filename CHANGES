@@ -1,4 +1,13 @@
 
+1.0.2-3 | 2017-06-23 10:15:41 -0500
+
+  * Install command now doesn't warn/prompt when package has no test_command.
+    (Jon Siwek)
+
+  * Fix a unit test. (Jon Siwek)
+
+  * Improve usage documentation: add offline usage example. (Jon Siwek)
+
 1.0.2 | 2017-06-07 22:11:20 -0500
 
   * Release 1.0.2.
