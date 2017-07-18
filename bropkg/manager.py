@@ -658,7 +658,7 @@ class Manager(object):
 
                     parser.add_section(qualified_name)
 
-                    for key, value in metadata.items():
+                    for key, value in sorted(metadata.items()):
                         parser.set(qualified_name, key, value)
 
                     parser.set(qualified_name, 'url', url)
