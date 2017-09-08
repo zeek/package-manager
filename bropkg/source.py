@@ -10,7 +10,10 @@ import os
 import shutil
 import git
 
-from backports import configparser
+try:
+    from backports import configparser
+except ImportError as err:
+    import configparser
 
 from . import LOG
 from .package import (
