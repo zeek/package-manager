@@ -11,7 +11,11 @@ import filecmp
 import tarfile
 import subprocess
 
-from backports import configparser
+try:
+    from backports import configparser
+except ImportError as err:
+    import configparser
+
 import git
 import semantic_version as semver
 
