@@ -1,4 +1,10 @@
 from setuptools import setup
+from sys import version_info
+
+install_requires = ['gitpython', 'semantic_version', 'btest']
+
+if version_info[0] + version_info[1] / 10 < 3.5:
+    install_requires.append("configparser")
 
 setup(
     name='bro-pkg',
@@ -12,7 +18,7 @@ setup(
     url='https://github.com/bro/package-manager',
     scripts=['bro-pkg'],
     packages=['bropkg'],
-    install_requires=['gitpython', 'semantic_version', 'configparser', 'btest'],
+    install_requires=install_requires,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
