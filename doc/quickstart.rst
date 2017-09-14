@@ -11,6 +11,8 @@ Dependencies
 * git: https://git-scm.com
 * GitPython: https://pypi.python.org/pypi/GitPython
 * semantic_version: https://pypi.python.org/pypi/semantic_version
+* btest: https://pypi.python.org/pypi/btest
+* configparser backport: https://pypi.python.org/pypi/configparser
 
 Note that following the suggested `Installation`_ process via :program:`pip`
 will automatically install `GitPython` and `semantic_version` for you.
@@ -155,11 +157,10 @@ Offline Usage
 
 It's common to have limited network/internet access on the systems where
 Bro is deployed.  To accomodate those scenarios, :program:`bro-pkg` can
-be used as normally on a system that does have network access and create
-bundles of its package installation environment using the :ref:`bundle
-command <bundle-command>`.  Those bundles can then be transferred to the
-deployment systems via whatever means are appropriate (SSH, USB flash
-drive, etc).
+be used as normally on a system that *does* have network access to
+create bundles of its package installation environment. Those bundles
+can then be transferred to the deployment systems via whatever means are
+appropriate (SSH, USB flash drive, etc).
 
 For example, on the package management system you can do typical package
 management tasks, like install and update packages:
@@ -168,8 +169,8 @@ management tasks, like install and update packages:
 
     $ bro-pkg install <package name>
 
-Then create a bundle file, which is a snapshot of all currently installed
-packages compressed into a single file:
+Then, via the :ref:`bundle command <bundle-command>`, create a bundle
+file which contains a snapshot of all currently installed packages:
 
 .. code-block:: console
 
