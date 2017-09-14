@@ -19,7 +19,10 @@ import filecmp
 import shutil
 import subprocess
 
-from backports import configparser
+try:
+    from backports import configparser
+except ImportError as err:
+    import configparser
 
 import bropkg
 

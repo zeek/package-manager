@@ -1,4 +1,11 @@
 
+1.0.4-5 | 2017-09-14 18:56:16 -0500
+
+  * Require extra configparser package only for Python < 3.5 
+    where it is not included (Hilko Bengen)
+
+  * Fix imports for python3 (Robert Haist)
+
 1.0.4-2 | 2017-09-14 15:05:36 -0500
 
   * Add a docutils config file to prevent sphinx/smartypants "smart quotes"
