@@ -3,6 +3,7 @@
 .. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
 .. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
 .. _btest: https://github.com/bro/btest
+.. _configparser interpolation: https://docs.python.org/3/library/configparser.html#interpolation-of-values
 
 How-To: Create a Package
 ========================
@@ -242,8 +243,28 @@ Package Metadata
 See the following sub-sections for a full list of available fields that may be
 used in :file:`bro-pkg.meta` files.
 
-description
-~~~~~~~~~~~
+.. _metadata-interpolation:
+
+Value Interpolation
+~~~~~~~~~~~~~~~~~~~
+
+The metadata fields may reference the settings any given user has in their
+customized :ref:`package manager config file <bro-pkg-config-file>` via
+variable interpolation/substition.
+
+For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
+then :program:`bro-pkg` operations that use that field will automatically
+substitute the actual value of `bro_dist` that the user has in their local
+config file.  Note the trailing 's' character at the end of the interpolation
+string, ``%(bro_dist)s`` is intended/necessary for all such interpolation
+usages.
+
+Internally, the value substitution and metadata parsing is handled by Python's
+`configparser interpolation`_.  See its documentation if you're interested in
+the details of how the interpolation works.
+
+`description` field
+~~~~~~~~~~~~~~~~~~~
 
 The description field may be used to give users a general overview of the
 package and its purpose. The :ref:`bro-pkg list <list-command>` will display
@@ -257,8 +278,8 @@ example :file:`bro-pkg.meta` using a description field::
       indent the new lines so they are parsed
       as part of the 'description' value.
 
-tags
-~~~~
+`tags` field
+~~~~~~~~~~~~
 
 The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
@@ -303,8 +324,8 @@ Some ideas for what to put in the `tags` field for packages:
 
 - broctl plugin
 
-script_dir
-~~~~~~~~~~
+`script_dir` field
+~~~~~~~~~~~~~~~~~~
 
 The `script_dir` field is a path relative to the root of the package that
 contains a file named :file:`__load__.bro` and possibly other Bro scripts.
@@ -331,8 +352,8 @@ use the top-level package directory as the value for `script_dir`.  If
 it's not found, then :program:`bro-pkg` assumes the package contains no
 Bro scripts (which may be the case for some plugins).
 
-plugin_dir
-~~~~~~~~~~
+`plugin_dir` field
+~~~~~~~~~~~~~~~~~~
 
 The `plugin_dir` field is a path relative to the root of the package that
 contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
@@ -349,10 +370,10 @@ installed package's :file:`plugins/` directory.
 If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults
 to a directory named :file:`build/` at the top-level of the package.  This is
 the default location where Bro binary plugins get placed when building them from
-source code (see `build_command`_).
+source code (see the `build_command field`_).
 
-build_command
-~~~~~~~~~~~~~
+`build_command` field
+~~~~~~~~~~~~~~~~~~~~~
 
 The `build_command` field is an arbitrary shell command that the package
 manager will run before installing the package.
@@ -367,9 +388,10 @@ An example :file:`bro-pkg.meta`::
   script_dir = scripts/Demo/Rot13
   build_command = ./configure --bro-dist=%(bro_dist)s && make
 
-In the above example, the ``%(bro_dist)s`` string is substituted for the path 
-the user has set for the `bro_dist` field in the :ref:`package manager config
-file <bro-pkg-config-file>`.
+In the above example, the ``%(bro_dist)s`` string is
+:ref:`substituted <metadata-interpolation>` for the path the user has set for
+the `bro_dist` field in the
+:ref:`package manager config file <bro-pkg-config-file>`.
 
 The default CMake skeleton for Bro plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
@@ -381,8 +403,8 @@ script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
-test_command
-~~~~~~~~~~~~
+`test_command` field
+~~~~~~~~~~~~~~~~~~~~
 
 The `test_command` field is an arbitrary shell command that the package manager
 will run when a user either manually runs the :ref:`test command <test-command>`
@@ -396,8 +418,8 @@ An example :file:`bro-pkg.meta`::
 The recommended test framework for writing package unit tests is `btest`_.
 See its documentation for further explanation and examples.
 
-config_files
-~~~~~~~~~~~~
+`config_files` field
+~~~~~~~~~~~~~~~~~~~~
 
 The `config_files` field may be used to specify a list of files that users
 are intended to directly modify after installation.  Then, on operations that
@@ -417,8 +439,8 @@ either be located within the `script_dir` or `plugin_dir`.
 
 .. _package-dependencies:
 
-depends
-~~~~~~~
+`depends` field
+~~~~~~~~~~~~~~~
 
 The `depends` field may be used to specify a list of dependencies that the
 package requires.
