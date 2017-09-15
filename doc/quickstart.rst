@@ -15,7 +15,7 @@ Dependencies
 * configparser backport (not needed when using Python 3.5+): https://pypi.python.org/pypi/configparser
 
 Note that following the suggested `Installation`_ process via :program:`pip`
-will automatically install `GitPython` and `semantic_version` for you.
+will automatically install dependencies for you.
 
 Installation
 ------------
