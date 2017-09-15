@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 15, 2017" "1.0.4-9" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 15, 2017" "1.0.4-10" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -98,7 +98,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .INDENT 7.0
 .TP
 .B \-\-version
-The version of the package to test.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.
+The version of the package to test.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the "master" branch.
 .UNINDENT
 .UNINDENT
 .SS install
@@ -135,7 +135,7 @@ Skip the confirmation prompt.
 Skip running unit tests for packages before installation.
 .TP
 .B \-\-version
-The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here.  By default, the latest version tag is installed, or if a package has no version tags, the "master" branch is installed.
+The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the "master" branch.
 .UNINDENT
 .UNINDENT
 .SS remove

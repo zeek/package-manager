@@ -24,6 +24,8 @@ try:
 except ImportError as err:
     import configparser
 
+import git
+
 import bropkg
 
 
@@ -140,6 +142,24 @@ def create_config(configfile):
     return config
 
 
+def active_git_branch(path):
+    try:
+        repo = git.Repo(path)
+    except git.exc.NoSuchPathError as error:
+        return None
+
+    if not repo.working_tree_dir:
+        return None
+
+    rval = repo.active_branch
+
+    if not rval:
+        return None
+
+    rval = str(rval)
+    return rval
+
+
 def create_manager(config):
     state_dir = config.get('paths', 'state_dir')
     script_dir = config.get('paths', 'script_dir')
@@ -201,7 +221,8 @@ def cmd_test(manager, args, config):
     package_infos = []
 
     for name in args.package:
-        package_info = manager.info(name, version=args.version,
+        version = args.version if args.version else active_git_branch(name)
+        package_info = manager.info(name, version=version,
                                     prefer_installed=False)
 
         if package_info.invalid_reason:
@@ -209,12 +230,8 @@ def cmd_test(manager, args, config):
                                    package_info.invalid_reason))
             sys.exit(1)
 
-        version = 'master'
-
-        if args.version:
-            version = args.version
-        elif package_info.versions:
-            version = package_info.versions[-1]
+        if not version:
+            version = package_info.best_version()
 
         package_infos.append((package_info, version))
 
@@ -257,7 +274,8 @@ def cmd_install(manager, args, config):
     package_infos = []
 
     for name in args.package:
-        package_info = manager.info(name, version=args.version,
+        version = args.version if args.version else active_git_branch(name)
+        package_info = manager.info(name, version=version,
                                     prefer_installed=False)
 
         if package_info.invalid_reason:
@@ -265,12 +283,8 @@ def cmd_install(manager, args, config):
                                    package_info.invalid_reason))
             sys.exit(1)
 
-        version = 'master'
-
-        if args.version:
-            version = args.version
-        elif package_info.versions:
-            version = package_info.versions[-1]
+        if not version:
+            version = package_info.best_version()
 
         package_infos.append((package_info, version))
 
@@ -435,6 +449,9 @@ def cmd_bundle(manager, args, config):
         to_validate = []
 
         for name, version in packages:
+            if not version:
+                version = active_git_branch(name)
+
             info = manager.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
@@ -443,10 +460,7 @@ def cmd_bundle(manager, args, config):
                 sys.exit(1)
 
             if not version:
-                version = 'master'
-
-                if info.versions:
-                    version = info.versions[-1]
+                version = info.best_version()
 
             to_validate.append((info.package.qualified_name(), version))
             packages_to_bundle.append((info.package.qualified_name(),
@@ -1317,9 +1331,12 @@ def argparser():
         '--version', default=None,
         help='The version of the package to test.  Only one package may be'
         ' specified at a time when using this flag.  A version tag or branch'
-        ' name may be specified here.  By default, the latest version tag is'
-        ' installed, or if a package has no version tags, the "master"'
-        ' branch is installed.')
+        ' name may be specified here.'
+        ' If the package name refers to a local git repo with a working tree,'
+        ' then its currently active branch is used.'
+        ' The default for other cases is to use'
+        ' the latest version tag, or if a package has none, the "master"'
+        ' branch.')
 
     # install
     sub_parser = command_parser.add_parser(
@@ -1342,9 +1359,12 @@ def argparser():
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
         ' specified at a time when using this flag.  A version tag or branch'
-        ' name may be specified here.  By default, the latest version tag is'
-        ' installed, or if a package has no version tags, the "master"'
-        ' branch is installed.')
+        ' name may be specified here.'
+        ' If the package name refers to a local git repo with a working tree,'
+        ' then its currently active branch is used.'
+        ' The default for other cases is to use'
+        ' the latest version tag, or if a package has none, the "master"'
+        ' branch.')
 
     # bundle
     sub_parser = command_parser.add_parser(
