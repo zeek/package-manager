@@ -1,4 +1,9 @@
 
+1.0.4-9 | 2017-09-15 11:47:09 -0500
+
+  * GH-10: add a cross-reference for metadata value interpolation in docs
+    (Jon Siwek)
+
 1.0.4-8 | 2017-09-15 11:39:24 -0500
 
   * GH-10: improve docs regarding metadata value interpolation (Jon Siwek)

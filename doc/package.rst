@@ -106,6 +106,9 @@ Binary Bro Plugin Package
      script_dir = scripts/Demo/Rot13
      build_command = ./configure --bro-dist=%(bro_dist)s && make
 
+   See the :ref:`Value Interpolation <metadata-interpolation>` section for more
+   information on what the ``%(bro_dist)s`` string does.
+
 #. Add example script code:
 
    .. code-block:: console
