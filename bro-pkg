@@ -249,7 +249,7 @@ def cmd_test(manager, args, config):
 
         if error_msg:
             all_passed = False
-            print_error(str.format('error: package "{}" tests could be run: {}',
+            print_error(str.format('error: failed to run tests for "{}": {}',
                                    name, error_msg))
             continue
 
