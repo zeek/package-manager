@@ -68,6 +68,9 @@ def dependencies(metadata_dict):
     or just 'bro' to indicate a dependency on a particular bro version.
 
     The values indicate a semantic version requirement.
+
+    If the 'depends' field is malformed (e.g. number of keys not equal to
+    number of values), then None is returned.
     """
     if 'depends' not in metadata_dict:
         return dict()
@@ -77,6 +80,9 @@ def dependencies(metadata_dict):
     parts = depends.split()
     keys = parts[::2]
     values = parts[1::2]
+
+    if len(keys) != len(values):
+        return None
 
     for i, k in enumerate(keys):
         if i < len(values):
@@ -187,6 +193,9 @@ class PackageInfo(object):
         or just 'bro' to indicate a dependency on a particular bro version.
 
         The values indicate a semantic version requirement.
+
+        If the 'depends' field is malformed (e.g. number of keys not equal to
+        number of values), then None is returned.
         """
         return dependencies(self.metadata)
 
@@ -272,6 +281,9 @@ class Package(object):
         or just 'bro' to indicate a dependency on a particular bro version.
 
         The values indicate a semantic version requirement.
+
+        If the 'depends' field is malformed (e.g. number of keys not equal to
+        number of values), then None is returned.
         """
         return dependencies(self.metadata)
 

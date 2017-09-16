@@ -1,4 +1,9 @@
 
+1.0.4-12 | 2017-09-16 13:36:53 -0500
+
+  * GH-13: emit an error when a package uses a malformed 'depends' field
+    (Jon Siwek)
+
 1.0.4-11 | 2017-09-16 12:44:50 -0500
 
   * Fix a typo in an error message. (Jon Siwek)

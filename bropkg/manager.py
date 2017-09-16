@@ -1138,8 +1138,13 @@ class Manager(object):
 
         while to_process:
             (_, node) = to_process.popitem()
+            dd = node.info.dependencies()
 
-            for dep_name, _ in node.info.dependencies().items():
+            if dd is None:
+                return (str.format('package "{}" has malformed "depends" field',
+                                   node.name), new_pkgs)
+
+            for dep_name, _ in dd.items():
                 if dep_name == 'bro':
                     # A bro node will get added later.
                     continue
@@ -1194,7 +1199,13 @@ class Manager(object):
             if name == 'bro':
                 continue
 
-            for dep_name, dep_version in node.info.dependencies().items():
+            dd = node.info.dependencies()
+
+            if dd is None:
+                return (str.format('package "{}" has malformed "depends" field',
+                                   node.name), new_pkgs)
+
+            for dep_name, dep_version in dd.items():
                 if dep_name == 'bro':
                     if 'bro' in graph:
                         graph['bro'].dependers[name] = dep_version
