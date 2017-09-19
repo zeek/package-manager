@@ -1940,7 +1940,7 @@ def _get_version_tags(clone):
         else:
             tags.append(tag)
 
-    return sorted(tags)
+    return sorted(tags, key=semver.Version.coerce)
 
 
 def _get_branch_names(clone):
