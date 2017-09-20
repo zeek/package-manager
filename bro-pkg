@@ -1076,10 +1076,11 @@ def cmd_list(manager, args, config):
             pkg = val
             out = pkg_name
 
-        desc = pkg.short_description()
+        if args.nodesc != True:
+            desc = pkg.short_description()
 
-        if desc:
-            out += ' - ' + desc
+            if desc:
+                out += ' - ' + desc
 
         print(out)
 
@@ -1553,6 +1554,9 @@ def argparser():
                             choices=['all', 'installed', 'not_installed',
                                      'loaded', 'unloaded', 'outdated'],
                             help='Package category used to filter listing.')
+    sub_parser.add_argument(
+        '--nodesc', action='store_true',
+    help='Do not display description text, just the package name(s).')
 
     # search
     sub_parser = command_parser.add_parser(
