@@ -1151,20 +1151,20 @@ def cmd_info(manager, args, config):
         if info.package:
             name = info.package.qualified_name()
 
-        if (args.json):
+        if args.json:
             pkginfo[name] = dict()
             pkginfo[name]['metadata'] = dict()
         else:
             print('"{}" info:'.format(name))
 
         if info.invalid_reason:
-            if (args.json):
+            if args.json:
                 pkginfo[name]['invalid'] = info.invalid_reason
             else:
                 print('\tinvalid package: {}\n'.format(info.invalid_reason))
             continue
 
-        if (args.json):
+        if args.json:
             pkginfo[name]['url'] = info.package.git_url
             pkginfo[name]['versions'] = info.versions
         else:
@@ -1172,7 +1172,7 @@ def cmd_info(manager, args, config):
             print('\tversions: {}'.format(info.versions))
 
         if info.status:
-            if (args.json):
+            if args.json:
                 pkginfo[name]['install_status'] = dict()
                 for key, value in sorted(info.status.__dict__.items()):
                     pkginfo[name]['install_status'][key] = value
@@ -1181,21 +1181,21 @@ def cmd_info(manager, args, config):
                 for key, value in sorted(info.status.__dict__.items()):
                     print('\t\t{} = {}'.format(key, value))
 
-        if (args.json):
+        if args.json:
             pkginfo[name]['metadata'][info.metadata_version] = dict()
         else:
             print('\tmetadata (from version "{}"):'.format(
                 info.metadata_version))
 
         if len(info.metadata) == 0:
-            if (args.json):
+            if args.json:
                 pkginfo[name]['metadata'][info.metadata_version] = dict()
             else:
                 print('\t\t<empty metadata file>')
         else:
             for key, value in sorted(info.metadata.items()):
-                if (args.json):
-                    if (key == 'depends'):
+                if args.json:
+                    if key == 'depends':
                         pkginfo[name]['metadata'][info.metadata_version]\
                             ['depends'] = dict()
                         deps = value.split('\n');
@@ -1210,11 +1210,12 @@ def cmd_info(manager, args, config):
                     value = value.replace('\n', '\n\t\t\t')
                     print('\t\t{} = {}'.format(key, value))
 
-        if (args.json):
-            print(json.dumps(pkginfo, False, True, True, True, None,
-                  args.jsonpretty))
-        else:
+        if args.json != True:
             print()
+
+    if args.json:
+        print(json.dumps(pkginfo, False, True, True, True, None,
+              args.jsonpretty))
 
 
 def cmd_config(manager, args, config):
@@ -1630,10 +1631,6 @@ def argparser():
         ' the metadata will be pulled from the installed version.  If not'
         ' installed, the latest version tag is used, or if a package has no'
         ' version tags, the "master" branch is used.')
-    sub_parser.add_argument(
-        '--nolocal', action='store_true',
-        help='Do not read information from locally installed packages.'
-        ' Instead read info from remote GitHub.')
     sub_parser.add_argument(
         '--json', action='store_true',
         help='Output package information as JSON.')
