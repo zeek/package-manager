@@ -9,7 +9,7 @@ be added in order to help log/debug applications.
 
 import logging
 
-__version__ = "1.0.4-12"
+__version__ = "1.0.4-14"
 __all__ = ['manager', 'package', 'source']
 
 LOG = logging.getLogger(__name__)

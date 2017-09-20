@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 16, 2017" "1.0.4-12" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 20, 2017" "1.0.4-14" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -422,7 +422,7 @@ Outputs a list of packages that match a given category.
 .sp
 .nf
 .ft C
-usage: bro\-pkg list [\-h]
+usage: bro\-pkg list [\-h] [\-\-nodesc]
                     [{all,installed,not_installed,loaded,unloaded,outdated}]
 .ft P
 .fi
@@ -437,6 +437,13 @@ usage: bro\-pkg list [\-h]
 Package category used to filter listing.
 .sp
 Possible choices: all, installed, not_installed, loaded, unloaded, outdated
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-nodesc=False
+Do not display description text, just the package name(s).
 .UNINDENT
 .UNINDENT
 .SS search

@@ -1,4 +1,9 @@
 
+1.0.4-14 | 2017-09-20 12:31:59 -0500
+
+  * Add option for 'list' command '--nodesc' to suppress description output.
+    (Terry Fleury)
+
 1.0.4-12 | 2017-09-16 13:36:53 -0500
 
   * GH-13: emit an error when a package uses a malformed 'depends' field
