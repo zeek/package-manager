@@ -1188,33 +1188,65 @@ def cmd_info(manager, args, config):
                 info.metadata_version))
 
         if len(info.metadata) == 0:
-            if args.json:
-                pkginfo[name]['metadata'][info.metadata_version] = dict()
-            else:
+            if args.json != True:
                 print('\t\t<empty metadata file>')
         else:
-            for key, value in sorted(info.metadata.items()):
-                if args.json:
-                    if key == 'depends':
-                        pkginfo[name]['metadata'][info.metadata_version]\
-                            ['depends'] = dict()
-                        deps = value.split('\n');
-                        for i in range(1,len(deps)):
-                            deplist = deps[i].split(' ')
-                            pkginfo[name]['metadata'][info.metadata_version]\
-                                ['depends'][deplist[0]] = deplist[1];
-                    else:
-                        pkginfo[name]['metadata'][info.metadata_version][key]=\
-                            value
-                else:
+            if args.json:
+                _fill_metadata_version(
+                    pkginfo[name]['metadata'][info.metadata_version],
+                    info.metadata)
+            else:
+                for key, value in sorted(info.metadata.items()):
                     value = value.replace('\n', '\n\t\t\t')
                     print('\t\t{} = {}'.format(key, value))
+
+        # If --json and --allvers given, check for multiple versions and
+        # add the metadata for each version to the pkginfo.
+        if args.json and args.allvers:
+            for vers in info.versions:
+                # Skip the version that was already processed
+                if vers != info.metadata_version:
+                    info2 = manager.info(name, 
+                                         vers, 
+                                         prefer_installed=(args.nolocal!=True))
+                    pkginfo[name]['metadata'][info2.metadata_version] = dict()
+                    _fill_metadata_version(
+                        pkginfo[name]['metadata'][info2.metadata_version],
+                        info2.metadata);
 
         if args.json != True:
             print()
 
     if args.json:
         print(json.dumps(pkginfo, indent=args.jsonpretty, sort_keys=True))
+
+
+def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
+    """ Fill a dict with metadata information.
+
+        This helper function is called by cmd_info to fill metadata information
+        for a specific package version.
+
+    Args:
+        pkginfo_name_metadata_version (dict of str -> dict): Corresponds
+            to pkginfo[name]['metadata'][info.metadata_version] in cmd_info.
+
+        info_metadata (dict of str->str): Corresponds to info.metadata
+            in cmd_info.
+
+    Side effect: 
+        New dict entries are added to pkginfo_name_metadata_version.
+    """
+    for key, value in info_metadata.items():
+        if key == 'depends':
+            pkginfo_name_metadata_version['depends'] = dict()
+            deps = value.split('\n');
+            for i in range(1,len(deps)):
+                deplist = deps[i].split(' ')
+                pkginfo_name_metadata_version['depends'][deplist[0]]=\
+                    deplist[1];
+        else:
+            pkginfo_name_metadata_version[key]=value
 
 
 def cmd_config(manager, args, config):
@@ -1637,6 +1669,13 @@ def argparser():
         '--jsonpretty', type=int, default=None, metavar='SPACES',
         help='Optional number of spaces to indent for pretty-printed'
         ' JSON output.')
+    sub_parser.add_argument(
+        '--allvers' , action='store_true',
+        help='When outputting package information as JSON, show metadata for'
+        ' all versions. This option can be slow since remote repositories'
+        ' may be cloned multiple times. Also, installed packages will show'
+        ' metadata only for the installed version unless the --nolocal '
+        ' option is given.')
 
     # config
     sub_parser = command_parser.add_parser(
