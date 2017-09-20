@@ -1214,8 +1214,7 @@ def cmd_info(manager, args, config):
             print()
 
     if args.json:
-        print(json.dumps(pkginfo, False, True, True, True, None,
-              args.jsonpretty))
+        print(json.dumps(pkginfo, indent=args.jsonpretty, sort_keys=True))
 
 
 def cmd_config(manager, args, config):
