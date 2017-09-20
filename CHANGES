@@ -1,4 +1,9 @@
 
+1.0.4-16 | 2017-09-20 12:39:21 -0500
+
+  * Version numbers should be sorted naturally, e.g., 1.10.0 is newer
+    than 1.9.0. (Justin Azoff, Terry Fleury)
+
 1.0.4-14 | 2017-09-20 12:31:59 -0500
 
   * Add option for 'list' command '--nodesc' to suppress description output.
