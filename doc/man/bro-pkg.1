@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 20, 2017" "1.0.4-18" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 20, 2017" "1.0.4-23" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -478,7 +478,9 @@ Shows detailed information/metadata for given packages. If the package is curren
 .sp
 .nf
 .ft C
-usage: bro\-pkg info [\-h] [\-\-version VERSION] [\-\-nolocal] package [package ...]
+usage: bro\-pkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json]
+                    [\-\-jsonpretty SPACES] [\-\-allvers]
+                    package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -500,6 +502,15 @@ The version of the package metadata to inspect.  A version tag, branch name, or 
 .TP
 .B \-\-nolocal=False
 Do not read information from locally installed packages. Instead read info from remote GitHub.
+.TP
+.B \-\-json=False
+Output package information as JSON.
+.TP
+.B \-\-jsonpretty
+Optional number of spaces to indent for pretty\-printed JSON output.
+.TP
+.B \-\-allvers=False
+When outputting package information as JSON, show metadata for all versions. This option can be slow since remote repositories may be cloned multiple times. Also, installed packages will show metadata only for the installed version unless the \-\-nolocal  option is given.
 .UNINDENT
 .UNINDENT
 .SS config
