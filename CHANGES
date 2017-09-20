@@ -1,4 +1,8 @@
 
+1.0.4-18 | 2017-09-20 12:52:17 -0500
+
+  * Add 'info' option to force read metadata from remote GitHub. (Terry Fleury)
+
 1.0.4-16 | 2017-09-20 12:39:21 -0500
 
   * Version numbers should be sorted naturally, e.g., 1.10.0 is newer

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Sep 20, 2017" "1.0.4-16" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Sep 20, 2017" "1.0.4-18" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -478,7 +478,7 @@ Shows detailed information/metadata for given packages. If the package is curren
 .sp
 .nf
 .ft C
-usage: bro\-pkg info [\-h] [\-\-version VERSION] package [package ...]
+usage: bro\-pkg info [\-h] [\-\-version VERSION] [\-\-nolocal] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -497,6 +497,9 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .TP
 .B \-\-version
 The version of the package metadata to inspect.  A version tag, branch name, or commit hash and only one package at a time may be given when using this flag.  If unspecified, the behavior depends on whether the package is currently installed.  If installed, the metadata will be pulled from the installed version.  If not installed, the latest version tag is used, or if a package has no version tags, the "master" branch is used.
+.TP
+.B \-\-nolocal=False
+Do not read information from locally installed packages. Instead read info from remote GitHub.
 .UNINDENT
 .UNINDENT
 .SS config

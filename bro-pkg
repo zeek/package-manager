@@ -1143,7 +1143,9 @@ def cmd_info(manager, args, config):
         sys.exit(1)
 
     for name in args.package:
-        info = manager.info(name, version=args.version, prefer_installed=True)
+        info = manager.info(name,
+                            version=args.version,
+                            prefer_installed=(args.nolocal!=True))
 
         if info.package:
             name = info.package.qualified_name()
@@ -1592,6 +1594,10 @@ def argparser():
         ' the metadata will be pulled from the installed version.  If not'
         ' installed, the latest version tag is used, or if a package has no'
         ' version tags, the "master" branch is used.')
+    sub_parser.add_argument(
+        '--nolocal', action='store_true',
+        help='Do not read information from locally installed packages.'
+        ' Instead read info from remote GitHub.')
 
     # config
     sub_parser = command_parser.add_parser(
