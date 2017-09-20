@@ -1,4 +1,8 @@
 
+1.0.4-24 | 2017-09-20 13:11:48 -0500
+
+  * Code formatting. (Jon Siwek)
+
 1.0.4-23 | 2017-09-20 13:07:57 -0500
 
   * Add '--allvers' option to output metadata for ALL versions when

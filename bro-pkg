@@ -328,7 +328,7 @@ def cmd_install(manager, args, config):
 
             if 'test_command' not in info.metadata:
                 print(str.format('Skipping unit tests for "{}":'
-                      ' no test_command in metadata', name))
+                                 ' no test_command in metadata', name))
                 continue
 
             print('Running unit tests for "{}"'.format(name))
@@ -1149,7 +1149,7 @@ def cmd_info(manager, args, config):
     for name in args.package:
         info = manager.info(name,
                             version=args.version,
-                            prefer_installed=(args.nolocal!=True))
+                            prefer_installed=(args.nolocal != True))
 
         if info.package:
             name = info.package.qualified_name()
@@ -1213,11 +1213,11 @@ def cmd_info(manager, args, config):
                 if vers != info.metadata_version:
                     info2 = manager.info(name,
                                          vers,
-                                         prefer_installed=(args.nolocal!=True))
+                                         prefer_installed=(args.nolocal != True))
                     pkginfo[name]['metadata'][info2.metadata_version] = dict()
                     _fill_metadata_version(
                         pkginfo[name]['metadata'][info2.metadata_version],
-                        info2.metadata);
+                        info2.metadata)
 
         if not args.json:
             print()
@@ -1245,14 +1245,14 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
     for key, value in info_metadata.items():
         if key == 'depends':
             pkginfo_name_metadata_version['depends'] = dict()
-            deps = value.split('\n');
+            deps = value.split('\n')
 
-            for i in range(1,len(deps)):
+            for i in range(1, len(deps)):
                 deplist = deps[i].split(' ')
-                pkginfo_name_metadata_version['depends'][deplist[0]]=\
-                    deplist[1];
+                pkginfo_name_metadata_version['depends'][deplist[0]] =\
+                    deplist[1]
         else:
-            pkginfo_name_metadata_version[key]=value
+            pkginfo_name_metadata_version[key] = value
 
 
 def cmd_config(manager, args, config):
@@ -1635,7 +1635,7 @@ def argparser():
                             help='Package category used to filter listing.')
     sub_parser.add_argument(
         '--nodesc', action='store_true',
-    help='Do not display description text, just the package name(s).')
+        help='Do not display description text, just the package name(s).')
 
     # search
     sub_parser = command_parser.add_parser(
@@ -1683,7 +1683,7 @@ def argparser():
         help='Optional number of spaces to indent for pretty-printed'
         ' JSON output.')
     sub_parser.add_argument(
-        '--allvers' , action='store_true',
+        '--allvers', action='store_true',
         help='When outputting package information as JSON, show metadata for'
         ' all versions. This option can be slow since remote repositories'
         ' may be cloned multiple times. Also, installed packages will show'
