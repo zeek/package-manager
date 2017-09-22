@@ -289,13 +289,17 @@ def cmd_install(manager, args, config):
 
         package_infos.append((package_info, version))
 
-    to_validate = [(info.package.qualified_name(), version)
-                   for info, version in package_infos]
-    invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
+    new_pkgs = []
 
-    if invalid_reason:
-        print_error('error: failed to resolve dependencies:', invalid_reason)
-        sys.exit(1)
+    if not args.nodeps:
+        to_validate = [(info.package.qualified_name(), version)
+                       for info, version in package_infos]
+        invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
+
+        if invalid_reason:
+            print_error('error: failed to resolve dependencies:',
+                        invalid_reason)
+            sys.exit(1)
 
     if not args.force:
         package_listing = ''
@@ -448,6 +452,7 @@ def cmd_bundle(manager, args, config):
             packages = [(name, '') for name in args.manifest]
 
         to_validate = []
+        new_pkgs = []
 
         for name, version in packages:
             if not version:
@@ -467,13 +472,14 @@ def cmd_bundle(manager, args, config):
             packages_to_bundle.append((info.package.qualified_name(),
                                        info.package.git_url, version, False))
 
-        invalid_reason, new_pkgs = manager.validate_dependencies(to_validate,
-                                                                 True)
+        if not args.nodeps:
+            invalid_reason, new_pkgs = manager.validate_dependencies(to_validate,
+                                                                     True)
 
-        if invalid_reason:
-            print_error('error: failed to resolve dependencies:',
-                        invalid_reason)
-            sys.exit(1)
+            if invalid_reason:
+                print_error('error: failed to resolve dependencies:',
+                            invalid_reason)
+                sys.exit(1)
 
         for info, version in new_pkgs:
             packages_to_bundle.append((info.package.qualified_name(),
@@ -818,13 +824,17 @@ def cmd_upgrade(manager, args, config):
         print('All packages already up-to-date.')
         return
 
-    to_validate = [(info.package.qualified_name(), next_version)
-                   for info, next_version in outdated_packages]
-    invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
+    new_pkgs = []
 
-    if invalid_reason:
-        print_error('error: failed to resolve dependencies:', invalid_reason)
-        sys.exit(1)
+    if not args.nodeps:
+        to_validate = [(info.package.qualified_name(), next_version)
+                       for info, next_version in outdated_packages]
+        invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
+
+        if invalid_reason:
+            print_error('error: failed to resolve dependencies:',
+                        invalid_reason)
+            sys.exit(1)
 
     if not args.force:
         print('The following packages will be UPGRADED:')
@@ -1436,6 +1446,11 @@ def argparser():
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
     sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a '
+        ' broken or unusable state.')
+    sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
         ' specified at a time when using this flag.  A version tag or branch'
@@ -1472,6 +1487,11 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks creating a bundle of packages that is in a '
+        ' broken or unusable state.')
     sub_parser.add_argument(
         '--manifest', nargs='+',
         help='This may either be a file name or a list of packages to include'
@@ -1571,6 +1591,11 @@ def argparser():
     sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a '
+        ' broken or unusable state.')
 
     # load
     sub_parser = command_parser.add_parser(
