@@ -61,22 +61,22 @@ def short_description(metadata_dict):
     return rval.lstrip()
 
 
-def dependencies(metadata_dict):
-    """Returns a dictionary of (str, str) based on metadata's 'depends' field.
+def dependencies(metadata_dict, field='depends'):
+    """Returns a dictionary of (str, str) based on metadata's dependency field.
 
     The keys indicate the name of a package (shorthand name or full git URL)
     or just 'bro' to indicate a dependency on a particular bro version.
 
     The values indicate a semantic version requirement.
 
-    If the 'depends' field is malformed (e.g. number of keys not equal to
+    If the dependency field is malformed (e.g. number of keys not equal to
     number of values), then None is returned.
     """
-    if 'depends' not in metadata_dict:
+    if field not in metadata_dict:
         return dict()
 
     rval = dict()
-    depends = metadata_dict['depends']
+    depends = metadata_dict[field]
     parts = depends.split()
     keys = parts[::2]
     values = parts[1::2]
@@ -186,7 +186,7 @@ class PackageInfo(object):
         This will be the first sentence of the package's 'description' field."""
         return short_description(self.metadata)
 
-    def dependencies(self):
+    def dependencies(self, field='depends'):
         """Returns a dictionary of dependency -> version strings.
 
         The keys indicate the name of a package (shorthand name or full git URL)
@@ -194,10 +194,10 @@ class PackageInfo(object):
 
         The values indicate a semantic version requirement.
 
-        If the 'depends' field is malformed (e.g. number of keys not equal to
+        If the dependency field is malformed (e.g. number of keys not equal to
         number of values), then None is returned.
         """
-        return dependencies(self.metadata)
+        return dependencies(self.metadata, field)
 
     def best_version(self):
         """Returns the best/latest version of the package that is available.
@@ -274,7 +274,7 @@ class Package(object):
         package has not been installed yet."""
         return short_description(self.metadata)
 
-    def dependencies(self):
+    def dependencies(self, field='depends'):
         """Returns a dictionary of dependency -> version strings.
 
         The keys indicate the name of a package (shorthand name or full git URL)
@@ -282,10 +282,10 @@ class Package(object):
 
         The values indicate a semantic version requirement.
 
-        If the 'depends' field is malformed (e.g. number of keys not equal to
+        If the dependency field is malformed (e.g. number of keys not equal to
         number of values), then None is returned.
         """
-        return dependencies(self.metadata)
+        return dependencies(self.metadata, field)
 
     def name_with_source_directory(self):
         """Return the package's within its package source.

@@ -500,6 +500,19 @@ strings.  Here's a summary:
     the requirements together.  E.g. ``>=1.0.0,<2.0.0`` means "greater or equal
     to 1.0.0 and less than 2.0.0".
 
+`external_depends` field
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The `external_depends` field follows the same format as the
+:ref:`depends field <package-dependencies>`, but the dependency names refer
+to external/third-party software packages.  E.g. these would be set to typical
+package names you'd expect the package manager from any given operating system
+to use, like 'libpng-dev'.  The version specification should also generally
+be given in terms of semantic versioning where possible.  In any case, the
+name and version specification for an external dependency are only used
+for display purposes -- to help users understand extra pre-requisites
+that are needed for proceeding with package installation/upgrades.
+
 .. _package-versioning:
 
 Package Versioning

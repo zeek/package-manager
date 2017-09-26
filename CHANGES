@@ -1,4 +1,12 @@
 
+1.0.4-27 | 2017-09-26 13:27:53 -0500
+
+  * GH-9: allow 'external_depends' field in bro-pkg.meta.
+
+    The contents of this field get displayed to users in the install
+    and upgrade commands to indicate extra pre-requisite software their
+    OS should have installed. (Jon Siwek)
+
 1.0.4-26 | 2017-09-26 11:41:37 -0500
 
   * Put install's "unit test skipped" msg into log stream instead of stdout.

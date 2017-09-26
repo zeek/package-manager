@@ -321,6 +321,30 @@ def cmd_install(manager, args, config):
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
 
+        allpkgs = package_infos + new_pkgs
+        extdep_listing = ''
+
+        for info, version in allpkgs:
+            name = info.package.qualified_name()
+            extdeps = info.dependencies(field='external_depends')
+
+            if extdeps is None:
+                extdep_listing += '  from {} ({}):\n    <malformed>\n'.format(
+                    name, version)
+                continue
+
+            if extdeps:
+                extdep_listing += '  from {} ({}):\n'.format(name, version)
+
+                for extdep, semver in sorted(extdeps.items()):
+                    extdep_listing += '    {} {}\n'.format(extdep, semver)
+
+        if extdep_listing:
+            print('Verify the following REQUIRED external dependencies:\n'
+                  '(Ensure their installation on all relevant systems before'
+                  ' proceeding):')
+            print(extdep_listing)
+
         if not confirmation_prompt('Proceed?'):
             return
 
@@ -850,6 +874,30 @@ def cmd_upgrade(manager, args, config):
 
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
+
+        allpkgs = outdated_packages + new_pkgs
+        extdep_listing = ''
+
+        for info, version in allpkgs:
+            name = info.package.qualified_name()
+            extdeps = info.dependencies(field='external_depends')
+
+            if extdeps is None:
+                extdep_listing += '  from {} ({}):\n    <malformed>\n'.format(
+                    name, version)
+                continue
+
+            if extdeps:
+                extdep_listing += '  from {} ({}):\n'.format(name, version)
+
+                for extdep, semver in sorted(extdeps.items()):
+                    extdep_listing += '    {} {}\n'.format(extdep, semver)
+
+        if extdep_listing:
+            print('Verify the following REQUIRED external dependencies:\n'
+                  '(Ensure their installation on all relevant systems before'
+                  ' proceeding):')
+            print(extdep_listing)
 
         if not confirmation_prompt('Proceed?'):
             return
