@@ -331,8 +331,9 @@ def cmd_install(manager, args, config):
             name = info.package.qualified_name()
 
             if 'test_command' not in info.metadata:
-                print(str.format('Skipping unit tests for "{}":'
-                                 ' no test_command in metadata', name))
+                bropkg.LOG.info(
+                    'Skipping unit tests for "%s": no test_command in metadata',
+                    name)
                 continue
 
             print('Running unit tests for "{}"'.format(name))

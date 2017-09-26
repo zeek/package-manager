@@ -1,4 +1,9 @@
 
+1.0.4-26 | 2017-09-26 11:41:37 -0500
+
+  * Put install's "unit test skipped" msg into log stream instead of stdout.
+    (Jon Siwek)
+
 1.0.4-25 | 2017-09-22 12:26:56 -0500
 
   * GH-15: add --nodeps to install, bundle, and upgrade commands
