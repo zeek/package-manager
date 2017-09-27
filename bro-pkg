@@ -911,6 +911,13 @@ def cmd_upgrade(manager, args, config):
 
         for info, version in to_test:
             name = info.package.qualified_name()
+
+            if 'test_command' not in info.metadata:
+                bropkg.LOG.info(
+                    'Skipping unit tests for "%s": no test_command in metadata',
+                    name)
+                continue
+
             print('Running unit tests for "{}"'.format(name))
             error, passed, test_dir = manager.test(name, version)
             error_msg = ''
