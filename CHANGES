@@ -1,4 +1,13 @@
 
+1.0.4-30 | 2017-09-27 11:14:52 -0500
+
+  * GH-9: show 'external_depends' metadata during 'unbundle' command (Jon Siwek)
+
+  * Add manager.bundle_info() to API.
+
+    It retrieves information on all packages in a bundle without installing
+    the bundle. (Jon Siwek)
+
 1.0.4-28 | 2017-09-27 10:14:16 -0500
 
   * Remove an error msg when upgrading packages that have no test_command

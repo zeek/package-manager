@@ -560,41 +560,28 @@ def cmd_unbundle(manager, args, config):
     if args.replace:
         cmd_purge(manager, args, config)
 
-    packages_in_bundle = []
+    error, bundle_info = manager.bundle_info(args.bundle_filename)
 
-    try:
-        with tarfile.open(args.bundle_filename) as tf:
-            config = configparser.ConfigParser(delimiters='=')
-            config.optionxform = str
-            mf = tf.extractfile('./manifest.txt')
-            config_string = ''
-
-            for line in mf.readlines():
-                config_string += line.decode()
-
-            mf.close()
-            config.read_string(config_string)
-
-            if not config.has_section('bundle'):
-                print_error('error: {} is not a valid package bundle'.format(
-                    args.bundle_filename))
-                sys.exit(1)
-
-            packages_in_bundle = config.items('bundle')
-    except Exception as error:
-        raise
-        print_error('error: invalid bundle {}: {}'.format(
+    if error:
+        print_error('error: failed to unbundle {}: {}'.format(
             args.bundle_filename, error))
         sys.exit(1)
 
-    if not packages_in_bundle:
+    for git_url, version, pkg_info in bundle_info:
+        if pkg_info.invalid_reason:
+            name = pkg_info.package.qualified_name()
+            print_error('error: bundle {} contains invalid package {}: {}'.format(
+                args.bundle_filename, name, pkg_info.invalid_reason))
+            sys.exit(1)
+
+    if not bundle_info:
         print('No packages in bundle.')
         return
 
     if not args.force:
         package_listing = ''
 
-        for git_url, version in packages_in_bundle:
+        for git_url, version, _ in bundle_info:
             name = git_url
 
             for pkg in manager.source_packages():
@@ -607,6 +594,35 @@ def cmd_unbundle(manager, args, config):
         print('The following packages will be INSTALLED:')
         print(package_listing)
 
+        extdep_listing = ''
+
+        for git_url, version, info in bundle_info:
+            name = git_url
+
+            for pkg in manager.source_packages():
+                if pkg.git_url == git_url:
+                    name = pkg.qualified_name()
+                    break
+
+            extdeps = info.dependencies(field='external_depends')
+
+            if extdeps is None:
+                extdep_listing += '  from {} ({}):\n    <malformed>\n'.format(
+                    name, version)
+                continue
+
+            if extdeps:
+                extdep_listing += '  from {} ({}):\n'.format(name, version)
+
+                for extdep, semver in sorted(extdeps.items()):
+                    extdep_listing += '    {} {}\n'.format(extdep, semver)
+
+        if extdep_listing:
+            print('Verify the following REQUIRED external dependencies:\n'
+                  '(Ensure their installation on all relevant systems before'
+                  ' proceeding):')
+            print(extdep_listing)
+
         if not confirmation_prompt('Proceed?'):
             return
 
@@ -617,7 +633,7 @@ def cmd_unbundle(manager, args, config):
             args.bundle_filename, error))
         sys.exit(1)
 
-    for git_url, _ in packages_in_bundle:
+    for git_url, _, _ in bundle_info:
         if git_url in prev_load_status:
             need_load = prev_load_status[git_url]
         else:
