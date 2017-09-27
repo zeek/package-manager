@@ -946,6 +946,55 @@ class Manager(object):
         LOG.debug('unloaded "%s"', pkg_path)
         return True
 
+    def bundle_info(self, bundle_file):
+        """Retrieves information on all packages contained in a bundle.
+
+        Args:
+            bundle_file (str): the path to the bundle to inspect.
+
+        Returns:
+            (str, list of (str, str, :class:`.package.PackageInfo`)): a tuple
+            with the the first element set to an empty string if the information
+            successfully retrieved, else an error message explaining why the
+            bundle file was invalid.  The second element of the tuple is a list
+            containing information on each package contained in the bundle:
+            the exact git URL and version string from the bundle's manifest
+            along with the package info object retrieved by inspecting git repo
+            contained in the bundle.
+        """
+        bundle_dir = os.path.join(self.scratch_dir, 'bundle')
+        delete_path(bundle_dir)
+        make_dir(bundle_dir)
+        infos = []
+
+        try:
+            with tarfile.open(bundle_file) as tf:
+                tf.extractall(bundle_dir)
+        except Exception as error:
+            return (str(error), infos)
+
+        manifest_file = os.path.join(bundle_dir, 'manifest.txt')
+        config = configparser.SafeConfigParser(delimiters='=')
+        config.optionxform = str
+
+        if not config.read(manifest_file):
+            return ('invalid bundle: no manifest file', infos)
+
+        if not config.has_section('bundle'):
+            return ('invalid bundle: no [bundle] section in manifest file',
+                    infos)
+
+        manifest = config.items('bundle')
+
+        for git_url, version in manifest:
+            package = Package(git_url=git_url)
+            pkg_path = os.path.join(bundle_dir, package.name)
+            pkg_info = self.info(pkg_path, version=version,
+                                 prefer_installed=False)
+            infos.append((git_url, version, pkg_info))
+
+        return ('', infos)
+
     def info(self, pkg_path, version='', prefer_installed=True):
         """Retrieves information about a package.
 
@@ -1488,6 +1537,15 @@ class Manager(object):
         return ''
 
     def unbundle(self, bundle_file):
+        """Installs all packages contained within a bundle.
+
+        Args:
+            bundle_file (str): the path to the bundle to install.
+
+        Returns:
+            str: an empty string if the operation was successful, else an error
+            message indicated what went wrong.
+        """
         bundle_dir = os.path.join(self.scratch_dir, 'bundle')
         delete_path(bundle_dir)
         make_dir(bundle_dir)
