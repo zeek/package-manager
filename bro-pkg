@@ -50,6 +50,72 @@ def confirmation_prompt(prompt):
     return False
 
 
+def prompt_for_user_vars(manager, config, force, pkg_infos):
+    answers = {}
+
+    for info in pkg_infos:
+        name = info.package.qualified_name()
+        requested_user_vars = info.user_vars()
+
+        if requested_user_vars is None:
+            print_error(str.format('error: malformed user_vars in "{}"', name))
+            sys.exit(1)
+
+        if not requested_user_vars:
+            continue
+
+        for key, value, desc in requested_user_vars:
+            from_env = False
+            default_value = os.environ.get(key)
+
+            if default_value:
+                from_env = True
+            else:
+                if config.has_section('user_vars'):
+                    v = config.get('user_vars', key)
+
+                    if v:
+                        default_value = v
+                    else:
+                        default_value = value
+                else:
+                    default_value = value
+
+            if force:
+                answers[key] = default_value
+            else:
+                if from_env:
+                    print(str.format(
+                        '{} will use value of {} ({}) from environment: {}',
+                        name, key, desc, default_value))
+                    answers[key] = default_value
+                else:
+                    prompt = '{} asks for {} ({}) ? [{}] '.format(
+                        name, key, desc, default_value)
+                    response = get_input(prompt)
+
+                    if response:
+                        answers[key] = response
+                    else:
+                        answers[key] = default_value
+
+    if not force and answers:
+        for key, value in answers.items():
+            if not config.has_section('user_vars'):
+                config.add_section('user_vars')
+
+            config.set('user_vars', key, value)
+
+        config_file = os.path.join(config_dir(), 'config')
+
+        with io.open(config_file, 'w', encoding=sys.stdout.encoding) as f:
+            config.write(f)
+
+        print('Saved answers to config file: {}'.format(config_file))
+
+    manager.user_vars = answers
+
+
 def print_error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
@@ -350,6 +416,9 @@ def cmd_install(manager, args, config):
 
     package_infos += new_pkgs
 
+    prompt_for_user_vars(manager, config, args.force,
+                         [info for info, _ in package_infos])
+
     if not args.skiptests:
         for info, version in package_infos:
             name = info.package.qualified_name()
@@ -626,6 +695,9 @@ def cmd_unbundle(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
+    prompt_for_user_vars(manager, config, args.force,
+                         [info for _, _, info in bundle_info])
+
     error = manager.unbundle(args.bundle_filename)
 
     if error:
@@ -877,6 +949,8 @@ def cmd_upgrade(manager, args, config):
                         invalid_reason)
             sys.exit(1)
 
+    allpkgs = outdated_packages + new_pkgs
+
     if not args.force:
         print('The following packages will be UPGRADED:')
         print(package_listing)
@@ -891,7 +965,6 @@ def cmd_upgrade(manager, args, config):
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
 
-        allpkgs = outdated_packages + new_pkgs
         extdep_listing = ''
 
         for info, version in allpkgs:
@@ -917,6 +990,9 @@ def cmd_upgrade(manager, args, config):
 
         if not confirmation_prompt('Proceed?'):
             return
+
+    prompt_for_user_vars(manager, config, args.force,
+                         [info for info, _ in allpkgs])
 
     if not args.skiptests:
         to_test = [(info, next_version)
@@ -1351,6 +1427,10 @@ def cmd_config(manager, args, config):
     elif args.config_param == 'sources':
         for key, value in config_items(config, 'sources'):
             print('{} = {}'.format(key, value))
+    elif args.config_param == 'user_vars':
+        if config.has_section('user_vars'):
+            for key, value in config_items(config, 'user_vars'):
+                print('{} = {}'.format(key, value))
     else:
         print(config.get('paths', args.config_param))
 
@@ -1800,7 +1880,7 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_config)
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
-        choices=['all', 'sources', 'state_dir', 'script_dir',
+        choices=['all', 'sources', 'user_vars', 'state_dir', 'script_dir',
                  'plugin_dir', 'bro_dist'],
         help='Name of a specific config file field to output.')
 

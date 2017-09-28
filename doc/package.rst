@@ -246,26 +246,6 @@ Package Metadata
 See the following sub-sections for a full list of available fields that may be
 used in :file:`bro-pkg.meta` files.
 
-.. _metadata-interpolation:
-
-Value Interpolation
-~~~~~~~~~~~~~~~~~~~
-
-The metadata fields may reference the settings any given user has in their
-customized :ref:`package manager config file <bro-pkg-config-file>` via
-variable interpolation/substition.
-
-For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
-then :program:`bro-pkg` operations that use that field will automatically
-substitute the actual value of `bro_dist` that the user has in their local
-config file.  Note the trailing 's' character at the end of the interpolation
-string, ``%(bro_dist)s`` is intended/necessary for all such interpolation
-usages.
-
-Internally, the value substitution and metadata parsing is handled by Python's
-`configparser interpolation`_.  See its documentation if you're interested in
-the details of how the interpolation works.
-
 `description` field
 ~~~~~~~~~~~~~~~~~~~
 
@@ -405,6 +385,83 @@ custom scripts for their plugin.  When a package has both a Bro plugin and Bro
 script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
+
+.. _metadata-interpolation:
+
+Value Interpolation
+^^^^^^^^^^^^^^^^^^^
+
+The `build_command field`_ may reference the settings any given user has in
+their customized :ref:`package manager config file <bro-pkg-config-file>`.
+
+For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
+then :program:`bro-pkg` operations that use that field will automatically
+substitute the actual value of `bro_dist` that the user has in their local
+config file.  Note the trailing 's' character at the end of the interpolation
+string, ``%(bro_dist)s`` is intended/necessary for all such interpolation
+usages.
+
+Besides the `bro_dist` config key, any key inside the `user_vars` sections
+of their :ref:`package manager config file <bro-pkg-config-file>` that matches
+the key of an entry in the package's `user_vars field`_ will be interpolated.
+
+Internally, the value substitution and metadata parsing is handled by Python's
+`configparser interpolation`_.  See its documentation if you're interested in
+the details of how the interpolation works.
+
+`user_vars` field
+~~~~~~~~~~~~~~~~~
+
+The `user_vars` field is used to solicit feedback from users for use during
+execution of the `build_command field`_.
+
+An example :file:`bro-pkg.meta`::
+
+  [package]
+  build_command = ./configure --bro-dist=%(bro_dist)s --with-librdkafka=%(LIBRDKAFKA_ROOT)s --with-libdub=%(LIBDBUS_ROOT)s && make
+  user_vars =
+    LIBRDKAFKA_ROOT [/usr] "Path to librdkafka installation"
+    LIBDBUS_ROOT [/usr] "Path to libdbus installation"
+
+The format of the field is a sequence entries of the format::
+
+  key [value] "description"
+
+The `key` is the string that should match what you want to be interpolated
+within the `build_command field`_.
+
+The `value` is provided as a convenient default value that you'd typically
+expect to work for most users.
+
+The `description` is provided as an explanation for what the value will be
+used for.
+
+Here's what a typical user would see::
+
+  $ bro-pkg install bro-test-package
+  The following packages will be INSTALLED:
+    bro/jsiwek/bro-test-package (1.0.5)
+
+  Proceed? [Y/n] y
+  bro/jsiwek/bro-test-package asks for LIBRDKAFKA_ROOT (Path to librdkafka installation) ? [/usr] /usr/local
+  Saved answers to config file: /Users/jon/.bro-pkg/config
+  Installed "bro/jsiwek/bro-test-package" (master)
+  Loaded "bro/jsiwek/bro-test-package"
+
+The :program:`bro-pkg` command will iterate over the `user_vars` field of all
+packages involved in the operation and prompt the user to provide a value that
+will work for their system.
+
+If a user is using the ``--force`` option to :program:`bro-pkg` commands or they
+are using the Python API directly, it will first look within the `user_vars`
+section of the user's :ref:`package manager config file <bro-pkg-config-file>`
+and, if it can't find the key there, it will fallback to use the default value
+from the package's metadata.
+
+In any case, the user may choose to supply the value of a `user_vars` key via
+an environment variable, in which case, prompts are skipped for any keys
+located in the environment.  The environment is also given priority over any
+values in the user's :ref:`package manager config file <bro-pkg-config-file>`.
 
 `test_command` field
 ~~~~~~~~~~~~~~~~~~~~

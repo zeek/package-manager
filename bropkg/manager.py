@@ -37,6 +37,7 @@ from .source import (
 from .package import (
     METADATA_FILENAME,
     name_from_path,
+    user_vars,
     canonical_url,
     Package,
     PackageInfo,
@@ -70,6 +71,10 @@ class Manager(object):
         state_dir (str): the directory where the package manager will
             a maintain manifest file, package/source git clones, and other
             persistent state the manager needs in order to operate
+
+        user_vars (dict of str -> str): dictionary of key-value pairs where
+            the value will be substituted into package build commands in place
+            of the key.
 
         backup_dir (str): a directory where the package manager will
             store backup files (e.g. locally modified package config files)
@@ -117,7 +122,8 @@ class Manager(object):
             load all installed packages that have been marked as loaded.
     """
 
-    def __init__(self, state_dir, script_dir, plugin_dir, bro_dist=''):
+    def __init__(self, state_dir, script_dir, plugin_dir, bro_dist='',
+                 user_vars=None):
         """Creates a package manager instance.
 
         Args:
@@ -129,6 +135,9 @@ class Manager(object):
 
             bro_dist (str): value to set the `bro_dist` attribute to
 
+            user_vars (dict of str -> str): key-value pair substitutions for
+                use in package build commands.
+
         Raises:
             OSError: when a package manager state directory can't be created
             IOError: when a package manager state file can't be created
@@ -138,10 +147,13 @@ class Manager(object):
         self.installed_pkgs = {}
         self.bro_dist = bro_dist
         self.state_dir = state_dir
+        self.user_vars = {} if user_vars is None else user_vars
         self.backup_dir = os.path.join(self.state_dir, 'backups')
         self.log_dir = os.path.join(self.state_dir, 'logs')
         self.scratch_dir = os.path.join(self.state_dir, 'scratch')
+        self._script_dir = script_dir
         self.script_dir = os.path.join(script_dir, 'packages')
+        self._plugin_dir = plugin_dir
         self.plugin_dir = os.path.join(plugin_dir, 'packages')
         self.source_clonedir = os.path.join(self.state_dir, 'clones', 'source')
         self.package_clonedir = os.path.join(
@@ -1706,11 +1718,38 @@ class Manager(object):
     def _stage(self, package, version, clone,
                stage_script_dir, stage_plugin_dir):
         metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
-        default_metadata = {
+
+        # First use raw parser so no value interpolation takes place.
+        raw_metadata_parser = configparser.RawConfigParser()
+        invalid_reason = _parse_package_metadata(
+            raw_metadata_parser, metadata_file)
+
+        if invalid_reason:
+            return invalid_reason
+
+        raw_metadata = _get_package_metadata(raw_metadata_parser)
+
+        requested_user_vars = user_vars(raw_metadata)
+
+        if requested_user_vars is None:
+            return "package has malformed 'user_vars' metadata field"
+
+        substitutions = {
             'bro_dist': self.bro_dist,
         }
+        substitutions.update(self.user_vars)
+
+        for k, v, _ in requested_user_vars:
+            val_from_env = os.environ.get(k)
+
+            if val_from_env:
+                substitutions[k] = val_from_env
+
+            if k not in substitutions:
+                substitutions[k] = v
+
         metadata_parser = configparser.SafeConfigParser(
-            defaults=default_metadata)
+            defaults=substitutions)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
 

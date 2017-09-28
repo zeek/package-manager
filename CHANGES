@@ -1,4 +1,13 @@
 
+1.0.4-31 | 2017-09-28 16:16:39 -0500
+
+  * GH-9: add new 'user_vars' bro-pkg.meta field and config file section
+
+    This field allows for packages to solicit users for extra configuration
+    settings which may then be referenced in that package's build_command.
+    Useful for asking users for installation paths of external dependencies,
+    which may differ between users/systems. (Jon Siwek)
+
 1.0.4-30 | 2017-09-27 11:14:52 -0500
 
   * GH-9: show 'external_depends' metadata during 'unbundle' command (Jon Siwek)

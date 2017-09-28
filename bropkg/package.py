@@ -4,6 +4,7 @@ the properties and status of Bro packages.
 """
 
 import os
+import re
 
 from ._util import (
     remove_trailing_slashes,
@@ -59,6 +60,42 @@ def short_description(metadata_dict):
             break
 
     return rval.lstrip()
+
+
+def user_vars(metadata_dict):
+    """Returns a list of (str, str, str) from metadata's 'user_vars' field.
+
+    Each entry in the returned list is a the name of a variable, it's value,
+    and its description.
+
+    If the 'user_vars' field is not present, an empty list is returned.  If it
+    is malformed, then None is returned.
+    """
+    text = metadata_dict.get('user_vars')
+
+    if not text:
+        return []
+
+    rval = []
+
+    text = text.strip()
+    entries = re.split('(\w+\s+\\[.*\\]\s+".*")\s+', text)
+    entries = list(filter(None, entries))
+
+    for entry in entries:
+        m = re.match('(\w+)\s+\\[(.*)\\]\s+"(.*)"', entry)
+
+        if not m:
+            return None
+
+        groups = m.groups()
+
+        if len(groups) != 3:
+            return None
+
+        rval.append((groups[0], groups[1], groups[2]))
+
+    return rval
 
 
 def dependencies(metadata_dict, field='depends'):
@@ -199,6 +236,17 @@ class PackageInfo(object):
         """
         return dependencies(self.metadata, field)
 
+    def user_vars(self):
+        """Returns a list of (str, str, str) from metadata's 'user_vars' field.
+
+        Each entry in the returned list is a the name of a variable, it's value,
+        and its description.
+
+        If the 'user_vars' field is not present, an empty list is returned.  If
+        it is malformed, then None is returned.
+        """
+        return user_vars(self.metadata)
+
     def best_version(self):
         """Returns the best/latest version of the package that is available.
 
@@ -286,6 +334,17 @@ class Package(object):
         number of values), then None is returned.
         """
         return dependencies(self.metadata, field)
+
+    def user_vars(self):
+        """Returns a list of (str, str, str) from metadata's 'user_vars' field.
+
+        Each entry in the returned list is a the name of a variable, it's value,
+        and its description.
+
+        If the 'user_vars' field is not present, an empty list is returned.  If
+        it is malformed, then None is returned.
+        """
+        return user_vars(self.metadata)
 
     def name_with_source_directory(self):
         """Return the package's within its package source.
