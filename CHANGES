@@ -1,4 +1,8 @@
 
+1.1 | 2017-09-28 18:46:30 -0500
+
+  * Release 1.1.
+
 1.0.4-32 | 2017-09-28 18:45:54 -0500
 
   * BIT-1852: allow plugin_dir to also accept tarfiles
