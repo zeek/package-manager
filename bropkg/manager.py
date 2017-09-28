@@ -1829,7 +1829,8 @@ class Manager(object):
                 return error
 
             error = _copy_package_dir(package, 'script_dir',
-                                      script_dir_src, script_dir_dst)
+                                      script_dir_src, script_dir_dst,
+                                      self.scratch_dir)
 
             if error:
                 return error
@@ -1857,7 +1858,8 @@ class Manager(object):
                                   pkg_plugin_dir)
 
         error = _copy_package_dir(package, 'plugin_dir',
-                                  plugin_dir_src, plugin_dir_dst)
+                                  plugin_dir_src, plugin_dir_dst,
+                                  self.scratch_dir)
 
         if error:
             return error
@@ -2084,25 +2086,48 @@ def _get_hash(clone, ref_name):
     return _get_ref(clone, ref_name).object.hexsha
 
 
-def _copy_package_dir(package, dirname, src, dst):
+def _copy_package_dir(package, dirname, src, dst, scratch_dir):
     """Copy a directory from a package to its installation location.
 
     Returns:
         str: empty string if package dir copy succeeded else an error string
         explaining why it failed.
     """
+    if not os.path.exists(src):
+        return ''
+
+    if os.path.isfile(src) and tarfile.is_tarfile(src):
+        tmp_dir = os.path.join(scratch_dir, 'untar')
+        delete_path(tmp_dir)
+        make_dir(tmp_dir)
+
+        try:
+            with tarfile.open(src) as tf:
+                tf.extractall(tmp_dir)
+        except Exception as error:
+            return str(error)
+
+        ld = os.listdir(tmp_dir)
+
+        if len(ld) != 1:
+            return 'failed to copy package {}: invalid tarfile'.format(dirname)
+
+        src = os.path.join(tmp_dir, ld[0])
+
+    if not os.path.isdir(src):
+        return 'failed to copy package {}: not a dir or tarfile'.format(dirname)
+
+    def ignore(_, files):
+        rval = []
+
+        for f in files:
+            if f in {'.git', 'bro-pkg.meta'}:
+                rval.append(f)
+
+        return rval
+
     try:
-        if os.path.exists(src):
-            def ignore(_, files):
-                rval = []
-
-                for f in files:
-                    if f in {'.git', 'bro-pkg.meta'}:
-                        rval.append(f)
-
-                return rval
-
-            copy_over_path(src, dst, ignore=ignore)
+        copy_over_path(src, dst, ignore=ignore)
     except shutil.Error as error:
         errors = error.args[0]
         reasons = ""

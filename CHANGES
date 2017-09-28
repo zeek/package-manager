@@ -1,4 +1,14 @@
 
+1.0.4-32 | 2017-09-28 18:45:54 -0500
+
+  * BIT-1852: allow plugin_dir to also accept tarfiles
+
+    This allows packagers to specify a tarfile containing the Bro plugin
+    instead of a directory.  May be useful as the default Bro plugin
+    CMake skeleton will end up producing a tarfile as part of the plugin
+    build process that contains the minimal set of files comprising the
+    plugin. (Jon Siwek)
+
 1.0.4-31 | 2017-09-28 16:16:39 -0500
 
   * GH-9: add new 'user_vars' bro-pkg.meta field and config file section

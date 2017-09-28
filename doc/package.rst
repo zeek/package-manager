@@ -355,6 +355,15 @@ to a directory named :file:`build/` at the top-level of the package.  This is
 the default location where Bro binary plugins get placed when building them from
 source code (see the `build_command field`_).
 
+This field may also be set to the location of a tarfile that has a single top-
+level directory inside it containing the Bro plugin. The default CMake skeleton
+for Bro plugins produces such a tarfile located at
+:file:`build/<namespace>_<plugin>.tgz`. This is a good choice to use for
+packages that will be published to a wider audience as installing from this
+tarfile contains the minimal set of files needed for the plugin to work whereas
+some extra files will get installed to user systems if the `plugin_dir` uses the
+default :file:`build/` directory.
+
 `build_command` field
 ~~~~~~~~~~~~~~~~~~~~~
 
