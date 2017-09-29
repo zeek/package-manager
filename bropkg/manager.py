@@ -1210,6 +1210,10 @@ class Manager(object):
                     # A bro node will get added later.
                     continue
 
+                if dep_name == 'bro-pkg':
+                    # A bro-pkg node will get added later.
+                    continue
+
                 info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
@@ -1242,6 +1246,10 @@ class Manager(object):
                 LOG.warning(
                     'could not get bro version: no bro_config in PATH?')
 
+            node = Node('bro-pkg')
+            node.installed_version = ('version', __version__)
+            graph['bro-pkg'] = node
+
             for ipkg in self.installed_packages():
                 name = ipkg.package.qualified_name()
                 status = ipkg.status
@@ -1260,6 +1268,9 @@ class Manager(object):
             if name == 'bro':
                 continue
 
+            if name == 'bro-pkg':
+                continue
+
             dd = node.info.dependencies()
 
             if dd is None:
@@ -1270,9 +1281,15 @@ class Manager(object):
                 if dep_name == 'bro':
                     if 'bro' in graph:
                         graph['bro'].dependers[name] = dep_version
+                elif dep_name == 'bro-pkg':
+                    if 'bro-pkg' in graph:
+                        graph['bro-pkg'].dependers[name] = dep_version
                 else:
                     for _, dependency_node in graph.items():
                         if dependency_node.name == 'bro':
+                            continue
+
+                        if dependency_node.name == 'bro-pkg':
                             continue
 
                         if dependency_node.info.package.matches_path(dep_name):

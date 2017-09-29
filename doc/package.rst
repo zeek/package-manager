@@ -472,6 +472,8 @@ an environment variable, in which case, prompts are skipped for any keys
 located in the environment.  The environment is also given priority over any
 values in the user's :ref:`package manager config file <bro-pkg-config-file>`.
 
+Available :program:`since bro-pkg v1.1`.
+
 `test_command` field
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -526,14 +528,23 @@ An example :file:`bro-pkg.meta`::
 The field is a list of dependency names and their version requirement
 specifications.
 
-A dependency name may be either `bro`, a full git URL of the package, or a
-:ref:`package shorthand name <package-shorthand-name>`.
+A dependency name may be either `bro`, `bro-pkg`, a full git URL of the package,
+or a :ref:`package shorthand name <package-shorthand-name>`.
 
 - The special `bro` dependency refers not to a package, but the version of
   Bro that the package requires in order to function.  If the user has
   :program:`bro-config` in their :envvar:`PATH` when installing/upgrading a
   package that specifies a `bro` dependency, then :program:`bro-pkg` will
   enforce that the requirement is satisfied.
+
+- The special `bro-pkg` dependency refers to the version of the package
+  manager that is required by the package.  E.g. if a package takes advantage
+  of new features that are not present in older versions of the package manager,
+  then it should indicate that so users of those old version will see an error
+  message an know to upgrade instead of seeing a cryptic error/exception, or
+  worse, seeing no errors, but without the desired functionality being
+  performed.
+  Note that this feature itself is only available :program:`since bro-pkg v1.2`.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git
@@ -578,6 +589,8 @@ be given in terms of semantic versioning where possible.  In any case, the
 name and version specification for an external dependency are only used
 for display purposes -- to help users understand extra pre-requisites
 that are needed for proceeding with package installation/upgrades.
+
+Available :program:`since bro-pkg v1.1`.
 
 .. _package-versioning:
 
