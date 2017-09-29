@@ -1,4 +1,8 @@
 
+1.2 | 2017-09-29 13:15:37 -0500
+
+  * Release 1.2.
+
 1.1-1 | 2017-09-29 13:15:00 -0500
 
   * BIT-1852: allow 'bro-pkg' as a 'depends' field value
