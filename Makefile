@@ -35,7 +35,7 @@ test:
 
 .PHONY: upload
 upload: twine-check
-	python setup.py bdist_wheel
+	BROPKG_PYPI_DIST=yes python setup.py bdist_wheel
 	twine upload -u bro dist/bro_pkg-$(VERSION)-py2.py3-none-any.whl
 
 .PHONY: twine-check

@@ -1,4 +1,15 @@
 
+1.2.1 | 2017-10-11 15:03:56 -0500
+
+  * Release 1.2.1.
+
+1.2-1 | 2017-10-11 15:02:21 -0500
+
+  * Fix building PyPI distribution from Python 3+
+
+    It should now still include the configparser backport dependency.
+    (Jon Siwek)
+
 1.2 | 2017-09-29 13:15:37 -0500
 
   * Release 1.2.

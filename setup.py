@@ -1,9 +1,10 @@
 from setuptools import setup
 from sys import version_info
+import os
 
 install_requires = ['gitpython', 'semantic_version', 'btest']
 
-if version_info[0] + version_info[1] / 10 < 3.5:
+if version_info[0] + version_info[1] / 10 < 3.5 or os.environ.get('BROPKG_PYPI_DIST'):
     install_requires.append("configparser")
 
 setup(
