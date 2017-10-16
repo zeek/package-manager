@@ -84,7 +84,7 @@ class Source(object):
         return self.git_url
 
     def package_index_files(self):
-        """Return a list paths to package index files in the source."""
+        """Return a list of paths to package index files in the source."""
         rval = []
         visited_dirs = set()
 
@@ -111,7 +111,7 @@ class Source(object):
                 if filename == INDEX_FILENAME:
                     rval.append(os.path.join(root, filename))
 
-        return rval
+        return sorted(rval)
 
     def packages(self):
         """Return a list of :class:`.package.Package` in the source."""
