@@ -1,4 +1,8 @@
 
+1.2.2 | 2017-10-16 16:14:02 -0500
+
+  * Release 1.2.2.
+
 1.2.1-1 | 2017-10-16 16:11:37 -0500
 
   * GH-21: again trying to give aggregate metadata consistent ordering
