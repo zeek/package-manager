@@ -1,11 +1,15 @@
 {% extends "!breadcrumbs.html" %}
 
 {% block breadcrumbs_aside %}
-  {% if check_meta and 'github_url' in meta and github_version == "master" %}
-    {% set display_github = True %}
-  {% else %}
-    {% set display_github = False %}
+<li class="wy-breadcrumbs-aside">
+{% if pagename != "search" %}
+  {% if display_github %}
+    {% if github_version == "master" %}
+      <a href="https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/blob/{{ github_version }}{{ conf_py_path }}{{ pagename }}{{ suffix }}" class="fa fa-github"> {{ _('Edit on GitHub') }}</a>
+    {% endif %}
+  {% elif show_source and has_source and sourcename %}
+    <a href="{{ pathto('_sources/' + sourcename, true)|e }}" rel="nofollow"> {{ _('View page source') }}</a>
   {% endif %}
-
-  {{ super() }}
+{% endif %}
+</li>
 {% endblock %}
