@@ -1,0 +1,7 @@
+{% extends "!breadcrumbs.html" %}
+
+{% if READTHEDOCS and current_version and current_version == "latest" %}
+  {% if check_meta and 'github_url' in meta %}
+    {% set display_github = True %}
+  {% endif %}
+{% endif %}

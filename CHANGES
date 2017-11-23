@@ -1,4 +1,13 @@
 
+1.2.3 | 2017-11-23 13:29:07 -0600
+
+  * Release 1.2.3.
+
+1.2.2-2 | 2017-11-23 13:28:15 -0600
+
+  * GH-23: remove broken "Edit on GitHub" link from stable version of docs.
+    (Corelight)
+
 1.2.2-1 | 2017-11-23 13:27:06 -0600
 
   * Add a missing dependency for building docs. (Corelight)
