@@ -132,6 +132,10 @@ html_theme_options = {
     'display_version': True,
 }
 
+html_context = {
+    "display_github": False # The "Edit on GitHub" link
+}
+
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
