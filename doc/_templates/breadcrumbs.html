@@ -1,7 +1,11 @@
 {% extends "!breadcrumbs.html" %}
 
-{% if READTHEDOCS and current_version and current_version == "latest" %}
-  {% if check_meta and 'github_url' in meta %}
+{% block breadcrumbs_aside %}
+  {% if check_meta and 'github_url' in meta and github_version == "master" %}
     {% set display_github = True %}
+  {% else %}
+    {% set display_github = False %}
   {% endif %}
-{% endif %}
+
+  {{ super() }}
+{% endblock %}
