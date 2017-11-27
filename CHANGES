@@ -1,4 +1,8 @@
 
+1.2.6-1 | 2017-11-27 09:46:02 -0600
+
+  * GH-24: improve script_dir metadata field documentation (Corelight)
+
 1.2.6 | 2017-11-23 15:27:46 -0600
 
   * Release 1.2.6.

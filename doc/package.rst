@@ -311,7 +311,16 @@ Some ideas for what to put in the `tags` field for packages:
 ~~~~~~~~~~~~~~~~~~
 
 The `script_dir` field is a path relative to the root of the package that
-contains a file named :file:`__load__.bro` and possibly other Bro scripts.
+contains a file named :file:`__load__.bro` and possibly other Bro scripts. The
+files located in this directory are copied into
+:file:`{<user_script_dir>}/packages/{<package>}/`, where `<user_script_dir>`
+corresponds to the `script_dir` field of the user's
+:ref:`config file <bro-pkg-config-file>` (typically
+:file:`{<bro_install_prefix>}/share/bro/site`).
+
+When the package is :ref:`loaded <load-command>`,
+an :samp:`@load {<package_name>}` directive is
+added to :file:`{<user_script_dir>}/packages/packages.bro`.
 
 You may place any valid Bro script code within :file:`__load__.bro`, but a
 package that contains many Bro scripts will typically have :file:`__load__.bro`
