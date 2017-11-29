@@ -601,6 +601,23 @@ that are needed for proceeding with package installation/upgrades.
 
 Available :program:`since bro-pkg v1.1`.
 
+`suggests` field
+~~~~~~~~~~~~~~~~
+
+The `suggests` field follows the same format as the :ref:`depends field
+<package-dependencies>`, but it's used for specifying optional packages that
+users may want to additionally install.  This is helpful for suggesting
+complementary packages that aren't strictly required for the suggesting package
+to function properly.
+
+A package in `suggests` is functionaly equivalent to a package in `depends`
+except in the way it's presented to users in various prompts during
+:program:`bro-pkg` operations.  Users also have the option to ignore
+suggestions by supplying an additional ``--nosuggestions`` flag to
+:program:`bro-pkg` commands.
+
+Available :program:`since bro-pkg v1.3`.
+
 .. _package-versioning:
 
 Package Versioning

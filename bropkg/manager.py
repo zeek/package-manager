@@ -1133,7 +1133,8 @@ class Manager(object):
         return _get_version_tags(clone)
 
     def validate_dependencies(self, requested_packages,
-                              ignore_installed_packages=False):
+                              ignore_installed_packages=False,
+                              ignore_suggestions=False):
         """Validates package dependencies.
 
         Args:
@@ -1146,8 +1147,12 @@ class Manager(object):
                 should consider installed packages as satisfying dependency
                 requirements.
 
+            ignore_suggestions (bool): whether the dependency analysis should
+                consider installing dependencies that are marked in another
+                package's 'suggests' metadata field.
+
         Returns:
-            (str, list of (:class:`.package.PackageInfo`, str)):
+            (str, list of (:class:`.package.PackageInfo`, str, bool)):
             the first element of the tuple is an empty string if dependency
             graph was successfully validated, else an error string explaining
             what is invalid.  In the case it was validated, the second element
@@ -1158,6 +1163,10 @@ class Manager(object):
             `requested_packages` argument).
             The second element of tuples in the list is a version string of
             the associated package that satisfies dependency requirements.
+            The third element of the tuples in the list is a boolean value
+            indicating whether the package is included in the list because it's
+            merely suggested by another package.
+
         """
         class Node(object):
 
@@ -1167,12 +1176,13 @@ class Manager(object):
                 self.requested_version = None  # (tracking method, version)
                 self.installed_version = None  # (tracking method, version)
                 self.dependers = dict()  # name -> version
+                self.is_suggestion = False
 
             def __str__(self):
                 return str.format(
-                    '{}\n\trequested: {}\n\tinstalled: {}\n\tdependers: {}',
+                    '{}\n\trequested: {}\n\tinstalled: {}\n\tdependers: {}\n\tsuggestion: {}',
                     self.name, self.requested_version, self.installed_version,
-                    self.dependers)
+                    self.dependers, self.is_suggestion)
 
         new_pkgs = []
         graph = dict()
@@ -1199,13 +1209,23 @@ class Manager(object):
 
         while to_process:
             (_, node) = to_process.popitem()
-            dd = node.info.dependencies()
+            dd = node.info.dependencies(field='depends')
+            ds = node.info.dependencies(field='suggests')
 
             if dd is None:
                 return (str.format('package "{}" has malformed "depends" field',
                                    node.name), new_pkgs)
 
-            for dep_name, _ in dd.items():
+            all_deps = dd.copy()
+
+            if not ignore_suggestions:
+                if ds is None:
+                    return (str.format('package "{}" has malformed "suggests" field',
+                                       node.name), new_pkgs)
+
+                all_deps.update(ds)
+
+            for dep_name, _ in all_deps.items():
                 if dep_name == 'bro':
                     # A bro node will get added later.
                     continue
@@ -1214,6 +1234,8 @@ class Manager(object):
                     # A bro-pkg node will get added later.
                     continue
 
+                # Suggestion status propagates to 'depends' field of suggested packages.
+                is_suggestion = node.is_suggestion or dep_name in ds and dep_name not in dd
                 info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
@@ -1224,13 +1246,20 @@ class Manager(object):
                 dep_name = info.package.qualified_name()
 
                 if dep_name in graph:
+                    if graph[dep_name].is_suggestion and not is_suggestion:
+                        # Suggestion found to be required by another package.
+                        graph[dep_name].is_suggestion = False
                     continue
 
                 if dep_name in to_process:
+                    if to_process[dep_name].is_suggestion and not is_suggestion:
+                        # Suggestion found to be required by another package.
+                        to_process[dep_name].is_suggestion = False
                     continue
 
                 node = Node(dep_name)
                 node.info = info
+                node.is_suggestion = is_suggestion
                 graph[node.name] = node
                 to_process[node.name] = node
 
@@ -1271,13 +1300,23 @@ class Manager(object):
             if name == 'bro-pkg':
                 continue
 
-            dd = node.info.dependencies()
+            dd = node.info.dependencies(field='depends')
+            ds = node.info.dependencies(field='suggests')
 
             if dd is None:
                 return (str.format('package "{}" has malformed "depends" field',
                                    node.name), new_pkgs)
 
-            for dep_name, dep_version in dd.items():
+            all_deps = dd.copy()
+
+            if not ignore_suggestions:
+                if ds is None:
+                    return (str.format('package "{}" has malformed "suggests" field',
+                                       node.name), new_pkgs)
+
+                all_deps.update(ds)
+
+            for dep_name, dep_version in all_deps.items():
                 if dep_name == 'bro':
                     if 'bro' in graph:
                         graph['bro'].dependers[name] = dep_version
@@ -1305,7 +1344,8 @@ class Manager(object):
                 if node.requested_version:
                     continue
 
-                new_pkgs.append((node.info, node.info.best_version()))
+                new_pkgs.append((node.info, node.info.best_version(),
+                                 node.is_suggestion))
                 continue
 
             if node.requested_version:
@@ -1487,7 +1527,7 @@ class Manager(object):
                         # Must have been all '*' wildcards
                         best_version = node.info.best_version()
 
-                new_pkgs.append((node.info, best_version))
+                new_pkgs.append((node.info, best_version, node.is_suggestion))
 
         return ('', new_pkgs)
 
@@ -1666,7 +1706,7 @@ class Manager(object):
         pkgs = []
         pkgs.append((pkg_info, version))
 
-        for info, version in new_pkgs:
+        for info, version, _ in new_pkgs:
             pkgs.append((info, version))
 
         # Clone all packages, checkout right version, and build/install to

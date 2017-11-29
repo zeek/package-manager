@@ -353,14 +353,15 @@ def cmd_install(manager, args, config):
         if not version:
             version = package_info.best_version()
 
-        package_infos.append((package_info, version))
+        package_infos.append((package_info, version, False))
 
     new_pkgs = []
 
     if not args.nodeps:
         to_validate = [(info.package.qualified_name(), version)
-                       for info, version in package_infos]
-        invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
+                       for info, version, _ in package_infos]
+        invalid_reason, new_pkgs = manager.validate_dependencies(
+            to_validate, ignore_suggestions=args.nosuggestions)
 
         if invalid_reason:
             print_error('error: failed to resolve dependencies:',
@@ -370,7 +371,7 @@ def cmd_install(manager, args, config):
     if not args.force:
         package_listing = ''
 
-        for info, version in package_infos:
+        for info, version, _ in package_infos:
             name = info.package.qualified_name()
             package_listing += '  {} ({})\n'.format(name, version)
 
@@ -380,9 +381,15 @@ def cmd_install(manager, args, config):
         if new_pkgs:
             dependency_listing = ''
 
-            for info, version in new_pkgs:
+            for info, version, suggested in new_pkgs:
                 name = info.package.qualified_name()
-                dependency_listing += '  {} ({})\n'.format(name, version)
+                dependency_listing += '  {} ({})'.format(
+                    name, version)
+
+                if suggested:
+                    dependency_listing += ' (suggested)'
+
+                dependency_listing += '\n'
 
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
@@ -390,7 +397,7 @@ def cmd_install(manager, args, config):
         allpkgs = package_infos + new_pkgs
         extdep_listing = ''
 
-        for info, version in allpkgs:
+        for info, version, _ in allpkgs:
             name = info.package.qualified_name()
             extdeps = info.dependencies(field='external_depends')
 
@@ -417,10 +424,10 @@ def cmd_install(manager, args, config):
     package_infos += new_pkgs
 
     prompt_for_user_vars(manager, config, args.force,
-                         [info for info, _ in package_infos])
+                         [info for info, _, _ in package_infos])
 
     if not args.skiptests:
-        for info, version in package_infos:
+        for info, version, _ in package_infos:
             name = info.package.qualified_name()
 
             if 'test_command' not in info.metadata:
@@ -453,7 +460,7 @@ def cmd_install(manager, args, config):
     join_timeout = 0.01
     tick_interval = 1
 
-    for info, version in package_infos:
+    for info, version, _ in package_infos:
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
@@ -564,27 +571,30 @@ def cmd_bundle(manager, args, config):
 
             to_validate.append((info.package.qualified_name(), version))
             packages_to_bundle.append((info.package.qualified_name(),
-                                       info.package.git_url, version, False))
+                                       info.package.git_url, version, False,
+                                       False))
 
         if not args.nodeps:
-            invalid_reason, new_pkgs = manager.validate_dependencies(to_validate,
-                                                                     True)
+            invalid_reason, new_pkgs = manager.validate_dependencies(
+                to_validate, True, ignore_suggestions=args.nosuggestions)
 
             if invalid_reason:
                 print_error('error: failed to resolve dependencies:',
                             invalid_reason)
                 sys.exit(1)
 
-        for info, version in new_pkgs:
+        for info, version, suggested in new_pkgs:
             packages_to_bundle.append((info.package.qualified_name(),
-                                       info.package.git_url, version, True))
+                                       info.package.git_url, version, True,
+                                       suggested))
     else:
         prefer_existing_clones = True
 
         for ipkg in manager.installed_packages():
             packages_to_bundle.append((ipkg.package.qualified_name(),
                                        ipkg.package.git_url,
-                                       ipkg.status.current_version, False))
+                                       ipkg.status.current_version, False,
+                                       False))
 
     if not packages_to_bundle:
         print_error('error: no packages to put in bundle')
@@ -593,10 +603,12 @@ def cmd_bundle(manager, args, config):
     if not args.force:
         package_listing = ''
 
-        for name, _, version, is_dependency in packages_to_bundle:
+        for name, _, version, is_dependency, is_suggestion in packages_to_bundle:
             package_listing += '  {} ({})'.format(name, version)
 
-            if is_dependency:
+            if is_suggestion:
+                package_listing += ' (suggested)'
+            elif is_dependency:
                 package_listing += ' (dependency)'
 
             package_listing += '\n'
@@ -609,7 +621,7 @@ def cmd_bundle(manager, args, config):
             return
 
     git_urls = [(git_url, version)
-                for _, git_url, version, _ in packages_to_bundle]
+                for _, git_url, version, _, _ in packages_to_bundle]
     error = manager.bundle(args.bundle_filename, git_urls,
                            prefer_existing_clones=prefer_existing_clones)
 
@@ -929,7 +941,7 @@ def cmd_upgrade(manager, args, config):
         if ipkg.status.tracking_method == 'version' and info.versions:
             next_version = info.versions[-1]
 
-        outdated_packages.append((info, next_version))
+        outdated_packages.append((info, next_version, False))
         version_change = version_change_string(manager, ipkg)
         package_listing += '  {} {}\n'.format(name, version_change)
 
@@ -941,8 +953,9 @@ def cmd_upgrade(manager, args, config):
 
     if not args.nodeps:
         to_validate = [(info.package.qualified_name(), next_version)
-                       for info, next_version in outdated_packages]
-        invalid_reason, new_pkgs = manager.validate_dependencies(to_validate)
+                       for info, next_version, _ in outdated_packages]
+        invalid_reason, new_pkgs = manager.validate_dependencies(
+            to_validate, ignore_suggestions=args.nosuggestions)
 
         if invalid_reason:
             print_error('error: failed to resolve dependencies:',
@@ -958,16 +971,22 @@ def cmd_upgrade(manager, args, config):
         if new_pkgs:
             dependency_listing = ''
 
-            for info, version in new_pkgs:
+            for info, version, suggestion in new_pkgs:
                 name = info.package.qualified_name()
-                dependency_listing += '  {} ({})\n'.format(name, version)
+                dependency_listing += '  {} ({})'.format(name, version)
+
+                if suggestion:
+                    dependency_listing += ' (suggested)'
+
+                dependency_listing += '\n'
+
 
             print('The following dependencies will be INSTALLED:')
             print(dependency_listing)
 
         extdep_listing = ''
 
-        for info, version in allpkgs:
+        for info, version, _ in allpkgs:
             name = info.package.qualified_name()
             extdeps = info.dependencies(field='external_depends')
 
@@ -992,13 +1011,13 @@ def cmd_upgrade(manager, args, config):
             return
 
     prompt_for_user_vars(manager, config, args.force,
-                         [info for info, _ in allpkgs])
+                         [info for info, _, _ in allpkgs])
 
     if not args.skiptests:
         to_test = [(info, next_version)
-                   for info, next_version in outdated_packages]
+                   for info, next_version, _ in outdated_packages]
 
-        for info, version in new_pkgs:
+        for info, version, _ in new_pkgs:
             to_test.append((info, version))
 
         for info, version in to_test:
@@ -1034,7 +1053,7 @@ def cmd_upgrade(manager, args, config):
     join_timeout = 0.01
     tick_interval = 1
 
-    for info, version in new_pkgs:
+    for info, version, _ in new_pkgs:
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
@@ -1073,7 +1092,7 @@ def cmd_upgrade(manager, args, config):
             else:
                 print('Loaded "{}"'.format(name))
 
-    for info, next_version in outdated_packages:
+    for info, next_version, _ in outdated_packages:
         name = info.package.qualified_name()
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
@@ -1603,6 +1622,9 @@ def argparser():
         ' option risks putting your installed package collection into a '
         ' broken or unusable state.')
     sub_parser.add_argument(
+        '--nosuggestions', action='store_true',
+        help='Skip automatically installing suggested packages.')
+    sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
         ' specified at a time when using this flag.  A version tag or branch'
@@ -1644,6 +1666,9 @@ def argparser():
         help='Skip all dependency resolution/checks.  Note that using this'
         ' option risks creating a bundle of packages that is in a '
         ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nosuggestions', action='store_true',
+        help='Skip automatically bundling suggested packages.')
     sub_parser.add_argument(
         '--manifest', nargs='+',
         help='This may either be a file name or a list of packages to include'
@@ -1748,6 +1773,9 @@ def argparser():
         help='Skip all dependency resolution/checks.  Note that using this'
         ' option risks putting your installed package collection into a '
         ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nosuggestions', action='store_true',
+        help='Skip automatically installing suggested packages.')
 
     # load
     sub_parser = command_parser.add_parser(

@@ -1,0 +1,52 @@
+# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: bro-pkg list installed > no_suggests.out
+# @TEST-EXEC: btest-diff no_suggests.out
+
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: bro-pkg refresh
+# @TEST-EXEC: bro-pkg upgrade foo
+# @TEST-EXEC: bro-pkg list installed > upgrade_suggests.out
+# @TEST-EXEC: btest-diff upgrade_suggests.out
+
+# @TEST-EXEC: bro-pkg purge
+# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: bro-pkg list installed > install_suggests.out
+# @TEST-EXEC: btest-diff install_suggests.out
+
+# @TEST-EXEC: bro-pkg purge
+# @TEST-EXEC: bro-pkg bundle test.bundle --manifest foo
+# @TEST-EXEC: bro-pkg unbundle test.bundle
+# @TEST-EXEC: bro-pkg list installed > bundle_suggests.out
+# @TEST-EXEC: btest-diff bundle_suggests.out
+
+cd packages/foo
+echo 'suggests = bar *' >> bro-pkg.meta
+git commit -am 'new stuff'
+
+cd ../bar
+echo 'suggests = baz >=1.0.0' >> bro-pkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../baz
+echo 'suggests = grault branch=master' >> bro-pkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "2.0.0";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 2.0.0 -m 2.0.0
+
+cd ../grault
+echo 'suggests = corge ==1.0.1' >> bro-pkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../corge
+git tag -a 1.0.0 -m 1.0.0
+echo 'suggests = foo * bar *' >> bro-pkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.1 -m 1.0.1
+echo 'print "2.0.0";' > __load__.bro
+git commit -am 'new stuff'
+git tag -a 2.0.0 -m 2.0.0
