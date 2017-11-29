@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Nov 27, 2017" "1.2.6-1" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Nov 28, 2017" "1.2.6-2" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -111,7 +111,7 @@ Installs packages from a configured package source or directly from a git URL.  
 .nf
 .ft C
 usage: bro\-pkg install [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps]
-                       [\-\-version VERSION]
+                       [\-\-nosuggestions] [\-\-version VERSION]
                        package [package ...]
 .ft P
 .fi
@@ -137,6 +137,9 @@ Skip running unit tests for packages before installation.
 .TP
 .B \-\-nodeps=False
 Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a  broken or unusable state.
+.TP
+.B \-\-nosuggestions=False
+Skip automatically installing suggested packages.
 .TP
 .B \-\-version
 The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag or branch name may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the "master" branch.
@@ -204,7 +207,7 @@ This command creates a bundle file containing a collection of Bro packages.  If 
 .sp
 .nf
 .ft C
-usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps]
+usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
                       [\-\-manifest MANIFEST [MANIFEST ...]]
                       bundle_filename
 .ft P
@@ -228,6 +231,9 @@ Skip the confirmation prompt.
 .TP
 .B \-\-nodeps=False
 Skip all dependency resolution/checks.  Note that using this option risks creating a bundle of packages that is in a  broken or unusable state.
+.TP
+.B \-\-nosuggestions=False
+Skip automatically bundling suggested packages.
 .TP
 .B \-\-manifest
 This may either be a file name or a list of packages to include in the bundle.  If a file name is supplied, it should be in INI format with a single \(ga\(ga[bundle]\(ga\(ga section.  The keys in that section correspond to package names and their values correspond to git version tags or branch names.  The values may be left blank to indicate that the latest available version should be used.
@@ -306,6 +312,7 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .nf
 .ft C
 usage: bro\-pkg upgrade [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps]
+                       [\-\-nosuggestions]
                        [package [package ...]]
 .ft P
 .fi
@@ -331,6 +338,9 @@ Skip running unit tests for packages before installation.
 .TP
 .B \-\-nodeps=False
 Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a  broken or unusable state.
+.TP
+.B \-\-nosuggestions=False
+Skip automatically installing suggested packages.
 .UNINDENT
 .UNINDENT
 .SS load

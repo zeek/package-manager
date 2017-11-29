@@ -1,4 +1,20 @@
 
+1.2.6-2 | 2017-11-28 19:29:38 -0600
+
+  * GH-22: add a 'suggests' metadata field
+
+    This new field can be used in the same way as 'depends', but is used for
+    packages that are merely complementary and not strictly required for the
+    suggesting package to function.
+
+    A "(suggested)" indicator for install, bundle, and upgrade commands will
+    now appear during their bro-pkg confirmation prompts.  These commands
+    also now have a --nosuggestions flag to ignore all suggested packages.
+
+    This changes the bropkg.manager.validate_dependencies() API to return
+    an additional boolean indicating whether a package was included in the
+    list as a result of suggestions. (Corelight)
+
 1.2.6-1 | 2017-11-27 09:46:02 -0600
 
   * GH-24: improve script_dir metadata field documentation (Corelight)
