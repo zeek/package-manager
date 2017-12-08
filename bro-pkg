@@ -1420,13 +1420,13 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
         New dict entries are added to pkginfo_name_metadata_version.
     """
     for key, value in info_metadata.items():
-        if key == 'depends':
-            pkginfo_name_metadata_version['depends'] = dict()
+        if key == 'depends' or key == 'suggests':
+            pkginfo_name_metadata_version[key] = dict()
             deps = value.split('\n')
 
             for i in range(1, len(deps)):
                 deplist = deps[i].split(' ')
-                pkginfo_name_metadata_version['depends'][deplist[0]] =\
+                pkginfo_name_metadata_version[key][deplist[0]] =\
                     deplist[1]
         else:
             pkginfo_name_metadata_version[key] = value
