@@ -1,4 +1,13 @@
 
+1.3.1-1 | 2018-02-01 15:43:19 -0600
+
+  * Fix install command to be able to re-install an existing package
+
+    Before, using 'install' on a previously-installed package would not
+    correctly update the cached git repository so if there were any changes
+    since the last installation they would not be seen after the operation
+    completed. (Corelight)
+
 1.3.1 | 2017-12-07 19:33:23 -0600
 
   * Release 1.3.1.

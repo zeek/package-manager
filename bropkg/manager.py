@@ -1953,7 +1953,9 @@ class Manager(object):
             if conflict.qualified_name().endswith(pkg_path):
                 LOG.debug('installing "%s": re-install: %s',
                           pkg_path, conflict)
-                return self._install(ipkg.package, version)
+                clonepath = os.path.join(self.package_clonedir, conflict.name)
+                _clone_package(conflict, clonepath)
+                return self._install(conflict, version)
             else:
                 LOG.info(
                     'installing "%s": matched already installed package: %s',
