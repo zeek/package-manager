@@ -226,6 +226,16 @@ def active_git_branch(path):
     rval = str(rval)
     return rval
 
+def is_git_repo_dirty(git_url):
+    if not git_url.startswith('.') and not git_url.startswith('/'):
+        return False
+
+    try:
+        repo = git.Repo(git_url)
+    except git.exc.NoSuchPathError as error:
+        return False
+
+    return repo.is_dirty(untracked_files=True)
 
 def create_manager(config):
     state_dir = config.get('paths', 'state_dir')
@@ -288,6 +298,10 @@ def cmd_test(manager, args, config):
     package_infos = []
 
     for name in args.package:
+        if is_git_repo_dirty(name):
+            print_error('error: local git clone at {} is dirty'.format(name))
+            sys.exit(1)
+
         version = args.version if args.version else active_git_branch(name)
         package_info = manager.info(name, version=version,
                                     prefer_installed=False)
@@ -341,6 +355,10 @@ def cmd_install(manager, args, config):
     package_infos = []
 
     for name in args.package:
+        if is_git_repo_dirty(name):
+            print_error('error: local git clone at {} is dirty'.format(name))
+            sys.exit(1)
+
         version = args.version if args.version else active_git_branch(name)
         package_info = manager.info(name, version=version,
                                     prefer_installed=False)
@@ -556,6 +574,10 @@ def cmd_bundle(manager, args, config):
         new_pkgs = []
 
         for name, version in packages:
+            if is_git_repo_dirty(name):
+                print_error('error: local git clone at {} is dirty'.format(name))
+                sys.exit(1)
+
             if not version:
                 version = active_git_branch(name)
 

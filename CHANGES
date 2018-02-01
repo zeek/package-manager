@@ -1,4 +1,14 @@
 
+1.3.1-2 | 2018-02-01 16:13:25 -0600
+
+  * Teach bro-pkg to emit an error when operating on dirty git clones
+
+    When trying to use the install, test, or bundle commands on local git
+    clones that have modifications or untracked files, bro-pkg now aborts
+    with an error message.  This is to help catch situations where one
+    thinks their uncommitted local changes will be installed by bro-pkg, but
+    actually will not be unless they are committed in the git repo. (Corelight)
+
 1.3.1-1 | 2018-02-01 15:43:19 -0600
 
   * Fix install command to be able to re-install an existing package
