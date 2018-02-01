@@ -12,9 +12,9 @@ A Bro package may contain Bro scripts, Bro plugins, or BroControl plugins.  Any
 number or combination of those components may be included within a single
 package.
 
-The minimum requirement for a package is that it be a git repository containing
-a metadata file named :file:`bro-pkg.meta` at its top-level that begins with the
-line::
+The minimum requirement for a package is that it be in its own git repository
+and contain a metadata file named :file:`bro-pkg.meta` at its top-level that
+begins with the line::
 
   [package]
 
@@ -87,6 +87,10 @@ See `Bro Scripting`_ for more information on developing Bro scripts.
 Binary Bro Plugin Package
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+See `Bro Plugins`_ for more complete information on developing Bro plugins,
+though the following step are the essentials needed to create a package.
+
+
 #. Create a plugin skeleton using :file:`aux/bro-aux/plugin-support/init-plugin`
    from Bro's source distribution:
 
@@ -153,8 +157,6 @@ Binary Bro Plugin Package
       $ bro-pkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
-
-See `Bro Plugins`_ for more information on developing Bro plugins.
 
 BroControl Plugin Package
 ~~~~~~~~~~~~~~~~~~~~~~~~~
