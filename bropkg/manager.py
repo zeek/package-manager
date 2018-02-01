@@ -1831,8 +1831,8 @@ class Manager(object):
                 buildlog = self.package_build_log(clone.working_dir)
 
                 with open(buildlog, 'wb') as f:
-                    LOG.warning('installing "%s": writing build log: %s',
-                                package, buildlog)
+                    LOG.info('installing "%s": writing build log: %s',
+                             package, buildlog)
 
                     f.write(u'=== STDERR ===\n'.encode(stdout_encoding()))
 
@@ -1897,8 +1897,8 @@ class Manager(object):
                                   " in package's 'script_dir' : {}",
                                   pkg_script_dir)
             else:
-                LOG.info('installing "%s": no __load__.bro in implicit'
-                         ' script_dir, skipped installing scripts', package)
+                LOG.warning('installing "%s": no __load__.bro in implicit'
+                            ' script_dir, skipped installing scripts', package)
 
         pkg_plugin_dir = metadata.get('plugin_dir', 'build')
         plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
