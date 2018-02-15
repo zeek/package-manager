@@ -508,6 +508,12 @@ class Manager(object):
                              " in script_dir: %s", pkg_name, config_file,
                              our_config_file_path)
                     continue
+            else:
+                # Their config file is outside script/plugin install dirs,
+                # so no way user has it even installed, much less modified.
+                LOG.warning("package '%s' config file '%s' not within"
+                            " plugin_dir or script_dir", pkg_name, config_file)
+                continue
 
             if not filecmp.cmp(our_config_file_path, their_config_file_path):
                 rval.append((config_file, our_config_file_path))

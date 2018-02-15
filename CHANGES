@@ -1,4 +1,9 @@
 
+1.3.2-1 | 2018-02-15 11:02:20 -0600
+
+  * GH-26: fix error when config_file is not in script_dir or plugin_dir
+    (Corelight)
+
 1.3.2 | 2018-02-01 17:38:15 -0600
 
   * Release 1.3.2.
