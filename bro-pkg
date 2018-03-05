@@ -226,7 +226,11 @@ def active_git_branch(path):
     if not repo.working_tree_dir:
         return None
 
-    rval = repo.active_branch
+    try:
+        rval = repo.active_branch
+    except TypeError as error:
+        # return detached commit
+        rval = repo.head.commit
 
     if not rval:
         return None
