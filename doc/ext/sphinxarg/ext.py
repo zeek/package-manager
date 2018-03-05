@@ -4,7 +4,13 @@ import os
 from docutils import nodes
 from docutils.statemachine import StringList
 from docutils.parsers.rst.directives import flag, unchanged
-from sphinx.util.compat import Directive
+
+try:
+    # Removed as of Sphinx 1.7
+    from sphinx.util.compat import Directive
+except ImportError as err:
+    from docutils.parsers.rst import Directive
+
 from sphinx.util.nodes import nested_parse_with_titles
 
 from sphinxarg.parser import parse_parser, parser_navigate
