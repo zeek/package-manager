@@ -1,6 +1,0 @@
-Sphinx
-sphinxcontrib-napoleon
-GitPython
-semantic_version
-configparser
-sphinx_rtd_theme

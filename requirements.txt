@@ -1,0 +1,9 @@
+# Requirements for general bro-pkg usage
+GitPython
+semantic_version
+configparser
+btest
+# Requirements for development (e.g. building docs)
+Sphinx
+sphinxcontrib-napoleon
+sphinx_rtd_theme

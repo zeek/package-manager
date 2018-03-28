@@ -41,14 +41,14 @@ generate HTML documentation and a man page.
 Dependencies
 ~~~~~~~~~~~~
 
-To build documentation locally, find the minimal requirements in
-:file:`requirements.doc.txt`:
+To build documentation locally, find the requirements in
+:file:`requirements.txt`:
 
-  .. literalinclude:: ../requirements.doc.txt
+  .. literalinclude:: ../requirements.txt
 
 They can be installed like:
 
-  pip install -r requirements.doc.txt
+  pip install -r requirements.txt
 
 Local Build/Preview
 ~~~~~~~~~~~~~~~~~~~
