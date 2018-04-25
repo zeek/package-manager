@@ -632,7 +632,8 @@ class Manager(object):
                 LOG.debug("no aggegrate file in source, restore local one")
 
         if aggregate:
-            parser = configparser.SafeConfigParser()
+            # Use raw parser so no value interpolation takes place.
+            parser = configparser.RawConfigParser()
 
             for index_file in source.package_index_files():
                 urls = []
