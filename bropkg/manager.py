@@ -1064,7 +1064,9 @@ class Manager(object):
 
             LOG.info('getting info on "%s": matched no source package',
                      pkg_path)
-            reason = 'package name not found in sources and not a valid git URL'
+            reason = ('package name not found in sources and also'
+                      ' not a usable git URL (invalid or inaccessible,'
+                      ' use -vvv for details)')
             return PackageInfo(package=package, invalid_reason=reason,
                                status=status)
 
