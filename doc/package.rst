@@ -588,6 +588,11 @@ strings.  Here's a summary:
     the requirements together.  E.g. ``>=1.0.0,<2.0.0`` means "greater or equal
     to 1.0.0 and less than 2.0.0".
 
+Note that these specifications are strict semantic versions.  Even if a
+given package chooses to use the ``vX.Y.Z`` format for its :ref:`git
+version tags <package-versioning>`, do not use the 'v' prefix in the
+version specifications here as that is not part of the semantic version.
+
 `external_depends` field
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -636,6 +641,9 @@ here.  For example, to create a new tag for a package:
 
       $ git tag -a 1.0.0 -m 'Release 1.0.0'
 
+The tag name may also be of the ``vX.Y.Z`` form (prefixed by 'v').
+Choose whichever you prefer.
+
 Then, assuming you've already set up a public/remote git repository
 (e.g. on GitHub) for your package, remember to push the tag to the
 remote repository:
@@ -666,11 +674,11 @@ the latest release version tag and install that.  If there are no such
 version tags, it will fall back to installing the latest commit of the
 package's *master* branch
 
-Upon installing a package via a git version tag, the
-:ref:`upgrade command <upgrade-command>` will only upgrade the local
-installation of that package if a greater version tag is available.  In
-other words, you only receive stable release upgrades for packages
-installed in this way.
+Upon installing a package via a :ref:`git version tag
+<package-versioning>`, the :ref:`upgrade command <upgrade-command>` will
+only upgrade the local installation of that package if a greater version
+tag is available.  In other words, you only receive stable release
+upgrades for packages installed in this way.
 
 Upon installing a package via a git branch name, the :ref:`upgrade
 command <upgrade-command>` will upgrade the local installation of the

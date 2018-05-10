@@ -31,7 +31,7 @@ git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 echo 'print "grault 1.0.1";' > __load__.bro
 git commit -am 'new stuff'
-git tag -a 1.0.1 -m 1.0.1
+git tag -a v1.0.1 -m 1.0.1
 echo 'print "grault 1.0.2";' > __load__.bro
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
@@ -40,6 +40,6 @@ git tag -a 1.0.2 -m 1.0.2
 # @TEST-EXEC: btest-diff scripts/packages/grault/__load__.bro
 
 # @TEST-EXEC: bro-pkg remove grault
-# @TEST-EXEC: bro-pkg install grault --version=1.0.1
+# @TEST-EXEC: bro-pkg install grault --version=v1.0.1
 # @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.1.0.1
 # @TEST-EXEC: btest-diff grault.1.0.1

@@ -1378,7 +1378,8 @@ class Manager(object):
                             required_version, depender_name, version_spec),
                             new_pkgs)
                 else:
-                    req_semver = semver.Version.coerce(required_version)
+                    normal_version = _normalize_version_tag(required_version)
+                    req_semver = semver.Version.coerce(normal_version)
 
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec.startswith('branch='):
@@ -1423,7 +1424,8 @@ class Manager(object):
                             required_version, depender_name, version_spec),
                             new_pkgs)
                 else:
-                    req_semver = semver.Version.coerce(required_version)
+                    normal_version = _normalize_version_tag(required_version)
+                    req_semver = semver.Version.coerce(normal_version)
 
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec.startswith('branch='):
@@ -1510,7 +1512,8 @@ class Manager(object):
                             best_version = 'master'
                     elif need_version:
                         for version in node.info.versions[::-1]:
-                            req_semver = semver.Version.coerce(version)
+                            normal_version = _normalize_version_tag(version)
+                            req_semver = semver.Version.coerce(normal_version)
 
                             satisfied = True
 
@@ -2092,22 +2095,29 @@ class Manager(object):
         LOG.debug('installed "%s"', package)
         return ''
 
+def _normalize_version_tag(tag):
+    # Change vX.Y.Z into X.Y.Z
+    if len(tag) > 1 and tag[0] is 'v' and tag[1].isdigit():
+        return tag[1:]
+
+    return tag
 
 def _get_version_tags(clone):
     tags = []
 
     for tagref in clone.tags:
         tag = str(tagref.name)
+        normal_tag = _normalize_version_tag(tag)
 
         try:
-            semver.Version.coerce(tag)
+            sv = semver.Version.coerce(normal_tag)
         except ValueError:
             # Skip tags that aren't compatible semantic versions.
             continue
         else:
-            tags.append(tag)
+            tags.append((normal_tag, tag, sv))
 
-    return sorted(tags, key=semver.Version.coerce)
+    return [t[1] for t in sorted(tags, key=lambda e: e[2])]
 
 
 def _get_branch_names(clone):
@@ -2132,7 +2142,8 @@ def _get_ref(clone, ref_name):
 
 def _is_version_outdated(clone, version):
     version_tags = _get_version_tags(clone)
-    return version != version_tags[-1]
+    latest = _normalize_version_tag(version_tags[-1])
+    return _normalize_version_tag(version) != latest
 
 
 def _is_branch_outdated(clone, branch):
