@@ -19,4 +19,4 @@ regarding the package submission process.
 
 See the package manager documentation_ for further usage information, how-to
 guides, and walkthroughs.  For offline reading, it's also available in the
-``docs/`` directory of the source code distribution.
+``doc/`` directory of the source code distribution.
