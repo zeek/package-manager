@@ -292,6 +292,12 @@ class Package(object):
 
     def __init__(self, git_url, source='', directory='', metadata=None):
         self.git_url = canonical_url(git_url)
+
+        if not source and os.path.exists(git_url):
+            # Ensures getting real path of relative directories.
+            # e.g. canonical_url catches "./foo" but not "foo"
+            self.git_url = os.path.realpath(self.git_url)
+
         self.name = name_from_path(git_url)
         self.source = source
         self.directory = directory
