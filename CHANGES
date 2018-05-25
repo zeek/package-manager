@@ -1,4 +1,8 @@
 
+1.3.9-1 | 2018-05-25 14:52:08 -0500
+
+  * Improve package info canonicalization (Corelight)
+
 1.3.9 | 2018-05-24 16:48:19 -0500
 
   * Fix for packages storing a relative path as their git URL (Corelight)

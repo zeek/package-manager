@@ -247,14 +247,12 @@ class Manager(object):
             for dicts in pkg_list:
                 pkg_dict = dicts['package_dict']
                 status_dict = dicts['status_dict']
-
                 pkg_name = pkg_dict['name']
-                del pkg_dict['name']
 
                 if version == 0 and 'index_data' in pkg_dict:
                     del pkg_dict['index_data']
 
-                pkg = Package(**pkg_dict)
+                pkg = Package(**pkg_dict, canonical=True)
                 status = PackageStatus(**status_dict)
                 self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
@@ -1006,7 +1004,8 @@ class Manager(object):
         manifest = config.items('bundle')
 
         for git_url, version in manifest:
-            package = Package(git_url=git_url)
+            package = Package(git_url=git_url, name=git_url.split('/')[-1],
+                              canonical=True)
             pkg_path = os.path.join(bundle_dir, package.name)
             pkg_info = self.info(pkg_path, version=version,
                                  prefer_installed=False)
@@ -1650,7 +1649,8 @@ class Manager(object):
         manifest = config.items('bundle')
 
         for git_url, version in manifest:
-            package = Package(git_url=git_url)
+            package = Package(git_url=git_url, name=git_url.split('/')[-1],
+                              canonical=True)
             clonepath = os.path.join(self.package_clonedir, package.name)
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)

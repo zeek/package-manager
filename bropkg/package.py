@@ -290,18 +290,23 @@ class Package(object):
             accurate/up-to-date).
     """
 
-    def __init__(self, git_url, source='', directory='', metadata=None):
-        self.git_url = canonical_url(git_url)
-
-        if not source and os.path.exists(git_url):
-            # Ensures getting real path of relative directories.
-            # e.g. canonical_url catches "./foo" but not "foo"
-            self.git_url = os.path.realpath(self.git_url)
-
-        self.name = name_from_path(git_url)
+    def __init__(self, git_url, source='', directory='', metadata=None,
+                 name=None, canonical=False):
+        self.git_url = git_url
         self.source = source
         self.directory = directory
         self.metadata = {} if metadata is None else metadata
+        self.name = name
+
+        if not canonical:
+            self.git_url = canonical_url(git_url)
+
+            if not source and os.path.exists(git_url):
+                # Ensures getting real path of relative directories.
+                # e.g. canonical_url catches "./foo" but not "foo"
+                self.git_url = os.path.realpath(self.git_url)
+
+            self.name = name_from_path(git_url)
 
     def __str__(self):
         return self.qualified_name()
