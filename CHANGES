@@ -1,4 +1,8 @@
 
+1.3.10-1 | 2018-05-29 08:29:54 -0500
+
+  * Fix invalid Package ctor syntax with Python 2 (Corelight)
+
 1.3.10 | 2018-05-25 14:57:09 -0500
 
   * Release 1.3.10.

@@ -252,7 +252,8 @@ class Manager(object):
                 if version == 0 and 'index_data' in pkg_dict:
                     del pkg_dict['index_data']
 
-                pkg = Package(**pkg_dict, canonical=True)
+                pkg_dict['canonical'] = True;
+                pkg = Package(**pkg_dict)
                 status = PackageStatus(**status_dict)
                 self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
