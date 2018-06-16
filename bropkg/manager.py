@@ -2058,7 +2058,7 @@ class Manager(object):
                 status.tracking_method = 'branch'
 
         status.current_version = version
-        status.current_hash = _get_hash(clone, version)
+        status.current_hash = _get_hash(clone, version, status.tracking_method)
         clone.git.checkout(version)
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
@@ -2130,14 +2130,14 @@ def _get_branch_names(clone):
         if not branch_name.startswith('origin/'):
             continue
 
-        rval.append(branch_name.split('/')[-1])
+        rval.append(branch_name.split('origin/')[1])
 
     return rval
 
 
-def _get_ref(clone, ref_name):
+def _get_ref(clone, ref_name, track_method):
     for ref in clone.refs:
-        if ref.name.split('/')[-1] == ref_name:
+        if((track_method == 'branch' and 'origin' in ref.name and ref.name.split('origin/')[1] == ref_name) or ref.name.split('/')[-1] == ref_name):
             return ref
 
 
@@ -2162,8 +2162,8 @@ def _is_clone_outdated(clone, ref_name, tracking_method):
         raise NotImplementedError
 
 
-def _get_hash(clone, ref_name):
-    return _get_ref(clone, ref_name).object.hexsha
+def _get_hash(clone, ref_name, track_method):
+    return _get_ref(clone, ref_name, track_method).object.hexsha
 
 
 def _copy_package_dir(package, dirname, src, dst, scratch_dir):
