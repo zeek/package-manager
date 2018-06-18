@@ -1,4 +1,8 @@
 
+1.3.11-3 | 2018-06-18 09:02:39 -0500
+
+  * Improve default character encoding handling (Corelight)
+
 1.3.11-2 | 2018-06-18 08:22:17 -0500
 
   * Fix --version for branch names containing a slash '/' (Michael Dopheide)

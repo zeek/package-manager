@@ -4,6 +4,7 @@ to interact with and operate on Bro packages.
 """
 
 import os
+import sys
 import copy
 import json
 import shutil
@@ -26,7 +27,7 @@ from ._util import (
     copy_over_path,
     git_clone_shallow,
     get_bro_version,
-    stdout_encoding,
+    std_encoding,
     find_program,
     read_bro_config_line,
 )
@@ -1847,7 +1848,7 @@ class Manager(object):
                     LOG.info('installing "%s": writing build log: %s',
                              package, buildlog)
 
-                    f.write(u'=== STDERR ===\n'.encode(stdout_encoding()))
+                    f.write(u'=== STDERR ===\n'.encode(std_encoding(sys.stderr)))
 
                     while True:
                         data = build.stderr.read(bufsize)
@@ -1857,7 +1858,7 @@ class Manager(object):
                         else:
                             break
 
-                    f.write(u'=== STDOUT ===\n'.encode(stdout_encoding()))
+                    f.write(u'=== STDOUT ===\n'.encode(std_encoding(sys.stdout)))
 
                     while True:
                         data = build.stdout.read(bufsize)

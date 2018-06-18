@@ -5,6 +5,7 @@ from bropkg._util import (
     make_dir,
     find_program,
     read_bro_config_line,
+    std_encoding,
 )
 
 import os
@@ -32,8 +33,8 @@ import bropkg
 
 def get_input(prompt):
     if sys.version_info[0] < 3:
-        prompt_bytes = prompt.encode(sys.stdout.encoding)
-        return raw_input(prompt_bytes).decode(sys.stdin.encoding)
+        prompt_bytes = prompt.encode(std_encoding(sys.stdout))
+        return raw_input(prompt_bytes).decode(std_encoding(sys.stdin))
 
     return input(prompt)
 
@@ -116,7 +117,7 @@ def prompt_for_user_vars(manager, config, force, pkg_infos):
 
         config_file = os.path.join(config_dir(), 'config')
 
-        with io.open(config_file, 'w', encoding=sys.stdout.encoding) as f:
+        with io.open(config_file, 'w', encoding=std_encoding(sys.stdout)) as f:
             config.write(f)
 
         print('Saved answers to config file: {}'.format(config_file))
@@ -1535,7 +1536,7 @@ def cmd_autoconfig(manager, args, config):
     change_config_value(config, 'paths', 'bro_dist',
                         bro_dist, config_file_exists)
 
-    with io.open(config_file, 'w', encoding=sys.stdout.encoding) as f:
+    with io.open(config_file, 'w', encoding=std_encoding(sys.stdout)) as f:
         config.write(f)
 
     print('Successfully wrote config file to {}'.format(config_file))

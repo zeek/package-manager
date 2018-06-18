@@ -106,21 +106,23 @@ def find_program(prog_name):
 
     return ''
 
-
-def stdout_encoding():
-    if sys.stdout.encoding:
-        return sys.stdout.encoding
+def std_encoding(stream):
+    if stream.encoding:
+        return stream.encoding
 
     import locale
-    return locale.getpreferredencoding()
 
+    if locale.getdefaultlocale()[1] is None:
+        return 'utf-8'
+
+    return locale.getpreferredencoding()
 
 def read_bro_config_line(stdout):
     rval = stdout.readline()
 
     # Python 2 returned bytes, Python 3 returned unicode
     if isinstance(rval, bytes):
-        rval = rval.decode(stdout_encoding())
+        rval = rval.decode(std_encoding(sys.stdout))
 
     return rval.strip()
 
