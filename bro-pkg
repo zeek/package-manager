@@ -1251,7 +1251,7 @@ def cmd_unpin(manager, args, config):
                 'Failed unpinning "{}": no such package installed'.format(name))
 
 
-def cmd_list(manager, args, config):
+def _get_filtered_packages(manager, category):
     pkg_dict = dict()
 
     for ipkg in manager.installed_packages():
@@ -1263,28 +1263,34 @@ def cmd_list(manager, args, config):
         if pkg_qn not in pkg_dict:
             pkg_dict[pkg_qn] = pkg
 
-    if args.category == 'all':
+    if category == 'all':
         filtered_pkgs = pkg_dict
-    elif args.category == 'installed':
+    elif category == 'installed':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
                          if isinstance(value, bropkg.InstalledPackage)}
-    elif args.category == 'not_installed':
+    elif category == 'not_installed':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
                          if not isinstance(value, bropkg.InstalledPackage)}
-    elif args.category == 'loaded':
+    elif category == 'loaded':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
                          if isinstance(value, bropkg.InstalledPackage) and
                          value.status.is_loaded}
-    elif args.category == 'unloaded':
+    elif category == 'unloaded':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
                          if isinstance(value, bropkg.InstalledPackage) and
                          not value.status.is_loaded}
-    elif args.category == 'outdated':
+    elif category == 'outdated':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
                          if isinstance(value, bropkg.InstalledPackage) and
                          value.status.is_outdated}
     else:
         raise NotImplementedError
+
+    return filtered_pkgs
+
+
+def cmd_list(manager, args, config):
+    filtered_pkgs = _get_filtered_packages(manager, args.category)
 
     for pkg_name, val in sorted(filtered_pkgs.items()):
         if isinstance(val, bropkg.InstalledPackage):
@@ -1365,7 +1371,17 @@ def cmd_info(manager, args, config):
     pkginfo = dict()
     had_invalid_package = False
 
-    for name in args.package:
+    if len(args.package) == 1:
+        try:
+            filtered_pkgs = _get_filtered_packages(manager, args.package[0])
+            package_names = [pkg_name
+                             for pkg_name, _ in sorted(filtered_pkgs.items())]
+        except NotImplementedError:
+            package_names = args.package
+    else:
+        package_names = args.package
+
+    for name in package_names:
         info = manager.info(name,
                             version=args.version,
                             prefer_installed=(args.nolocal != True))
@@ -1914,7 +1930,10 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_info)
     sub_parser.add_argument(
-        'package', nargs='+', default=[], help=pkg_name_help)
+        'package', nargs='+', default=[], help=pkg_name_help +
+        ' If a single name is given and matches one of the same categories'
+        ' as the "list" command, then it is automatically expanded to be the'
+        ' names of all packages which match the given category.')
     sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package metadata to inspect.  A version tag,'

@@ -1,0 +1,11 @@
+"one/alice/foo" info:
+	versions: ['1.0.0', '1.0.1', '1.0.2']
+	install status:
+		current_version = master
+		is_loaded = True
+		is_outdated = True
+		is_pinned = False
+		tracking_method = branch
+	metadata (from version "master"):
+		<empty metadata file>
+
