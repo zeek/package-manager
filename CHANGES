@@ -1,4 +1,12 @@
 
+1.3.12-3 | 2018-07-12 10:15:57 -0500
+
+  * Refactor tracking method strings into variables (Corelight)
+
+  * Support installing packages via commit hash (Corelight)
+
+  * Stabilize a unit test (Corelight)
+
 1.3.12 | 2018-06-18 09:03:06 -0500
 
   * Release 1.3.12.

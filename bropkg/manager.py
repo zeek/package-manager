@@ -37,6 +37,9 @@ from .source import (
 )
 from .package import (
     METADATA_FILENAME,
+    TRACKING_METHOD_VERSION,
+    TRACKING_METHOD_BRANCH,
+    TRACKING_METHOD_COMMIT,
     name_from_path,
     user_vars,
     canonical_url,
@@ -764,13 +767,13 @@ class Manager(object):
         clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
         clone = git.Repo(clonepath)
 
-        if ipkg.status.tracking_method == 'version':
+        if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
             version_tags = _get_version_tags(clone)
             return self._install(ipkg.package, version_tags[-1])
-        elif ipkg.status.tracking_method == 'branch':
+        elif ipkg.status.tracking_method == TRACKING_METHOD_BRANCH:
             clone.remote().pull()
             return self._install(ipkg.package, ipkg.status.current_version)
-        elif ipkg.status.tracking_method == 'commit':
+        elif ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
             # The above check for whether the installed package is outdated
             # also should have already caught this situation.
             return "package is not outdated"
@@ -1283,14 +1286,14 @@ class Manager(object):
 
             if bro_version:
                 node = Node('bro')
-                node.installed_version = ('version', bro_version)
+                node.installed_version = (TRACKING_METHOD_VERSION, bro_version)
                 graph['bro'] = node
             else:
                 LOG.warning(
                     'could not get bro version: no bro_config in PATH?')
 
             node = Node('bro-pkg')
-            node.installed_version = ('version', __version__)
+            node.installed_version = (TRACKING_METHOD_VERSION, __version__)
             graph['bro-pkg'] = node
 
             for ipkg in self.installed_packages():
@@ -1366,7 +1369,7 @@ class Manager(object):
                 # Check that requested version doesn't conflict with dependers.
                 track_method, required_version = node.requested_version
 
-                if track_method == 'branch':
+                if track_method == TRACKING_METHOD_BRANCH:
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec == '*':
                             continue
@@ -1382,7 +1385,7 @@ class Manager(object):
                             ' but "{}" requires {}', node.name,
                             required_version, depender_name, version_spec),
                             new_pkgs)
-                elif track_method == 'commit':
+                elif track_method == TRACKING_METHOD_COMMIT:
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec == '*':
                             continue
@@ -1426,7 +1429,7 @@ class Manager(object):
                 # Check that installed version doesn't conflict with dependers.
                 track_method, required_version = node.installed_version
 
-                if track_method == 'branch':
+                if track_method == TRACKING_METHOD_BRANCH:
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec == '*':
                             continue
@@ -1442,7 +1445,7 @@ class Manager(object):
                             ' but "{}" requires {}', node.name,
                             required_version, depender_name, version_spec),
                             new_pkgs)
-                elif track_method == 'commit':
+                elif track_method == TRACKING_METHOD_COMMIT:
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec == '*':
                             continue
@@ -2067,14 +2070,14 @@ class Manager(object):
 
         if version:
             if _is_commit_hash(clone, version):
-                status.tracking_method = 'commit'
+                status.tracking_method = TRACKING_METHOD_COMMIT
             elif version in version_tags:
-                status.tracking_method = 'version'
+                status.tracking_method = TRACKING_METHOD_VERSION
             else:
                 branches = _get_branch_names(clone)
 
                 if version in branches:
-                    status.tracking_method = 'branch'
+                    status.tracking_method = TRACKING_METHOD_BRANCH
                 else:
                     LOG.info(
                         'branch "%s" not in available branches: %s', version,
@@ -2084,13 +2087,13 @@ class Manager(object):
         else:
             if len(version_tags):
                 version = version_tags[-1]
-                status.tracking_method = 'version'
+                status.tracking_method = TRACKING_METHOD_VERSION
             else:
                 if 'master' not in _get_branch_names(clone):
                     return 'git repo has no "master" branch or version tags'
 
                 version = 'master'
-                status.tracking_method = 'branch'
+                status.tracking_method = TRACKING_METHOD_BRANCH
 
         status.current_version = version
         status.current_hash = _get_hash(clone, version, status.tracking_method)
@@ -2172,7 +2175,8 @@ def _get_branch_names(clone):
 
 def _get_ref(clone, ref_name, track_method):
     for ref in clone.refs:
-        if ((track_method == 'branch' and 'origin' in ref.name and
+        if ((track_method == TRACKING_METHOD_BRANCH and
+             'origin' in ref.name and
              ref.name.split('origin/')[1] == ref_name) or
              ref.name.split('/')[-1] == ref_name):
             return ref
@@ -2191,18 +2195,18 @@ def _is_branch_outdated(clone, branch):
 
 
 def _is_clone_outdated(clone, ref_name, tracking_method):
-    if tracking_method == 'version':
+    if tracking_method == TRACKING_METHOD_VERSION:
         return _is_version_outdated(clone, ref_name)
-    elif tracking_method == 'branch':
+    elif tracking_method == TRACKING_METHOD_BRANCH:
         return _is_branch_outdated(clone, ref_name)
-    elif tracking_method == 'commit':
+    elif tracking_method == TRACKING_METHOD_COMMIT:
         return False
     else:
         raise NotImplementedError
 
 
 def _get_hash(clone, version, track_method):
-    if track_method == 'commit':
+    if track_method == TRACKING_METHOD_COMMIT:
         return clone.commit(version).hexsha
 
     return _get_ref(clone, version, track_method).object.hexsha
@@ -2323,11 +2327,11 @@ def _info_from_clone(clone, package, status, version):
     versions = _get_version_tags(clone)
 
     if _is_commit_hash(clone, version):
-        version_type = 'commit'
+        version_type = TRACKING_METHOD_COMMIT
     elif version in versions:
-        version_type = 'version'
+        version_type = TRACKING_METHOD_VERSION
     else:
-        version_type = 'branch'
+        version_type = TRACKING_METHOD_BRANCH
 
     metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
     # Use raw parser so no value interpolation takes place.

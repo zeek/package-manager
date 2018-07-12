@@ -7,6 +7,9 @@ from bropkg._util import (
     read_bro_config_line,
     std_encoding,
 )
+from bropkg.package import (
+    TRACKING_METHOD_VERSION,
+)
 
 import os
 import io
@@ -930,7 +933,7 @@ def version_change_string(manager, installed_package):
     new_version = old_version
     version_change = ''
 
-    if installed_package.status.tracking_method == 'version':
+    if installed_package.status.tracking_method == TRACKING_METHOD_VERSION:
         versions = manager.package_versions(installed_package)
 
         if len(versions):
@@ -974,7 +977,8 @@ def cmd_upgrade(manager, args, config):
 
         next_version = ipkg.status.current_version
 
-        if ipkg.status.tracking_method == 'version' and info.versions:
+        if ( ipkg.status.tracking_method == TRACKING_METHOD_VERSION and
+             info.versions ):
             next_version = info.versions[-1]
 
         outdated_packages.append((info, next_version, False))

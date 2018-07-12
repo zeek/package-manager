@@ -14,6 +14,9 @@ from ._util import (
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = 'bro-pkg.meta'
 
+TRACKING_METHOD_VERSION = 'version'
+TRACKING_METHOD_BRANCH = 'branch'
+TRACKING_METHOD_COMMIT = 'commit'
 
 def name_from_path(path):
     """Returns the name of a package given a path to its git repository."""
