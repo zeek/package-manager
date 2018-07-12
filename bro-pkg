@@ -1363,6 +1363,7 @@ def cmd_info(manager, args, config):
 
     # Dictionary for storing package info to output as JSON
     pkginfo = dict()
+    had_invalid_package = False
 
     for name in args.package:
         info = manager.info(name,
@@ -1383,6 +1384,8 @@ def cmd_info(manager, args, config):
                 pkginfo[name]['invalid'] = info.invalid_reason
             else:
                 print('\tinvalid package: {}\n'.format(info.invalid_reason))
+
+            had_invalid_package = True
             continue
 
         if args.json:
@@ -1442,6 +1445,9 @@ def cmd_info(manager, args, config):
 
     if args.json:
         print(json.dumps(pkginfo, indent=args.jsonpretty, sort_keys=True))
+
+    if had_invalid_package:
+        sys.exit(1)
 
 
 def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
