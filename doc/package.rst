@@ -685,3 +685,6 @@ command <upgrade-command>` will upgrade the local installation of the
 package whenever a new commit becomes available at the end of the
 branch.  This method of tracking packages is suitable for testing out
 development/experimental versions of packages.
+
+If a package was installed via a specific commit hash, then the package
+will never be eligible for automatic upgrades.

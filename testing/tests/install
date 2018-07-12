@@ -43,3 +43,20 @@ git tag -a 1.0.2 -m 1.0.2
 # @TEST-EXEC: bro-pkg install grault --version=v1.0.1
 # @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.1.0.1
 # @TEST-EXEC: btest-diff grault.1.0.1
+#
+# @TEST-EXEC: bro-pkg remove grault
+# @TEST-EXEC: (cd packages/grault && git checkout --detach)
+# @TEST-EXEC: bro-pkg install $(pwd)/packages/grault
+# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.detached
+# @TEST-EXEC: btest-diff grault.detached
+# @TEST-EXEC: bro-pkg info grault | grep tracking_method > grault.info
+# @TEST-EXEC: btest-diff grault.info
+#
+# @TEST-EXEC: bro-pkg remove grault
+# @TEST-EXEC: (cd packages/grault && git checkout 1.0.0)
+# @TEST-EXEC: (cd packages/grault && git rev-parse HEAD) > grault.head.hash
+# @TEST-EXEC: bro-pkg install grault --version=$(cat grault.head.hash)
+# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.detached.head
+# @TEST-EXEC: btest-diff grault.detached.head
+# @TEST-EXEC: bro-pkg info grault | grep tracking_method > grault.info
+# @TEST-EXEC: btest-diff grault.info

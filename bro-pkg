@@ -1628,8 +1628,8 @@ def argparser():
     sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to test.  Only one package may be'
-        ' specified at a time when using this flag.  A version tag or branch'
-        ' name may be specified here.'
+        ' specified at a time when using this flag.  A version tag, branch'
+        ' name, or commit hash may be specified here.'
         ' If the package name refers to a local git repo with a working tree,'
         ' then its currently active branch is used.'
         ' The default for other cases is to use'
@@ -1664,8 +1664,8 @@ def argparser():
     sub_parser.add_argument(
         '--version', default=None,
         help='The version of the package to install.  Only one package may be'
-        ' specified at a time when using this flag.  A version tag or branch'
-        ' name may be specified here.'
+        ' specified at a time when using this flag.  A version tag, branch'
+        ' name, or commit hash may be specified here.'
         ' If the package name refers to a local git repo with a working tree,'
         ' then its currently active branch is used.'
         ' The default for other cases is to use'
@@ -1712,8 +1712,9 @@ def argparser():
         ' in the bundle.  If a file name is supplied, it should be in INI'
         ' format with a single ``[bundle]`` section.  The keys in that section'
         ' correspond to package names and their values correspond to git'
-        ' version tags or branch names.  The values may be left blank to'
-        ' indicate that the latest available version should be used.')
+        ' version tags, branch names, or commit hashes.  The values may be'
+        ' left blank to indicate that the latest available version should be'
+        ' used.')
 
     # unbundle
     sub_parser = command_parser.add_parser(

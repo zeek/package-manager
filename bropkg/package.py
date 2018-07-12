@@ -158,9 +158,10 @@ class PackageStatus(object):
 
         is_outdated (bool): whether a newer version of the package exists.
 
-        tracking_method (str): either "branch" or "version" to indicate
-            whether package upgrades should stick to a git branch or use git
-            version tags.
+        tracking_method (str): either "branch", "version", or "commit" to
+            indicate (respectively) whether package upgrades should stick to a
+            git branch, use git version tags, or do nothing because the
+            package is to always use a specific git commit hash.
 
         current_version (str): the current version of the installed
             package, which is either a git branch name or a git version tag.
@@ -198,17 +199,22 @@ class PackageInfo(object):
 
         metadata_version: the package version that the metadata is from
 
+        version_type: either 'version', 'branch', or 'commit' to
+            indicate whether the package info/metadata was taken from a release
+            version tag, a branch, or a specific commit hash.
+
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong
     """
 
     def __init__(self, package=None, status=None, metadata=None, versions=None,
-                 metadata_version='', invalid_reason=''):
+                 metadata_version='', invalid_reason='', version_type=''):
         self.package = package
         self.status = status
         self.metadata = {} if metadata is None else metadata
         self.versions = [] if versions is None else versions
         self.metadata_version = metadata_version
+        self.version_type = version_type
         self.invalid_reason = invalid_reason
 
     def tags(self):

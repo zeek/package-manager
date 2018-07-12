@@ -770,6 +770,10 @@ class Manager(object):
         elif ipkg.status.tracking_method == 'branch':
             clone.remote().pull()
             return self._install(ipkg.package, ipkg.status.current_version)
+        elif ipkg.status.tracking_method == 'commit':
+            # The above check for whether the installed package is outdated
+            # also should have already caught this situation.
+            return "package is not outdated"
         else:
             raise NotImplementedError
 
@@ -1210,7 +1214,7 @@ class Manager(object):
 
             node = Node(info.package.qualified_name())
             node.info = info
-            method = 'version' if version in node.info.versions else 'branch'
+            method = node.info.version_type
             node.requested_version = (method, version)
             graph[node.name] = node
 
@@ -1378,6 +1382,20 @@ class Manager(object):
                             ' but "{}" requires {}', node.name,
                             required_version, depender_name, version_spec),
                             new_pkgs)
+                elif track_method == 'commit':
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec == '*':
+                            continue
+
+                        # Could allow commit= version specification like what
+                        # is done with branches, but unsure there's a common
+                        # use-case for it.
+
+                        return (str.format(
+                            'unsatisfiable dependency: requested "{}" ({}),'
+                            ' but "{}" requires {}', node.name,
+                            required_version, depender_name, version_spec),
+                            new_pkgs)
                 else:
                     normal_version = _normalize_version_tag(required_version)
                     req_semver = semver.Version.coerce(normal_version)
@@ -1418,6 +1436,20 @@ class Manager(object):
 
                         if version_spec == required_version:
                             continue
+
+                        return (str.format(
+                            'unsatisfiable dependency: "{}" ({}) is installed,'
+                            ' but "{}" requires {}', node.name,
+                            required_version, depender_name, version_spec),
+                            new_pkgs)
+                elif track_method == 'commit':
+                    for depender_name, version_spec in node.dependers.items():
+                        if version_spec == '*':
+                            continue
+
+                        # Could allow commit= version specification like what
+                        # is done with branches, but unsure there's a common
+                        # use-case for it.
 
                         return (str.format(
                             'unsatisfiable dependency: "{}" ({}) is installed,'
@@ -1947,8 +1979,8 @@ class Manager(object):
 
             version (str): if not given, then the latest git version tag is
                 installed (or if no version tags exist, the "master" branch is
-                installed).  If given, it may be either a git version tag or a
-                git branch name.
+                installed).  If given, it may be either a git version tag, a
+                git branch name, or a git commit hash.
 
         Returns:
             str: empty string if package installation succeeded else an error
@@ -2034,7 +2066,9 @@ class Manager(object):
         version_tags = _get_version_tags(clone)
 
         if version:
-            if version in version_tags:
+            if _is_commit_hash(clone, version):
+                status.tracking_method = 'commit'
+            elif version in version_tags:
                 status.tracking_method = 'version'
             else:
                 branches = _get_branch_names(clone)
@@ -2161,12 +2195,25 @@ def _is_clone_outdated(clone, ref_name, tracking_method):
         return _is_version_outdated(clone, ref_name)
     elif tracking_method == 'branch':
         return _is_branch_outdated(clone, ref_name)
+    elif tracking_method == 'commit':
+        return False
     else:
         raise NotImplementedError
 
 
-def _get_hash(clone, ref_name, track_method):
-    return _get_ref(clone, ref_name, track_method).object.hexsha
+def _get_hash(clone, version, track_method):
+    if track_method == 'commit':
+        return clone.commit(version).hexsha
+
+    return _get_ref(clone, version, track_method).object.hexsha
+
+
+def _is_commit_hash(clone, text):
+    try:
+        commit = clone.commit(text)
+        return commit.hexsha.startswith(text)
+    except Exception:
+        return False
 
 
 def _copy_package_dir(package, dirname, src, dst, scratch_dir):
@@ -2274,6 +2321,14 @@ def _info_from_clone(clone, package, status, version):
         A :class:`.package.PackageInfo` object.
     """
     versions = _get_version_tags(clone)
+
+    if _is_commit_hash(clone, version):
+        version_type = 'commit'
+    elif version in versions:
+        version_type = 'version'
+    else:
+        version_type = 'branch'
+
     metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
     # Use raw parser so no value interpolation takes place.
     metadata_parser = configparser.RawConfigParser()
@@ -2283,10 +2338,10 @@ def _info_from_clone(clone, package, status, version):
     if invalid_reason:
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status, versions=versions,
-                           metadata_version=version)
+                           metadata_version=version, version_type=version_type)
 
     metadata = _get_package_metadata(metadata_parser)
 
     return PackageInfo(package=package, invalid_reason=invalid_reason,
                        status=status, metadata=metadata, versions=versions,
-                       metadata_version=version)
+                       metadata_version=version, version_type=version_type)
