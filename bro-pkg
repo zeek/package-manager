@@ -1682,7 +1682,7 @@ def argparser():
         help='Creates a bundle file containing a collection of Bro packages.',
         description='This command creates a bundle file containing a collection'
                     ' of Bro packages.  If ``--manifest`` is used, the user'
-                    ' suplies the list of packages to put in the bundle, else'
+                    ' supplies the list of packages to put in the bundle, else'
                     ' all currently installed packages are put in the bundle.'
                     ' A bundle file can be unpacked on any target system,'
                     ' resulting in a repeatable/specific set of packages'

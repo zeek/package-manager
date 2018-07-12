@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Jul 12, 2018" "1.3.12-3" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Jul 12, 2018" "1.3.12-5" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -200,7 +200,7 @@ Skip the confirmation prompt.
 .UNINDENT
 .SS bundle
 .sp
-This command creates a bundle file containing a collection of Bro packages.  If \fB\-\-manifest\fP is used, the user suplies the list of packages to put in the bundle, else all currently installed packages are put in the bundle. A bundle file can be unpacked on any target system, resulting in a repeatable/specific set of packages being installed on that target system (see the \fBunbundle\fP command).  This command may be useful for those that want to manage packages on a system that otherwise has limited network connectivity.  E.g. one can use a system with an internet connection to create a bundle, transport that bundle to the target machine using whatever means are appropriate, and finally unbundle/install it on the target machine.
+This command creates a bundle file containing a collection of Bro packages.  If \fB\-\-manifest\fP is used, the user supplies the list of packages to put in the bundle, else all currently installed packages are put in the bundle. A bundle file can be unpacked on any target system, resulting in a repeatable/specific set of packages being installed on that target system (see the \fBunbundle\fP command).  This command may be useful for those that want to manage packages on a system that otherwise has limited network connectivity.  E.g. one can use a system with an internet connection to create a bundle, transport that bundle to the target machine using whatever means are appropriate, and finally unbundle/install it on the target machine.
 
 .INDENT 0.0
 .INDENT 3.5
