@@ -1,4 +1,9 @@
 
+1.4.0-1 | 2018-07-25 14:36:23 -0500
+
+  * Improve error message for invalid bundle manifest files
+    (Jon Siwek, Corelight)
+
 1.4.0 | 2018-07-12 11:34:00 -0500
 
   * Release 1.4.0.

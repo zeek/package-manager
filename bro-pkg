@@ -574,17 +574,18 @@ def cmd_bundle(manager, args, config):
     prefer_existing_clones = False
 
     if args.manifest:
-        manifest_is_file = False
-
-        if len(args.manifest) == 1:
+        if len(args.manifest) == 1 and os.path.isfile(args.manifest[0]):
             config = configparser.SafeConfigParser(delimiters='=')
             config.optionxform = str
 
             if config.read(args.manifest[0]) and config.has_section('bundle'):
                 packages = config.items('bundle')
-                manifest_is_file = True
+            else:
+                print_error('error: "{}" is not a valid manifest file'.format(
+                    args.manifest[0]))
+                sys.exit(1)
 
-        if not manifest_is_file:
+        else:
             packages = [(name, '') for name in args.manifest]
 
         to_validate = []
