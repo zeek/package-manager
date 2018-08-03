@@ -1,4 +1,8 @@
 
+1.4.2 | 2018-08-03 16:46:21 -0500
+
+  * Release 1.4.2.
+
 1.4.1-1 | 2018-08-03 16:44:45 -0500
 
   * Fix SafeConfigParser deprecation warning (Jon Siwek, Corelight)
