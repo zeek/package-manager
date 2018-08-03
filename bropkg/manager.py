@@ -17,6 +17,13 @@ try:
 except ImportError as err:
     import configparser
 
+if ( sys.version_info[0] < 3 or
+     (sys.version_info[0] == 3 and sys.version_info[1] < 2) ):
+    from configparser import SafeConfigParser as GoodConfigParser
+else:
+    # SafeConfigParser renamed to ConfigParser in Python >= 3.2
+    from configparser import ConfigParser as GoodConfigParser
+
 import git
 import semantic_version as semver
 
@@ -1000,7 +1007,7 @@ class Manager(object):
             return (str(error), infos)
 
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = configparser.SafeConfigParser(delimiters='=')
+        config = GoodConfigParser(delimiters='=')
         config.optionxform = str
 
         if not config.read(manifest_file):
@@ -1602,7 +1609,7 @@ class Manager(object):
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = configparser.SafeConfigParser(delimiters='=')
+        config = GoodConfigParser(delimiters='=')
         config.optionxform = str
         config.add_section('bundle')
 
@@ -1674,7 +1681,7 @@ class Manager(object):
             return str(error)
 
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = configparser.SafeConfigParser(delimiters='=')
+        config = GoodConfigParser(delimiters='=')
         config.optionxform = str
 
         if not config.read(manifest_file):
@@ -1854,8 +1861,7 @@ class Manager(object):
             if k not in substitutions:
                 substitutions[k] = v
 
-        metadata_parser = configparser.SafeConfigParser(
-            defaults=substitutions)
+        metadata_parser = GoodConfigParser(defaults=substitutions)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
 
