@@ -29,7 +29,7 @@ cat 1>&2 <<EOF
 Usage: $0 [OPTIONS]
 
   Plugin Options:
-    --bro-dist=DIR             Path to Bro source tree
+    --bro-dist=DIR             Path to Zeek source tree
     --install-root=DIR         Path where to install plugin into
 EOF
 
@@ -89,7 +89,7 @@ while [ $# -ne 0 ]; do
 done
 
 if [ ! -e "$brodist/bro-path-dev.in" ]; then
-    echo "Cannot determine Bro source directory, use --bro-dist=DIR."
+    echo "Cannot determine Zeek source directory, use --bro-dist=DIR."
     exit 1
 fi
 
@@ -102,7 +102,7 @@ if [ "$installroot" != "default" ]; then
 fi
 
 echo "Build Directory        : $builddir"
-echo "Bro Source Directory   : $brodist"
+echo "Zeek Source Directory  : $brodist"
 
 mkdir -p $builddir
 cd $builddir

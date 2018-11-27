@@ -1,6 +1,6 @@
 """
 This package defines a Python interface for installing, managing, querying,
-and performing other operations on Bro Packages and Package Sources.
+and performing other operations on Zeek Packages and Package Sources.
 The main entry point is the :class:`Manager <bropkg.manager.Manager>` class.
 
 This package provides a logger named `LOG` to which logging stream handlers may

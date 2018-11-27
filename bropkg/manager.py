@@ -1,6 +1,6 @@
 """
-A module defining the main Bro Package Manager interface which supplies methods
-to interact with and operate on Bro packages.
+A module defining the main Zeek Package Manager interface which supplies methods
+to interact with and operate on Zeek packages.
 """
 
 import os
@@ -75,8 +75,8 @@ class Manager(object):
             a dictionary of installed packaged keyed on package names (the last
             component of the package's git URL)
 
-        bro_dist (str): path to the Bro source code distribution.  This
-            is needed for packages that contain Bro plugins that need to be
+        bro_dist (str): path to the Zeek source code distribution.  This
+            is needed for packages that contain Zeek plugins that need to be
             built from source code.
 
         state_dir (str): the directory where the package manager will
@@ -121,12 +121,12 @@ class Manager(object):
         manifest (str): the path to the package manager's manifest file.
             This file maintains a list of installed packages and their status.
 
-        autoload_script (str): path to a Bro script named :file:`packages.bro`
+        autoload_script (str): path to a Zeek script named :file:`packages.bro`
             that the package manager maintains.  It is a list of ``@load`` for
             each installed package that is marked as loaded (see
             :meth:`load()`).
 
-        autoload_package (str): path to a Bro :file:`__load__.bro` script
+        autoload_package (str): path to a Zeek :file:`__load__.bro` script
             which is just a symlink to `autoload_script`.  It's always located
             in a directory named :file:`packages`, so as long as
             :envvar:`BROPATH` is configured correctly, ``@load packages`` will
@@ -292,7 +292,7 @@ class Manager(object):
         """Return the path where installed package scripts are located.
 
         This path can be added to :envvar:`BROPATH` for interoperability with
-        Bro.
+        Zeek.
         """
         return os.path.dirname(self.script_dir)
 
@@ -300,7 +300,7 @@ class Manager(object):
         """Return the path where installed package plugins are located.
 
         This path can be added to :envvar:`BRO_PLUGIN_PATH` for
-        interoperability with Bro.
+        interoperability with Zeek.
         """
         return os.path.dirname(self.plugin_dir)
 
@@ -414,10 +414,10 @@ class Manager(object):
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
-                package to check for whether it has installed any Bro scripts.
+                package to check for whether it has installed any Zeek scripts.
 
         Returns:
-            bool: True if the package has installed Bro scripts.
+            bool: True if the package has installed Zeek scripts.
         """
         return os.path.exists(os.path.join(self.script_dir,
                                            installed_pkg.package.name))
@@ -468,7 +468,7 @@ class Manager(object):
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
-                package to check for whether it has installed any Bro scripts.
+                package to check for whether it has installed any Zeek scripts.
 
         Returns:
             list of (str, str): tuples that describe the modified config files.
@@ -899,7 +899,7 @@ class Manager(object):
     def load(self, pkg_path):
         """Mark an installed package as being "loaded".
 
-        The collection of "loaded" packages is a convenient way for Bro to more
+        The collection of "loaded" packages is a convenient way for Zeek to more
         simply load a whole group of packages installed via the package manager.
 
         Args:
@@ -945,7 +945,7 @@ class Manager(object):
     def unload(self, pkg_path):
         """Unmark an installed package as being "loaded".
 
-        The collection of "loaded" packages is a convenient way for Bro to more
+        The collection of "loaded" packages is a convenient way for Zeek to more
         simply load a whole group of packages installed via the package manager.
 
         Args:

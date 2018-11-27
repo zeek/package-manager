@@ -202,7 +202,7 @@ Config File
 
 The :program:`bro-pkg` command-line tool uses an INI-format config file to allow
 users to customize their :doc:`Package Sources <source>`, :doc:`Package
-<package>` installation paths, Bro executable/source paths, and other
+<package>` installation paths, Zeek executable/source paths, and other
 :program:`bro-pkg` options.
 
 See the default/example config file below for explanations of the

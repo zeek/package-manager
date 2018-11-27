@@ -8,7 +8,7 @@
 Developer's Guide
 =================
 
-This a guide for developers working on the Bro Package Manager itself.
+This a guide for developers working on the Zeek Package Manager itself.
 
 Versioning/Releases
 -------------------

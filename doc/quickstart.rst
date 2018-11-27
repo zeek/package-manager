@@ -1,5 +1,5 @@
 .. _PyPI: https://pypi.python.org/pypi
-.. _BroControl: https://www.bro.org/sphinx/components/broctl/README.html
+.. _BroControl: https://www.zeek.org/sphinx/components/broctl/README.html
 
 Quickstart Guide
 ================
@@ -45,27 +45,28 @@ First, make sure that the :program:`bro-config` script that gets installed with
   $ bro-pkg autoconfig
 
 This automatically generates a config file with the following suggested
-settings that should work for most Bro deployments:
+settings that should work for most Zeek deployments:
 
-- `script_dir`: set to the location of Bro's :file:`site` scripts directory
+- `script_dir`: set to the location of Zeek's :file:`site` scripts directory
   (e.g. :file:`{<bro_install_prefix>}/share/bro/site`)
 
-- `plugin_dir`: set to the location of Bro's default plugin directory (e.g.
+- `plugin_dir`: set to the location of Zeek's default plugin directory (e.g.
   :file:`{<bro_install_prefix>}/lib/bro/plugins`)
 
-- `bro_dist`: set to the location of Bro's source code.
-  If you didn't build/install Bro from source code, this field will not be set,
+- `bro_dist`: set to the location of Zeek's source code.
+  If you didn't build/install Zeek from source code, this field will not be set,
   but it's only needed if you plan on installing packages that have uncompiled
-  Bro plugins.
+  Zeek plugins.
 
-With those settings, the package manager will install Bro scripts, Bro plugins,
+With those settings, the package manager will install Zeek scripts,
+Zeek plugins,
 and BroControl plugins into directories where :program:`bro` and
 :program:`broctl` will, by default, look for them.  BroControl clusters will
 also automatically distribute installed package scripts/plugins to all nodes.
 
 .. note::
 
-  If your Bro installation is owned by "root" and you intend to run
+  If your Zeek installation is owned by "root" and you intend to run
   :program:`bro-pkg` as a different user, then you should grant "write" access
   to the directories specified by `script_dir` and `plugin_dir`.  E.g. you could
   do something like:
@@ -76,7 +77,7 @@ also automatically distribute installed package scripts/plugins to all nodes.
     $ sudo chmod g+rwX $(bro-config --site_dir) $(bro-config --plugin_dir)
 
 The final step is to edit your :file:`site/local.bro`.  If you want to
-have Bro automatically load the scripts from all
+have Zeek automatically load the scripts from all
 :ref:`installed <install-command>` packages that are also marked as
 ":ref:`loaded <load-command>`" add:
 
@@ -107,7 +108,7 @@ additional configuration.
 When using non-standard location, follow these steps to integrate with
 :program:`bro` and :program:`broctl`:
 
-- To get command-line :program:`bro` to be aware of Bro scripts/plugins in a
+- To get command-line :program:`bro` to be aware of Zeek scripts/plugins in a
   non-standard location, make sure the :program:`bro-config` script (that gets
   installed along with :program:`bro`) is in your :envvar:`PATH` and run:
 
@@ -156,7 +157,7 @@ Offline Usage
 ~~~~~~~~~~~~~
 
 It's common to have limited network/internet access on the systems where
-Bro is deployed.  To accomodate those scenarios, :program:`bro-pkg` can
+Zeek is deployed.  To accomodate those scenarios, :program:`bro-pkg` can
 be used as normally on a system that *does* have network access to
 create bundles of its package installation environment. Those bundles
 can then be transferred to the deployment systems via whatever means are
@@ -176,8 +177,8 @@ file which contains a snapshot of all currently installed packages:
 
     $ bro-pkg bundle bro-packages.bundle
 
-Then transfer :file:`bro-packages.bundle` to the Bro deployment
-management host.  For Bro clusters using BroControl_, this will
+Then transfer :file:`bro-packages.bundle` to the Zeek deployment
+management host.  For Zeek clusters using BroControl_, this will
 be the system acting as the "manager" node.  Then on that system
 (assuming it already as :program:`bro-pkg` installed and configured):
 

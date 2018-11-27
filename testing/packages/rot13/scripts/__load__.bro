@@ -1,6 +1,6 @@
 #
-# This is loaded unconditionally at Bro startup. Include scripts here that should
-# always be loaded.
+# This is loaded unconditionally at Zeek startup. Include scripts here that
+# should always be loaded.
 # 
 # Normally, that will be only code that initializes built-in elements. Load
 # your standard scripts in

@@ -1,6 +1,6 @@
 """
 A module with various data structures used for interacting with and querying
-the properties and status of Bro packages.
+the properties and status of Zeek packages.
 """
 
 import os
@@ -189,7 +189,7 @@ class PackageInfo(object):
     If the package is installed, then its status is also available.
 
     Attributes:
-        package (:class:`Package`): the relevant Bro package
+        package (:class:`Package`): the relevant Zeek package
 
         status (:class:`PackageStatus`): this attribute is set for installed
             packages
@@ -269,14 +269,14 @@ class PackageInfo(object):
 
 
 class Package(object):
-    """A Bro package.
+    """A Zeek package.
 
     This class contains properties of a package that are defined by the package
     git repository itself and the package source it came from.
 
     Attributes:
         git_url (str): the git URL which uniquely identifies where the
-            Bro package is located
+            Zeek package is located
 
         name (str): the canonical name of the package, which is always the
             last component of the git URL path

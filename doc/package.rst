@@ -1,6 +1,6 @@
-.. _Bro Scripting: https://www.bro.org/sphinx/scripting/index.html
-.. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
-.. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
+.. _Zeek Scripting: https://www.zeek.org/sphinx/scripting/index.html
+.. _Zeek Plugins: https://www.zeek.org/sphinx/devel/plugins.html
+.. _BroControl Plugins:  https://www.zeek.org/sphinx/components/broctl/README.html#plugins
 .. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
 .. _btest: https://github.com/bro/btest
 .. _configparser interpolation: https://docs.python.org/3/library/configparser.html#interpolation-of-values
@@ -8,7 +8,8 @@
 How-To: Create a Package
 ========================
 
-A Bro package may contain Bro scripts, Bro plugins, or BroControl plugins.  Any
+A Zeek package may contain Zeek scripts, Zeek plugins, or BroControl plugins.
+Any
 number or combination of those components may be included within a single
 package.
 
@@ -20,14 +21,14 @@ begins with the line::
 
 This is the package's metadata file in INI file format and may contain
 :ref:`additional fields <metadata-fields>` that describe the package as well
-as how it inter-operates with Bro, the package manager, or other packages.
+as how it inter-operates with Zeek, the package manager, or other packages.
 
 .. _package-shorthand-name:
 
 Note that the shorthand name for your package that may be used by :ref:`bro-pkg
-<bro-pkg>` and Bro script :samp:`@load {<package_name>}` directives will be the
+<bro-pkg>` and Zeek script :samp:`@load {<package_name>}` directives will be the
 last component of its git URL. E.g. a package at ``https://github.com/bro/foo``
-may be referred to as **foo** when using :program:`bro-pkg` and a Bro
+may be referred to as **foo** when using :program:`bro-pkg` and a Zeek
 script that wants to load all the scripts within that package can use:
 
 .. code-block:: bro
@@ -37,8 +38,8 @@ script that wants to load all the scripts within that package can use:
 Walkthroughs
 ------------
 
-Pure Bro Script Package
-~~~~~~~~~~~~~~~~~~~~~~~
+Pure Zeek Script Package
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Create a git repository:
 
@@ -71,7 +72,7 @@ Pure Bro Script Package
 
       $ git add * && git commit -m 'First commit'
 
-#. (Optional) Test that Bro correctly loads the script after installing the
+#. (Optional) Test that Zeek correctly loads the script after installing the
    package with :program:`bro-pkg`:
 
    .. code-block:: console
@@ -82,17 +83,17 @@ Pure Bro Script Package
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
-See `Bro Scripting`_ for more information on developing Bro scripts.
+See `Zeek Scripting`_ for more information on developing Zeek scripts.
 
-Binary Bro Plugin Package
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Binary Zeek Plugin Package
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See `Bro Plugins`_ for more complete information on developing Bro plugins,
+See `Zeek Plugins`_ for more complete information on developing Zeek plugins,
 though the following step are the essentials needed to create a package.
 
 
 #. Create a plugin skeleton using :file:`aux/bro-aux/plugin-support/init-plugin`
-   from Bro's source distribution:
+   from Zeek's source distribution:
 
    .. code-block:: console
 
@@ -147,7 +148,7 @@ though the following step are the essentials needed to create a package.
 
       $ git add * && git commit -m 'First commit'
 
-#. (Optional) Test that Bro correctly loads the plugin after installing the
+#. (Optional) Test that Zeek correctly loads the plugin after installing the
    package with :program:`bro-pkg`:
 
    .. code-block:: console
@@ -219,13 +220,13 @@ BroControl Plugin Package
 
 See `BroControl Plugins`_ for more information on developing BroControl plugins.
 
-If you want to distribute a BroControl plugin along with a Bro plugin in the
+If you want to distribute a BroControl plugin along with a Zeek plugin in the
 same package, you may need to add the BroControl plugin's python script to the
-``bro_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Bro
-plugin so that it gets copied into :file:`build/` along with the built Bro
+``bro_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Zeek
+plugin so that it gets copied into :file:`build/` along with the built Zeek
 plugin.  Or you could also modify your `build_command` to copy it there, but
 what ultimately matters is that the `plugin_dir` field points to a directory
-that contains both the Bro plugin and the BroControl plugin.
+that contains both the Zeek plugin and the BroControl plugin.
 
 Registering to a Package Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -273,14 +274,14 @@ better discover and search for packages.  The
 example :file:`bro-pkg.meta` using tags::
 
   [package]
-  tags = bro plugin, broctl plugin, scan detection, intel
+  tags = zeek plugin, bro plugin, broctl plugin, scan detection, intel
 
 Suggested Tags
 ^^^^^^^^^^^^^^
 
 Some ideas for what to put in the `tags` field for packages:
 
-- bro scripting
+- zeek scripting
 
   - conn
   - intel
@@ -297,7 +298,7 @@ Some ideas for what to put in the `tags` field for packages:
 
 - signatures
 
-- bro plugin
+- zeek plugin
 
   - protocol analyzer
   - file analyzer
@@ -313,7 +314,7 @@ Some ideas for what to put in the `tags` field for packages:
 ~~~~~~~~~~~~~~~~~~
 
 The `script_dir` field is a path relative to the root of the package that
-contains a file named :file:`__load__.bro` and possibly other Bro scripts. The
+contains a file named :file:`__load__.bro` and possibly other Zeek scripts. The
 files located in this directory are copied into
 :file:`{<user_script_dir>}/packages/{<package>}/`, where `<user_script_dir>`
 corresponds to the `script_dir` field of the user's
@@ -324,11 +325,12 @@ When the package is :ref:`loaded <load-command>`,
 an :samp:`@load {<package_name>}` directive is
 added to :file:`{<user_script_dir>}/packages/packages.bro`.
 
-You may place any valid Bro script code within :file:`__load__.bro`, but a
-package that contains many Bro scripts will typically have :file:`__load__.bro`
-just contain a list of ``@load`` directives to load other Bro scripts within the
+You may place any valid Zeek script code within :file:`__load__.bro`, but a
+package that contains many Zeek scripts will typically have :file:`__load__.bro`
+just contain a list of ``@load`` directives to load other Zeek scripts
+within the
 package.  E.g. if you have a package named **foo** installed, then it's
-:file:`__load__.bro` will be what Bro loads when doing ``@load foo`` or running
+:file:`__load__.bro` will be what Zeek loads when doing ``@load foo`` or running
 ``bro foo`` on the command-line.
 
 An example :file:`bro-pkg.meta`::
@@ -344,13 +346,13 @@ defaults to checking the top-level directory of the package for a
 :file:`__load__.bro` script.  If it's found there, :program:`bro-pkg`
 use the top-level package directory as the value for `script_dir`.  If
 it's not found, then :program:`bro-pkg` assumes the package contains no
-Bro scripts (which may be the case for some plugins).
+Zeek scripts (which may be the case for some plugins).
 
 `plugin_dir` field
 ~~~~~~~~~~~~~~~~~~
 
 The `plugin_dir` field is a path relative to the root of the package that
-contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
+contains either pre-built `Zeek Plugins`_, `BroControl Plugins`_, or both.
 
 An example :file:`bro-pkg.meta`::
 
@@ -358,17 +360,17 @@ An example :file:`bro-pkg.meta`::
   script_dir = scripts
   plugin_dir = plugins
 
-For the above example, Bro and BroControl will load any plugins found in the
+For the above example, Zeek and BroControl will load any plugins found in the
 installed package's :file:`plugins/` directory.
 
 If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults
 to a directory named :file:`build/` at the top-level of the package.  This is
-the default location where Bro binary plugins get placed when building them from
+the default location where Zeek binary plugins get placed when building them from
 source code (see the `build_command field`_).
 
 This field may also be set to the location of a tarfile that has a single top-
-level directory inside it containing the Bro plugin. The default CMake skeleton
-for Bro plugins produces such a tarfile located at
+level directory inside it containing the Zeek plugin. The default CMake skeleton
+for Zeek plugins produces such a tarfile located at
 :file:`build/<namespace>_<plugin>.tgz`. This is a good choice to use for
 packages that will be published to a wider audience as installing from this
 tarfile contains the minimal set of files needed for the plugin to work whereas
@@ -381,7 +383,7 @@ default :file:`build/` directory.
 The `build_command` field is an arbitrary shell command that the package
 manager will run before installing the package.
 
-This is useful for distributing `Bro Plugins`_ as source code and having the
+This is useful for distributing `Zeek Plugins`_ as source code and having the
 package manager take care of building it on the user's machine before installing
 the package.
 
@@ -396,13 +398,13 @@ In the above example, the ``%(bro_dist)s`` string is
 the `bro_dist` field in the
 :ref:`package manager config file <bro-pkg-config-file>`.
 
-The default CMake skeleton for Bro plugins will use :file:`build/` as the
+The default CMake skeleton for Zeek plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
 value of the omitted `plugin_dir` metadata field.
 
 The `script_dir` field is set to the location where the author has placed
-custom scripts for their plugin.  When a package has both a Bro plugin and Bro
-script components, the "plugin" part is always unconditionally loaded by Bro,
+custom scripts for their plugin.  When a package has both a Zeek plugin and Zeek
+script components, the "plugin" part is always unconditionally loaded by Zeek,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
@@ -543,7 +545,7 @@ A dependency name may be either `bro`, `bro-pkg`, a full git URL of the package,
 or a :ref:`package shorthand name <package-shorthand-name>`.
 
 - The special `bro` dependency refers not to a package, but the version of
-  Bro that the package requires in order to function.  If the user has
+  Zeek that the package requires in order to function.  If the user has
   :program:`bro-config` in their :envvar:`PATH` when installing/upgrading a
   package that specifies a `bro` dependency, then :program:`bro-pkg` will
   enforce that the requirement is satisfied.

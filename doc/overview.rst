@@ -1,14 +1,15 @@
-.. _Bro: https://bro.org
-.. _Bro package source: https://github.com/bro/packages
+.. _Zeek: https://zeek.org
+.. _Zeek package source: https://github.com/bro/packages
 .. _documentation: http://bro-package-manager.readthedocs.io
 
-Bro Package Manager
-===================
+Zeek Package Manager
+====================
 
-The Bro Package Manager makes it easy for Bro_ users to install and manage third
-party scripts as well as plugins for Bro and BroControl.  The command-line tool
-is preconfigured to download packages from the `Bro package source`_ , a GitHub
-repository that has been set up such that any developer can request their Bro
+The Zeek Package Manager makes it easy for Zeek_ users
+to install and manage third
+party scripts as well as plugins for Zeek and BroControl.  The command-line tool
+is preconfigured to download packages from the `Zeek package source`_ , a GitHub
+repository that has been set up such that any developer can request their Zeek
 package be included. See the ``README`` file of that repository for information
 regarding the package submission process.
 

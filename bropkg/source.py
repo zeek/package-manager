@@ -1,8 +1,8 @@
 """
 A module containing the definition of a "package source": a git repository
 containing a collection of :file:`bro-pkg.index` files.  These are simple INI
-files that can describe many Bro packages.  Each section of the file names
-a Bro package along with the git URL where it is located and metadata tags that
+files that can describe many Zeek packages.  Each section of the file names
+a Zeek package along with the git URL where it is located and metadata tags that
 help classify/describe it.
 """
 
@@ -29,7 +29,7 @@ AGGREGATE_DATA_FILE = 'aggregate.meta'
 
 
 class Source(object):
-    """A Bro package source.
+    """A Zeek package source.
 
     This class contains properties of a package source like its name, remote git
     URL, and local git clone.
