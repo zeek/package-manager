@@ -975,6 +975,9 @@ def cmd_upgrade(manager, args, config):
         if not ipkg.status.is_outdated:
             continue
 
+        if not manager.match_source_packages(name):
+            name = ipkg.package.git_url
+
         info = manager.info(name, version=ipkg.status.current_version,
                             prefer_installed=False)
 
@@ -1143,6 +1146,12 @@ def cmd_upgrade(manager, args, config):
 
     for info, next_version, _ in outdated_packages:
         name = info.package.qualified_name()
+        bdir = name
+
+        if not manager.match_source_packages(name):
+            name = info.package.git_url
+            bdir = bropkg.package.name_from_path(name)
+
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
