@@ -33,6 +33,15 @@ def canonical_url(path):
     return url
 
 
+def aliases(metadata_dict):
+    """Return a list of package aliases found in metadata's 'aliases' field."""
+    if 'aliases' not in metadata_dict:
+        return []
+
+    import re
+    return re.split(',\s*|\s+', metadata_dict['aliases'])
+
+
 def tags(metadata_dict):
     """Return a list of tag strings found in the metadata's 'tags' field."""
     if 'tags' not in metadata_dict:
@@ -220,6 +229,13 @@ class PackageInfo(object):
         self.version_type = version_type
         self.invalid_reason = invalid_reason
 
+    def aliases(self):
+        """Return a list of package name aliases.
+
+        The canonical one is listed first.
+        """
+        return aliases(self.metadata)
+
     def tags(self):
         """Return a list of keyword tags associated with the package.
 
@@ -325,6 +341,13 @@ class Package(object):
 
     def __lt__(self, other):
         return str(self) < str(other)
+
+    def aliases(self):
+        """Return a list of package name aliases.
+
+        The canonical one is listed first.
+        """
+        return aliases(self.metadata)
 
     def tags(self):
         """Return a list of keyword tags associated with the package.

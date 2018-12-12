@@ -263,6 +263,30 @@ example :file:`bro-pkg.meta` using a description field::
       indent the new lines so they are parsed
       as part of the 'description' value.
 
+`aliases` field
+~~~~~~~~~~~~~~~
+
+The `aliases` field can be used to specify alternative names for a
+package.  Users can then use :samp:`@load {<package_alias>}` for
+any alias listed in this field.  This may be useful when renaming a
+package's repository on GitHub while still supporting users that already
+installed the package under the previous name.  For example, if package
+`foo` were renamed to `foo2`, then the `aliases` for it could be::
+
+  [package]
+  aliases = foo2 foo
+
+Currently, the order does not matter, but you should specify the
+canonical/current alias first.  The list is delimited by commas or
+whitespace.  If this field is not specified, the default behavior is the
+same as if using a single alias equal to the package's name.
+
+The low-level details of the way this field operates is that, for each alias,
+it simply creates a symlink of the same name within the directory associated
+with the ``script_dir`` path in the :ref:`config file <bro-pkg-config-file>`.
+
+Available :program:`since bro-pkg v1.5`.
+
 `tags` field
 ~~~~~~~~~~~~
 

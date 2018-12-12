@@ -48,6 +48,7 @@ from .package import (
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_COMMIT,
     name_from_path,
+    aliases,
     user_vars,
     canonical_url,
     Package,
@@ -819,6 +820,9 @@ class Manager(object):
         delete_path(os.path.join(self.script_dir, pkg_to_remove.name))
         delete_path(os.path.join(self.plugin_dir, pkg_to_remove.name))
         delete_path(os.path.join(self.bropath(), pkg_to_remove.name))
+
+        for alias in pkg_to_remove.aliases():
+            delete_path(os.path.join(self.bropath(), alias))
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
@@ -1929,12 +1933,18 @@ class Manager(object):
                               pkg_script_dir)
 
         if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
-            symlink_path = os.path.join(os.path.dirname(stage_script_dir),
-                                        package.name)
-
             try:
-                make_symlink(os.path.join(
-                    'packages', package.name), symlink_path)
+                symlink_path = os.path.join(os.path.dirname(stage_script_dir),
+                                            package.name)
+                make_symlink(os.path.join('packages', package.name),
+                             symlink_path)
+
+                for alias in aliases(metadata):
+                    symlink_path = os.path.join(
+                            os.path.dirname(stage_script_dir), alias)
+                    make_symlink(os.path.join('packages', package.name),
+                                 symlink_path)
+
             except OSError as exception:
                 error = 'could not create symlink at {}'.format(symlink_path)
                 error += ': {}: {}'.format(type(exception).__name__, exception)

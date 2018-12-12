@@ -1,4 +1,15 @@
 
+1.4.2-2 | 2018-12-12 15:31:47 -0600
+
+  * Add an 'aliases' package metadata field (Jon Siwek, Corelight)
+
+    This is used for specifying alternate package names that one may @load
+    it by, and may be generally useful when renaming package repositories
+    while still supporting existing package installations under the old name.
+
+  * Fix bro-pkg to be able to upgrade packages no longer in a source
+    (Jon Siwek, Corelight)
+
 1.4.2 | 2018-08-03 16:46:21 -0500
 
   * Release 1.4.2.
