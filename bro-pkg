@@ -1618,6 +1618,20 @@ def cmd_env(manager, args, config):
         print(u'export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
 
+class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    # Workaround for underlying argparse bug: https://bugs.python.org/issue9338
+    def _format_args(self, action, default_metavar):
+        rval = super(BundleHelpFormatter, self)._format_args(
+                action, default_metavar)
+
+        if action.nargs == argparse.ZERO_OR_MORE:
+            rval += " --"
+        elif action.nargs == argparse.ONE_OR_MORE:
+            rval += " --"
+
+        return rval
+
+
 def top_level_parser():
     top_parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1733,11 +1747,15 @@ def argparser():
                     ' bundle, transport that bundle to the target machine'
                     ' using whatever means are appropriate, and finally'
                     ' unbundle/install it on the target machine.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=BundleHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_bundle)
     sub_parser.add_argument(
         'bundle_filename', help='The path of the bundle file to create.'
-                                ' It will be overwritten if it already exists.')
+                                ' It will be overwritten if it already exists.'
+                                ' Note that if --manifest is used before this'
+                                ' filename is specified, you should use a'
+                                ' double-dash, --, to first terminate that'
+                                ' argument list.')
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
