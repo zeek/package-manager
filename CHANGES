@@ -1,4 +1,10 @@
 
+1.5.1 | 2018-12-17 12:21:41 -0600
+
+  * Release 1.5.1.
+
+  * GH-40: improve `bro-pkg bundle --help` output (Jon Siwek, Corelight)
+
 1.5.0 | 2018-12-12 15:32:36 -0600
 
   * Release 1.5.0.

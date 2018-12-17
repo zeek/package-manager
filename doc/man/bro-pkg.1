@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Dec 12, 2018" "1.5.0" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Dec 17, 2018" "1.5.1" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -208,7 +208,7 @@ This command creates a bundle file containing a collection of Bro packages.  If 
 .nf
 .ft C
 usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
-                      [\-\-manifest MANIFEST [MANIFEST ...]]
+                      [\-\-manifest MANIFEST [MANIFEST ...] \-\-]
                       bundle_filename
 .ft P
 .fi
@@ -220,7 +220,7 @@ usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
 .INDENT 7.0
 .TP
 .Bbundle_filename
-The path of the bundle file to create. It will be overwritten if it already exists.
+The path of the bundle file to create. It will be overwritten if it already exists. Note that if \-\-manifest is used before this filename is specified, you should use a double\-dash, \-\-, to first terminate that argument list.
 .UNINDENT
 .TP
 .B Options:
