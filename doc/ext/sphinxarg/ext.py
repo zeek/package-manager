@@ -66,7 +66,8 @@ def print_arg_list(data, nested_content):
                     text=('Possible choices: %s' % ', '.join([str(c) for c in arg['choices']]))))
             items.append(
                 nodes.option_list_item(
-                    '', nodes.option_group('', nodes.option_string(text=name)),
+                    '', nodes.option_group('',
+                          nodes.option('', nodes.option_string(text=name))),
                     nodes.description('', *my_def)))
     return nodes.option_list('', *items) if items else None
 

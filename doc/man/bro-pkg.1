@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Dec 17, 2018" "1.5.1" "Bro Package Manager"
+.TH "BRO-PKG" "1" "Jan 04, 2019" "1.5.1-1" "Bro Package Manager"
 .SH NAME
 bro-pkg \- Bro Package Manager
 .
@@ -90,7 +90,7 @@ usage: bro\-pkg test [\-h] [\-\-version VERSION] package [package ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .TP
@@ -122,7 +122,7 @@ usage: bro\-pkg install [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .TP
@@ -164,7 +164,7 @@ usage: bro\-pkg remove [\-h] [\-\-force] package [package ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .TP
@@ -219,7 +219,7 @@ usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bbundle_filename
+.B bundle_filename
 The path of the bundle file to create. It will be overwritten if it already exists. Note that if \-\-manifest is used before this filename is specified, you should use a double\-dash, \-\-, to first terminate that argument list.
 .UNINDENT
 .TP
@@ -258,7 +258,7 @@ usage: bro\-pkg unbundle [\-h] [\-\-force] [\-\-replace] bundle_filename
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bbundle_filename
+.B bundle_filename
 The path of the bundle file to install.
 .UNINDENT
 .TP
@@ -323,7 +323,7 @@ usage: bro\-pkg upgrade [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .TP
@@ -362,7 +362,7 @@ usage: bro\-pkg load [\-h] package [package ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 Name(s) of package(s) to load.
 .UNINDENT
 .UNINDENT
@@ -385,7 +385,7 @@ usage: bro\-pkg unload [\-h] package [package ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
@@ -408,7 +408,7 @@ usage: bro\-pkg pin [\-h] package [package ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
@@ -431,7 +431,7 @@ usage: bro\-pkg unpin [\-h] package [package ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo".
 .UNINDENT
 .UNINDENT
@@ -455,7 +455,7 @@ usage: bro\-pkg list [\-h] [\-\-nodesc]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bcategory
+.B category
 Package category used to filter listing.
 .sp
 Possible choices: all, installed, not_installed, loaded, unloaded, outdated
@@ -487,7 +487,7 @@ usage: bro\-pkg search [\-h] search_text [search_text ...]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bsearch_text
+.B search_text
 The text(s) or pattern(s) to look for.
 .UNINDENT
 .UNINDENT
@@ -512,7 +512,7 @@ usage: bro\-pkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bpackage
+.B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "bro" that has a package named "foo" located in "alice/bro\-pkg.index" the following names work: "foo", "alice/foo", "bro/alice/foo". If a single name is given and matches one of the same categories as the "list" command, then it is automatically expanded to be the names of all packages which match the given category.
 .UNINDENT
 .TP
@@ -555,7 +555,7 @@ usage: bro\-pkg config [\-h]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.Bconfig_param
+.B config_param
 Name of a specific config file field to output.
 .sp
 Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, bro_dist
