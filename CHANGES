@@ -1,4 +1,8 @@
 
+1.5.1-3 | 2019-01-10 17:59:09 -0600
+
+  * Fix RTD URL (Jon Siwek, Corelight)
+
 1.5.1-2 | 2019-01-10 17:18:58 -0600
 
   * Update URLs and some simple s/Bro/Zeek in README (Jon Siwek, Corelight)

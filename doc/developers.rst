@@ -1,5 +1,5 @@
 .. _Sphinx: http://www.sphinx-doc.org
-.. _Read the Docs: https://docs.zeek.org/package-manager
+.. _Read the Docs: https://docs.zeek.org/projects/package-manager
 .. _GitHub: https://github.com/zeek/package-manager
 .. _Google Style Docstrings: http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
 .. _zeek-aux: https://github.com/zeek/zeek-aux

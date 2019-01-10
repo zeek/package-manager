@@ -1,6 +1,6 @@
 .. _Zeek: https://www.zeek.org
 .. _Zeek package source: https://github.com/zeek/packages
-.. _documentation: https://docs.zeek.org/package-manager
+.. _documentation: https://docs.zeek.org/projects/package-manager
 
 Zeek Package Manager
 ====================
