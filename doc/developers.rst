@@ -1,20 +1,20 @@
 .. _Sphinx: http://www.sphinx-doc.org
-.. _Read the Docs: http://bro-package-manager.readthedocs.io/en/latest
-.. _GitHub: https://github.com/bro/package-manager
+.. _Read the Docs: https://docs.zeek.org/package-manager
+.. _GitHub: https://github.com/zeek/package-manager
 .. _Google Style Docstrings: http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
-.. _bro-aux: https://github.com/bro/bro-aux
+.. _zeek-aux: https://github.com/zeek/zeek-aux
 .. _PyPi: https://pypi.python.org/pypi
 
 Developer's Guide
 =================
 
-This a guide for developers working on the Bro Package Manager itself.
+This a guide for developers working on the Zeek Package Manager itself.
 
 Versioning/Releases
 -------------------
 
 After making a commit to the *master* branch, you can use the
-:program:`update-changes` script in the `bro-aux`_ repository to automatically
+:program:`update-changes` script in the `zeek-aux`_ repository to automatically
 adapt version numbers and regenerate the :program:`bro-pkg` man page.  Make sure
 to install the `documentation dependencies`_ before using it.
 

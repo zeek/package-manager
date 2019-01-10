@@ -1,5 +1,5 @@
 .. _PyPI: https://pypi.python.org/pypi
-.. _BroControl: https://www.bro.org/sphinx/components/broctl/README.html
+.. _BroControl: https://www.zeek.org/sphinx/components/broctl/README.html
 
 Quickstart Guide
 ================

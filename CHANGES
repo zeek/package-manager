@@ -1,4 +1,8 @@
 
+1.5.1-2 | 2019-01-10 17:18:58 -0600
+
+  * Update URLs and some simple s/Bro/Zeek in README (Jon Siwek, Corelight)
+
 1.5.1-1 | 2019-01-04 17:17:27 -0600
 
   * GH-41: fix man page formatting of positional args (Jon Siwek, Corelight)

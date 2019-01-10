@@ -1,6 +1,6 @@
-.. _Bro Scripting: https://www.bro.org/sphinx/scripting/index.html
-.. _Bro Plugins: https://www.bro.org/sphinx/devel/plugins.html
-.. _BroControl Plugins:  https://www.bro.org/sphinx/components/broctl/README.html#plugins
+.. _Bro Scripting: https://www.zeek.org/sphinx/scripting/index.html
+.. _Bro Plugins: https://www.zeek.org/sphinx/devel/plugins.html
+.. _BroControl Plugins:  https://www.zeek.org/sphinx/components/broctl/README.html#plugins
 .. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
 .. _btest: https://github.com/bro/btest
 .. _configparser interpolation: https://docs.python.org/3/library/configparser.html#interpolation-of-values
