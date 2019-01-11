@@ -1,4 +1,8 @@
 
+1.5.1-5 | 2019-01-11 13:18:18 -0600
+
+  * Add docs for 'credits' metadata field (Jon Siwek, Corelight)
+
 1.5.1-4 | 2019-01-11 11:59:35 -0600
 
   * Swap Zeek in for Bro in Sphinx config (Jon Siwek, Corelight)

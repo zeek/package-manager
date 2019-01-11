@@ -287,6 +287,25 @@ with the ``script_dir`` path in the :ref:`config file <bro-pkg-config-file>`.
 
 Available :program:`since bro-pkg v1.5`.
 
+`credits` field
+~~~~~~~~~~~~~~~
+
+The `credits` field contains a comma-delimited set of
+author/contributor/maintainer names, descriptions, and/or email
+addresses.
+
+It may be used if you have particular requirements or concerns regarding
+how authors or contributors for your package are credited in any public
+listings made by external metadata scraping tools (:program:`bro-pkg`
+does not itself use this data directly for any functional purpose).  It
+may also be useful as a standardized location for users to get
+contact/support info in case they encounter problems with the package.
+For example::
+
+    [package]
+    credits = A. Sacker <ace@sacker.com>.,
+        JSON support added by W00ter (Acme Corporation)
+
 `tags` field
 ~~~~~~~~~~~~
 
