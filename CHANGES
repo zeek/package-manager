@@ -1,4 +1,8 @@
 
+1.5.1-4 | 2019-01-11 11:59:35 -0600
+
+  * Swap Zeek in for Bro in Sphinx config (Jon Siwek, Corelight)
+
 1.5.1-3 | 2019-01-10 17:59:09 -0600
 
   * Fix RTD URL (Jon Siwek, Corelight)

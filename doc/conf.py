@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Bro Package Manager documentation build configuration file, created by
+# Zeek Package Manager documentation build configuration file, created by
 # sphinx-quickstart on Fri Jul 15 13:46:04 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -49,9 +49,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Bro Package Manager'
-copyright = u'2016, The Bro Project'
-author = u'The Bro Project'
+project = u'Zeek Package Manager'
+copyright = u'2019, The Zeek Project'
+author = u'The Zeek Project'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -135,7 +135,7 @@ html_theme_options = {
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-html_title = u'Bro Package Manager Documentation'
+html_title = u'Zeek Package Manager Documentation'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
@@ -239,7 +239,7 @@ def setup(app):
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'BroPackageManagerdoc'
+htmlhelp_basename = 'ZeekPackageManagerdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -265,8 +265,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'BroPackageManager.tex', u'Bro Package Manager Documentation',
-     u'The Bro Project', 'manual'),
+    (master_doc, 'ZeekPackageManager.tex', u'Zeek Package Manager Documentation',
+     u'The Zeek Project', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -307,7 +307,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('bro-pkg', 'bro-pkg', u'Bro Package Manager',
+    ('bro-pkg', 'bro-pkg', u'Zeek Package Manager',
      [author], 1)
 ]
 
@@ -322,8 +322,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'BroPackageManager', u'Bro Package Manager Documentation',
-     author, 'BroPackageManager', 'One line description of project.',
+    (master_doc, 'ZeekPackageManager', u'Zeek Package Manager Documentation',
+     author, 'ZeekPackageManager', 'One line description of project.',
      'Miscellaneous'),
 ]
 
