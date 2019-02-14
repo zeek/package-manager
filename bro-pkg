@@ -1750,12 +1750,12 @@ def argparser():
         formatter_class=BundleHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_bundle)
     sub_parser.add_argument(
-        'bundle_filename', help='The path of the bundle file to create.'
-                                ' It will be overwritten if it already exists.'
-                                ' Note that if --manifest is used before this'
-                                ' filename is specified, you should use a'
-                                ' double-dash, --, to first terminate that'
-                                ' argument list.')
+        'bundle_filename',
+        metavar='filename.bundle',
+        help='The path of the bundle file to create.  It will be overwritten'
+             ' if it already exists.  Note that if --manifest is used before'
+             ' this filename is specified, you should use a double-dash, --,'
+             ' to first terminate that argument list.')
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
@@ -1787,7 +1787,9 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_unbundle)
     sub_parser.add_argument(
-        'bundle_filename', help='The path of the bundle file to install.')
+        'bundle_filename',
+        metavar='filename.bundle',
+        help='The path of the bundle file to install.')
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')

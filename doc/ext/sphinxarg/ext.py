@@ -64,10 +64,15 @@ def print_arg_list(data, nested_content):
             if 'choices' in arg:
                 my_def.append(nodes.paragraph(
                     text=('Possible choices: %s' % ', '.join([str(c) for c in arg['choices']]))))
+            argname = name
+
+            if arg['metavar']:
+                argname = arg['metavar']
+
             items.append(
                 nodes.option_list_item(
                     '', nodes.option_group('',
-                          nodes.option('', nodes.option_string(text=name))),
+                          nodes.option('', nodes.option_string(text=argname))),
                     nodes.description('', *my_def)))
     return nodes.option_list('', *items) if items else None
 

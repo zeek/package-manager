@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "Jan 11, 2019" "1.5.2" "Zeek Package Manager"
+.TH "BRO-PKG" "1" "Feb 13, 2019" "1.5.2-1" "Zeek Package Manager"
 .SH NAME
 bro-pkg \- Zeek Package Manager
 .
@@ -209,7 +209,7 @@ This command creates a bundle file containing a collection of Bro packages.  If 
 .ft C
 usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
                       [\-\-manifest MANIFEST [MANIFEST ...] \-\-]
-                      bundle_filename
+                      filename.bundle
 .ft P
 .fi
 .UNINDENT
@@ -219,8 +219,8 @@ usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.B bundle_filename
-The path of the bundle file to create. It will be overwritten if it already exists. Note that if \-\-manifest is used before this filename is specified, you should use a double\-dash, \-\-, to first terminate that argument list.
+.B filename.bundle
+The path of the bundle file to create.  It will be overwritten if it already exists.  Note that if \-\-manifest is used before this filename is specified, you should use a double\-dash, \-\-, to first terminate that argument list.
 .UNINDENT
 .TP
 .B Options:
@@ -248,7 +248,7 @@ This command unpacks a bundle file formerly created by the \fBbundle\fP command 
 .sp
 .nf
 .ft C
-usage: bro\-pkg unbundle [\-h] [\-\-force] [\-\-replace] bundle_filename
+usage: bro\-pkg unbundle [\-h] [\-\-force] [\-\-replace] filename.bundle
 .ft P
 .fi
 .UNINDENT
@@ -258,7 +258,7 @@ usage: bro\-pkg unbundle [\-h] [\-\-force] [\-\-replace] bundle_filename
 .B Positional arguments:
 .INDENT 7.0
 .TP
-.B bundle_filename
+.B filename.bundle
 The path of the bundle file to install.
 .UNINDENT
 .TP
