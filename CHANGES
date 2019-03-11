@@ -1,4 +1,8 @@
 
+1.5.3 | 2019-03-05 18:46:32 -0800
+
+  * Release 1.5.3.
+
 1.5.2-2 | 2019-03-05 18:43:19 -0800
 
   * GH-45: improve compatibility with older git versions (Jon Siwek, Corelight)
