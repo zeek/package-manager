@@ -32,7 +32,8 @@ from ._util import (
     delete_path,
     make_symlink,
     copy_over_path,
-    git_clone_shallow,
+    git_clone,
+    is_sha1,
     get_bro_version,
     std_encoding,
     find_program,
@@ -658,7 +659,7 @@ class Manager(object):
                     delete_path(clonepath)
 
                     try:
-                        clone = git_clone_shallow(url, clonepath)
+                        clone = git_clone(url, clonepath, shallow=True)
                     except git.exc.GitCommandError as error:
                         LOG.warn('failed to clone %s, skipping aggregation: %s',
                                  url, error)
@@ -1119,7 +1120,7 @@ class Manager(object):
             git.exc.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
-        clone = _clone_package(package, clonepath)
+        clone = _clone_package(package, clonepath, version)
         versions = _get_version_tags(clone)
 
         if not version:
@@ -1652,7 +1653,7 @@ class Manager(object):
                     continue
 
             try:
-                git_clone_shallow(git_url, clonepath)
+                git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
             except git.exc.GitCommandError as error:
                 return 'failed to clone {}: {}'.format(git_url, error)
 
@@ -1775,7 +1776,7 @@ class Manager(object):
             clonepath = os.path.join(clone_dir, info.package.name)
 
             try:
-                clone = _clone_package(info.package, clonepath)
+                clone = _clone_package(info.package, clonepath, version)
             except git.exc.GitCommandError as error:
                 LOG.warning('failed to clone git repo: %s', error)
                 return ('failed to clone {}'.format(info.package.git_url),
@@ -2019,7 +2020,7 @@ class Manager(object):
                 LOG.debug('installing "%s": re-install: %s',
                           pkg_path, conflict)
                 clonepath = os.path.join(self.package_clonedir, conflict.name)
-                _clone_package(conflict, clonepath)
+                _clone_package(conflict, clonepath, version)
                 return self._install(conflict, version)
             else:
                 LOG.info(
@@ -2076,7 +2077,7 @@ class Manager(object):
         if use_existing_clone or ipkg:
             clone = git.Repo(clonepath)
         else:
-            clone = _clone_package(package, clonepath)
+            clone = _clone_package(package, clonepath, version)
 
         status = PackageStatus()
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
@@ -2303,7 +2304,7 @@ def _create_readme(file_path):
         f.write("Don't make direct modifications to anything within it.\n")
 
 
-def _clone_package(package, clonepath):
+def _clone_package(package, clonepath, version):
     """Clone a :class:`.package.Package` git repo.
 
     Returns:
@@ -2313,7 +2314,8 @@ def _clone_package(package, clonepath):
         git.exc.GitCommandError: if the git repo is invalid
     """
     delete_path(clonepath)
-    return git_clone_shallow(package.git_url, clonepath)
+    shallow = not is_sha1(version)
+    return git_clone(package.git_url, clonepath, shallow=shallow)
 
 
 def _get_package_metadata(parser):

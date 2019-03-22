@@ -81,27 +81,45 @@ def find_sentence_end(s):
         beg = period_idx + 1
 
 
-def git_clone_shallow(git_url, dst_path):
-    try:
-        git.Git().clone(git_url, dst_path, '--no-single-branch', depth=1)
-    except git.exc.GitCommandError:
-        if not git_url.startswith('.') and not git_url.startswith('/'):
-            # Not a local repo
-            raise
+def git_clone(git_url, dst_path, shallow=False):
+    if shallow:
+        try:
+            git.Git().clone(git_url, dst_path, '--no-single-branch', depth=1)
+        except git.exc.GitCommandError:
+            if not git_url.startswith('.') and not git_url.startswith('/'):
+                # Not a local repo
+                raise
 
-        if not os.path.exists(os.path.join(git_url, '.git', 'shallow')):
-            raise
+            if not os.path.exists(os.path.join(git_url, '.git', 'shallow')):
+                raise
 
-        # Some git versions cannot clone from a shallow-clone, so copy
-        # and reset/clean it to a pristine condition.
-        copy_over_path(git_url, dst_path)
-        rval = git.Repo(dst_path)
-        rval.git.reset('--hard')
-        rval.git.clean('-ffdx')
+            # Some git versions cannot clone from a shallow-clone, so copy
+            # and reset/clean it to a pristine condition.
+            copy_over_path(git_url, dst_path)
+            rval = git.Repo(dst_path)
+            rval.git.reset('--hard')
+            rval.git.clean('-ffdx')
+    else:
+        git.Git().clone(git_url, dst_path)
 
     rval = git.Repo(dst_path)
     rval.git.fetch(tags=True)
     return rval
+
+
+def is_sha1(s):
+    if not s:
+        return False;
+
+    if len(s) != 40:
+        return False
+
+    for c in s:
+        if c not in {'a', 'b', 'c', 'd', 'e', 'f',
+                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+            return False
+
+    return True
 
 
 def is_exe(path):

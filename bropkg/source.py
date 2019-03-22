@@ -20,7 +20,7 @@ from .package import (
     name_from_path,
     Package
 )
-from ._util import git_clone_shallow
+from ._util import git_clone
 
 #: The name of package index files.
 INDEX_FILENAME = 'bro-pkg.index'
@@ -59,12 +59,12 @@ class Source(object):
             self.clone = git.Repo(clone_path)
         except git.exc.NoSuchPathError:
             LOG.debug('creating source clone of "%s" at %s', name, clone_path)
-            self.clone = git_clone_shallow(git_url, clone_path)
+            self.clone = git_clone(git_url, clone_path, shallow=True)
         except git.exc.InvalidGitRepositoryError:
             LOG.debug('deleting invalid source clone of "%s" at %s',
                       name, clone_path)
             shutil.rmtree(clone_path)
-            self.clone = git_clone_shallow(git_url, clone_path)
+            self.clone = git_clone(git_url, clone_path, shallow=True)
         else:
             LOG.debug('found source clone of "%s" at %s', name, clone_path)
             old_url = self.clone.git.config('--local', '--get',
@@ -75,7 +75,7 @@ class Source(object):
                     'url of source "%s" changed from %s to %s, reclone at %s',
                     name, old_url, git_url, clone_path)
                 shutil.rmtree(clone_path)
-                self.clone = git_clone_shallow(git_url, clone_path)
+                self.clone = git_clone(git_url, clone_path, shallow=True)
 
     def __str__(self):
         return self.git_url
