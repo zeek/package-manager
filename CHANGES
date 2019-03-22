@@ -1,4 +1,8 @@
 
+1.5.4 | 2019-03-21 20:17:31 -0700
+
+  * Release 1.5.4.
+
 1.5.3-1 | 2019-03-21 20:12:41 -0700
 
   * GH-46: fix --version to be able to use commit hash (Jon Siwek, Corelight)
