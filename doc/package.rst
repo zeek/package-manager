@@ -108,10 +108,22 @@ though the following step are the essentials needed to create a package.
 
      [package]
      script_dir = scripts/Demo/Rot13
-     build_command = ./configure --bro-dist=%(bro_dist)s && make
+     build_command = ./configure && make
 
-   See the :ref:`Value Interpolation <metadata-interpolation>` section for more
-   information on what the ``%(bro_dist)s`` string does.
+   .. note::
+
+      Plugin skeletons generated before Bro 2.6 and also any packages
+      that generally want to support such versions need to pass
+      an additional configuration option such as::
+
+          build_command = ./configure --bro-dist=%(bro_dist)s && make
+
+      See the :ref:`Value Interpolation <metadata-interpolation>`
+      section for more information on what the ``%(bro_dist)s``
+      string does, but a brief explanation is that it will expand to
+      a path containing the Bro source-code on the user's system.
+      For newer versions of Bro, packages are able to work entirely
+      with the installation path and don't require original source code.
 
 #. Add example script code:
 
