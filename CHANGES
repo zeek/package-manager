@@ -1,4 +1,10 @@
 
+1.5.4-2 | 2019-03-27 13:52:12 -0700
+
+  * GH-47: give `bro-pkg install` non-zero exit code on failure (Jon Siwek, Corelight)
+
+  * Update documentation regarding --bro-dist (Jon Siwek, Corelight)
+
 1.5.4 | 2019-03-21 20:17:31 -0700
 
   * Release 1.5.4.
