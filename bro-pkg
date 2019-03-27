@@ -502,6 +502,8 @@ def cmd_install(manager, args, config):
     join_timeout = 0.01
     tick_interval = 1
 
+    installs_failed = []
+
     for info, version, _ in package_infos:
         name = info.package.qualified_name()
         time_accumulator = 0
@@ -539,6 +541,7 @@ def cmd_install(manager, args, config):
 
         if worker.error:
             print('Failed installing "{}": {}'.format(name, worker.error))
+            installs_failed.append((name, version))
             continue
 
         ipkg = manager.find_installed_package(name)
@@ -574,6 +577,15 @@ def cmd_install(manager, args, config):
                 print('Failed loading "{}": {}'.format(name, load_error))
             else:
                 print('Loaded "{}"'.format(name))
+
+    if installs_failed:
+        print_error('error: incomplete installation, the follow packages'
+                    ' failed to be installed:')
+
+        for n, v in installs_failed:
+            print_error('  {} ({})'.format(n, v))
+
+        sys.exit(1)
 
 
 def cmd_bundle(manager, args, config):
