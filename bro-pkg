@@ -830,6 +830,8 @@ def cmd_remove(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
+    had_failure = False
+
     for ipkg in packages_to_remove:
         name = ipkg.package.qualified_name()
         modifications = manager.modified_config_files(ipkg)
@@ -846,6 +848,10 @@ def cmd_remove(manager, args, config):
 
         else:
             print('Failed removing "{}": no such package installed'.format(name))
+            had_failure = True
+
+    if had_failure:
+        sys.exit(1)
 
 
 def cmd_purge(manager, args, config):
@@ -869,6 +875,8 @@ def cmd_purge(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
+    had_failure = False
+
     for ipkg in packages_to_remove:
         name = ipkg.package.qualified_name()
         modifications = manager.modified_config_files(ipkg)
@@ -885,6 +893,10 @@ def cmd_purge(manager, args, config):
 
         else:
             print('Unknown error removing "{}"'.format(name))
+            had_failure = True
+
+    if had_failure:
+        sys.exit(1)
 
 
 def outdated(manager):
@@ -898,6 +910,8 @@ def cmd_refresh(manager, args, config):
     if not args.sources:
         args.sources = list(manager.sources.keys())
 
+    had_failure = False
+
     for source in args.sources:
         print('Refresh package source: {}'.format(source))
 
@@ -908,6 +922,7 @@ def cmd_refresh(manager, args, config):
             source, aggregate=args.aggregate, push=args.push)
 
         if error:
+            had_failure = True
             print_error(
                 'error: failed to refresh "{}": {}'.format(source, error))
             continue
@@ -946,6 +961,9 @@ def cmd_refresh(manager, args, config):
             ipkg = manager.find_installed_package(name)
             version_change = version_change_string(manager, ipkg)
             print('\t\t{} {}'.format(name, version_change))
+
+    if had_failure:
+        sys.exit(1)
 
 
 def version_change_string(manager, installed_package):
@@ -1156,6 +1174,8 @@ def cmd_upgrade(manager, args, config):
             else:
                 print('Loaded "{}"'.format(name))
 
+    had_failure = False
+
     for info, next_version, _ in outdated_packages:
         name = info.package.qualified_name()
         bdir = name
@@ -1173,6 +1193,7 @@ def cmd_upgrade(manager, args, config):
 
         if res:
             print('Failed upgrading "{}": {}'.format(name, res))
+            had_failure = True
         else:
             ipkg = manager.find_installed_package(name)
             print('Upgraded "{}" ({})'.format(
@@ -1200,12 +1221,18 @@ def cmd_upgrade(manager, args, config):
             print("\tPrevious, locally modified version backed up to:")
             print("\t\t" + backup_files[i])
 
+    if had_failure:
+        sys.exit(1)
+
 
 def cmd_load(manager, args, config):
+    had_failure = False
+
     for name in args.package:
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
+            had_failure = True
             print('Failed to load "{}": no such package installed'.format(name))
             continue
 
@@ -1217,16 +1244,23 @@ def cmd_load(manager, args, config):
         load_error = manager.load(name)
 
         if load_error:
+            had_failure = True
             print('Failed to load "{}": {}'.format(name, load_error))
         else:
             print('Loaded "{}"'.format(name))
 
+    if had_failure:
+        sys.exit(1)
+
 
 def cmd_unload(manager, args, config):
+    had_failure = False
+
     for name in args.package:
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
+            had_failure = True
             print('Failed to unload "{}": no such package installed'.format(name))
             continue
 
@@ -1239,15 +1273,22 @@ def cmd_unload(manager, args, config):
         if manager.unload(name):
             print('Unloaded "{}"'.format(name))
         else:
+            had_failure = True
             print(
                 'Failed unloading "{}": no such package installed'.format(name))
 
+    if had_failure:
+        sys.exit(1)
+
 
 def cmd_pin(manager, args, config):
+    had_failure = False
+
     for name in args.package:
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
+            had_failure = True
             print('Failed to pin "{}": no such package installed'.format(name))
             continue
 
@@ -1258,14 +1299,21 @@ def cmd_pin(manager, args, config):
             print('Pinned "{}" at version: {} ({})'.format(
                 name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
+            had_failure = True
             print('Failed pinning "{}": no such package installed'.format(name))
+
+    if had_failure:
+        sys.exit(1)
 
 
 def cmd_unpin(manager, args, config):
+    had_failure = False
+
     for name in args.package:
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
+            had_failure = True
             print('Failed to unpin "{}": no such package installed'.format(name))
             continue
 
@@ -1276,8 +1324,12 @@ def cmd_unpin(manager, args, config):
             print('Unpinned "{}" from version: {} ({})'.format(
                 name, ipkg.status.current_version, ipkg.status.current_hash))
         else:
+            had_failure = True
             print(
                 'Failed unpinning "{}": no such package installed'.format(name))
+
+    if had_failure:
+        sys.exit(1)
 
 
 def _get_filtered_packages(manager, category):
