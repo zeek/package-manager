@@ -1505,8 +1505,12 @@ def cmd_info(manager, args, config):
                     print('\t\t{} = {}'.format(key, value))
 
         if args.json:
+            if info.metadata_file:
+                pkginfo[name]['metadata_file'] = info.metadata_file
             pkginfo[name]['metadata'][info.metadata_version] = dict()
         else:
+            if info.metadata_file:
+                print('\tmetadata file: {}'.format(info.metadata_file))
             print('\tmetadata (from version "{}"):'.format(
                 info.metadata_version))
 
@@ -1533,6 +1537,8 @@ def cmd_info(manager, args, config):
                                          vers,
                                          prefer_installed=(args.nolocal != True))
                     pkginfo[name]['metadata'][info2.metadata_version] = dict()
+                    if info2.metadata_file:
+                        pkginfo[name]['metadata_file'] = info2.metadata_file
                     _fill_metadata_version(
                         pkginfo[name]['metadata'][info2.metadata_version],
                         info2.metadata)
