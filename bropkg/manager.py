@@ -2360,10 +2360,12 @@ def _info_from_clone(clone, package, status, version):
     if invalid_reason:
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status, versions=versions,
-                           metadata_version=version, version_type=version_type)
+                           metadata_version=version, version_type=version_type,
+                           metadata_file=metadata_file)
 
     metadata = _get_package_metadata(metadata_parser)
 
     return PackageInfo(package=package, invalid_reason=invalid_reason,
                        status=status, metadata=metadata, versions=versions,
-                       metadata_version=version, version_type=version_type)
+                       metadata_version=version, version_type=version_type,
+                       metadata_file=metadata_file)

@@ -216,11 +216,17 @@ class PackageInfo(object):
             version tag, a branch, or a specific commit hash.
 
         invalid_reason (str): this attribute is set when there is a problem
-            with gathering package information and explains what went wrong
+            with gathering package information and explains what went wrong.
+
+        metadata_file: the absolute path to bro-pkg.meta for this
+            package.  Use this if you'd like to parse the metadata
+            yourself. May not be defined, in which case the value is
+            None.
     """
 
     def __init__(self, package=None, status=None, metadata=None, versions=None,
-                 metadata_version='', invalid_reason='', version_type=''):
+                 metadata_version='', invalid_reason='', version_type='',
+                 metadata_file=None):
         self.package = package
         self.status = status
         self.metadata = {} if metadata is None else metadata
@@ -228,6 +234,7 @@ class PackageInfo(object):
         self.metadata_version = metadata_version
         self.version_type = version_type
         self.invalid_reason = invalid_reason
+        self.metadata_file = metadata_file
 
     def aliases(self):
         """Return a list of package name aliases.
