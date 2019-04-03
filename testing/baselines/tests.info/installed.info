@@ -6,6 +6,7 @@
 		is_outdated = True
 		is_pinned = False
 		tracking_method = branch
+	metadata file: /Users/jon/pro/zeek/package-manager/testing/.tmp/tests.info/state/clones/package/foo/bro-pkg.meta
 	metadata (from version "master"):
 		<empty metadata file>
 

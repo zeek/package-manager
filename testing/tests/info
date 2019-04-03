@@ -4,14 +4,14 @@
 # @TEST-EXEC: bro-pkg install bar
 
 # @TEST-EXEC: bro-pkg info foo | grep -v 'url:' | grep -v 'current_hash' > foo.info
-# @TEST-EXEC: btest-diff foo.info
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff foo.info
 
 # @TEST-EXEC: bro-pkg info bar | grep -v 'url:' | grep -v 'current_hash' > bar.info
-# @TEST-EXEC: btest-diff bar.info
+# @TEST-EXEC:  TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff bar.info
 
 # @TEST-EXEC: bro-pkg remove bar
 # @TEST-EXEC: bro-pkg info installed | grep -v 'url:' | grep -v 'current_hash' > installed.info
-# @TEST-EXEC: btest-diff installed.info
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff installed.info
 
 cd packages/foo
 echo 'print "foo 1.0.0";' > __load__.bro
