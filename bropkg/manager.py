@@ -934,12 +934,14 @@ class Manager(object):
             return ''
 
         pkg_load_script = os.path.join(self.script_dir, ipkg.package.name,
-                                       '__load__.bro')
+                                       '__load__.zeek')
 
         if not os.path.exists(pkg_load_script):
-            LOG.debug('loading "%s": %s does not exist',
-                      pkg_path, pkg_load_script)
-            return 'no __load__.bro within package script_dir'
+            # Check if __load__.bro exists for compatibility with older packages
+            if not os.path.exists(pkg_load_script[:-4] + 'bro'):
+                LOG.debug('loading "%s": %s does not exist',
+                          pkg_path, pkg_load_script)
+                return 'no __load__.zeek within package script_dir'
 
         ipkg.status.is_loaded = True
         self._write_autoloader()
@@ -1933,7 +1935,10 @@ class Manager(object):
             return str.format("package's 'script_dir' does not exist: {}",
                               pkg_script_dir)
 
-        if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
+        pkgload = os.path.join(script_dir_src, '__load__.')
+
+        # Check if __load__.bro exists for compatibility with older packages
+        if os.path.isfile(pkgload + 'zeek') or os.path.isfile(pkgload + 'bro'):
             try:
                 symlink_path = os.path.join(os.path.dirname(stage_script_dir),
                                             package.name)
@@ -1959,11 +1964,11 @@ class Manager(object):
                 return error
         else:
             if 'script_dir' in metadata:
-                return str.format("no __load__.bro file found"
+                return str.format("no __load__.zeek file found"
                                   " in package's 'script_dir' : {}",
                                   pkg_script_dir)
             else:
-                LOG.warning('installing "%s": no __load__.bro in implicit'
+                LOG.warning('installing "%s": no __load__.zeek in implicit'
                             ' script_dir, skipped installing scripts', package)
 
         pkg_plugin_dir = metadata.get('plugin_dir', 'build')
