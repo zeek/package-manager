@@ -1,10 +1,10 @@
 # @TEST-EXEC: bro-pkg install foo bar
-# @TEST-EXEC: btest-diff scripts/packages/packages.bro
+# @TEST-EXEC: btest-diff scripts/packages/packages.zeek
 
 # @TEST-EXEC: bro-pkg unload foo
-# @TEST-EXEC: cp scripts/packages/packages.bro after_unload.out
+# @TEST-EXEC: cp scripts/packages/packages.zeek after_unload.out
 # @TEST-EXEC: btest-diff after_unload.out
 
 # @TEST-EXEC: bro-pkg load foo
-# @TEST-EXEC: cp scripts/packages/packages.bro after_load.out
+# @TEST-EXEC: cp scripts/packages/packages.zeek after_load.out
 # @TEST-EXEC: btest-diff after_load.out

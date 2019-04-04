@@ -123,12 +123,12 @@ class Manager(object):
         manifest (str): the path to the package manager's manifest file.
             This file maintains a list of installed packages and their status.
 
-        autoload_script (str): path to a Bro script named :file:`packages.bro`
+        autoload_script (str): path to a Bro script named :file:`packages.zeek`
             that the package manager maintains.  It is a list of ``@load`` for
             each installed package that is marked as loaded (see
             :meth:`load()`).
 
-        autoload_package (str): path to a Bro :file:`__load__.bro` script
+        autoload_package (str): path to a Bro :file:`__load__.zeek` script
             which is just a symlink to `autoload_script`.  It's always located
             in a directory named :file:`packages`, so as long as
             :envvar:`BROPATH` is configured correctly, ``@load packages`` will
@@ -173,8 +173,8 @@ class Manager(object):
             self.state_dir, 'clones', 'package')
         self.package_testdir = os.path.join(self.state_dir, 'testing')
         self.manifest = os.path.join(self.state_dir, 'manifest.json')
-        self.autoload_script = os.path.join(self.script_dir, 'packages.bro')
-        self.autoload_package = os.path.join(self.script_dir, '__load__.bro')
+        self.autoload_script = os.path.join(self.script_dir, 'packages.zeek')
+        self.autoload_package = os.path.join(self.script_dir, '__load__.zeek')
         make_dir(self.state_dir)
         make_dir(self.log_dir)
         make_dir(self.scratch_dir)
@@ -225,13 +225,13 @@ class Manager(object):
             self._write_manifest()
 
         self._write_autoloader()
-        make_symlink('packages.bro', self.autoload_package)
+        make_symlink('packages.zeek', self.autoload_package)
 
     def _write_autoloader(self):
-        """Write the :file:`__load__.bro` loader script.
+        """Write the :file:`packages.zeek` loader script.
 
         Raises:
-            IOError: if :file:`__load__.bro` loader script cannot be written
+            IOError: if :file:`packages.zeek` loader script cannot be written
         """
         with open(self.autoload_script, 'w') as f:
             content = ('# WARNING: This file is managed by bro-pkg.\n'

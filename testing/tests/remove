@@ -3,4 +3,4 @@
 
 # @TEST-EXEC: bro-pkg remove foo
 # @TEST-EXEC: test ! -d scripts/packages/foo
-# @TEST-EXEC: btest-diff scripts/packages/packages.bro
+# @TEST-EXEC: btest-diff scripts/packages/packages.zeek
