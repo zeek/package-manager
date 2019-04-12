@@ -1,0 +1,30 @@
+# @TEST-EXEC: bash setup_foo
+
+# @TEST-EXEC: bro-pkg install foo
+
+# @TEST-EXEC: cp scripts/packages/foo/__load__.bro foo.install
+# @TEST-EXEC: btest-diff foo.install
+
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: bro-pkg refresh
+# @TEST-EXEC: bro-pkg upgrade
+
+# @TEST-EXEC: cp scripts/packages/foo/__load__.bro foo.upgrade
+# @TEST-EXEC: btest-diff foo.upgrade
+
+@TEST-START-FILE setup_foo
+cd packages/foo
+echo 'script_dir = scripts' >> bro-pkg.meta
+git submodule add $(pwd)/../bar scripts
+git commit -am 'add submodule'
+@TEST-END-FILE
+
+cd packages/bar
+echo 'event bro_init() { print "bar upgrade is loaded"; }' > __load__.bro
+git commit -am 'new stuff'
+
+cd ../foo/scripts
+git pull
+cd ..
+git commit -am 'update submodule'

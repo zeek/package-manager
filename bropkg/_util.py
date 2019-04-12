@@ -84,7 +84,7 @@ def find_sentence_end(s):
 def git_clone(git_url, dst_path, shallow=False):
     if shallow:
         try:
-            git.Git().clone(git_url, dst_path, '--no-single-branch', depth=1)
+            git.Git().clone(git_url, dst_path, '--no-single-branch', recursive=True, depth=1)
         except git.exc.GitCommandError:
             if not git_url.startswith('.') and not git_url.startswith('/'):
                 # Not a local repo
@@ -100,7 +100,7 @@ def git_clone(git_url, dst_path, shallow=False):
             rval.git.reset('--hard')
             rval.git.clean('-ffdx')
     else:
-        git.Git().clone(git_url, dst_path)
+        git.Git().clone(git_url, dst_path, recursive=True)
 
     rval = git.Repo(dst_path)
     rval.git.fetch(tags=True)

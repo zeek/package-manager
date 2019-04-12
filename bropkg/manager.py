@@ -615,10 +615,13 @@ class Manager(object):
             shutil.copy2(aggregate_file, agg_file_their_orig)
 
         try:
-            source.clone.remote().pull()
+            source.clone.git.fetch('--recurse-submodules=yes')
+            source.clone.git.pull()
+            source.clone.git.submodule('sync', '--recursive')
+            source.clone.git.submodule('update', '--recursive', '--init')
         except git.exc.GitCommandError as error:
             LOG.error('failed to pull source %s: %s', name, error)
-            return 'failed to pull from remote source'
+            return 'failed to pull from remote source: {}'.format(error)
 
         if os.path.isfile(agg_file_ours):
             if os.path.isfile(aggregate_file):
@@ -672,7 +675,7 @@ class Manager(object):
                     else:
                         version = 'master'
 
-                    clone.git.checkout(version)
+                    _git_checkout(clone, version)
 
                     metadata_file = os.path.join(
                         clone.working_dir, METADATA_FILENAME)
@@ -730,7 +733,7 @@ class Manager(object):
             LOG.debug('fetch package %s', ipkg.package.qualified_name())
 
             try:
-                clone.remote().fetch()
+                clone.git.fetch('--recurse-submodules=yes')
             except git.exc.GitCommandError as error:
                 LOG.warn('failed to fetch package %s: %s',
                          ipkg.package.qualified_name(), error)
@@ -780,7 +783,9 @@ class Manager(object):
             version_tags = _get_version_tags(clone)
             return self._install(ipkg.package, version_tags[-1])
         elif ipkg.status.tracking_method == TRACKING_METHOD_BRANCH:
-            clone.remote().pull()
+            clone.git.pull()
+            clone.git.submodule('sync', '--recursive')
+            clone.git.submodule('update', '--recursive', '--init')
             return self._install(ipkg.package, ipkg.status.current_version)
         elif ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
             # The above check for whether the installed package is outdated
@@ -1136,7 +1141,7 @@ class Manager(object):
                 version = 'master'
 
         try:
-            clone.git.checkout(version)
+            _git_checkout(clone, version)
         except git.exc.GitCommandError:
             reason = 'no such commit, branch, or version tag: "{}"'.format(
                 version)
@@ -1783,7 +1788,7 @@ class Manager(object):
                         False, test_dir)
 
             try:
-                clone.git.checkout(version)
+                _git_checkout(clone, version)
             except git.exc.GitCommandError as error:
                 LOG.warning('failed to checkout git repo version: %s', error)
                 return (str.format('failed to checkout {} of {}',
@@ -2114,7 +2119,7 @@ class Manager(object):
 
         status.current_version = version
         status.current_hash = _get_hash(clone, version, status.tracking_method)
-        clone.git.checkout(version)
+        _git_checkout(clone, version)
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
 
@@ -2293,6 +2298,22 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         return 'failed to copy package {}: {}'.format(dirname, reasons)
 
     return ''
+
+
+def _git_checkout(clone, version):
+    """Checkout a version of a git repo along with any associated submodules.
+
+    Args:
+        clone (git.Repo): the git clone on which to operate
+
+        version (str): the branch, tag, or commit to checkout
+
+    Raises:
+        git.exc.GitCommandError: if the git repo is invalid
+    """
+    clone.git.checkout(version)
+    clone.git.submodule('sync', '--recursive')
+    clone.git.submodule('update', '--recursive', '--init')
 
 
 def _create_readme(file_path):
