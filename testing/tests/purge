@@ -7,4 +7,4 @@
 # @TEST-EXEC: test ! -d scripts/packages/foo
 # @TEST-EXEC: test ! -d scripts/packages/bar
 # @TEST-EXEC: test ! -d scripts/packages/baz
-# @TEST-EXEC: btest-diff scripts/packages/packages.bro
+# @TEST-EXEC: btest-diff scripts/packages/packages.zeek

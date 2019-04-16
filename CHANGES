@@ -1,4 +1,8 @@
 
+1.7.0-3 | 2019-04-16 11:42:43 -0700
+
+  * Support .zeek file extension for upcoming Zeek 3.0 release (Daniel Thayer)
+
 1.7.0 | 2019-04-12 09:27:36 -0700
 
   * Release 1.7.0.

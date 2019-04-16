@@ -123,12 +123,12 @@ class Manager(object):
         manifest (str): the path to the package manager's manifest file.
             This file maintains a list of installed packages and their status.
 
-        autoload_script (str): path to a Bro script named :file:`packages.bro`
+        autoload_script (str): path to a Bro script named :file:`packages.zeek`
             that the package manager maintains.  It is a list of ``@load`` for
             each installed package that is marked as loaded (see
             :meth:`load()`).
 
-        autoload_package (str): path to a Bro :file:`__load__.bro` script
+        autoload_package (str): path to a Bro :file:`__load__.zeek` script
             which is just a symlink to `autoload_script`.  It's always located
             in a directory named :file:`packages`, so as long as
             :envvar:`BROPATH` is configured correctly, ``@load packages`` will
@@ -173,8 +173,8 @@ class Manager(object):
             self.state_dir, 'clones', 'package')
         self.package_testdir = os.path.join(self.state_dir, 'testing')
         self.manifest = os.path.join(self.state_dir, 'manifest.json')
-        self.autoload_script = os.path.join(self.script_dir, 'packages.bro')
-        self.autoload_package = os.path.join(self.script_dir, '__load__.bro')
+        self.autoload_script = os.path.join(self.script_dir, 'packages.zeek')
+        self.autoload_package = os.path.join(self.script_dir, '__load__.zeek')
         make_dir(self.state_dir)
         make_dir(self.log_dir)
         make_dir(self.scratch_dir)
@@ -225,13 +225,18 @@ class Manager(object):
             self._write_manifest()
 
         self._write_autoloader()
-        make_symlink('packages.bro', self.autoload_package)
+        make_symlink('packages.zeek', self.autoload_package)
+        # Backward compatibility (Pre-Zeek 3.0 does not handle .zeek files)
+        autoload_script_fallback = os.path.join(self.script_dir, 'packages.bro')
+        autoload_package_fallback = os.path.join(self.script_dir, '__load__.bro')
+        make_symlink('packages.zeek', autoload_script_fallback)
+        make_symlink('packages.zeek', autoload_package_fallback)
 
     def _write_autoloader(self):
-        """Write the :file:`__load__.bro` loader script.
+        """Write the :file:`packages.zeek` loader script.
 
         Raises:
-            IOError: if :file:`__load__.bro` loader script cannot be written
+            IOError: if :file:`packages.zeek` loader script cannot be written
         """
         with open(self.autoload_script, 'w') as f:
             content = ('# WARNING: This file is managed by bro-pkg.\n'
@@ -939,12 +944,15 @@ class Manager(object):
             return ''
 
         pkg_load_script = os.path.join(self.script_dir, ipkg.package.name,
+                                       '__load__.zeek')
+        # Check if __load__.bro exists for compatibility with older packages
+        pkg_load_fallback = os.path.join(self.script_dir, ipkg.package.name,
                                        '__load__.bro')
 
-        if not os.path.exists(pkg_load_script):
+        if not os.path.exists(pkg_load_script) and not os.path.exists(pkg_load_fallback):
             LOG.debug('loading "%s": %s does not exist',
                       pkg_path, pkg_load_script)
-            return 'no __load__.bro within package script_dir'
+            return 'no __load__.zeek within package script_dir'
 
         ipkg.status.is_loaded = True
         self._write_autoloader()
@@ -1938,7 +1946,10 @@ class Manager(object):
             return str.format("package's 'script_dir' does not exist: {}",
                               pkg_script_dir)
 
-        if os.path.isfile(os.path.join(script_dir_src, '__load__.bro')):
+        pkgload = os.path.join(script_dir_src, '__load__.')
+
+        # Check if __load__.bro exists for compatibility with older packages
+        if os.path.isfile(pkgload + 'zeek') or os.path.isfile(pkgload + 'bro'):
             try:
                 symlink_path = os.path.join(os.path.dirname(stage_script_dir),
                                             package.name)
@@ -1964,11 +1975,11 @@ class Manager(object):
                 return error
         else:
             if 'script_dir' in metadata:
-                return str.format("no __load__.bro file found"
+                return str.format("no __load__.zeek file found"
                                   " in package's 'script_dir' : {}",
                                   pkg_script_dir)
             else:
-                LOG.warning('installing "%s": no __load__.bro in implicit'
+                LOG.warning('installing "%s": no __load__.zeek in implicit'
                             ' script_dir, skipped installing scripts', package)
 
         pkg_plugin_dir = metadata.get('plugin_dir', 'build')
