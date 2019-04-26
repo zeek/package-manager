@@ -1013,6 +1013,7 @@ class Manager(object):
             along with the package info object retrieved by inspecting git repo
             contained in the bundle.
         """
+        LOG.debug('getting bundle info for file "%s"', bundle_file)
         bundle_dir = os.path.join(self.scratch_dir, 'bundle')
         delete_path(bundle_dir)
         make_dir(bundle_dir)
@@ -1041,6 +1042,7 @@ class Manager(object):
             package = Package(git_url=git_url, name=git_url.split('/')[-1],
                               canonical=True)
             pkg_path = os.path.join(bundle_dir, package.name)
+            LOG.debug('getting info for bundled package "%s"', package.name)
             pkg_info = self.info(pkg_path, version=version,
                                  prefer_installed=False)
             infos.append((git_url, version, pkg_info))
@@ -1688,6 +1690,7 @@ class Manager(object):
             str: an empty string if the operation was successful, else an error
             message indicated what went wrong.
         """
+        LOG.debug('unbundle "%s"', bundle_file)
         bundle_dir = os.path.join(self.scratch_dir, 'bundle')
         delete_path(bundle_dir)
         make_dir(bundle_dir)
@@ -1717,6 +1720,7 @@ class Manager(object):
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)
 
+            LOG.debug('unbundle installing "%s"', package.name)
             error = self._install(package, version, use_existing_clone=True)
 
             if error:
