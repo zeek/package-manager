@@ -226,9 +226,12 @@ class Manager(object):
 
         self._write_autoloader()
         make_symlink('packages.zeek', self.autoload_package)
+
         # Backward compatibility (Pre-Zeek 3.0 does not handle .zeek files)
         autoload_script_fallback = os.path.join(self.script_dir, 'packages.bro')
         autoload_package_fallback = os.path.join(self.script_dir, '__load__.bro')
+        delete_path(autoload_script_fallback)
+        delete_path(autoload_package_fallback)
         make_symlink('packages.zeek', autoload_script_fallback)
         make_symlink('packages.zeek', autoload_package_fallback)
 

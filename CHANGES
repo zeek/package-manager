@@ -1,4 +1,8 @@
 
+1.7.0-6 | 2019-04-26 10:22:58 -0700
+
+  * Fix error when upgrading from older bro-pkg (Jon Siwek, Corelight)
+
 1.7.0-5 | 2019-04-25 18:20:58 -0700
 
   * Fix unbundling packages that contain submodules (Jon Siwek, Corelight)
