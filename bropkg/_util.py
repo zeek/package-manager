@@ -103,7 +103,17 @@ def git_clone(git_url, dst_path, shallow=False):
         git.Git().clone(git_url, dst_path, recursive=True)
 
     rval = git.Repo(dst_path)
-    rval.git.fetch(tags=True)
+
+    # This setting of the "origin" remote will be a no-op in most cases, but
+    # for some reason, when cloning from a local directory, the clone may
+    # inherit the "origin" instead of using the local directory as its new
+    # "origin".  This is bad in some cases since we do not want to try
+    # fetching from a remote location (e.g.  when unbundling).  This
+    # unintended inheritence of "origin" seems to only happen when cloning a
+    # local git repo that has submodules ?
+    rval.git.remote('set-url', 'origin', git_url)
+
+    rval.git.fetch('--no-recurse-submodules', tags=True)
     return rval
 
 
