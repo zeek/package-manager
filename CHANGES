@@ -1,4 +1,12 @@
 
+1.7.1 | 2019-04-25 18:32:13 -0700
+
+  * Release 1.7.1.
+
+  * Fix unbundling packages that contain submodules (Jon Siwek, Corelight)
+
+  * Add more logging to unbundle process (Jon Siwek, Corelight)
+
 1.7.0 | 2019-04-12 09:27:36 -0700
 
   * Release 1.7.0.
