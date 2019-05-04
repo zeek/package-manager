@@ -1,4 +1,8 @@
 
+1.7.0-7 | 2019-05-03 19:59:57 -0700
+
+  * Improve test_command failure output (Jon Siwek, Corelight)
+
 1.7.0-6 | 2019-04-26 10:22:58 -0700
 
   * Fix error when upgrading from older bro-pkg (Jon Siwek, Corelight)

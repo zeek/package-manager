@@ -362,7 +362,9 @@ def cmd_test(manager, args, config):
         else:
             all_passed = False
             print_error(str.format('error: package "{}" tests failed, inspect'
-                                   ' contents of {} for details.',
+                                   ' contents of {} for details, especially'
+                                   ' any "zkg.test_command.{{stderr,stdout}}"'
+                                   ' files.',
                                    name, test_dir))
 
     if not all_passed:

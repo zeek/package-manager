@@ -1850,7 +1850,11 @@ class Manager(object):
         env['BROPATH'] = bropath
         env['BRO_PLUGIN_PATH'] = pluginpath
         cwd = os.path.join(clone_dir, package.name)
-        cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env)
+        outfile = os.path.join(cwd, 'zkg.test_command.stdout')
+        errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+        with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
+            cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
+                    stdout=test_stdout, stderr=test_stderr)
         return ('', cmd.wait() == 0, test_dir)
 
     def _stage(self, package, version, clone,
