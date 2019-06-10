@@ -4,7 +4,7 @@ import os
 
 install_requires = ['gitpython', 'semantic_version', 'btest']
 
-if version_info[0] + version_info[1] / 10 < 3.5 or os.environ.get('BROPKG_PYPI_DIST'):
+if version_info[0] + version_info[1] / 10 < 3.5 or os.environ.get('ZKG_PYPI_DIST'):
     install_requires.append("configparser")
 
 setup(
