@@ -599,7 +599,7 @@ or a :ref:`package shorthand name <package-shorthand-name>`.
 
 - The special `bro` dependency refers not to a package, but the version of
   Bro that the package requires in order to function.  If the user has
-  :program:`bro-config` in their :envvar:`PATH` when installing/upgrading a
+  :program:`zeek-config` in their :envvar:`PATH` when installing/upgrading a
   package that specifies a `bro` dependency, then :program:`zkg` will
   enforce that the requirement is satisfied.
 

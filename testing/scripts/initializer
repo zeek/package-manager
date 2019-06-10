@@ -23,4 +23,4 @@ script_dir = $(pwd)/scripts
 plugin_dir = $(pwd)/plugins
 " >> config
 
-type bro-config > /dev/null 2>&1 && echo "bro_dist = $(bro-config --bro_dist)" >> config || true
+type zeek-config > /dev/null 2>&1 && echo "bro_dist = $(zeek-config --zeek_dist)" >> config || true

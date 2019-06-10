@@ -1,5 +1,5 @@
-# @TEST-REQUIRES: type bro-config
-# @TEST-REQUIRES: test -n "$(bro-config --bro_dist)"
+# @TEST-REQUIRES: type zeek-config
+# @TEST-REQUIRES: test -n "$(zeek-config --zeek_dist)"
 
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: zkg install rot13

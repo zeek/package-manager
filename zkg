@@ -1611,14 +1611,22 @@ def cmd_config(manager, args, config):
 
 
 def cmd_autoconfig(manager, args, config):
-    bro_config = find_program('bro-config')
+    zeek_config = find_program('zeek-config')
 
-    if not bro_config:
-        print_error('error: "bro-config" not found in PATH')
+    if zeek_config:
+        have_zeek_config = True
+    else:
+        have_zeek_config = False
+        zeek_config = find_program('bro-config')
+
+    if not zeek_config:
+        print_error('error: no "zeek-config" or "bro-config" not found in PATH')
         sys.exit(1)
 
-    cmd = subprocess.Popen([bro_config,
-                            '--site_dir', '--plugin_dir', '--bro_dist'],
+    dist_option = '--zeek_dist' if have_zeek_config else '--bro_dist'
+
+    cmd = subprocess.Popen([zeek_config,
+                            '--site_dir', '--plugin_dir', dist_option],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1, universal_newlines=True)
 
@@ -1663,7 +1671,12 @@ def cmd_autoconfig(manager, args, config):
 
 def cmd_env(manager, args, config):
 
-    bro_config = find_program('bro-config')
+    zeek_config = find_program('zeek-config')
+    path_option = '--zeekpath'
+
+    if not zeek_config:
+        path_option = '--bropath'
+        zeek_config = find_program('bro-config')
 
     zeekpath = os.environ.get('ZEEKPATH')
 
@@ -1675,8 +1688,8 @@ def cmd_env(manager, args, config):
     if not pluginpath:
         pluginpath = os.environ.get('BRO_PLUGIN_PATH')
 
-    if bro_config:
-        cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
+    if zeek_config:
+        cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                bufsize=1, universal_newlines=True)
         line1 = read_bro_config_line(cmd.stdout)

@@ -1320,7 +1320,7 @@ class Manager(object):
                 graph['bro'] = node
             else:
                 LOG.warning(
-                    'could not get bro version: no bro_config in PATH?')
+                    'could not get zeek version: no "zeek-config" or "bro-config" in PATH ?')
 
             node = Node('bro-pkg')
             node.installed_version = (TRACKING_METHOD_VERSION, __version__)
@@ -1821,7 +1821,12 @@ class Manager(object):
         LOG.debug('running test_command for %s: %s',
                   package.name, test_command)
 
-        bro_config = find_program('bro-config')
+        zeek_config = find_program('zeek-config')
+        path_option = '--zeekpath'
+
+        if not zeek_config:
+            zeek_config = find_program('bro-config')
+            path_option = '--bropath'
 
         zeekpath = os.environ.get('ZEEKPATH')
 
@@ -1833,8 +1838,8 @@ class Manager(object):
         if not pluginpath:
             pluginpath = os.environ.get('BRO_PLUGIN_PATH')
 
-        if bro_config:
-            cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
+        if zeek_config:
+            cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT,
                                    bufsize=1, universal_newlines=True)
@@ -1847,9 +1852,9 @@ class Manager(object):
             if not pluginpath:
                 pluginpath = line2
         else:
-            LOG.warning('bro-config not found when running tests for %s',
+            LOG.warning('zeek-config not found when running tests for %s',
                         package.name)
-            return ('bro-config not found in PATH', False, test_dir)
+            return ('no "zeek-config" or "bro-config" found in PATH', False, test_dir)
 
         zeekpath = os.path.dirname(stage_script_dir) + ':' + zeekpath
         pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath

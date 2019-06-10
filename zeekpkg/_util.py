@@ -172,13 +172,16 @@ def read_bro_config_line(stdout):
 
 
 def get_bro_version():
-    bro_config = find_program('bro-config')
+    zeek_config = find_program('zeek-config')
 
-    if not bro_config:
+    if not zeek_config:
+        zeek_config = find_program('bro-config')
+
+    if not zeek_config:
         return ''
 
     import subprocess
-    cmd = subprocess.Popen([bro_config, '--version'],
+    cmd = subprocess.Popen([zeek_config, '--version'],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1, universal_newlines=True)
 

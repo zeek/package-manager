@@ -36,7 +36,7 @@ Basic Configuration
 -------------------
 
 After installing via :program:`pip`, additional configuration is required.
-First, make sure that the :program:`bro-config` script that gets installed with
+First, make sure that the :program:`zeek-config` script that gets installed with
 :program:`bro` is in your :envvar:`PATH`.  Then, as the user you want to run
 :program:`zkg` with, do:
 
@@ -72,8 +72,8 @@ also automatically distribute installed package scripts/plugins to all nodes.
 
   .. code-block:: console
 
-    $ sudo chgrp $USER $(bro-config --site_dir) $(bro-config --plugin_dir)
-    $ sudo chmod g+rwX $(bro-config --site_dir) $(bro-config --plugin_dir)
+    $ sudo chgrp $USER $(zeek-config --site_dir) $(zeek-config --plugin_dir)
+    $ sudo chmod g+rwX $(zeek-config --site_dir) $(zeek-config --plugin_dir)
 
 The final step is to edit your :file:`site/local.bro`.  If you want to
 have Bro automatically load the scripts from all
@@ -108,7 +108,7 @@ When using non-standard location, follow these steps to integrate with
 :program:`bro` and :program:`broctl`:
 
 - To get command-line :program:`bro` to be aware of Bro scripts/plugins in a
-  non-standard location, make sure the :program:`bro-config` script (that gets
+  non-standard location, make sure the :program:`zeek-config` script (that gets
   installed along with :program:`bro`) is in your :envvar:`PATH` and run:
 
   .. code-block:: console
