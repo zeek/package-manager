@@ -1,23 +1,23 @@
-# @TEST-EXEC: bro-pkg install foo
-# @TEST-EXEC: bro-pkg list installed > no_suggests.out
+# @TEST-EXEC: zkg install foo
+# @TEST-EXEC: zkg list installed > no_suggests.out
 # @TEST-EXEC: btest-diff no_suggests.out
 
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC: bro-pkg upgrade foo
-# @TEST-EXEC: bro-pkg list installed > upgrade_suggests.out
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC: zkg upgrade foo
+# @TEST-EXEC: zkg list installed > upgrade_suggests.out
 # @TEST-EXEC: btest-diff upgrade_suggests.out
 
-# @TEST-EXEC: bro-pkg purge
-# @TEST-EXEC: bro-pkg install foo
-# @TEST-EXEC: bro-pkg list installed > install_suggests.out
+# @TEST-EXEC: zkg purge
+# @TEST-EXEC: zkg install foo
+# @TEST-EXEC: zkg list installed > install_suggests.out
 # @TEST-EXEC: btest-diff install_suggests.out
 
-# @TEST-EXEC: bro-pkg purge
-# @TEST-EXEC: bro-pkg bundle test.bundle --manifest foo
-# @TEST-EXEC: bro-pkg unbundle test.bundle
-# @TEST-EXEC: bro-pkg list installed > bundle_suggests.out
+# @TEST-EXEC: zkg purge
+# @TEST-EXEC: zkg bundle test.bundle --manifest foo
+# @TEST-EXEC: zkg unbundle test.bundle
+# @TEST-EXEC: zkg list installed > bundle_suggests.out
 # @TEST-EXEC: btest-diff bundle_suggests.out
 
 cd packages/foo

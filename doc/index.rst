@@ -5,7 +5,7 @@
     :numbered:
 
     quickstart
-    bro-pkg
+    zkg
     package
     source
     api/index

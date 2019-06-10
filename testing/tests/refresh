@@ -1,19 +1,19 @@
-# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: zkg install foo
 
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC: bro-pkg list outdated > outdated.out
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC: zkg list outdated > outdated.out
 # @TEST-EXEC: btest-diff outdated.out
 
-# @TEST-EXEC: bro-pkg list all > list.out
+# @TEST-EXEC: zkg list all > list.out
 # @TEST-EXEC: btest-diff list.out
 
-# @TEST-EXEC: bro-pkg refresh --aggregate
+# @TEST-EXEC: zkg refresh --aggregate
 
-# @TEST-EXEC: bro-pkg search lucky > search.out
+# @TEST-EXEC: zkg search lucky > search.out
 # @TEST-EXEC: btest-diff search.out
 
-# @TEST-EXEC: bro-pkg list all > list_after_agg.out
+# @TEST-EXEC: zkg list all > list_after_agg.out
 # @TEST-EXEC: btest-diff list_after_agg.out
 # note: foo's description isn't in the list output since the installed
 # version's metadata has no 'description' field

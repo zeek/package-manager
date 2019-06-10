@@ -2,7 +2,7 @@
 # @TEST-REQUIRES: test -n "$(bro-config --bro_dist)"
 
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg install rot13
+# @TEST-EXEC: zkg install rot13
 
 # @TEST-EXEC: btest-diff plugins/packages/rot13/__bro_plugin__ 
 # @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.bro 

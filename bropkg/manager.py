@@ -242,7 +242,7 @@ class Manager(object):
             IOError: if :file:`packages.zeek` loader script cannot be written
         """
         with open(self.autoload_script, 'w') as f:
-            content = ('# WARNING: This file is managed by bro-pkg.\n'
+            content = ('# WARNING: This file is managed by zkg.\n'
                        '# Do not make direct modifications here.\n')
 
             for ipkg in self.loaded_packages():
@@ -2343,7 +2343,7 @@ def _create_readme(file_path):
         return
 
     with open(file_path, 'w') as f:
-        f.write('WARNING: This directory is managed by bro-pkg.\n')
+        f.write('WARNING: This directory is managed by zkg.\n')
         f.write("Don't make direct modifications to anything within it.\n")
 
 

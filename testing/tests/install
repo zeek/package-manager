@@ -1,22 +1,22 @@
-# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: zkg install foo
 # @TEST-EXEC: btest-diff scripts/packages/foo/__load__.bro
 
-# @TEST-EXEC: bro-pkg install alice/bar
+# @TEST-EXEC: zkg install alice/bar
 # @TEST-EXEC: btest-diff scripts/packages/bar/__load__.bro
 
-# @TEST-EXEC: bro-pkg install one/alice/baz
+# @TEST-EXEC: zkg install one/alice/baz
 # @TEST-EXEC: btest-diff scripts/packages/baz/__load__.bro
 
-# @TEST-EXEC: bro-pkg install $(pwd)/packages/qux
+# @TEST-EXEC: zkg install $(pwd)/packages/qux
 # @TEST-EXEC: btest-diff scripts/packages/qux/__load__.bro
 
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: bro-pkg install corge
+# @TEST-EXEC: zkg install corge
 # @TEST-EXEC: btest-diff scripts/packages/corge/__load__.bro
 
-# @TEST-EXEC: bro-pkg remove corge
-# @TEST-EXEC: bro-pkg install corge --version=master
+# @TEST-EXEC: zkg remove corge
+# @TEST-EXEC: zkg install corge --version=master
 # @TEST-EXEC: cp scripts/packages/corge/__load__.bro corge.master
 # @TEST-EXEC: btest-diff corge.master
 
@@ -36,27 +36,27 @@ echo 'print "grault 1.0.2";' > __load__.bro
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
 
-# @TEST-EXEC: bro-pkg install grault
+# @TEST-EXEC: zkg install grault
 # @TEST-EXEC: btest-diff scripts/packages/grault/__load__.bro
 
-# @TEST-EXEC: bro-pkg remove grault
-# @TEST-EXEC: bro-pkg install grault --version=v1.0.1
+# @TEST-EXEC: zkg remove grault
+# @TEST-EXEC: zkg install grault --version=v1.0.1
 # @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.1.0.1
 # @TEST-EXEC: btest-diff grault.1.0.1
 #
-# @TEST-EXEC: bro-pkg remove grault
+# @TEST-EXEC: zkg remove grault
 # @TEST-EXEC: (cd packages/grault && git checkout --detach)
-# @TEST-EXEC: bro-pkg install $(pwd)/packages/grault
+# @TEST-EXEC: zkg install $(pwd)/packages/grault
 # @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.detached
 # @TEST-EXEC: btest-diff grault.detached
-# @TEST-EXEC: bro-pkg info grault | grep tracking_method > grault.info
+# @TEST-EXEC: zkg info grault | grep tracking_method > grault.info
 # @TEST-EXEC: btest-diff grault.info
 #
-# @TEST-EXEC: bro-pkg remove grault
+# @TEST-EXEC: zkg remove grault
 # @TEST-EXEC: (cd packages/grault && git checkout 1.0.0)
 # @TEST-EXEC: (cd packages/grault && git rev-parse HEAD) > grault.head.hash
-# @TEST-EXEC: bro-pkg install grault --version=$(cat grault.head.hash)
+# @TEST-EXEC: zkg install grault --version=$(cat grault.head.hash)
 # @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.detached.head
 # @TEST-EXEC: btest-diff grault.detached.head
-# @TEST-EXEC: bro-pkg info grault | grep tracking_method > grault.info
+# @TEST-EXEC: zkg info grault | grep tracking_method > grault.info
 # @TEST-EXEC: btest-diff grault.info

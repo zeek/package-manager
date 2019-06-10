@@ -3,10 +3,10 @@
 How-To: Create a Package Source
 ===============================
 
-:ref:`bro-pkg <bro-pkg>`, by default, is configured to obtain packages from a
+:ref:`zkg <zkg>`, by default, is configured to obtain packages from a
 single "package source", the `Bro Packages Git Repository`_, which is hosted by
-and loosely curated by the Bro Team. However, users may :ref:`configure bro-pkg
-<bro-pkg-config-file>` to use other package sources: either ones they've set up
+and loosely curated by the Bro Team. However, users may :ref:`configure zkg
+<zkg-config-file>` to use other package sources: either ones they've set up
 themselves for organization purposes or those hosted by other third parties.
 
 Package Source Setup
@@ -23,7 +23,7 @@ maintains Bro packages.  However, a source is free to use a flat organization
 with a single, top-level :file:`bro-pkg.index`.
 
 After creating a git repo for the package source and adding package index files
-to it, it's ready to be used by :ref:`bro-pkg <bro-pkg>`.
+to it, it's ready to be used by :ref:`zkg <zkg>`.
 
 .. _package-index-file:
 
@@ -48,7 +48,7 @@ Adding packages is as simple as adding new :ref:`Package Index Files
 <package-index-file>` or extending existing ones with new URLs and then
 commiting/pushing those changes to the package source git repository.
 
-:ref:`bro-pkg <bro-pkg>` will see new packages listed the next time it uses
+:ref:`zkg <zkg>` will see new packages listed the next time it uses
 the :ref:`refresh command <refresh-command>`.
 
 Removing Packages
@@ -57,7 +57,7 @@ Removing Packages
 Just remove the package's URL from the :ref:`Package Index File
 <package-index-file>` that it's contained within.
 
-After the next time :program:`bro-pkg` uses the :ref:`refresh command
+After the next time :program:`zkg` uses the :ref:`refresh command
 <refresh-command>`, it will no longer see the now-removed package
 when viewing package listings via by the :ref:`list command <list-command>`.
 
@@ -69,12 +69,12 @@ Aggregating Metadata
 
 The maintainer/operator of a package source may choose to periodically aggregate
 the metadata contained in its package's :file:`bro-pkg.meta` files.  The
-:ref:`bro-pkg refresh <refresh-command>` is used to perform the task.  For
+:ref:`zkg refresh <refresh-command>` is used to perform the task.  For
 example:
 
 .. code-block:: console
 
-  $ bro-pkg refresh --aggregate --push --sources my_source
+  $ zkg refresh --aggregate --push --sources my_source
 
 The optional ``--push`` flag is helpful for setting up cron jobs to
 automatically perform this task periodically, assuming you've set up your
@@ -86,7 +86,7 @@ Aggregated metadata gets written to a file named :file:`aggregate.meta`
 at the top-level of a package source and the :ref:`list <list-command>`,
 :ref:`search <search-command>`, and :ref:`info <info-command>` all may access
 this file.  Having access to the aggregated metadata in this way
-is beneficial to all :program:`bro-pkg` users because they then will not have
+is beneficial to all :program:`zkg` users because they then will not have
 to crawl the set of packages listed in a source in order to obtain this metadata
 as it will have already been pre-aggregated by the operator of the package
 source.

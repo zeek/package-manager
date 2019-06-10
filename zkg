@@ -1,0 +1,2152 @@
+#! /usr/bin/env python
+
+from __future__ import print_function
+from bropkg._util import (
+    make_dir,
+    find_program,
+    read_bro_config_line,
+    std_encoding,
+)
+from bropkg.package import (
+    TRACKING_METHOD_VERSION,
+)
+
+import os
+import io
+import sys
+import errno
+import argparse
+import logging
+import threading
+import tarfile
+import filecmp
+import shutil
+import subprocess
+import json
+
+try:
+    from backports import configparser
+except ImportError as err:
+    import configparser
+
+if ( sys.version_info[0] < 3 or
+     (sys.version_info[0] == 3 and sys.version_info[1] < 2) ):
+    from configparser import SafeConfigParser as GoodConfigParser
+else:
+    # SafeConfigParser renamed to ConfigParser in Python >= 3.2
+    from configparser import ConfigParser as GoodConfigParser
+
+import git
+
+import bropkg
+
+
+def get_input(prompt):
+    if sys.version_info[0] < 3:
+        prompt_bytes = prompt.encode(std_encoding(sys.stdout))
+        return raw_input(prompt_bytes).decode(std_encoding(sys.stdin))
+
+    return input(prompt)
+
+
+def confirmation_prompt(prompt, default_to_yes=True):
+    yes = {'y', 'ye', 'yes'}
+
+    if default_to_yes:
+        prompt += ' [Y/n] '
+    else:
+        prompt += ' [N/y] '
+
+    choice = get_input(prompt).lower()
+
+    if not choice:
+        return default_to_yes
+
+    if choice in yes:
+        return True
+
+    print('Abort.')
+    return False
+
+
+def prompt_for_user_vars(manager, config, force, pkg_infos):
+    answers = {}
+
+    for info in pkg_infos:
+        name = info.package.qualified_name()
+        requested_user_vars = info.user_vars()
+
+        if requested_user_vars is None:
+            print_error(str.format('error: malformed user_vars in "{}"', name))
+            sys.exit(1)
+
+        if not requested_user_vars:
+            continue
+
+        for key, value, desc in requested_user_vars:
+            from_env = False
+            default_value = os.environ.get(key)
+
+            if default_value:
+                from_env = True
+            else:
+                if config.has_section('user_vars'):
+                    v = config.get('user_vars', key)
+
+                    if v:
+                        default_value = v
+                    else:
+                        default_value = value
+                else:
+                    default_value = value
+
+            if force:
+                answers[key] = default_value
+            else:
+                if from_env:
+                    print(str.format(
+                        '{} will use value of {} ({}) from environment: {}',
+                        name, key, desc, default_value))
+                    answers[key] = default_value
+                else:
+                    prompt = '{} asks for {} ({}) ? [{}] '.format(
+                        name, key, desc, default_value)
+                    response = get_input(prompt)
+
+                    if response:
+                        answers[key] = response
+                    else:
+                        answers[key] = default_value
+
+    if not force and answers:
+        for key, value in answers.items():
+            if not config.has_section('user_vars'):
+                config.add_section('user_vars')
+
+            config.set('user_vars', key, value)
+
+        config_file = os.path.join(config_dir(), 'config')
+
+        with io.open(config_file, 'w', encoding=std_encoding(sys.stdout)) as f:
+            config.write(f)
+
+        print('Saved answers to config file: {}'.format(config_file))
+
+    manager.user_vars = answers
+
+
+def print_error(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
+def config_items(config, section):
+    # Same as config.items(section), but exclude default keys.
+    defaults = {key for key, _ in config.items('DEFAULT')}
+    items = sorted(config.items(section))
+    return [(key, value) for (key, value) in items if key not in defaults]
+
+
+def file_is_not_empty(path):
+    return os.path.isfile(path) and os.path.getsize(path) > 0
+
+
+def find_configfile():
+    configfile = os.environ.get('BRO_PKG_CONFIG_FILE')
+
+    if configfile and file_is_not_empty(configfile):
+        return configfile
+
+    configfile = os.path.join(config_dir(), 'config')
+
+    if file_is_not_empty(configfile):
+        return configfile
+
+    return None
+
+
+def config_dir():
+    return os.path.join(os.path.expanduser('~'), '.bro-pkg')
+
+
+def create_config(configfile):
+    config = GoodConfigParser()
+
+    if configfile:
+        if not os.path.isfile(configfile):
+            print_error('error: invalid config file "{}"'.format(configfile))
+            sys.exit(1)
+
+        config.read(configfile)
+
+    if not config.has_section('sources'):
+        config.add_section('sources')
+
+    if not config.has_section('paths'):
+        config.add_section('paths')
+
+    if not configfile:
+        config.set('sources', 'bro', 'https://github.com/bro/packages')
+
+    def config_option_set(config, section, option):
+        return config.has_option(section, option) and config.get(section,
+                                                                 option)
+
+    def get_option(config, section, option, default):
+        if config_option_set(config, section, option):
+            return config.get(section, option)
+
+        return default
+
+    state_dir = get_option(config, 'paths', 'state_dir',
+                           os.path.join(config_dir()))
+    script_dir = get_option(config, 'paths', 'script_dir',
+                            os.path.join(state_dir, 'script_dir'))
+    plugin_dir = get_option(config, 'paths', 'plugin_dir',
+                            os.path.join(state_dir, 'plugin_dir'))
+    bro_dist = get_option(config, 'paths', 'bro_dist', '')
+
+    config.set('paths', 'state_dir', state_dir)
+    config.set('paths', 'script_dir', script_dir)
+    config.set('paths', 'plugin_dir', plugin_dir)
+    config.set('paths', 'bro_dist', bro_dist)
+
+    def expand_config_values(config, section):
+        for key, value in config.items(section):
+            value = os.path.expandvars(os.path.expanduser(value))
+            config.set(section, key, value)
+
+    expand_config_values(config, 'sources')
+    expand_config_values(config, 'paths')
+
+    for key, value in config.items('paths'):
+        if value and not os.path.isabs(value):
+            print_error(str.format('error: invalid config file value for key'
+                                   ' "{}" in section [paths]: "{}" is not'
+                                   ' an absolute path', key, value))
+            sys.exit(1)
+
+    return config
+
+
+def active_git_branch(path):
+    try:
+        repo = git.Repo(path)
+    except git.exc.NoSuchPathError as error:
+        return None
+
+    if not repo.working_tree_dir:
+        return None
+
+    try:
+        rval = repo.active_branch
+    except TypeError as error:
+        # return detached commit
+        rval = repo.head.commit
+
+    if not rval:
+        return None
+
+    rval = str(rval)
+    return rval
+
+def is_git_repo_dirty(git_url):
+    if not git_url.startswith('.') and not git_url.startswith('/'):
+        return False
+
+    try:
+        repo = git.Repo(git_url)
+    except git.exc.NoSuchPathError as error:
+        return False
+
+    return repo.is_dirty(untracked_files=True)
+
+def create_manager(config):
+    state_dir = config.get('paths', 'state_dir')
+    script_dir = config.get('paths', 'script_dir')
+    plugin_dir = config.get('paths', 'plugin_dir')
+    bro_dist = config.get('paths', 'bro_dist')
+
+    try:
+        manager = bropkg.Manager(state_dir=state_dir, script_dir=script_dir,
+                                 plugin_dir=plugin_dir, bro_dist=bro_dist)
+    except (OSError, IOError) as error:
+        if error.errno == errno.EACCES:
+            print_error('{}: {}'.format(type(error).__name__, error))
+
+            def check_permission(d):
+                if os.access(d, os.W_OK):
+                    return
+
+                print_error(
+                    'error: user does not have write access in {}'.format(d))
+
+            check_permission(state_dir)
+            check_permission(script_dir)
+            check_permission(plugin_dir)
+            sys.exit(1)
+
+        raise
+
+    for key, value in config_items(config, 'sources'):
+        error = manager.add_source(name=key, git_url=value)
+
+        if error:
+            print_error(str.format(
+                'warning: skipped using package source named "{}": {}',
+                key, error))
+
+    return manager
+
+
+class InstallWorker(threading.Thread):
+
+    def __init__(self, manager, package_name, package_version):
+        super(InstallWorker, self).__init__()
+        self.manager = manager
+        self.package_name = package_name
+        self.package_version = package_version
+        self.error = ''
+
+    def run(self):
+        self.error = self.manager.install(
+            self.package_name, self.package_version)
+
+
+def cmd_test(manager, args, config):
+    if args.version and len(args.package) > 1:
+        print_error(
+            'error: "install --version" may only be used for a single package')
+        sys.exit(1)
+
+    package_infos = []
+
+    for name in args.package:
+        if is_git_repo_dirty(name):
+            print_error('error: local git clone at {} is dirty'.format(name))
+            sys.exit(1)
+
+        version = args.version if args.version else active_git_branch(name)
+        package_info = manager.info(name, version=version,
+                                    prefer_installed=False)
+
+        if package_info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   package_info.invalid_reason))
+            sys.exit(1)
+
+        if not version:
+            version = package_info.best_version()
+
+        package_infos.append((package_info, version))
+
+    all_passed = True
+
+    for info, version in package_infos:
+        name = info.package.qualified_name()
+
+        if 'test_command' not in info.metadata:
+            print(str.format('{}: no test_command found in metadata, skipping',
+                             name))
+            continue
+
+        error_msg, passed, test_dir = manager.test(name, version)
+
+        if error_msg:
+            all_passed = False
+            print_error(str.format('error: failed to run tests for "{}": {}',
+                                   name, error_msg))
+            continue
+
+        if passed:
+            print(str.format('{}: all tests passed', name))
+        else:
+            all_passed = False
+            print_error(str.format('error: package "{}" tests failed, inspect'
+                                   ' contents of {} for details, especially'
+                                   ' any "zkg.test_command.{{stderr,stdout}}"'
+                                   ' files.',
+                                   name, test_dir))
+
+    if not all_passed:
+        sys.exit(1)
+
+
+def cmd_install(manager, args, config):
+    if args.version and len(args.package) > 1:
+        print_error(
+            'error: "install --version" may only be used for a single package')
+        sys.exit(1)
+
+    package_infos = []
+
+    for name in args.package:
+        if is_git_repo_dirty(name):
+            print_error('error: local git clone at {} is dirty'.format(name))
+            sys.exit(1)
+
+        version = args.version if args.version else active_git_branch(name)
+        package_info = manager.info(name, version=version,
+                                    prefer_installed=False)
+
+        if package_info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   package_info.invalid_reason))
+            sys.exit(1)
+
+        if not version:
+            version = package_info.best_version()
+
+        package_infos.append((package_info, version, False))
+
+    new_pkgs = []
+
+    if not args.nodeps:
+        to_validate = [(info.package.qualified_name(), version)
+                       for info, version, _ in package_infos]
+        invalid_reason, new_pkgs = manager.validate_dependencies(
+            to_validate, ignore_suggestions=args.nosuggestions)
+
+        if invalid_reason:
+            print_error('error: failed to resolve dependencies:',
+                        invalid_reason)
+            sys.exit(1)
+
+    if not args.force:
+        package_listing = ''
+
+        for info, version, _ in package_infos:
+            name = info.package.qualified_name()
+            package_listing += '  {} ({})\n'.format(name, version)
+
+        print('The following packages will be INSTALLED:')
+        print(package_listing)
+
+        if new_pkgs:
+            dependency_listing = ''
+
+            for info, version, suggested in new_pkgs:
+                name = info.package.qualified_name()
+                dependency_listing += '  {} ({})'.format(
+                    name, version)
+
+                if suggested:
+                    dependency_listing += ' (suggested)'
+
+                dependency_listing += '\n'
+
+            print('The following dependencies will be INSTALLED:')
+            print(dependency_listing)
+
+        allpkgs = package_infos + new_pkgs
+        extdep_listing = ''
+
+        for info, version, _ in allpkgs:
+            name = info.package.qualified_name()
+            extdeps = info.dependencies(field='external_depends')
+
+            if extdeps is None:
+                extdep_listing += '  from {} ({}):\n    <malformed>\n'.format(
+                    name, version)
+                continue
+
+            if extdeps:
+                extdep_listing += '  from {} ({}):\n'.format(name, version)
+
+                for extdep, semver in sorted(extdeps.items()):
+                    extdep_listing += '    {} {}\n'.format(extdep, semver)
+
+        if extdep_listing:
+            print('Verify the following REQUIRED external dependencies:\n'
+                  '(Ensure their installation on all relevant systems before'
+                  ' proceeding):')
+            print(extdep_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    package_infos += new_pkgs
+
+    prompt_for_user_vars(manager, config, args.force,
+                         [info for info, _, _ in package_infos])
+
+    if not args.skiptests:
+        for info, version, _ in package_infos:
+            name = info.package.qualified_name()
+
+            if 'test_command' not in info.metadata:
+                bropkg.LOG.info(
+                    'Skipping unit tests for "%s": no test_command in metadata',
+                    name)
+                continue
+
+            print('Running unit tests for "{}"'.format(name))
+            error, passed, test_dir = manager.test(name, version)
+            error_msg = ''
+
+            if error:
+                error_msg = str.format(
+                    'failed to run tests for {}: {}', name, error)
+            elif not passed:
+                error_msg = str.format(
+                    '{} tests failed, inspect contents of {} for details',
+                    name, test_dir)
+
+            if error_msg:
+                print_error('error: {}'.format(error_msg))
+
+                if args.force:
+                    continue
+
+                if not confirmation_prompt('Proceed to install anyway?',
+                                           default_to_yes=False):
+                    return
+
+    join_timeout = 0.01
+    tick_interval = 1
+
+    installs_failed = []
+
+    for info, version, _ in package_infos:
+        name = info.package.qualified_name()
+        time_accumulator = 0
+        tick_count = 0
+
+        is_overwriting = False
+        ipkg = manager.find_installed_package(name)
+
+        if ipkg:
+            is_overwriting = True
+            modifications = manager.modified_config_files(ipkg)
+            backup_files = manager.backup_modified_files(name, modifications)
+            prev_upstream_config_files = manager.save_temporary_config_files(
+                ipkg)
+
+        worker = InstallWorker(manager, name, version)
+        worker.start()
+
+        while worker.isAlive():
+            worker.join(join_timeout)
+            time_accumulator += join_timeout
+
+            if time_accumulator >= tick_interval:
+                if tick_count == 0:
+                    print('Installing "{}"'.format(name), end='')
+                else:
+                    print('.', end='')
+
+                sys.stdout.flush()
+                tick_count += 1
+                time_accumulator -= tick_interval
+
+        if tick_count != 0:
+            print('')
+
+        if worker.error:
+            print('Failed installing "{}": {}'.format(name, worker.error))
+            installs_failed.append((name, version))
+            continue
+
+        ipkg = manager.find_installed_package(name)
+        print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+
+        if is_overwriting:
+            for i, mf in enumerate(modifications):
+                next_upstream_config_file = mf[1]
+
+                if not os.path.isfile(next_upstream_config_file):
+                    print("\tConfig file no longer exists:")
+                    print("\t\t" + next_upstream_config_file)
+                    print("\tPrevious, locally modified version backed up to:")
+                    print("\t\t" + backup_files[i])
+                    continue
+
+                prev_upstream_config_file = prev_upstream_config_files[i][1]
+
+                if filecmp.cmp(prev_upstream_config_file, next_upstream_config_file):
+                    # Safe to restore user's version
+                    shutil.copy2(backup_files[i], next_upstream_config_file)
+                    continue
+
+                print("\tConfig file has been overwritten with a different version:")
+                print("\t\t" + next_upstream_config_file)
+                print("\tPrevious, locally modified version backed up to:")
+                print("\t\t" + backup_files[i])
+
+        if manager.has_scripts(ipkg):
+            load_error = manager.load(name)
+
+            if load_error:
+                print('Failed loading "{}": {}'.format(name, load_error))
+            else:
+                print('Loaded "{}"'.format(name))
+
+    if installs_failed:
+        print_error('error: incomplete installation, the follow packages'
+                    ' failed to be installed:')
+
+        for n, v in installs_failed:
+            print_error('  {} ({})'.format(n, v))
+
+        sys.exit(1)
+
+
+def cmd_bundle(manager, args, config):
+    packages_to_bundle = []
+    prefer_existing_clones = False
+
+    if args.manifest:
+        if len(args.manifest) == 1 and os.path.isfile(args.manifest[0]):
+            config = GoodConfigParser(delimiters='=')
+            config.optionxform = str
+
+            if config.read(args.manifest[0]) and config.has_section('bundle'):
+                packages = config.items('bundle')
+            else:
+                print_error('error: "{}" is not a valid manifest file'.format(
+                    args.manifest[0]))
+                sys.exit(1)
+
+        else:
+            packages = [(name, '') for name in args.manifest]
+
+        to_validate = []
+        new_pkgs = []
+
+        for name, version in packages:
+            if is_git_repo_dirty(name):
+                print_error('error: local git clone at {} is dirty'.format(name))
+                sys.exit(1)
+
+            if not version:
+                version = active_git_branch(name)
+
+            info = manager.info(name, version=version, prefer_installed=False)
+
+            if info.invalid_reason:
+                print_error(str.format('error: invalid package "{}": {}', name,
+                                       info.invalid_reason))
+                sys.exit(1)
+
+            if not version:
+                version = info.best_version()
+
+            to_validate.append((info.package.qualified_name(), version))
+            packages_to_bundle.append((info.package.qualified_name(),
+                                       info.package.git_url, version, False,
+                                       False))
+
+        if not args.nodeps:
+            invalid_reason, new_pkgs = manager.validate_dependencies(
+                to_validate, True, ignore_suggestions=args.nosuggestions)
+
+            if invalid_reason:
+                print_error('error: failed to resolve dependencies:',
+                            invalid_reason)
+                sys.exit(1)
+
+        for info, version, suggested in new_pkgs:
+            packages_to_bundle.append((info.package.qualified_name(),
+                                       info.package.git_url, version, True,
+                                       suggested))
+    else:
+        prefer_existing_clones = True
+
+        for ipkg in manager.installed_packages():
+            packages_to_bundle.append((ipkg.package.qualified_name(),
+                                       ipkg.package.git_url,
+                                       ipkg.status.current_version, False,
+                                       False))
+
+    if not packages_to_bundle:
+        print_error('error: no packages to put in bundle')
+        sys.exit(1)
+
+    if not args.force:
+        package_listing = ''
+
+        for name, _, version, is_dependency, is_suggestion in packages_to_bundle:
+            package_listing += '  {} ({})'.format(name, version)
+
+            if is_suggestion:
+                package_listing += ' (suggested)'
+            elif is_dependency:
+                package_listing += ' (dependency)'
+
+            package_listing += '\n'
+
+        print('The following packages will be BUNDLED into {}:'.format(
+            args.bundle_filename))
+        print(package_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    git_urls = [(git_url, version)
+                for _, git_url, version, _, _ in packages_to_bundle]
+    error = manager.bundle(args.bundle_filename, git_urls,
+                           prefer_existing_clones=prefer_existing_clones)
+
+    if error:
+        print_error('error: failed to create bundle: {}'.format(error))
+        sys.exit(1)
+
+    print('Bundle successfully written: {}'.format(args.bundle_filename))
+
+
+def cmd_unbundle(manager, args, config):
+    prev_load_status = {}
+
+    for ipkg in manager.installed_packages():
+        prev_load_status[ipkg.package.git_url] = ipkg.status.is_loaded
+
+    if args.replace:
+        cmd_purge(manager, args, config)
+
+    error, bundle_info = manager.bundle_info(args.bundle_filename)
+
+    if error:
+        print_error('error: failed to unbundle {}: {}'.format(
+            args.bundle_filename, error))
+        sys.exit(1)
+
+    for git_url, version, pkg_info in bundle_info:
+        if pkg_info.invalid_reason:
+            name = pkg_info.package.qualified_name()
+            print_error('error: bundle {} contains invalid package {}: {}'.format(
+                args.bundle_filename, name, pkg_info.invalid_reason))
+            sys.exit(1)
+
+    if not bundle_info:
+        print('No packages in bundle.')
+        return
+
+    if not args.force:
+        package_listing = ''
+
+        for git_url, version, _ in bundle_info:
+            name = git_url
+
+            for pkg in manager.source_packages():
+                if pkg.git_url == git_url:
+                    name = pkg.qualified_name()
+                    break
+
+            package_listing += '  {} ({})\n'.format(name, version)
+
+        print('The following packages will be INSTALLED:')
+        print(package_listing)
+
+        extdep_listing = ''
+
+        for git_url, version, info in bundle_info:
+            name = git_url
+
+            for pkg in manager.source_packages():
+                if pkg.git_url == git_url:
+                    name = pkg.qualified_name()
+                    break
+
+            extdeps = info.dependencies(field='external_depends')
+
+            if extdeps is None:
+                extdep_listing += '  from {} ({}):\n    <malformed>\n'.format(
+                    name, version)
+                continue
+
+            if extdeps:
+                extdep_listing += '  from {} ({}):\n'.format(name, version)
+
+                for extdep, semver in sorted(extdeps.items()):
+                    extdep_listing += '    {} {}\n'.format(extdep, semver)
+
+        if extdep_listing:
+            print('Verify the following REQUIRED external dependencies:\n'
+                  '(Ensure their installation on all relevant systems before'
+                  ' proceeding):')
+            print(extdep_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    prompt_for_user_vars(manager, config, args.force,
+                         [info for _, _, info in bundle_info])
+
+    error = manager.unbundle(args.bundle_filename)
+
+    if error:
+        print_error('error: failed to unbundle {}: {}'.format(
+            args.bundle_filename, error))
+        sys.exit(1)
+
+    for git_url, _, _ in bundle_info:
+        if git_url in prev_load_status:
+            need_load = prev_load_status[git_url]
+        else:
+            need_load = True
+
+        ipkg = manager.find_installed_package(git_url)
+
+        if not ipkg:
+            print('Skipped loading "{}": failed to install'.format(git_url))
+            continue
+
+        name = ipkg.package.qualified_name()
+
+        if not need_load:
+            print('Skipped loading "{}"'.format(name))
+            continue
+
+        load_error = manager.load(name)
+
+        if load_error:
+            print('Failed loading "{}": {}'.format(name, load_error))
+        else:
+            print('Loaded "{}"'.format(name))
+
+    print('Unbundling complete.')
+
+
+def cmd_remove(manager, args, config):
+    packages_to_remove = []
+
+    for name in args.package:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print_error(
+                'error: package "{}" is not installed'.format(name))
+            sys.exit(1)
+
+        packages_to_remove.append(ipkg)
+
+    if not args.force:
+        package_listing = ''
+
+        for ipkg in packages_to_remove:
+            name = ipkg.package.qualified_name()
+            package_listing += '  {}\n'.format(name)
+
+        print('The following packages will be REMOVED:')
+        print(package_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    had_failure = False
+
+    for ipkg in packages_to_remove:
+        name = ipkg.package.qualified_name()
+        modifications = manager.modified_config_files(ipkg)
+        backup_files = manager.backup_modified_files(name, modifications)
+
+        if manager.remove(name):
+            print('Removed "{}"'.format(name))
+
+            if backup_files:
+                print('\tCreated backups of locally modified config files:')
+
+                for backup_file in backup_files:
+                    print('\t' + backup_file)
+
+        else:
+            print('Failed removing "{}": no such package installed'.format(name))
+            had_failure = True
+
+    if had_failure:
+        sys.exit(1)
+
+
+def cmd_purge(manager, args, config):
+    packages_to_remove = manager.installed_packages()
+
+    if not packages_to_remove:
+        print('No packages to remove.')
+        return
+
+    if not args.force:
+        package_listing = ''
+        names_to_remove = [ipkg.package.qualified_name()
+                           for ipkg in packages_to_remove]
+
+        for name in names_to_remove:
+            package_listing += '  {}\n'.format(name)
+
+        print('The following packages will be REMOVED:')
+        print(package_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    had_failure = False
+
+    for ipkg in packages_to_remove:
+        name = ipkg.package.qualified_name()
+        modifications = manager.modified_config_files(ipkg)
+        backup_files = manager.backup_modified_files(name, modifications)
+
+        if manager.remove(name):
+            print('Removed "{}"'.format(name))
+
+            if backup_files:
+                print('\tCreated backups of locally modified config files:')
+
+                for backup_file in backup_files:
+                    print('\t' + backup_file)
+
+        else:
+            print('Unknown error removing "{}"'.format(name))
+            had_failure = True
+
+    if had_failure:
+        sys.exit(1)
+
+
+def outdated(manager):
+    return [ipkg.package.qualified_name()
+            for ipkg in manager.installed_packages()
+            if ipkg.status.is_outdated]
+
+
+def cmd_refresh(manager, args, config):
+
+    if not args.sources:
+        args.sources = list(manager.sources.keys())
+
+    had_failure = False
+
+    for source in args.sources:
+        print('Refresh package source: {}'.format(source))
+
+        src_pkgs_before = {i.qualified_name()
+                           for i in manager.source_packages()}
+
+        error = manager.refresh_source(
+            source, aggregate=args.aggregate, push=args.push)
+
+        if error:
+            had_failure = True
+            print_error(
+                'error: failed to refresh "{}": {}'.format(source, error))
+            continue
+
+        src_pkgs_after = {i.qualified_name()
+                          for i in manager.source_packages()}
+
+        if src_pkgs_before == src_pkgs_after:
+            print('\tNo changes')
+        else:
+            print('\tChanges:')
+            diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
+
+            for name in diff:
+                change = 'Added' if name in src_pkgs_after else 'Removed'
+                print('\t\t{} {}'.format(change, name))
+
+        if args.aggregate:
+            print('\tMetadata aggregated')
+
+        if args.push:
+            print('\tPushed aggregated metadata')
+
+    outdated_before = {i for i in outdated(manager)}
+    print('Refresh installed packages')
+    manager.refresh_installed_packages()
+    outdated_after = {i for i in outdated(manager)}
+
+    if outdated_before == outdated_after:
+        print('\tNo new outdated packages')
+    else:
+        print('\tNew outdated packages:')
+        diff = outdated_before.symmetric_difference(outdated_after)
+
+        for name in diff:
+            ipkg = manager.find_installed_package(name)
+            version_change = version_change_string(manager, ipkg)
+            print('\t\t{} {}'.format(name, version_change))
+
+    if had_failure:
+        sys.exit(1)
+
+
+def version_change_string(manager, installed_package):
+    old_version = installed_package.status.current_version
+    new_version = old_version
+    version_change = ''
+
+    if installed_package.status.tracking_method == TRACKING_METHOD_VERSION:
+        versions = manager.package_versions(installed_package)
+
+        if len(versions):
+            new_version = versions[-1]
+
+        version_change = '({} -> {})'.format(old_version, new_version)
+    else:
+        version_change = '({})'.format(new_version)
+
+    return version_change
+
+
+def cmd_upgrade(manager, args, config):
+    if args.package:
+        pkg_list = args.package
+    else:
+        pkg_list = outdated(manager)
+
+    outdated_packages = []
+    package_listing = ''
+
+    for name in pkg_list:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            print_error('error: package "{}" is not installed'.format(name))
+            sys.exit(1)
+
+        name = ipkg.package.qualified_name()
+
+        if not ipkg.status.is_outdated:
+            continue
+
+        if not manager.match_source_packages(name):
+            name = ipkg.package.git_url
+
+        info = manager.info(name, version=ipkg.status.current_version,
+                            prefer_installed=False)
+
+        if info.invalid_reason:
+            print_error(str.format('error: invalid package "{}": {}', name,
+                                   info.invalid_reason))
+            sys.exit(1)
+
+        next_version = ipkg.status.current_version
+
+        if ( ipkg.status.tracking_method == TRACKING_METHOD_VERSION and
+             info.versions ):
+            next_version = info.versions[-1]
+
+        outdated_packages.append((info, next_version, False))
+        version_change = version_change_string(manager, ipkg)
+        package_listing += '  {} {}\n'.format(name, version_change)
+
+    if not outdated_packages:
+        print('All packages already up-to-date.')
+        return
+
+    new_pkgs = []
+
+    if not args.nodeps:
+        to_validate = [(info.package.qualified_name(), next_version)
+                       for info, next_version, _ in outdated_packages]
+        invalid_reason, new_pkgs = manager.validate_dependencies(
+            to_validate, ignore_suggestions=args.nosuggestions)
+
+        if invalid_reason:
+            print_error('error: failed to resolve dependencies:',
+                        invalid_reason)
+            sys.exit(1)
+
+    allpkgs = outdated_packages + new_pkgs
+
+    if not args.force:
+        print('The following packages will be UPGRADED:')
+        print(package_listing)
+
+        if new_pkgs:
+            dependency_listing = ''
+
+            for info, version, suggestion in new_pkgs:
+                name = info.package.qualified_name()
+                dependency_listing += '  {} ({})'.format(name, version)
+
+                if suggestion:
+                    dependency_listing += ' (suggested)'
+
+                dependency_listing += '\n'
+
+
+            print('The following dependencies will be INSTALLED:')
+            print(dependency_listing)
+
+        extdep_listing = ''
+
+        for info, version, _ in allpkgs:
+            name = info.package.qualified_name()
+            extdeps = info.dependencies(field='external_depends')
+
+            if extdeps is None:
+                extdep_listing += '  from {} ({}):\n    <malformed>\n'.format(
+                    name, version)
+                continue
+
+            if extdeps:
+                extdep_listing += '  from {} ({}):\n'.format(name, version)
+
+                for extdep, semver in sorted(extdeps.items()):
+                    extdep_listing += '    {} {}\n'.format(extdep, semver)
+
+        if extdep_listing:
+            print('Verify the following REQUIRED external dependencies:\n'
+                  '(Ensure their installation on all relevant systems before'
+                  ' proceeding):')
+            print(extdep_listing)
+
+        if not confirmation_prompt('Proceed?'):
+            return
+
+    prompt_for_user_vars(manager, config, args.force,
+                         [info for info, _, _ in allpkgs])
+
+    if not args.skiptests:
+        to_test = [(info, next_version)
+                   for info, next_version, _ in outdated_packages]
+
+        for info, version, _ in new_pkgs:
+            to_test.append((info, version))
+
+        for info, version in to_test:
+            name = info.package.qualified_name()
+
+            if 'test_command' not in info.metadata:
+                bropkg.LOG.info(
+                    'Skipping unit tests for "%s": no test_command in metadata',
+                    name)
+                continue
+
+            print('Running unit tests for "{}"'.format(name))
+            error, passed, test_dir = manager.test(name, version)
+            error_msg = ''
+
+            if error:
+                error_msg = str.format(
+                    'failed to run tests for {}: {}', name, error)
+            elif not passed:
+                error_msg = str.format(
+                    '{} tests failed, inspect contents of {} for details',
+                    name, test_dir)
+
+            if error_msg:
+                print_error('error: {}'.format(error_msg))
+
+                if args.force:
+                    continue
+
+                if not confirmation_prompt('Proceed to install anyway?',
+                                           default_to_yes=False):
+                    return
+
+    join_timeout = 0.01
+    tick_interval = 1
+
+    for info, version, _ in new_pkgs:
+        name = info.package.qualified_name()
+        time_accumulator = 0
+        tick_count = 0
+        worker = InstallWorker(manager, name, version)
+        worker.start()
+
+        while worker.isAlive():
+            worker.join(join_timeout)
+            time_accumulator += join_timeout
+
+            if time_accumulator >= tick_interval:
+                if tick_count == 0:
+                    print('Installing "{}"'.format(name), end='')
+                else:
+                    print('.', end='')
+
+                sys.stdout.flush()
+                tick_count += 1
+                time_accumulator -= tick_interval
+
+        if tick_count != 0:
+            print('')
+
+        if worker.error:
+            print('Failed installing "{}": {}'.format(name, worker.error))
+            continue
+
+        ipkg = manager.find_installed_package(name)
+        print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+
+        if manager.has_scripts(ipkg):
+            load_error = manager.load(name)
+
+            if load_error:
+                print('Failed loading "{}": {}'.format(name, load_error))
+            else:
+                print('Loaded "{}"'.format(name))
+
+    had_failure = False
+
+    for info, next_version, _ in outdated_packages:
+        name = info.package.qualified_name()
+        bdir = name
+
+        if not manager.match_source_packages(name):
+            name = info.package.git_url
+            bdir = bropkg.package.name_from_path(name)
+
+        ipkg = manager.find_installed_package(name)
+        modifications = manager.modified_config_files(ipkg)
+        backup_files = manager.backup_modified_files(name, modifications)
+        prev_upstream_config_files = manager.save_temporary_config_files(ipkg)
+
+        res = manager.upgrade(name)
+
+        if res:
+            print('Failed upgrading "{}": {}'.format(name, res))
+            had_failure = True
+        else:
+            ipkg = manager.find_installed_package(name)
+            print('Upgraded "{}" ({})'.format(
+                name, ipkg.status.current_version))
+
+        for i, mf in enumerate(modifications):
+            next_upstream_config_file = mf[1]
+
+            if not os.path.isfile(next_upstream_config_file):
+                print("\tConfig file no longer exists:")
+                print("\t\t" + next_upstream_config_file)
+                print("\tPrevious, locally modified version backed up to:")
+                print("\t\t" + backup_files[i])
+                continue
+
+            prev_upstream_config_file = prev_upstream_config_files[i][1]
+
+            if filecmp.cmp(prev_upstream_config_file, next_upstream_config_file):
+                # Safe to restore user's version
+                shutil.copy2(backup_files[i], next_upstream_config_file)
+                continue
+
+            print("\tConfig file has been updated to a newer version:")
+            print("\t\t" + next_upstream_config_file)
+            print("\tPrevious, locally modified version backed up to:")
+            print("\t\t" + backup_files[i])
+
+    if had_failure:
+        sys.exit(1)
+
+
+def cmd_load(manager, args, config):
+    had_failure = False
+
+    for name in args.package:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            had_failure = True
+            print('Failed to load "{}": no such package installed'.format(name))
+            continue
+
+        if not manager.has_scripts(ipkg):
+            print('The package "{}" does not contain scripts to load.'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
+        load_error = manager.load(name)
+
+        if load_error:
+            had_failure = True
+            print('Failed to load "{}": {}'.format(name, load_error))
+        else:
+            print('Loaded "{}"'.format(name))
+
+    if had_failure:
+        sys.exit(1)
+
+
+def cmd_unload(manager, args, config):
+    had_failure = False
+
+    for name in args.package:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            had_failure = True
+            print('Failed to unload "{}": no such package installed'.format(name))
+            continue
+
+        if not manager.has_scripts(ipkg):
+            print('The package "{}" does not contain scripts to unload.'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
+
+        if manager.unload(name):
+            print('Unloaded "{}"'.format(name))
+        else:
+            had_failure = True
+            print(
+                'Failed unloading "{}": no such package installed'.format(name))
+
+    if had_failure:
+        sys.exit(1)
+
+
+def cmd_pin(manager, args, config):
+    had_failure = False
+
+    for name in args.package:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            had_failure = True
+            print('Failed to pin "{}": no such package installed'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
+        ipkg = manager.pin(name)
+
+        if ipkg:
+            print('Pinned "{}" at version: {} ({})'.format(
+                name, ipkg.status.current_version, ipkg.status.current_hash))
+        else:
+            had_failure = True
+            print('Failed pinning "{}": no such package installed'.format(name))
+
+    if had_failure:
+        sys.exit(1)
+
+
+def cmd_unpin(manager, args, config):
+    had_failure = False
+
+    for name in args.package:
+        ipkg = manager.find_installed_package(name)
+
+        if not ipkg:
+            had_failure = True
+            print('Failed to unpin "{}": no such package installed'.format(name))
+            continue
+
+        name = ipkg.package.qualified_name()
+        ipkg = manager.unpin(name)
+
+        if ipkg:
+            print('Unpinned "{}" from version: {} ({})'.format(
+                name, ipkg.status.current_version, ipkg.status.current_hash))
+        else:
+            had_failure = True
+            print(
+                'Failed unpinning "{}": no such package installed'.format(name))
+
+    if had_failure:
+        sys.exit(1)
+
+
+def _get_filtered_packages(manager, category):
+    pkg_dict = dict()
+
+    for ipkg in manager.installed_packages():
+        pkg_dict[ipkg.package.qualified_name()] = ipkg
+
+    for pkg in manager.source_packages():
+        pkg_qn = pkg.qualified_name()
+
+        if pkg_qn not in pkg_dict:
+            pkg_dict[pkg_qn] = pkg
+
+    if category == 'all':
+        filtered_pkgs = pkg_dict
+    elif category == 'installed':
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage)}
+    elif category == 'not_installed':
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if not isinstance(value, bropkg.InstalledPackage)}
+    elif category == 'loaded':
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage) and
+                         value.status.is_loaded}
+    elif category == 'unloaded':
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage) and
+                         not value.status.is_loaded}
+    elif category == 'outdated':
+        filtered_pkgs = {key: value for key, value in pkg_dict.items()
+                         if isinstance(value, bropkg.InstalledPackage) and
+                         value.status.is_outdated}
+    else:
+        raise NotImplementedError
+
+    return filtered_pkgs
+
+
+def cmd_list(manager, args, config):
+    filtered_pkgs = _get_filtered_packages(manager, args.category)
+
+    for pkg_name, val in sorted(filtered_pkgs.items()):
+        if isinstance(val, bropkg.InstalledPackage):
+            pkg = val.package
+            out = '{} (installed: {})'.format(
+                pkg_name, val.status.current_version)
+        else:
+            pkg = val
+            out = pkg_name
+
+        if not args.nodesc:
+            desc = pkg.short_description()
+
+            if desc:
+                out += ' - ' + desc
+
+        print(out)
+
+
+def cmd_search(manager, args, config):
+    src_pkgs = manager.source_packages()
+    matches = set()
+
+    for search_text in args.search_text:
+        if search_text[0] == '/' and search_text[-1] == '/':
+            import re
+
+            try:
+                regex = re.compile(search_text[1:-1])
+            except re.error as error:
+                print('invalid regex: {}'.format(error))
+                sys.exit(1)
+            else:
+                for pkg in src_pkgs:
+                    if regex.search(pkg.name_with_source_directory()):
+                        matches.add(pkg)
+
+                    for tag in pkg.tags():
+                        if regex.search(tag):
+                            matches.add(pkg)
+
+        else:
+            for pkg in src_pkgs:
+                if search_text in pkg.name_with_source_directory():
+                    matches.add(pkg)
+
+                for tag in pkg.tags():
+                    if search_text in tag:
+                        matches.add(pkg)
+
+    if matches:
+        for match in sorted(matches):
+            out = match.qualified_name()
+
+            ipkg = manager.find_installed_package(match.qualified_name())
+
+            if ipkg:
+                out += ' (installed: {})'.format(ipkg.status.current_version)
+
+            desc = match.short_description()
+
+            if desc:
+                out += ' - ' + desc
+
+            print(out)
+
+    else:
+        print("no matches")
+
+
+def cmd_info(manager, args, config):
+    if args.version and len(args.package) > 1:
+        print_error(
+            'error: "info --version" may only be used for a single package')
+        sys.exit(1)
+
+    # Dictionary for storing package info to output as JSON
+    pkginfo = dict()
+    had_invalid_package = False
+
+    if len(args.package) == 1:
+        try:
+            filtered_pkgs = _get_filtered_packages(manager, args.package[0])
+            package_names = [pkg_name
+                             for pkg_name, _ in sorted(filtered_pkgs.items())]
+        except NotImplementedError:
+            package_names = args.package
+    else:
+        package_names = args.package
+
+    for name in package_names:
+        info = manager.info(name,
+                            version=args.version,
+                            prefer_installed=(args.nolocal != True))
+
+        if info.package:
+            name = info.package.qualified_name()
+
+        if args.json:
+            pkginfo[name] = dict()
+            pkginfo[name]['metadata'] = dict()
+        else:
+            print('"{}" info:'.format(name))
+
+        if info.invalid_reason:
+            if args.json:
+                pkginfo[name]['invalid'] = info.invalid_reason
+            else:
+                print('\tinvalid package: {}\n'.format(info.invalid_reason))
+
+            had_invalid_package = True
+            continue
+
+        if args.json:
+            pkginfo[name]['url'] = info.package.git_url
+            pkginfo[name]['versions'] = info.versions
+        else:
+            print('\turl: {}'.format(info.package.git_url))
+            print('\tversions: {}'.format(info.versions))
+
+        if info.status:
+            if args.json:
+                pkginfo[name]['install_status'] = dict()
+
+                for key, value in sorted(info.status.__dict__.items()):
+                    pkginfo[name]['install_status'][key] = value
+            else:
+                print('\tinstall status:')
+
+                for key, value in sorted(info.status.__dict__.items()):
+                    print('\t\t{} = {}'.format(key, value))
+
+        if args.json:
+            if info.metadata_file:
+                pkginfo[name]['metadata_file'] = info.metadata_file
+            pkginfo[name]['metadata'][info.metadata_version] = dict()
+        else:
+            if info.metadata_file:
+                print('\tmetadata file: {}'.format(info.metadata_file))
+            print('\tmetadata (from version "{}"):'.format(
+                info.metadata_version))
+
+        if len(info.metadata) == 0:
+            if args.json != True:
+                print('\t\t<empty metadata file>')
+        else:
+            if args.json:
+                _fill_metadata_version(
+                    pkginfo[name]['metadata'][info.metadata_version],
+                    info.metadata)
+            else:
+                for key, value in sorted(info.metadata.items()):
+                    value = value.replace('\n', '\n\t\t\t')
+                    print('\t\t{} = {}'.format(key, value))
+
+        # If --json and --allvers given, check for multiple versions and
+        # add the metadata for each version to the pkginfo.
+        if args.json and args.allvers:
+            for vers in info.versions:
+                # Skip the version that was already processed
+                if vers != info.metadata_version:
+                    info2 = manager.info(name,
+                                         vers,
+                                         prefer_installed=(args.nolocal != True))
+                    pkginfo[name]['metadata'][info2.metadata_version] = dict()
+                    if info2.metadata_file:
+                        pkginfo[name]['metadata_file'] = info2.metadata_file
+                    _fill_metadata_version(
+                        pkginfo[name]['metadata'][info2.metadata_version],
+                        info2.metadata)
+
+        if not args.json:
+            print()
+
+    if args.json:
+        print(json.dumps(pkginfo, indent=args.jsonpretty, sort_keys=True))
+
+    if had_invalid_package:
+        sys.exit(1)
+
+
+def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
+    """ Fill a dict with metadata information.
+
+        This helper function is called by cmd_info to fill metadata information
+        for a specific package version.
+
+    Args:
+        pkginfo_name_metadata_version (dict of str -> dict): Corresponds
+            to pkginfo[name]['metadata'][info.metadata_version] in cmd_info.
+
+        info_metadata (dict of str->str): Corresponds to info.metadata
+            in cmd_info.
+
+    Side effect:
+        New dict entries are added to pkginfo_name_metadata_version.
+    """
+    for key, value in info_metadata.items():
+        if key == 'depends' or key == 'suggests':
+            pkginfo_name_metadata_version[key] = dict()
+            deps = value.split('\n')
+
+            for i in range(1, len(deps)):
+                deplist = deps[i].split(' ')
+                pkginfo_name_metadata_version[key][deplist[0]] =\
+                    deplist[1]
+        else:
+            pkginfo_name_metadata_version[key] = value
+
+
+def cmd_config(manager, args, config):
+    if args.config_param == 'all':
+        if sys.version_info[0] < 3:
+            from StringIO import StringIO
+        else:
+            from io import StringIO
+
+        out = StringIO()
+        config.write(out)
+        print(out.getvalue())
+        out.close()
+    elif args.config_param == 'sources':
+        for key, value in config_items(config, 'sources'):
+            print('{} = {}'.format(key, value))
+    elif args.config_param == 'user_vars':
+        if config.has_section('user_vars'):
+            for key, value in config_items(config, 'user_vars'):
+                print('{} = {}'.format(key, value))
+    else:
+        print(config.get('paths', args.config_param))
+
+
+def cmd_autoconfig(manager, args, config):
+    bro_config = find_program('bro-config')
+
+    if not bro_config:
+        print_error('error: "bro-config" not found in PATH')
+        sys.exit(1)
+
+    cmd = subprocess.Popen([bro_config,
+                            '--site_dir', '--plugin_dir', '--bro_dist'],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           bufsize=1, universal_newlines=True)
+
+    script_dir = read_bro_config_line(cmd.stdout)
+    plugin_dir = read_bro_config_line(cmd.stdout)
+    bro_dist = read_bro_config_line(cmd.stdout)
+
+    make_dir(config_dir())
+    config_file = os.path.join(config_dir(), 'config')
+    config_file_exists = os.path.isfile(config_file)
+
+    def change_config_value(config, section, option, new_value, use_prompt):
+        if not use_prompt:
+            config.set(section, option, new_value)
+            return
+
+        old_value = config.get(section, option)
+
+        if old_value == new_value:
+            return
+
+        prompt = u'Set "{}" config option to: {} ?'.format(option, new_value)
+
+        if old_value:
+            prompt += u'\n(previous value: {})'.format(old_value)
+
+        if confirmation_prompt(prompt):
+            config.set(section, option, new_value)
+
+    change_config_value(config, 'paths', 'script_dir',
+                        script_dir, config_file_exists)
+    change_config_value(config, 'paths', 'plugin_dir',
+                        plugin_dir, config_file_exists)
+    change_config_value(config, 'paths', 'bro_dist',
+                        bro_dist, config_file_exists)
+
+    with io.open(config_file, 'w', encoding=std_encoding(sys.stdout)) as f:
+        config.write(f)
+
+    print('Successfully wrote config file to {}'.format(config_file))
+
+
+def cmd_env(manager, args, config):
+
+    bro_config = find_program('bro-config')
+    bropath = os.environ.get('BROPATH')
+    pluginpath = os.environ.get('BRO_PLUGIN_PATH')
+
+    if bro_config:
+        cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               bufsize=1, universal_newlines=True)
+        line1 = read_bro_config_line(cmd.stdout)
+        line2 = read_bro_config_line(cmd.stdout)
+
+        if not bropath:
+            bropath = line1
+
+        if not pluginpath:
+            pluginpath = line2
+
+    bropaths = [p for p in bropath.split(':')] if bropath else []
+    pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
+
+    bropaths.append(manager.bropath())
+    pluginpaths.append(manager.bro_plugin_path())
+
+    if os.environ['SHELL'].endswith('csh'):
+        print(u'setenv BROPATH {}'.format(':'.join(bropaths)))
+        print(u'setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
+    else:
+        print(u'export BROPATH={}'.format(':'.join(bropaths)))
+        print(u'export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
+
+
+class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    # Workaround for underlying argparse bug: https://bugs.python.org/issue9338
+    def _format_args(self, action, default_metavar):
+        rval = super(BundleHelpFormatter, self)._format_args(
+                action, default_metavar)
+
+        if action.nargs == argparse.ZERO_OR_MORE:
+            rval += " --"
+        elif action.nargs == argparse.ONE_OR_MORE:
+            rval += " --"
+
+        return rval
+
+
+def top_level_parser():
+    top_parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='A command-line package manager for Bro.',
+        epilog='Environment Variables:\n\n'
+        '    ``BRO_PKG_CONFIG_FILE``:\t'
+        'Same as ``--configfile`` option, but has less precedence.'
+    )
+    top_parser.add_argument('--version', action='version',
+                            version='%(prog)s ' + bropkg.__version__)
+    top_parser.add_argument('--configfile',
+                            help='Path to Bro Package Manager config file.')
+    top_parser.add_argument('--verbose', '-v', action='count', default=0,
+                            help='Increase program output for debugging.'
+                            ' Use multiple times for more output (e.g. -vvv).')
+    return top_parser
+
+
+def argparser():
+    pkg_name_help = 'The name(s) of package(s) to operate on.  The package' \
+                    ' may be named in several ways.  If the package is part' \
+                    ' of a package source, it may be referred to by the' \
+                    ' base name of the package (last component of git URL)' \
+                    ' or its path within the package source.' \
+                    ' If two packages in different package sources' \
+                    ' have conflicting paths, then the package source' \
+                    ' name may be prepended to the package path to resolve' \
+                    ' the ambiguity. A full git URL may also be used to refer' \
+                    ' to a package that does not belong to a source. E.g. for' \
+                    ' a package source called "bro" that has a package named' \
+                    ' "foo" located in "alice/bro-pkg.index" the following' \
+                    ' names work: "foo", "alice/foo", "bro/alice/foo".'
+
+    top_parser = top_level_parser()
+    command_parser = top_parser.add_subparsers(
+        title='commands', dest='command',
+        help='See `%(prog)s <command> -h` for per-command usage info.')
+    command_parser.required = True
+
+    # test
+    sub_parser = command_parser.add_parser(
+        'test',
+        help='Runs unit tests for Bro packages.',
+        description='Runs the unit tests for the specified Bro packages.'
+                    ' In most cases, the "bro" and "bro-config" programs will'
+                    ' need to be in PATH before running this command.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_test)
+    sub_parser.add_argument(
+        'package', nargs='+', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--version', default=None,
+        help='The version of the package to test.  Only one package may be'
+        ' specified at a time when using this flag.  A version tag, branch'
+        ' name, or commit hash may be specified here.'
+        ' If the package name refers to a local git repo with a working tree,'
+        ' then its currently active branch is used.'
+        ' The default for other cases is to use'
+        ' the latest version tag, or if a package has none, the "master"'
+        ' branch.')
+
+    # install
+    sub_parser = command_parser.add_parser(
+        'install',
+        help='Installs Bro packages.',
+        description='Installs packages from a configured package source or'
+                    ' directly from a git URL.  After installing, the package'
+                    ' is marked as being "loaded" (see the ``load`` command).',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_install)
+    sub_parser.add_argument(
+        'package', nargs='+', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--skiptests', action='store_true',
+        help='Skip running unit tests for packages before installation.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a '
+        ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nosuggestions', action='store_true',
+        help='Skip automatically installing suggested packages.')
+    sub_parser.add_argument(
+        '--version', default=None,
+        help='The version of the package to install.  Only one package may be'
+        ' specified at a time when using this flag.  A version tag, branch'
+        ' name, or commit hash may be specified here.'
+        ' If the package name refers to a local git repo with a working tree,'
+        ' then its currently active branch is used.'
+        ' The default for other cases is to use'
+        ' the latest version tag, or if a package has none, the "master"'
+        ' branch.')
+
+    # bundle
+    sub_parser = command_parser.add_parser(
+        'bundle',
+        help='Creates a bundle file containing a collection of Bro packages.',
+        description='This command creates a bundle file containing a collection'
+                    ' of Bro packages.  If ``--manifest`` is used, the user'
+                    ' supplies the list of packages to put in the bundle, else'
+                    ' all currently installed packages are put in the bundle.'
+                    ' A bundle file can be unpacked on any target system,'
+                    ' resulting in a repeatable/specific set of packages'
+                    ' being installed on that target system (see the'
+                    ' ``unbundle`` command).  This command may be useful for'
+                    ' those that want to manage packages on a system that'
+                    ' otherwise has limited network connectivity.  E.g. one can'
+                    ' use a system with an internet connection to create a'
+                    ' bundle, transport that bundle to the target machine'
+                    ' using whatever means are appropriate, and finally'
+                    ' unbundle/install it on the target machine.',
+        formatter_class=BundleHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_bundle)
+    sub_parser.add_argument(
+        'bundle_filename',
+        metavar='filename.bundle',
+        help='The path of the bundle file to create.  It will be overwritten'
+             ' if it already exists.  Note that if --manifest is used before'
+             ' this filename is specified, you should use a double-dash, --,'
+             ' to first terminate that argument list.')
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks creating a bundle of packages that is in a '
+        ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nosuggestions', action='store_true',
+        help='Skip automatically bundling suggested packages.')
+    sub_parser.add_argument(
+        '--manifest', nargs='+',
+        help='This may either be a file name or a list of packages to include'
+        ' in the bundle.  If a file name is supplied, it should be in INI'
+        ' format with a single ``[bundle]`` section.  The keys in that section'
+        ' correspond to package names and their values correspond to git'
+        ' version tags, branch names, or commit hashes.  The values may be'
+        ' left blank to indicate that the latest available version should be'
+        ' used.')
+
+    # unbundle
+    sub_parser = command_parser.add_parser(
+        'unbundle',
+        help='Unpacks Bro packages from a bundle file and installs them.',
+        description='This command unpacks a bundle file formerly created by the'
+                    ' ``bundle`` command and installs all the packages'
+                    ' contained within.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_unbundle)
+    sub_parser.add_argument(
+        'bundle_filename',
+        metavar='filename.bundle',
+        help='The path of the bundle file to install.')
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--replace', action='store_true',
+        help='Using this flag first removes all installed packages before then'
+        ' installing the packages from the bundle.')
+
+    # remove
+    sub_parser = command_parser.add_parser(
+        'remove',
+        help='Uninstall a package.',
+        description='Unloads (see the ``unload`` command) and uninstalls a'
+        ' previously installed package.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_remove)
+    sub_parser.add_argument('package', nargs='+', help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+
+    # purge
+    sub_parser = command_parser.add_parser(
+        'purge',
+        help='Uninstall all packages.',
+        description='Unloads (see the ``unload`` command) and uninstalls all'
+        ' previously installed packages.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_purge)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+
+    # refresh
+    sub_parser = command_parser.add_parser(
+        'refresh',
+        help='Retrieve updated package metadata.',
+        description='Retrieve latest package metadata from sources and checks'
+        ' whether any installed packages have available upgrades.'
+        ' Note that this does not actually upgrade any packages (see the'
+        ' ``upgrade`` command for that).',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_refresh)
+    sub_parser.add_argument(
+        '--aggregate', action='store_true',
+        help='Crawls the urls listed in package source bro-pkg.index files and'
+        ' aggregates the metadata found in their bro-pkg.meta files.  The'
+        ' aggregated metadata is stored in the local clone of the package'
+        ' source that zkg uses internally locating package metadata.'
+        ' For each package, the metadata is taken from the highest available'
+        ' git version tag or the master branch if no version tags exist')
+    sub_parser.add_argument(
+        '--push', action='store_true',
+        help='Push all local changes to package sources to upstream repos')
+    sub_parser.add_argument('--sources', nargs='+',
+                            help='A list of package source names to operate on.  If this argument'
+                            ' is not used, then the command will operate on all configured'
+                            ' sources.')
+
+    # upgrade
+    sub_parser = command_parser.add_parser(
+        'upgrade',
+        help='Upgrade installed packages to latest versions.',
+        description='Uprades the specified package(s) to latest available'
+        ' version.  If no specific packages are specified, then all installed'
+        ' packages that are outdated and not pinned are upgraded.  For packages'
+        ' that are installed with ``--version`` using a git branch name, the'
+        ' package is updated to the latest commit on that branch, else the'
+        ' package is updated to the highest available git version tag.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_upgrade)
+    sub_parser.add_argument(
+        'package', nargs='*', default=[], help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--skiptests', action='store_true',
+        help='Skip running unit tests for packages before installation.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a '
+        ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nosuggestions', action='store_true',
+        help='Skip automatically installing suggested packages.')
+
+    # load
+    sub_parser = command_parser.add_parser(
+        'load',
+        help='Register packages to be be auto-loaded by Bro.',
+        description='The Bro Package Manager keeps track of all packages that'
+        ' are marked as "loaded" and maintains a single Bro script that, when'
+        ' loaded by Bro (e.g. via ``@load packages``), will load the scripts'
+        ' from all "loaded" packages at once.'
+        ' This command adds a set of packages to the "loaded packages" list.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_load)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[],
+        help='Name(s) of package(s) to load.')
+
+    # unload
+    sub_parser = command_parser.add_parser(
+        'unload',
+        help='Unregister packages to be be auto-loaded by Bro.',
+        description='The Bro Package Manager keeps track of all packages that'
+        ' are marked as "loaded" and maintains a single Bro script that, when'
+        ' loaded by Bro, will load the scripts from all "loaded" packages at'
+        ' once.  This command removes a set of packages from the "loaded'
+        ' packages" list.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_unload)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[], help=pkg_name_help)
+
+    # pin
+    sub_parser = command_parser.add_parser(
+        'pin',
+        help='Prevent packages from being automatically upgraded.',
+        description='Pinned packages are ignored by the ``upgrade`` command.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_pin)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[], help=pkg_name_help)
+
+    # unpin
+    sub_parser = command_parser.add_parser(
+        'unpin',
+        help='Allows packages to be automatically upgraded.',
+        description='Packages that are not pinned are automatically upgraded'
+        ' by the ``upgrade`` command',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_unpin)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[], help=pkg_name_help)
+
+    # list
+    sub_parser = command_parser.add_parser(
+        'list',
+        help='Lists packages.',
+        description='Outputs a list of packages that match a given category.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_list)
+    sub_parser.add_argument('category', nargs='?', default='installed',
+                            choices=['all', 'installed', 'not_installed',
+                                     'loaded', 'unloaded', 'outdated'],
+                            help='Package category used to filter listing.')
+    sub_parser.add_argument(
+        '--nodesc', action='store_true',
+        help='Do not display description text, just the package name(s).')
+
+    # search
+    sub_parser = command_parser.add_parser(
+        'search',
+        help='Search packages for matching names.',
+        description='Perform a substring search on package names and metadata'
+        ' tags.  Surround search text with slashes to indicate it is a regular'
+        ' expression (e.g. ``/text/``).',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_search)
+    sub_parser.add_argument(
+        'search_text', nargs='+', default=[],
+        help='The text(s) or pattern(s) to look for.')
+
+    # info
+    sub_parser = command_parser.add_parser(
+        'info',
+        help='Display package information.',
+        description='Shows detailed information/metadata for given packages.'
+        ' If the package is currently installed, additional information about'
+        ' the status of it is displayed.  E.g. the installed version or whether'
+        ' it is currently marked as "pinned" or "loaded."',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_info)
+    sub_parser.add_argument(
+        'package', nargs='+', default=[], help=pkg_name_help +
+        ' If a single name is given and matches one of the same categories'
+        ' as the "list" command, then it is automatically expanded to be the'
+        ' names of all packages which match the given category.')
+    sub_parser.add_argument(
+        '--version', default=None,
+        help='The version of the package metadata to inspect.  A version tag,'
+        ' branch name, or commit hash and only one package at a time may be'
+        ' given when using this flag.  If unspecified, the behavior depends'
+        ' on whether the package is currently installed.  If installed,'
+        ' the metadata will be pulled from the installed version.  If not'
+        ' installed, the latest version tag is used, or if a package has no'
+        ' version tags, the "master" branch is used.')
+    sub_parser.add_argument(
+        '--nolocal', action='store_true',
+        help='Do not read information from locally installed packages.'
+        ' Instead read info from remote GitHub.')
+    sub_parser.add_argument(
+        '--json', action='store_true',
+        help='Output package information as JSON.')
+    sub_parser.add_argument(
+        '--jsonpretty', type=int, default=None, metavar='SPACES',
+        help='Optional number of spaces to indent for pretty-printed'
+        ' JSON output.')
+    sub_parser.add_argument(
+        '--allvers', action='store_true',
+        help='When outputting package information as JSON, show metadata for'
+        ' all versions. This option can be slow since remote repositories'
+        ' may be cloned multiple times. Also, installed packages will show'
+        ' metadata only for the installed version unless the --nolocal '
+        ' option is given.')
+
+    # config
+    sub_parser = command_parser.add_parser(
+        'config',
+        help='Show Bro Package Manager configuration info.',
+        description='The default output of this command is a valid package'
+        ' manager config file that corresponds to the one currently being used,'
+        ' but also with any defaulted field values filled in.  This command'
+        ' also allows for only the value of a specific field to be output if'
+        ' the name of that field is given as an argument to the command.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_config)
+    sub_parser.add_argument(
+        'config_param', nargs='?', default='all',
+        choices=['all', 'sources', 'user_vars', 'state_dir', 'script_dir',
+                 'plugin_dir', 'bro_dist'],
+        help='Name of a specific config file field to output.')
+
+    # autoconfig
+    sub_parser = command_parser.add_parser(
+        'autoconfig',
+        help='Generate a Bro Package Manager configuration file.',
+        description='The output of this command is a valid package manager'
+        ' config file that is generated by using the ``bro-config`` script'
+        ' that is installed along with Bro.  It is the suggested configuration'
+        ' to use for most Bro installations.  For this command to work, the'
+        ' ``bro-config`` script must be in ``PATH``.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_autoconfig)
+
+    # env
+    sub_parser = command_parser.add_parser(
+        'env',
+        help='Show the value of environment variables that need to be set for'
+        ' Bro to be able to use installed packages.',
+        description='This command returns shell commands that, when executed,'
+        ' will correctly set ``BROPATH`` and ``BRO_PLUGIN_PATH`` to utilize the'
+        ' scripts and plugins from packages installed by the package manager.'
+        ' For this command to function properly, either have the ``bro-config``'
+        ' script (installed by bro) in ``PATH``, or have the ``BROPATH`` and'
+        ' ``BRO_PLUGIN_PATH`` environment variables already set so this command'
+        ' can append package-specific paths to them.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.set_defaults(run_cmd=cmd_env)
+
+    return top_parser
+
+
+def main():
+    args = argparser().parse_args()
+
+    if args.verbose > 0:
+        formatter = logging.Formatter(
+            '%(asctime)s %(levelname)-8s %(message)s', '%Y-%m-%d %H:%M:%S')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+
+        if args.verbose == 1:
+            bropkg.LOG.setLevel(logging.WARNING)
+        elif args.verbose == 2:
+            bropkg.LOG.setLevel(logging.INFO)
+        elif args.verbose == 3:
+            bropkg.LOG.setLevel(logging.DEBUG)
+
+        bropkg.LOG.addHandler(handler)
+
+    configfile = args.configfile
+
+    if not configfile:
+        configfile = find_configfile()
+
+    config = create_config(configfile)
+    manager = create_manager(config)
+
+    args.run_cmd(manager, args, config)
+
+
+if __name__ == '__main__':
+    main()
+    sys.exit(0)

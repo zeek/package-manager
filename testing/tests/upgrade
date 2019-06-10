@@ -1,11 +1,11 @@
 # @TEST-EXEC: bash setup_foo
 
-# @TEST-EXEC: bro-pkg install foo bar
+# @TEST-EXEC: zkg install foo bar
 
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC: bro-pkg upgrade
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC: zkg upgrade
 
 # @TEST-EXEC: btest-diff scripts/packages/foo/__load__.bro
 # @TEST-EXEC: btest-diff scripts/packages/bar/__load__.bro

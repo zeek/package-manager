@@ -1,6 +1,6 @@
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: LAST_VAR=/home/jon/sandbox bro-pkg install foo
+# @TEST-EXEC: LAST_VAR=/home/jon/sandbox zkg install foo
 # @TEST-EXEC: btest-diff state/logs/foo-build.log
 
 cd packages/foo

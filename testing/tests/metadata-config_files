@@ -1,18 +1,18 @@
 # @TEST-EXEC: bash setup
 
-# @TEST-EXEC: bro-pkg install foo bar
+# @TEST-EXEC: zkg install foo bar
 
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC: bro-pkg upgrade foo
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC: zkg upgrade foo
 
 # @TEST-EXEC: btest-diff scripts/foo/config.bro
 # @TEST-EXEC: btest-diff scripts/bar/config.bro
 # @TEST-EXEC: cp state/backups/one/alice/foo/config.bro* foo_backup.bro
 # @TEST-EXEC: btest-diff foo_backup.bro
 
-# @TEST-EXEC: bro-pkg install bar --version=2.0.0
+# @TEST-EXEC: zkg install bar --version=2.0.0
 # @TEST-EXEC: cp scripts/bar/config.bro barconfig2.bro
 # @TEST-EXEC: btest-diff barconfig2.bro
 # @TEST-EXEC: cp state/backups/one/alice/bar/config.bro* bar_backup.bro

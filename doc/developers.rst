@@ -15,7 +15,7 @@ Versioning/Releases
 
 After making a commit to the *master* branch, you can use the
 :program:`update-changes` script in the `zeek-aux`_ repository to automatically
-adapt version numbers and regenerate the :program:`bro-pkg` man page.  Make sure
+adapt version numbers and regenerate the :program:`zkg` man page.  Make sure
 to install the `documentation dependencies`_ before using it.
 
 Releases are hosted at PyPi_.  To build and upload a release:

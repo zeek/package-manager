@@ -1,16 +1,18 @@
 .. _bro-pkg:
 
-bro-pkg Command-Line Tool
-=========================
+.. _zkg:
+
+zkg Command-Line Tool
+=====================
 
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :nosubcommands:
 
     --configfile : @after
-        See :ref:`bro-pkg-config-file`.
+        See :ref:`zkg-config-file`.
 
 Commands
 --------
@@ -20,9 +22,9 @@ Commands
 test
 ~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: test
 
 .. _install-command:
@@ -30,9 +32,9 @@ test
 install
 ~~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: install
 
 .. _remove-command:
@@ -40,9 +42,9 @@ install
 remove
 ~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: remove
 
 .. _purge-command:
@@ -50,9 +52,9 @@ remove
 purge
 ~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: purge
 
 .. _bundle-command:
@@ -60,9 +62,9 @@ purge
 bundle
 ~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: bundle
 
 .. _unbundle-command:
@@ -70,9 +72,9 @@ bundle
 unbundle
 ~~~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: unbundle
 
 .. _refresh-command:
@@ -80,9 +82,9 @@ unbundle
 refresh
 ~~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: refresh
 
 .. _upgrade-command:
@@ -90,9 +92,9 @@ refresh
 upgrade
 ~~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: upgrade
 
 .. _load-command:
@@ -100,9 +102,9 @@ upgrade
 load
 ~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: load
 
 .. _unload-command:
@@ -110,9 +112,9 @@ load
 unload
 ~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: unload
 
 .. _pin-command:
@@ -120,9 +122,9 @@ unload
 pin
 ~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: pin
 
 .. _unpin-command:
@@ -130,9 +132,9 @@ pin
 unpin
 ~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: unpin
 
 .. _list-command:
@@ -140,9 +142,9 @@ unpin
 list
 ~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: list
 
 .. _search-command:
@@ -150,9 +152,9 @@ list
 search
 ~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: search
 
 .. _info-command:
@@ -160,9 +162,9 @@ search
 info
 ~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: info
 
 .. _config-command:
@@ -170,9 +172,9 @@ info
 config
 ~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: config
 
 .. _autoconfig-command:
@@ -180,9 +182,9 @@ config
 autoconfig
 ~~~~~~~~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: autoconfig
 
 .. _env-command:
@@ -190,20 +192,22 @@ autoconfig
 env
 ~~~
 .. argparse::
-    :module: bro-pkg
+    :module: zkg
     :func: argparser
-    :prog: bro-pkg
+    :prog: zkg
     :path: env
 
 .. _bro-pkg-config-file:
 
+.. _zkg-config-file:
+
 Config File
 -----------
 
-The :program:`bro-pkg` command-line tool uses an INI-format config file to allow
+The :program:`zkg` command-line tool uses an INI-format config file to allow
 users to customize their :doc:`Package Sources <source>`, :doc:`Package
 <package>` installation paths, Bro executable/source paths, and other
-:program:`bro-pkg` options.
+:program:`zkg` options.
 
 See the default/example config file below for explanations of the
 available options and how to customize them:

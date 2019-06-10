@@ -1,6 +1,6 @@
 
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: zkg install foo
 # @TEST-EXEC: btest-diff scripts/foo/__load__.bro
 # @TEST-EXEC: btest-diff scripts/foo2/__load__.bro
 # @TEST-EXEC: btest-diff scripts/foo3/__load__.bro

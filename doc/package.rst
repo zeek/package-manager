@@ -24,10 +24,10 @@ as how it inter-operates with Bro, the package manager, or other packages.
 
 .. _package-shorthand-name:
 
-Note that the shorthand name for your package that may be used by :ref:`bro-pkg
-<bro-pkg>` and Bro script :samp:`@load {<package_name>}` directives will be the
+Note that the shorthand name for your package that may be used by :ref:`zkg
+<zkg>` and Bro script :samp:`@load {<package_name>}` directives will be the
 last component of its git URL. E.g. a package at ``https://github.com/bro/foo``
-may be referred to as **foo** when using :program:`bro-pkg` and a Bro
+may be referred to as **foo** when using :program:`zkg` and a Bro
 script that wants to load all the scripts within that package can use:
 
 .. code-block:: bro
@@ -72,13 +72,13 @@ Pure Bro Script Package
       $ git add * && git commit -m 'First commit'
 
 #. (Optional) Test that Bro correctly loads the script after installing the
-   package with :program:`bro-pkg`:
+   package with :program:`zkg`:
 
    .. code-block:: console
 
-      $ bro-pkg install .
+      $ zkg install .
       $ bro foo
-      $ bro-pkg remove .
+      $ zkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
@@ -160,13 +160,13 @@ though the following step are the essentials needed to create a package.
       $ git add * && git commit -m 'First commit'
 
 #. (Optional) Test that Bro correctly loads the plugin after installing the
-   package with :program:`bro-pkg`:
+   package with :program:`zkg`:
 
    .. code-block:: console
 
-      $ bro-pkg install .
+      $ zkg install .
       $ bro rot13 -e 'print Demo::rot13("Hello")'
-      $ bro-pkg remove .
+      $ zkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
@@ -219,13 +219,13 @@ BroControl Plugin Package
       $ git add * && git commit -m 'First commit'
 
 #. (Optional) Test that BroControl correctly loads the plugin after installing
-   the package with :program:`bro-pkg`:
+   the package with :program:`zkg`:
 
    .. code-block:: console
 
-      $ bro-pkg install .
+      $ zkg install .
       $ broctl
-      $ bro-pkg remove .
+      $ zkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
@@ -264,7 +264,7 @@ used in :file:`bro-pkg.meta` files.
 ~~~~~~~~~~~~~~~~~~~
 
 The description field may be used to give users a general overview of the
-package and its purpose. The :ref:`bro-pkg list <list-command>` will display
+package and its purpose. The :ref:`zkg list <list-command>` will display
 the first sentence of description fields in the listings it displays.  An
 example :file:`bro-pkg.meta` using a description field::
 
@@ -295,9 +295,9 @@ same as if using a single alias equal to the package's name.
 
 The low-level details of the way this field operates is that, for each alias,
 it simply creates a symlink of the same name within the directory associated
-with the ``script_dir`` path in the :ref:`config file <bro-pkg-config-file>`.
+with the ``script_dir`` path in the :ref:`config file <zkg-config-file>`.
 
-Available :program:`since bro-pkg v1.5`.
+Available :program:`since v1.5`.
 
 `credits` field
 ~~~~~~~~~~~~~~~
@@ -308,7 +308,7 @@ addresses.
 
 It may be used if you have particular requirements or concerns regarding
 how authors or contributors for your package are credited in any public
-listings made by external metadata scraping tools (:program:`bro-pkg`
+listings made by external metadata scraping tools (:program:`zkg`
 does not itself use this data directly for any functional purpose).  It
 may also be useful as a standardized location for users to get
 contact/support info in case they encounter problems with the package.
@@ -324,7 +324,7 @@ For example::
 The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
 better discover and search for packages.  The
-:ref:`bro-pkg search <search-command>` command will inspect these tags.  An
+:ref:`zkg search <search-command>` command will inspect these tags.  An
 example :file:`bro-pkg.meta` using tags::
 
   [package]
@@ -372,7 +372,7 @@ contains a file named :file:`__load__.bro` and possibly other Bro scripts. The
 files located in this directory are copied into
 :file:`{<user_script_dir>}/packages/{<package>}/`, where `<user_script_dir>`
 corresponds to the `script_dir` field of the user's
-:ref:`config file <bro-pkg-config-file>` (typically
+:ref:`config file <zkg-config-file>` (typically
 :file:`{<bro_install_prefix>}/share/bro/site`).
 
 When the package is :ref:`loaded <load-command>`,
@@ -396,9 +396,9 @@ file called :file:`scripts/__load__.bro`.
 
 If the `script_dir` field is not present in :file:`bro-pkg.meta`, it
 defaults to checking the top-level directory of the package for a
-:file:`__load__.bro` script.  If it's found there, :program:`bro-pkg`
+:file:`__load__.bro` script.  If it's found there, :program:`zkg`
 use the top-level package directory as the value for `script_dir`.  If
-it's not found, then :program:`bro-pkg` assumes the package contains no
+it's not found, then :program:`zkg` assumes the package contains no
 Bro scripts (which may be the case for some plugins).
 
 `plugin_dir` field
@@ -449,7 +449,7 @@ An example :file:`bro-pkg.meta`::
 In the above example, the ``%(bro_dist)s`` string is
 :ref:`substituted <metadata-interpolation>` for the path the user has set for
 the `bro_dist` field in the
-:ref:`package manager config file <bro-pkg-config-file>`.
+:ref:`package manager config file <zkg-config-file>`.
 
 The default CMake skeleton for Bro plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
@@ -467,17 +467,17 @@ Value Interpolation
 ^^^^^^^^^^^^^^^^^^^
 
 The `build_command field`_ may reference the settings any given user has in
-their customized :ref:`package manager config file <bro-pkg-config-file>`.
+their customized :ref:`package manager config file <zkg-config-file>`.
 
 For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
-then :program:`bro-pkg` operations that use that field will automatically
+then :program:`zkg` operations that use that field will automatically
 substitute the actual value of `bro_dist` that the user has in their local
 config file.  Note the trailing 's' character at the end of the interpolation
 string, ``%(bro_dist)s`` is intended/necessary for all such interpolation
 usages.
 
 Besides the `bro_dist` config key, any key inside the `user_vars` sections
-of their :ref:`package manager config file <bro-pkg-config-file>` that matches
+of their :ref:`package manager config file <zkg-config-file>` that matches
 the key of an entry in the package's `user_vars field`_ will be interpolated.
 
 Internally, the value substitution and metadata parsing is handled by Python's
@@ -513,7 +513,7 @@ used for.
 
 Here's what a typical user would see::
 
-  $ bro-pkg install bro-test-package
+  $ zkg install bro-test-package
   The following packages will be INSTALLED:
     bro/jsiwek/bro-test-package (1.0.5)
 
@@ -523,22 +523,22 @@ Here's what a typical user would see::
   Installed "bro/jsiwek/bro-test-package" (master)
   Loaded "bro/jsiwek/bro-test-package"
 
-The :program:`bro-pkg` command will iterate over the `user_vars` field of all
+The :program:`zkg` command will iterate over the `user_vars` field of all
 packages involved in the operation and prompt the user to provide a value that
 will work for their system.
 
-If a user is using the ``--force`` option to :program:`bro-pkg` commands or they
+If a user is using the ``--force`` option to :program:`zkg` commands or they
 are using the Python API directly, it will first look within the `user_vars`
-section of the user's :ref:`package manager config file <bro-pkg-config-file>`
+section of the user's :ref:`package manager config file <zkg-config-file>`
 and, if it can't find the key there, it will fallback to use the default value
 from the package's metadata.
 
 In any case, the user may choose to supply the value of a `user_vars` key via
 an environment variable, in which case, prompts are skipped for any keys
 located in the environment.  The environment is also given priority over any
-values in the user's :ref:`package manager config file <bro-pkg-config-file>`.
+values in the user's :ref:`package manager config file <zkg-config-file>`.
 
-Available :program:`since bro-pkg v1.1`.
+Available :program:`since v1.1`.
 
 `test_command` field
 ~~~~~~~~~~~~~~~~~~~~
@@ -561,7 +561,7 @@ See its documentation for further explanation and examples.
 The `config_files` field may be used to specify a list of files that users
 are intended to directly modify after installation.  Then, on operations that
 would otherwise destroy a user's local modifications to a config file, such
-as upgrading to a newer package version, :program:`bro-pkg` can instead save
+as upgrading to a newer package version, :program:`zkg` can instead save
 a backup and possibly prompt the user to review the differences.
 
 An example :file:`bro-pkg.meta`::
@@ -600,7 +600,7 @@ or a :ref:`package shorthand name <package-shorthand-name>`.
 - The special `bro` dependency refers not to a package, but the version of
   Bro that the package requires in order to function.  If the user has
   :program:`bro-config` in their :envvar:`PATH` when installing/upgrading a
-  package that specifies a `bro` dependency, then :program:`bro-pkg` will
+  package that specifies a `bro` dependency, then :program:`zkg` will
   enforce that the requirement is satisfied.
 
 - The special `bro-pkg` dependency refers to the version of the package
@@ -610,14 +610,14 @@ or a :ref:`package shorthand name <package-shorthand-name>`.
   message an know to upgrade instead of seeing a cryptic error/exception, or
   worse, seeing no errors, but without the desired functionality being
   performed.
-  Note that this feature itself is only available :program:`since bro-pkg v1.2`.
+  Note that this feature itself is only available :program:`since v1.2`.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git
   repository.  Typically this is the safe approach to take when listing
   package dependencies and for publicly visible packages.
 
-- When using shorthand package dependency names, the user's :program:`bro-pkg`
+- When using shorthand package dependency names, the user's :program:`zkg`
   will try to resolve the name into a full git URL based on the package sources
   they have configured.  Typically this approach may be most useful for internal
   or testing environments.
@@ -661,7 +661,7 @@ name and version specification for an external dependency are only used
 for display purposes -- to help users understand extra pre-requisites
 that are needed for proceeding with package installation/upgrades.
 
-Available :program:`since bro-pkg v1.1`.
+Available :program:`since v1.1`.
 
 `suggests` field
 ~~~~~~~~~~~~~~~~
@@ -674,11 +674,11 @@ to function properly.
 
 A package in `suggests` is functionaly equivalent to a package in `depends`
 except in the way it's presented to users in various prompts during
-:program:`bro-pkg` operations.  Users also have the option to ignore
+:program:`zkg` operations.  Users also have the option to ignore
 suggestions by supplying an additional ``--nosuggestions`` flag to
-:program:`bro-pkg` commands.
+:program:`zkg` commands.
 
-Available :program:`since bro-pkg v1.3`.
+Available :program:`since v1.3`.
 
 .. _package-versioning:
 
@@ -724,7 +724,7 @@ The :ref:`install command <install-command>` will either install a
 stable release version or the latest commit on a specific git branch of
 a package.
 
-The default installation behavior of :program:`bro-pkg` is to look for
+The default installation behavior of :program:`zkg` is to look for
 the latest release version tag and install that.  If there are no such
 version tags, it will fall back to installing the latest commit of the
 package's *master* branch

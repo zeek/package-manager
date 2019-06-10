@@ -1,18 +1,18 @@
 # @TEST-EXEC: bash setup_foo
 
-# @TEST-EXEC: bro-pkg install foo bar
-# @TEST-EXEC: bro-pkg pin foo bar
+# @TEST-EXEC: zkg install foo bar
+# @TEST-EXEC: zkg pin foo bar
 
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC-FAIL: bro-pkg upgrade
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC-FAIL: zkg upgrade
 
 # @TEST-EXEC: btest-diff scripts/packages/foo/__load__.bro
 # @TEST-EXEC: btest-diff scripts/packages/bar/__load__.bro
 
-# @TEST-EXEC: bro-pkg unpin foo bar
-# @TEST-EXEC: bro-pkg upgrade
+# @TEST-EXEC: zkg unpin foo bar
+# @TEST-EXEC: zkg upgrade
 # @TEST-EXEC: cp scripts/packages/foo/__load__.bro foo_after_unpin.out
 # @TEST-EXEC: cp scripts/packages/bar/__load__.bro bar_after_unpin.out
 # @TEST-EXEC: btest-diff foo_after_unpin.out
