@@ -151,7 +151,11 @@ def file_is_not_empty(path):
 
 
 def find_configfile():
-    configfile = os.environ.get('BRO_PKG_CONFIG_FILE')
+    configfile = os.environ.get('ZKG_CONFIG_FILE')
+
+    if not configfile:
+        # For backward compatibility with old bro-pkg.
+        configfile = os.environ.get('BRO_PKG_CONFIG_FILE')
 
     if configfile and file_is_not_empty(configfile):
         return configfile
@@ -1709,7 +1713,7 @@ def top_level_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='A command-line package manager for Bro.',
         epilog='Environment Variables:\n\n'
-        '    ``BRO_PKG_CONFIG_FILE``:\t'
+        '    ``ZKG_CONFIG_FILE``:\t'
         'Same as ``--configfile`` option, but has less precedence.'
     )
     top_parser.add_argument('--version', action='version',

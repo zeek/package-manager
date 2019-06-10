@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "BRO-PKG" "1" "May 03, 2019" "1.7.0-7" "Zeek Package Manager"
+.TH "BRO-PKG" "1" "Jun 10, 2019" "1.7.0-7" "Zeek Package Manager"
 .SH NAME
 bro-pkg \- Zeek Package Manager
 .
@@ -38,9 +38,9 @@ A command\-line package manager for Bro.
 .sp
 .nf
 .ft C
-usage: bro\-pkg [\-h] [\-\-version] [\-\-configfile CONFIGFILE] [\-\-verbose]
-               {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env}
-               ...
+usage: zkg [\-h] [\-\-version] [\-\-configfile CONFIGFILE] [\-\-verbose]
+           {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env}
+           ...
 .ft P
 .fi
 .UNINDENT
@@ -66,7 +66,7 @@ Increase program output for debugging. Use multiple times for more output (e.g. 
 Environment Variables:
 .INDENT 0.0
 .INDENT 3.5
-\fBBRO_PKG_CONFIG_FILE\fP:	Same as \fB\-\-configfile\fP option, but has less precedence.
+\fBZKG_CONFIG_FILE\fP:	Same as \fB\-\-configfile\fP option, but has less precedence.
 .UNINDENT
 .UNINDENT
 
@@ -80,7 +80,7 @@ Runs the unit tests for the specified Bro packages. In most cases, the "bro" and
 .sp
 .nf
 .ft C
-usage: bro\-pkg test [\-h] [\-\-version VERSION] package [package ...]
+usage: zkg test [\-h] [\-\-version VERSION] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -110,9 +110,9 @@ Installs packages from a configured package source or directly from a git URL.  
 .sp
 .nf
 .ft C
-usage: bro\-pkg install [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps]
-                       [\-\-nosuggestions] [\-\-version VERSION]
-                       package [package ...]
+usage: zkg install [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions]
+                   [\-\-version VERSION]
+                   package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -154,7 +154,7 @@ Unloads (see the \fBunload\fP command) and uninstalls a previously installed pac
 .sp
 .nf
 .ft C
-usage: bro\-pkg remove [\-h] [\-\-force] package [package ...]
+usage: zkg remove [\-h] [\-\-force] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -184,7 +184,7 @@ Unloads (see the \fBunload\fP command) and uninstalls all previously installed p
 .sp
 .nf
 .ft C
-usage: bro\-pkg purge [\-h] [\-\-force]
+usage: zkg purge [\-h] [\-\-force]
 .ft P
 .fi
 .UNINDENT
@@ -207,9 +207,9 @@ This command creates a bundle file containing a collection of Bro packages.  If 
 .sp
 .nf
 .ft C
-usage: bro\-pkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
-                      [\-\-manifest MANIFEST [MANIFEST ...] \-\-]
-                      filename.bundle
+usage: zkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions]
+                  [\-\-manifest MANIFEST [MANIFEST ...] \-\-]
+                  filename.bundle
 .ft P
 .fi
 .UNINDENT
@@ -248,7 +248,7 @@ This command unpacks a bundle file formerly created by the \fBbundle\fP command 
 .sp
 .nf
 .ft C
-usage: bro\-pkg unbundle [\-h] [\-\-force] [\-\-replace] filename.bundle
+usage: zkg unbundle [\-h] [\-\-force] [\-\-replace] filename.bundle
 .ft P
 .fi
 .UNINDENT
@@ -281,8 +281,8 @@ Retrieve latest package metadata from sources and checks whether any installed p
 .sp
 .nf
 .ft C
-usage: bro\-pkg refresh [\-h] [\-\-aggregate] [\-\-push]
-                       [\-\-sources SOURCES [SOURCES ...]]
+usage: zkg refresh [\-h] [\-\-aggregate] [\-\-push]
+                   [\-\-sources SOURCES [SOURCES ...]]
 .ft P
 .fi
 .UNINDENT
@@ -293,7 +293,7 @@ usage: bro\-pkg refresh [\-h] [\-\-aggregate] [\-\-push]
 .INDENT 7.0
 .TP
 .B \-\-aggregate=False
-Crawls the urls listed in package source bro\-pkg.index files and aggregates the metadata found in their bro\-pkg.meta files.  The aggregated metadata is stored in the local clone of the package source that bro\-pkg uses internally locating package metadata. For each package, the metadata is taken from the highest available git version tag or the master branch if no version tags exist
+Crawls the urls listed in package source bro\-pkg.index files and aggregates the metadata found in their bro\-pkg.meta files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally locating package metadata. For each package, the metadata is taken from the highest available git version tag or the master branch if no version tags exist
 .TP
 .B \-\-push=False
 Push all local changes to package sources to upstream repos
@@ -311,9 +311,8 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .sp
 .nf
 .ft C
-usage: bro\-pkg upgrade [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps]
-                       [\-\-nosuggestions]
-                       [package [package ...]]
+usage: zkg upgrade [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions]
+                   [package [package ...]]
 .ft P
 .fi
 .UNINDENT
@@ -352,7 +351,7 @@ The Bro Package Manager keeps track of all packages that are marked as "loaded" 
 .sp
 .nf
 .ft C
-usage: bro\-pkg load [\-h] package [package ...]
+usage: zkg load [\-h] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -375,7 +374,7 @@ The Bro Package Manager keeps track of all packages that are marked as "loaded" 
 .sp
 .nf
 .ft C
-usage: bro\-pkg unload [\-h] package [package ...]
+usage: zkg unload [\-h] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -398,7 +397,7 @@ Pinned packages are ignored by the \fBupgrade\fP command.
 .sp
 .nf
 .ft C
-usage: bro\-pkg pin [\-h] package [package ...]
+usage: zkg pin [\-h] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -421,7 +420,7 @@ Packages that are not pinned are automatically upgraded by the \fBupgrade\fP com
 .sp
 .nf
 .ft C
-usage: bro\-pkg unpin [\-h] package [package ...]
+usage: zkg unpin [\-h] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -444,8 +443,8 @@ Outputs a list of packages that match a given category.
 .sp
 .nf
 .ft C
-usage: bro\-pkg list [\-h] [\-\-nodesc]
-                    [{all,installed,not_installed,loaded,unloaded,outdated}]
+usage: zkg list [\-h] [\-\-nodesc]
+                [{all,installed,not_installed,loaded,unloaded,outdated}]
 .ft P
 .fi
 .UNINDENT
@@ -477,7 +476,7 @@ Perform a substring search on package names and metadata tags.  Surround search 
 .sp
 .nf
 .ft C
-usage: bro\-pkg search [\-h] search_text [search_text ...]
+usage: zkg search [\-h] search_text [search_text ...]
 .ft P
 .fi
 .UNINDENT
@@ -500,9 +499,9 @@ Shows detailed information/metadata for given packages. If the package is curren
 .sp
 .nf
 .ft C
-usage: bro\-pkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json]
-                    [\-\-jsonpretty SPACES] [\-\-allvers]
-                    package [package ...]
+usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json]
+                [\-\-jsonpretty SPACES] [\-\-allvers]
+                package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -544,8 +543,8 @@ The default output of this command is a valid package manager config file that c
 .sp
 .nf
 .ft C
-usage: bro\-pkg config [\-h]
-                      [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bro_dist}]
+usage: zkg config [\-h]
+                  [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bro_dist}]
 .ft P
 .fi
 .UNINDENT
@@ -570,7 +569,7 @@ The output of this command is a valid package manager config file that is genera
 .sp
 .nf
 .ft C
-usage: bro\-pkg autoconfig [\-h]
+usage: zkg autoconfig [\-h]
 .ft P
 .fi
 .UNINDENT
@@ -586,7 +585,7 @@ This command returns shell commands that, when executed, will correctly set \fBB
 .sp
 .nf
 .ft C
-usage: bro\-pkg env [\-h]
+usage: zkg env [\-h]
 .ft P
 .fi
 .UNINDENT
@@ -595,9 +594,9 @@ usage: bro\-pkg env [\-h]
 .UNINDENT
 .SH CONFIG FILE
 .sp
-The \fBbro\-pkg\fP command\-line tool uses an INI\-format config file to allow
+The \fBzkg\fP command\-line tool uses an INI\-format config file to allow
 users to customize their Package Sources, Package installation paths, Bro executable/source paths, and other
-\fBbro\-pkg\fP options.
+\fBzkg\fP options.
 .sp
 See the default/example config file below for explanations of the
 available options and how to customize them:
@@ -606,19 +605,19 @@ available options and how to customize them:
 .sp
 .nf
 .ft C
-# This is an example config file for bro\-pkg to explain what
+# This is an example config file for zkg to explain what
 # settings are possible as well as their default values.
-# The order of precedence for how bro\-pkg finds/reads config files:
+# The order of precedence for how zkg finds/reads config files:
 #
-# (1) bro\-pkg \-\-configfile=/path/to/custom/config
-# (2) the BRO_PKG_CONFIG_FILE environment variable
+# (1) zkg \-\-configfile=/path/to/custom/config
+# (2) the ZKG_CONFIG_FILE environment variable
 # (3) a config file located at $HOME/.bro\-pkg/config
-# (4) if none of the above exist, then bro\-pkg uses builtin/default
+# (4) if none of the above exist, then zkg uses builtin/default
 #     values for all settings shown below
 
 [sources]
 
-# The default package source repository from which bro\-pkg fetches
+# The default package source repository from which zkg fetches
 # packages.  The default source may be removed, changed, or
 # additional sources may be added as long as they use a unique key
 # and a value that is a valid git URL.
@@ -639,8 +638,8 @@ state_dir =
 # If left blank, this defaults to <state_dir>/script_dir
 # A typical path to set here is <bro_install_prefix>/share/bro/site
 # If you decide to change this location after having already
-# installed packages, bro\-pkg will automatically relocate them
-# the next time you run any bro\-pkg command.
+# installed packages, zkg will automatically relocate them
+# the next time you run any zkg command.
 script_dir =
 
 # The directory where package plugins are copied upon installation.
@@ -651,8 +650,8 @@ script_dir =
 # If left blank, this defaults to <state_dir>/plugin_dir
 # A typical path to set here is <bro_install_prefix>/lib/bro/plugins
 # If you decide to change this location after having already
-# installed packages, bro\-pkg will automatically relocate them
-# the next time you run any bro\-pkg command.
+# installed packages, zkg will automatically relocate them
+# the next time you run any zkg command.
 plugin_dir =
 
 # The directory containing Bro distribution source code.  This is only
