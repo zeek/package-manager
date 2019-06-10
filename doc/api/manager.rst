@@ -1,5 +1,5 @@
 zeekpkg.manager module
-=====================
+======================
 
 .. automodule:: zeekpkg.manager
     :members:

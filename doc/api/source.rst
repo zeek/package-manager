@@ -1,5 +1,5 @@
 zeekpkg.source module
-====================
+=====================
 
 .. automodule:: zeekpkg.source
     :members:

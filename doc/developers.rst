@@ -56,7 +56,7 @@ Local Build/Preview
 Use the :file:`Makefile` targets ``make html`` and ``make man`` to build the
 HTML and man page, respectively.  To view the generated HTML output, open
 :file:`doc/_build/index.html`.  The generated man page is located in
-:file:`doc/man/bro-pkg.1`.
+:file:`doc/man/zkg.1`.
 
 If you have also installed :program:`sphinx-autobuild` (e.g. via
 :program:`pip`), there's a :file:`Makefile` target, ``make livehtml``, you can

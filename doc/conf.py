@@ -307,7 +307,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('bro-pkg', 'bro-pkg', u'Zeek Package Manager',
+    ('zkg', 'zkg', u'Zeek Package Manager',
      [author], 1)
 ]
 
