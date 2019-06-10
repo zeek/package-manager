@@ -18,7 +18,7 @@ setup(
     maintainer_email='info@zeek.org',
     url='https://github.com/zeek/package-manager',
     scripts=['bro-pkg', 'zkg'],
-    packages=['bropkg'],
+    packages=['bropkg', 'zeekpkg'],
     install_requires=install_requires,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

@@ -1,13 +1,13 @@
 #! /usr/bin/env python
 
 from __future__ import print_function
-from bropkg._util import (
+from zeekpkg._util import (
     make_dir,
     find_program,
     read_bro_config_line,
     std_encoding,
 )
-from bropkg.package import (
+from zeekpkg.package import (
     TRACKING_METHOD_VERSION,
 )
 
@@ -38,7 +38,7 @@ else:
 
 import git
 
-import bropkg
+import zeekpkg
 
 
 def get_input(prompt):
@@ -267,7 +267,7 @@ def create_manager(config):
     bro_dist = config.get('paths', 'bro_dist')
 
     try:
-        manager = bropkg.Manager(state_dir=state_dir, script_dir=script_dir,
+        manager = zeekpkg.Manager(state_dir=state_dir, script_dir=script_dir,
                                  plugin_dir=plugin_dir, bro_dist=bro_dist)
     except (OSError, IOError) as error:
         if error.errno == errno.EACCES:
@@ -474,7 +474,7 @@ def cmd_install(manager, args, config):
             name = info.package.qualified_name()
 
             if 'test_command' not in info.metadata:
-                bropkg.LOG.info(
+                zeekpkg.LOG.info(
                     'Skipping unit tests for "%s": no test_command in metadata',
                     name)
                 continue
@@ -1107,7 +1107,7 @@ def cmd_upgrade(manager, args, config):
             name = info.package.qualified_name()
 
             if 'test_command' not in info.metadata:
-                bropkg.LOG.info(
+                zeekpkg.LOG.info(
                     'Skipping unit tests for "%s": no test_command in metadata',
                     name)
                 continue
@@ -1184,7 +1184,7 @@ def cmd_upgrade(manager, args, config):
 
         if not manager.match_source_packages(name):
             name = info.package.git_url
-            bdir = bropkg.package.name_from_path(name)
+            bdir = zeekpkg.package.name_from_path(name)
 
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
@@ -1350,21 +1350,21 @@ def _get_filtered_packages(manager, category):
         filtered_pkgs = pkg_dict
     elif category == 'installed':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
-                         if isinstance(value, bropkg.InstalledPackage)}
+                         if isinstance(value, zeekpkg.InstalledPackage)}
     elif category == 'not_installed':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
-                         if not isinstance(value, bropkg.InstalledPackage)}
+                         if not isinstance(value, zeekpkg.InstalledPackage)}
     elif category == 'loaded':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
-                         if isinstance(value, bropkg.InstalledPackage) and
+                         if isinstance(value, zeekpkg.InstalledPackage) and
                          value.status.is_loaded}
     elif category == 'unloaded':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
-                         if isinstance(value, bropkg.InstalledPackage) and
+                         if isinstance(value, zeekpkg.InstalledPackage) and
                          not value.status.is_loaded}
     elif category == 'outdated':
         filtered_pkgs = {key: value for key, value in pkg_dict.items()
-                         if isinstance(value, bropkg.InstalledPackage) and
+                         if isinstance(value, zeekpkg.InstalledPackage) and
                          value.status.is_outdated}
     else:
         raise NotImplementedError
@@ -1376,7 +1376,7 @@ def cmd_list(manager, args, config):
     filtered_pkgs = _get_filtered_packages(manager, args.category)
 
     for pkg_name, val in sorted(filtered_pkgs.items()):
-        if isinstance(val, bropkg.InstalledPackage):
+        if isinstance(val, zeekpkg.InstalledPackage):
             pkg = val.package
             out = '{} (installed: {})'.format(
                 pkg_name, val.status.current_version)
@@ -1713,7 +1713,7 @@ def top_level_parser():
         'Same as ``--configfile`` option, but has less precedence.'
     )
     top_parser.add_argument('--version', action='version',
-                            version='%(prog)s ' + bropkg.__version__)
+                            version='%(prog)s ' + zeekpkg.__version__)
     top_parser.add_argument('--configfile',
                             help='Path to Bro Package Manager config file.')
     top_parser.add_argument('--verbose', '-v', action='count', default=0,
@@ -2128,13 +2128,13 @@ def main():
         handler.setFormatter(formatter)
 
         if args.verbose == 1:
-            bropkg.LOG.setLevel(logging.WARNING)
+            zeekpkg.LOG.setLevel(logging.WARNING)
         elif args.verbose == 2:
-            bropkg.LOG.setLevel(logging.INFO)
+            zeekpkg.LOG.setLevel(logging.INFO)
         elif args.verbose == 3:
-            bropkg.LOG.setLevel(logging.DEBUG)
+            zeekpkg.LOG.setLevel(logging.DEBUG)
 
-        bropkg.LOG.addHandler(handler)
+        zeekpkg.LOG.addHandler(handler)
 
     configfile = args.configfile
 
