@@ -1664,8 +1664,16 @@ def cmd_autoconfig(manager, args, config):
 def cmd_env(manager, args, config):
 
     bro_config = find_program('bro-config')
-    bropath = os.environ.get('BROPATH')
-    pluginpath = os.environ.get('BRO_PLUGIN_PATH')
+
+    zeekpath = os.environ.get('ZEEKPATH')
+
+    if not zeekpath:
+        zeekpath = os.environ.get('BROPATH')
+
+    pluginpath = os.environ.get('ZEEK_PLUGIN_PATH')
+
+    if not pluginpath:
+        pluginpath = os.environ.get('BRO_PLUGIN_PATH')
 
     if bro_config:
         cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
@@ -1674,24 +1682,28 @@ def cmd_env(manager, args, config):
         line1 = read_bro_config_line(cmd.stdout)
         line2 = read_bro_config_line(cmd.stdout)
 
-        if not bropath:
-            bropath = line1
+        if not zeekpath:
+            zeekpath = line1
 
         if not pluginpath:
             pluginpath = line2
 
-    bropaths = [p for p in bropath.split(':')] if bropath else []
+    zeekpaths = [p for p in zeekpath.split(':')] if zeekpath else []
     pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
 
-    bropaths.append(manager.bropath())
+    zeekpaths.append(manager.bropath())
     pluginpaths.append(manager.bro_plugin_path())
 
     if os.environ['SHELL'].endswith('csh'):
-        print(u'setenv BROPATH {}'.format(':'.join(bropaths)))
+        print(u'setenv BROPATH {}'.format(':'.join(zeekpaths)))
         print(u'setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
+        print(u'setenv ZEEKPATH {}'.format(':'.join(zeekpaths)))
+        print(u'setenv ZEEK_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
     else:
-        print(u'export BROPATH={}'.format(':'.join(bropaths)))
+        print(u'export BROPATH={}'.format(':'.join(zeekpaths)))
         print(u'export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
+        print(u'export ZEEKPATH={}'.format(':'.join(zeekpaths)))
+        print(u'export ZEEK_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
 
 
 class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -2110,11 +2122,13 @@ def argparser():
         help='Show the value of environment variables that need to be set for'
         ' Bro to be able to use installed packages.',
         description='This command returns shell commands that, when executed,'
-        ' will correctly set ``BROPATH`` and ``BRO_PLUGIN_PATH`` to utilize the'
+        ' will correctly set ``ZEEKPATH`` and ``ZEEK_PLUGIN_PATH`` (also'
+        ' ``BROPATH`` and ``BRO_PLUGIN_PATH`` for legacy compatibility) to use'
         ' scripts and plugins from packages installed by the package manager.'
         ' For this command to function properly, either have the ``bro-config``'
-        ' script (installed by bro) in ``PATH``, or have the ``BROPATH`` and'
-        ' ``BRO_PLUGIN_PATH`` environment variables already set so this command'
+        ' script (installed by zeek) in ``PATH``, or have the ``ZEEKPATH`` and'
+        ' ``ZEEK_PLUGIN_PATH`` (or ``BROPATH`` and ``BRO_PLUGIN_PATH``)'
+        ' environment variables already set so this command'
         ' can append package-specific paths to them.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_env)

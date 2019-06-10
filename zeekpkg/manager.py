@@ -131,7 +131,7 @@ class Manager(object):
         autoload_package (str): path to a Bro :file:`__load__.zeek` script
             which is just a symlink to `autoload_script`.  It's always located
             in a directory named :file:`packages`, so as long as
-            :envvar:`BROPATH` is configured correctly, ``@load packages`` will
+            :envvar:`ZEEKPATH` is configured correctly, ``@load packages`` will
             load all installed packages that have been marked as loaded.
     """
 
@@ -301,16 +301,16 @@ class Manager(object):
     def bropath(self):
         """Return the path where installed package scripts are located.
 
-        This path can be added to :envvar:`BROPATH` for interoperability with
-        Bro.
+        This path can be added to :envvar:`ZEEKPATH` for interoperability with
+        Zeek.
         """
         return os.path.dirname(self.script_dir)
 
     def bro_plugin_path(self):
         """Return the path where installed package plugins are located.
 
-        This path can be added to :envvar:`BRO_PLUGIN_PATH` for
-        interoperability with Bro.
+        This path can be added to :envvar:`ZEEK_PLUGIN_PATH` for
+        interoperability with Zeek.
         """
         return os.path.dirname(self.plugin_dir)
 
@@ -1822,8 +1822,16 @@ class Manager(object):
                   package.name, test_command)
 
         bro_config = find_program('bro-config')
-        bropath = os.environ.get('BROPATH')
-        pluginpath = os.environ.get('BRO_PLUGIN_PATH')
+
+        zeekpath = os.environ.get('ZEEKPATH')
+
+        if not zeekpath:
+            zeekpath = os.environ.get('BROPATH')
+
+        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH')
+
+        if not pluginpath:
+            pluginpath = os.environ.get('BRO_PLUGIN_PATH')
 
         if bro_config:
             cmd = subprocess.Popen([bro_config, '--bropath', '--plugin_dir'],
@@ -1833,8 +1841,8 @@ class Manager(object):
             line1 = read_bro_config_line(cmd.stdout)
             line2 = read_bro_config_line(cmd.stdout)
 
-            if not bropath:
-                bropath = line1
+            if not zeekpath:
+                zeekpath = line1
 
             if not pluginpath:
                 pluginpath = line2
@@ -1843,11 +1851,13 @@ class Manager(object):
                         package.name)
             return ('bro-config not found in PATH', False, test_dir)
 
-        bropath = os.path.dirname(stage_script_dir) + ':' + bropath
+        zeekpath = os.path.dirname(stage_script_dir) + ':' + zeekpath
         pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath
 
         env = os.environ.copy()
-        env['BROPATH'] = bropath
+        env['ZEEKPATH'] = zeekpath
+        env['ZEEK_PLUGIN_PATH'] = pluginpath
+        env['BROPATH'] = zeekpath
         env['BRO_PLUGIN_PATH'] = pluginpath
         cwd = os.path.join(clone_dir, package.name)
         outfile = os.path.join(cwd, 'zkg.test_command.stdout')
