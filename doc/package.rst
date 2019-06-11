@@ -519,7 +519,7 @@ Here's what a typical user would see::
 
   Proceed? [Y/n] y
   bro/jsiwek/bro-test-package asks for LIBRDKAFKA_ROOT (Path to librdkafka installation) ? [/usr] /usr/local
-  Saved answers to config file: /Users/jon/.bro-pkg/config
+  Saved answers to config file: /Users/jon/.zkg/config
   Installed "bro/jsiwek/bro-test-package" (master)
   Loaded "bro/jsiwek/bro-test-package"
 

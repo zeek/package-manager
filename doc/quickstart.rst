@@ -98,7 +98,7 @@ Advanced Configuration
 
 If you prefer to not use the suggested `Basic Configuration`_ settings for
 `script_dir` and `plugin_dir`, the default configuration will install all
-package scripts/plugins within :file:`~/.bro-pkg` or you may change them to
+package scripts/plugins within :file:`~/.zkg` or you may change them to
 whatever location you prefer.  These will be referred to as "non-standard"
 locations in the sense that vanilla configurations of either :program:`bro` or
 :program:`broctl` will not detect scripts/plugins in those locations without

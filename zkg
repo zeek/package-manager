@@ -3,6 +3,7 @@
 from __future__ import print_function
 from zeekpkg._util import (
     make_dir,
+    make_symlink,
     find_program,
     read_bro_config_line,
     std_encoding,
@@ -69,7 +70,7 @@ def confirmation_prompt(prompt, default_to_yes=True):
     return False
 
 
-def prompt_for_user_vars(manager, config, force, pkg_infos):
+def prompt_for_user_vars(manager, config, configfile, force, pkg_infos):
     answers = {}
 
     for info in pkg_infos:
@@ -125,12 +126,11 @@ def prompt_for_user_vars(manager, config, force, pkg_infos):
 
             config.set('user_vars', key, value)
 
-        config_file = os.path.join(config_dir(), 'config')
+        if configfile:
+            with io.open(configfile, 'w', encoding=std_encoding(sys.stdout)) as f:
+                config.write(f)
 
-        with io.open(config_file, 'w', encoding=std_encoding(sys.stdout)) as f:
-            config.write(f)
-
-        print('Saved answers to config file: {}'.format(config_file))
+            print('Saved answers to config file: {}'.format(configfile))
 
     manager.user_vars = answers
 
@@ -160,7 +160,12 @@ def find_configfile():
     if configfile and file_is_not_empty(configfile):
         return configfile
 
-    configfile = os.path.join(config_dir(), 'config')
+    configfile = os.path.join(default_config_dir(), 'config')
+
+    if file_is_not_empty(configfile):
+        return configfile
+
+    configfile = os.path.join(legacy_config_dir(), 'config')
 
     if file_is_not_empty(configfile):
         return configfile
@@ -168,7 +173,19 @@ def find_configfile():
     return None
 
 
-def config_dir():
+def default_config_dir():
+    return os.path.join(os.path.expanduser('~'), '.zkg')
+
+
+def legacy_config_dir():
+    return os.path.join(os.path.expanduser('~'), '.bro-pkg')
+
+
+def default_state_dir():
+    return os.path.join(os.path.expanduser('~'), '.zkg')
+
+
+def legacy_state_dir():
     return os.path.join(os.path.expanduser('~'), '.bro-pkg')
 
 
@@ -202,7 +219,7 @@ def create_config(configfile):
         return default
 
     state_dir = get_option(config, 'paths', 'state_dir',
-                           os.path.join(config_dir()))
+                           os.path.join(default_state_dir()))
     script_dir = get_option(config, 'paths', 'script_dir',
                             os.path.join(state_dir, 'script_dir'))
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
@@ -270,6 +287,10 @@ def create_manager(config):
     plugin_dir = config.get('paths', 'plugin_dir')
     bro_dist = config.get('paths', 'bro_dist')
 
+    if state_dir == default_state_dir():
+        if not os.path.exists(state_dir) and os.path.exists(legacy_state_dir()):
+            make_symlink(legacy_state_dir(), state_dir)
+
     try:
         manager = zeekpkg.Manager(state_dir=state_dir, script_dir=script_dir,
                                  plugin_dir=plugin_dir, bro_dist=bro_dist)
@@ -316,7 +337,7 @@ class InstallWorker(threading.Thread):
             self.package_name, self.package_version)
 
 
-def cmd_test(manager, args, config):
+def cmd_test(manager, args, config, configfile):
     if args.version and len(args.package) > 1:
         print_error(
             'error: "install --version" may only be used for a single package')
@@ -375,7 +396,7 @@ def cmd_test(manager, args, config):
         sys.exit(1)
 
 
-def cmd_install(manager, args, config):
+def cmd_install(manager, args, config, configfile):
     if args.version and len(args.package) > 1:
         print_error(
             'error: "install --version" may only be used for a single package')
@@ -470,7 +491,7 @@ def cmd_install(manager, args, config):
 
     package_infos += new_pkgs
 
-    prompt_for_user_vars(manager, config, args.force,
+    prompt_for_user_vars(manager, config, configfile, args.force,
                          [info for info, _, _ in package_infos])
 
     if not args.skiptests:
@@ -594,7 +615,7 @@ def cmd_install(manager, args, config):
         sys.exit(1)
 
 
-def cmd_bundle(manager, args, config):
+def cmd_bundle(manager, args, config, configfile):
     packages_to_bundle = []
     prefer_existing_clones = False
 
@@ -697,14 +718,14 @@ def cmd_bundle(manager, args, config):
     print('Bundle successfully written: {}'.format(args.bundle_filename))
 
 
-def cmd_unbundle(manager, args, config):
+def cmd_unbundle(manager, args, config, configfile):
     prev_load_status = {}
 
     for ipkg in manager.installed_packages():
         prev_load_status[ipkg.package.git_url] = ipkg.status.is_loaded
 
     if args.replace:
-        cmd_purge(manager, args, config)
+        cmd_purge(manager, args, config, configfile)
 
     error, bundle_info = manager.bundle_info(args.bundle_filename)
 
@@ -772,7 +793,7 @@ def cmd_unbundle(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
-    prompt_for_user_vars(manager, config, args.force,
+    prompt_for_user_vars(manager, config, configfile, args.force,
                          [info for _, _, info in bundle_info])
 
     error = manager.unbundle(args.bundle_filename)
@@ -810,7 +831,7 @@ def cmd_unbundle(manager, args, config):
     print('Unbundling complete.')
 
 
-def cmd_remove(manager, args, config):
+def cmd_remove(manager, args, config, configfile):
     packages_to_remove = []
 
     for name in args.package:
@@ -860,7 +881,7 @@ def cmd_remove(manager, args, config):
         sys.exit(1)
 
 
-def cmd_purge(manager, args, config):
+def cmd_purge(manager, args, config, configfile):
     packages_to_remove = manager.installed_packages()
 
     if not packages_to_remove:
@@ -911,7 +932,7 @@ def outdated(manager):
             if ipkg.status.is_outdated]
 
 
-def cmd_refresh(manager, args, config):
+def cmd_refresh(manager, args, config, configfile):
 
     if not args.sources:
         args.sources = list(manager.sources.keys())
@@ -990,7 +1011,7 @@ def version_change_string(manager, installed_package):
     return version_change
 
 
-def cmd_upgrade(manager, args, config):
+def cmd_upgrade(manager, args, config, configfile):
     if args.package:
         pkg_list = args.package
     else:
@@ -1097,7 +1118,7 @@ def cmd_upgrade(manager, args, config):
         if not confirmation_prompt('Proceed?'):
             return
 
-    prompt_for_user_vars(manager, config, args.force,
+    prompt_for_user_vars(manager, config, configfile, args.force,
                          [info for info, _, _ in allpkgs])
 
     if not args.skiptests:
@@ -1231,7 +1252,7 @@ def cmd_upgrade(manager, args, config):
         sys.exit(1)
 
 
-def cmd_load(manager, args, config):
+def cmd_load(manager, args, config, configfile):
     had_failure = False
 
     for name in args.package:
@@ -1259,7 +1280,7 @@ def cmd_load(manager, args, config):
         sys.exit(1)
 
 
-def cmd_unload(manager, args, config):
+def cmd_unload(manager, args, config, configfile):
     had_failure = False
 
     for name in args.package:
@@ -1287,7 +1308,7 @@ def cmd_unload(manager, args, config):
         sys.exit(1)
 
 
-def cmd_pin(manager, args, config):
+def cmd_pin(manager, args, config, configfile):
     had_failure = False
 
     for name in args.package:
@@ -1312,7 +1333,7 @@ def cmd_pin(manager, args, config):
         sys.exit(1)
 
 
-def cmd_unpin(manager, args, config):
+def cmd_unpin(manager, args, config, configfile):
     had_failure = False
 
     for name in args.package:
@@ -1376,7 +1397,7 @@ def _get_filtered_packages(manager, category):
     return filtered_pkgs
 
 
-def cmd_list(manager, args, config):
+def cmd_list(manager, args, config, configfile):
     filtered_pkgs = _get_filtered_packages(manager, args.category)
 
     for pkg_name, val in sorted(filtered_pkgs.items()):
@@ -1397,7 +1418,7 @@ def cmd_list(manager, args, config):
         print(out)
 
 
-def cmd_search(manager, args, config):
+def cmd_search(manager, args, config, configfile):
     src_pkgs = manager.source_packages()
     matches = set()
 
@@ -1448,7 +1469,7 @@ def cmd_search(manager, args, config):
         print("no matches")
 
 
-def cmd_info(manager, args, config):
+def cmd_info(manager, args, config, configfile):
     if args.version and len(args.package) > 1:
         print_error(
             'error: "info --version" may only be used for a single package')
@@ -1588,7 +1609,7 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
             pkginfo_name_metadata_version[key] = value
 
 
-def cmd_config(manager, args, config):
+def cmd_config(manager, args, config, configfile):
     if args.config_param == 'all':
         if sys.version_info[0] < 3:
             from StringIO import StringIO
@@ -1610,7 +1631,7 @@ def cmd_config(manager, args, config):
         print(config.get('paths', args.config_param))
 
 
-def cmd_autoconfig(manager, args, config):
+def cmd_autoconfig(manager, args, config, configfile):
     zeek_config = find_program('zeek-config')
 
     if zeek_config:
@@ -1634,9 +1655,15 @@ def cmd_autoconfig(manager, args, config):
     plugin_dir = read_bro_config_line(cmd.stdout)
     bro_dist = read_bro_config_line(cmd.stdout)
 
-    make_dir(config_dir())
-    config_file = os.path.join(config_dir(), 'config')
-    config_file_exists = os.path.isfile(config_file)
+    if configfile:
+        config_dir = os.path.dirname(configfile)
+    else:
+        config_dir = default_config_dir()
+        configfile = os.path.join(config_dir, 'config')
+
+    make_dir(config_dir)
+
+    config_file_exists = os.path.isfile(configfile)
 
     def change_config_value(config, section, option, new_value, use_prompt):
         if not use_prompt:
@@ -1663,13 +1690,13 @@ def cmd_autoconfig(manager, args, config):
     change_config_value(config, 'paths', 'bro_dist',
                         bro_dist, config_file_exists)
 
-    with io.open(config_file, 'w', encoding=std_encoding(sys.stdout)) as f:
+    with io.open(configfile, 'w', encoding=std_encoding(sys.stdout)) as f:
         config.write(f)
 
-    print('Successfully wrote config file to {}'.format(config_file))
+    print('Successfully wrote config file to {}'.format(configfile))
 
 
-def cmd_env(manager, args, config):
+def cmd_env(manager, args, config, configfile):
 
     zeek_config = find_program('zeek-config')
     path_option = '--zeekpath'
@@ -2175,7 +2202,7 @@ def main():
     config = create_config(configfile)
     manager = create_manager(config)
 
-    args.run_cmd(manager, args, config)
+    args.run_cmd(manager, args, config, configfile)
 
 
 if __name__ == '__main__':

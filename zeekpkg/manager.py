@@ -190,7 +190,7 @@ class Manager(object):
 
         prev_script_dir, prev_plugin_dir = self._read_manifest()
 
-        if prev_script_dir != self.script_dir:
+        if os.path.realpath(prev_script_dir) != os.path.realpath(self.script_dir):
             LOG.info('relocating script_dir %s -> %s', prev_script_dir,
                      self.script_dir)
 
@@ -214,7 +214,7 @@ class Manager(object):
 
             self._write_manifest()
 
-        if prev_plugin_dir != self.plugin_dir:
+        if os.path.realpath(prev_plugin_dir) != os.path.realpath(self.plugin_dir):
             LOG.info('relocating plugin_dir %s -> %s', prev_plugin_dir,
                      self.plugin_dir)
 
