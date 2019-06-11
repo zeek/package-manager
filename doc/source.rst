@@ -16,11 +16,17 @@ In order to set up such a package source, one simply has to create a git
 repository and then add :ref:`Package Index Files <package-index-file>` to it.
 These files may be created at any path in the package source's git repository.
 E.g. the `Bro Packages Git Repository`_ organizes package index files
-hierarchically based on package author names such as :file:`alice/bro-pkg.index`
-or :file:`bob/bro-pkg.index` where ``alice`` and ``bob`` are usually GitHub
+hierarchically based on package author names such as :file:`alice/zkg.index`
+or :file:`bob/zkg.index` where ``alice`` and ``bob`` are usually GitHub
 usernames or some unique way of identifying the organization/person that
 maintains Bro packages.  However, a source is free to use a flat organization
-with a single, top-level :file:`bro-pkg.index`.
+with a single, top-level :file:`zkg.index`.
+
+.. note::
+
+   The magic index file name of :file:`zkg.index` is available :program:`since
+   zkg v2.0`.  For compatibility purposes, the old index file name of
+   :file:`bro-pkg.index` is also still supported.
 
 After creating a git repo for the package source and adding package index files
 to it, it's ready to be used by :ref:`zkg <zkg>`.
@@ -30,9 +36,10 @@ to it, it's ready to be used by :ref:`zkg <zkg>`.
 Package Index Files
 -------------------
 
-Files named :file:`bro-pkg.index` are used to describe the :doc:`Bro Packages
-<package>` found within the package source.  They are simply a list of
-git URLs pointing to the git repositories of packages.  For example::
+Files named :file:`zkg.index` (or the legacy :file:`bro-pkg.index`) are used to
+describe the :doc:`Bro Packages <package>` found within the package source.
+They are simply a list of git URLs pointing to the git repositories of
+packages.  For example::
 
   https://github.com/bro/foo
   https://github.com/bro/bar

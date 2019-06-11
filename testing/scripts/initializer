@@ -8,7 +8,7 @@ done
 
 cp -R $SOURCES .
 
-find sources -name 'bro-pkg.index' -exec sed -i -e "s#^#$(pwd)/packages/#" {} \;
+find sources -name 'zkg.index' -exec sed -i -e "s#^#$(pwd)/packages/#" {} \;
 
 for s in sources/*; do
     ( cd $s && git init && git add * && git commit -m 'init' )

@@ -310,11 +310,11 @@ class Package(object):
             is referring directly to the package's git URL).
 
         directory (str): the directory within the package source where the
-            :file:`bro-pkg.index` containing this package is located.
+            :file:`zkg.index` containing this package is located.
             E.g. if the package source has a package named "foo" declared in
-            :file:`alice/bro-pkg.index`, then `dir` is equal to "alice".
+            :file:`alice/zkg.index`, then `dir` is equal to "alice".
             It may also be empty if the package is not part of a package source
-            or if it's located in a top-level :file:`bro-pkg.index` file.
+            or if it's located in a top-level :file:`zkg.index` file.
 
         metadata (dict of str -> str): the contents of the package's
             :file:`zkg.meta` or :file:`bro-pkg.meta` file.  If the package has
@@ -401,7 +401,7 @@ class Package(object):
         """Return the package's within its package source.
 
         E.g. for a package source with a package named "foo" in
-        :file:`alice/bro-pkg.index`, this method returns "alice/foo".
+        :file:`alice/zkg.index`, this method returns "alice/foo".
         If the package has no source or sub-directory within the source, then
         just the package name is returned.
         """

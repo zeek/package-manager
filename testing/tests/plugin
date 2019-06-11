@@ -7,6 +7,6 @@
 # @TEST-EXEC: btest-diff plugins/packages/rot13/__bro_plugin__ 
 # @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.bro 
 
-echo "$(pwd)/packages/rot13" >> sources/one/bob/bro-pkg.index
+echo "$(pwd)/packages/rot13" >> sources/one/bob/zkg.index
 cd sources/one
 git commit -am 'add rot13 package'

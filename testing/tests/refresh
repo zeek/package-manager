@@ -35,6 +35,6 @@ git add *
 git commit -m 'init'
 
 cd ../..
-echo "$(pwd)/packages/new_pkg" >> sources/one/alice/bro-pkg.index
+echo "$(pwd)/packages/new_pkg" >> sources/one/alice/zkg.index
 cd sources/one
 git commit -am 'add new_pkg'

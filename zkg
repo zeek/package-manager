@@ -1793,7 +1793,8 @@ def argparser():
                     ' the ambiguity. A full git URL may also be used to refer' \
                     ' to a package that does not belong to a source. E.g. for' \
                     ' a package source called "bro" that has a package named' \
-                    ' "foo" located in "alice/bro-pkg.index" the following' \
+                    ' "foo" located in either "alice/zkg.index" or' \
+                    ' "alice/bro-pkg.index", the following' \
                     ' names work: "foo", "alice/foo", "bro/alice/foo".'
 
     top_parser = top_level_parser()
@@ -1966,7 +1967,8 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_refresh)
     sub_parser.add_argument(
         '--aggregate', action='store_true',
-        help='Crawls the urls listed in package source bro-pkg.index files and'
+        help='Crawls the urls listed in package source zkg.index'
+        ' (or legacy bro-pkg.index) files and'
         ' aggregates the metadata found in their zkg.meta (or legacy'
         ' bro-pkg.meta) files.  The aggregated metadata is stored in the local'
         ' clone of the package'

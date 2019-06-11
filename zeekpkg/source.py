@@ -1,9 +1,9 @@
 """
 A module containing the definition of a "package source": a git repository
-containing a collection of :file:`bro-pkg.index` files.  These are simple INI
-files that can describe many Bro packages.  Each section of the file names
-a Bro package along with the git URL where it is located and metadata tags that
-help classify/describe it.
+containing a collection of :file:`zkg.index` (or legacy :file:`bro-pkg.index`)
+files.  These are simple INI files that can describe many Bro packages.  Each
+section of the file names a Bro package along with the git URL where it is
+located and metadata tags that help classify/describe it.
 """
 
 import os
@@ -23,7 +23,8 @@ from .package import (
 from ._util import git_clone
 
 #: The name of package index files.
-INDEX_FILENAME = 'bro-pkg.index'
+INDEX_FILENAME = 'zkg.index'
+LEGACY_INDEX_FILENAME = 'bro-pkg.index'
 #: The name of the package source file where package metadata gets aggregated.
 AGGREGATE_DATA_FILE = 'aggregate.meta'
 
@@ -108,7 +109,7 @@ class Source(object):
                 pass
 
             for filename in files:
-                if filename == INDEX_FILENAME:
+                if filename == INDEX_FILENAME or filename == LEGACY_INDEX_FILENAME:
                     rval.append(os.path.join(root, filename))
 
         return sorted(rval)

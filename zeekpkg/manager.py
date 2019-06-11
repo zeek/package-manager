@@ -380,7 +380,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
         name = name_from_path(pkg_path)
@@ -393,7 +393,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
         """
         rval = []
@@ -412,7 +412,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         A package's name is the last component of it's git URL.
@@ -758,7 +758,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
@@ -809,7 +809,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
@@ -853,7 +853,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
@@ -887,7 +887,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
@@ -924,7 +924,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
@@ -973,7 +973,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
         Returns:
@@ -1059,7 +1059,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
             version (str): may be a git version tag, branch name, or commit hash
@@ -1738,7 +1738,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
             version (str): if not given, then the latest git version tag is
@@ -2037,7 +2037,7 @@ class Manager(object):
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "bro" with package named "foo" in
-                :file:`alice/bro-pkg.index`, the following inputs may refer
+                :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "bro/alice/foo".
 
             version (str): if not given, then the latest git version tag is
