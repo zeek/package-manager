@@ -544,7 +544,7 @@ The default output of this command is a valid package manager config file that c
 .nf
 .ft C
 usage: zkg config [\-h]
-                  [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bro_dist}]
+                  [{all,sources,user_vars,state_dir,script_dir,plugin_dir,zeek_dist,bro_dist}]
 .ft P
 .fi
 .UNINDENT
@@ -557,7 +557,7 @@ usage: zkg config [\-h]
 .B config_param
 Name of a specific config file field to output.
 .sp
-Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, bro_dist
+Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, zeek_dist, bro_dist
 .UNINDENT
 .UNINDENT
 .SS autoconfig
@@ -654,10 +654,10 @@ script_dir =
 # the next time you run any zkg command.
 plugin_dir =
 
-# The directory containing Bro distribution source code.  This is only
-# needed when installing packages that contain Bro plugins that are
-# not pre\-built.
-bro_dist =
+# The directory containing Zeek distribution source code.  This is only
+# needed when installing packages that contain Zeek plugins that are
+# not pre\-built.  The legacy name of this option is "bro_dist".
+zeek_dist =
 
 [user_vars]
 

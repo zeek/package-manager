@@ -53,10 +53,10 @@ settings that should work for most Bro deployments:
 - `plugin_dir`: set to the location of Bro's default plugin directory (e.g.
   :file:`{<bro_install_prefix>}/lib/bro/plugins`)
 
-- `bro_dist`: set to the location of Bro's source code.
-  If you didn't build/install Bro from source code, this field will not be set,
+- `zeek_dist`: set to the location of Zeek's source code.
+  If you didn't build/install Zeek from source code, this field will not be set,
   but it's only needed if you plan on installing packages that have uncompiled
-  Bro plugins.
+  Zeek plugins.
 
 With those settings, the package manager will install Bro scripts, Bro plugins,
 and BroControl plugins into directories where :program:`bro` and

@@ -1893,6 +1893,7 @@ class Manager(object):
 
         substitutions = {
             'bro_dist': self.bro_dist,
+            'zeek_dist': self.bro_dist,
         }
         substitutions.update(self.user_vars)
 

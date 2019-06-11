@@ -112,18 +112,8 @@ though the following step are the essentials needed to create a package.
 
    .. note::
 
-      Plugin skeletons generated before Bro 2.6 and also any packages
-      that generally want to support such versions need to pass
-      an additional configuration option such as::
-
-          build_command = ./configure --bro-dist=%(bro_dist)s && make
-
-      See the :ref:`Value Interpolation <metadata-interpolation>`
-      section for more information on what the ``%(bro_dist)s``
-      string does, but a brief explanation is that it will expand to
-      a path containing the Bro source-code on the user's system.
-      For newer versions of Bro, packages are able to work entirely
-      with the installation path and don't require original source code.
+      See :ref:`legacy-bro-support` for notes on configuring packages to
+      support Bro 2.5 or earlier.
 
 #. Add example script code:
 
@@ -297,7 +287,7 @@ The low-level details of the way this field operates is that, for each alias,
 it simply creates a symlink of the same name within the directory associated
 with the ``script_dir`` path in the :ref:`config file <zkg-config-file>`.
 
-Available :program:`since v1.5`.
+Available :program:`since bro-pkg v1.5`.
 
 `credits` field
 ~~~~~~~~~~~~~~~
@@ -444,12 +434,12 @@ An example :file:`bro-pkg.meta`::
 
   [package]
   script_dir = scripts/Demo/Rot13
-  build_command = ./configure --bro-dist=%(bro_dist)s && make
+  build_command = ./configure && make
 
-In the above example, the ``%(bro_dist)s`` string is
-:ref:`substituted <metadata-interpolation>` for the path the user has set for
-the `bro_dist` field in the
-:ref:`package manager config file <zkg-config-file>`.
+.. note::
+
+   See :ref:`legacy-bro-support` for notes on configuring packages to
+   support Bro 2.5 or earlier.
 
 The default CMake skeleton for Bro plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
@@ -460,6 +450,24 @@ custom scripts for their plugin.  When a package has both a Bro plugin and Bro
 script components, the "plugin" part is always unconditionally loaded by Bro,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
+
+.. _legacy-bro-support:
+
+Supporting Older Bro Versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Plugin skeletons generated before Bro v2.6 and also any packages
+that generally want to support such Bro versions need to pass
+an additional configuration option such as::
+
+    build_command = ./configure --bro-dist=%(bro_dist)s && make
+
+See the :ref:`Value Interpolation <metadata-interpolation>`
+section for more information on what the ``%(bro_dist)s``
+string does, but a brief explanation is that it will expand to
+a path containing the Bro source-code on the user's system.
+For newer versions of Bro, packages are able to work entirely
+with the installation path and don't require original source code.
 
 .. _metadata-interpolation:
 
@@ -473,12 +481,17 @@ For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
 then :program:`zkg` operations that use that field will automatically
 substitute the actual value of `bro_dist` that the user has in their local
 config file.  Note the trailing 's' character at the end of the interpolation
-string, ``%(bro_dist)s`` is intended/necessary for all such interpolation
-usages.
+string, ``%(bro_dist)s``, is intended/necessary for all such interpolation
+usages.  Note that :program:`since zkg v2.0`, `zeek_dist` is the canonical name
+for `bro_dist` within the :ref:`zkg config file <zkg-config-file>`,
+but either one means the same thing and should work.  To support older
+versions of :program:`bro-pkg`, you'd want to use `bro_dist` in package
+metadata files.
 
-Besides the `bro_dist` config key, any key inside the `user_vars` sections
-of their :ref:`package manager config file <zkg-config-file>` that matches
-the key of an entry in the package's `user_vars field`_ will be interpolated.
+Besides the `bro_dist`/`zeek_dist` config keys, any key inside the
+`user_vars` sections of their :ref:`package manager config file
+<zkg-config-file>` that matches the key of an entry in the package's
+`user_vars field`_ will be interpolated.
 
 Internally, the value substitution and metadata parsing is handled by Python's
 `configparser interpolation`_.  See its documentation if you're interested in
@@ -493,7 +506,7 @@ execution of the `build_command field`_.
 An example :file:`bro-pkg.meta`::
 
   [package]
-  build_command = ./configure --bro-dist=%(bro_dist)s --with-librdkafka=%(LIBRDKAFKA_ROOT)s --with-libdub=%(LIBDBUS_ROOT)s && make
+  build_command = ./configure --with-librdkafka=%(LIBRDKAFKA_ROOT)s --with-libdub=%(LIBDBUS_ROOT)s && make
   user_vars =
     LIBRDKAFKA_ROOT [/usr] "Path to librdkafka installation"
     LIBDBUS_ROOT [/usr] "Path to libdbus installation"
@@ -538,7 +551,7 @@ an environment variable, in which case, prompts are skipped for any keys
 located in the environment.  The environment is also given priority over any
 values in the user's :ref:`package manager config file <zkg-config-file>`.
 
-Available :program:`since v1.1`.
+Available :program:`since bro-pkg v1.1`.
 
 `test_command` field
 ~~~~~~~~~~~~~~~~~~~~
@@ -610,7 +623,7 @@ or a :ref:`package shorthand name <package-shorthand-name>`.
   message an know to upgrade instead of seeing a cryptic error/exception, or
   worse, seeing no errors, but without the desired functionality being
   performed.
-  Note that this feature itself is only available :program:`since v1.2`.
+  Note that this feature itself is only available :program:`since bro-pkg v1.2`.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git
@@ -661,7 +674,7 @@ name and version specification for an external dependency are only used
 for display purposes -- to help users understand extra pre-requisites
 that are needed for proceeding with package installation/upgrades.
 
-Available :program:`since v1.1`.
+Available :program:`since bro-pkg v1.1`.
 
 `suggests` field
 ~~~~~~~~~~~~~~~~
@@ -678,7 +691,7 @@ except in the way it's presented to users in various prompts during
 suggestions by supplying an additional ``--nosuggestions`` flag to
 :program:`zkg` commands.
 
-Available :program:`since v1.3`.
+Available :program:`since bro-pkg v1.3`.
 
 .. _package-versioning:
 

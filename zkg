@@ -224,12 +224,15 @@ def create_config(configfile):
                             os.path.join(state_dir, 'script_dir'))
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
                             os.path.join(state_dir, 'plugin_dir'))
-    bro_dist = get_option(config, 'paths', 'bro_dist', '')
+    zeek_dist = get_option(config, 'paths', 'zeek_dist', '')
+
+    if not zeek_dist:
+        zeek_dist = get_option(config, 'paths', 'bro_dist', '')
 
     config.set('paths', 'state_dir', state_dir)
     config.set('paths', 'script_dir', script_dir)
     config.set('paths', 'plugin_dir', plugin_dir)
-    config.set('paths', 'bro_dist', bro_dist)
+    config.set('paths', 'zeek_dist', zeek_dist)
 
     def expand_config_values(config, section):
         for key, value in config.items(section):
@@ -285,7 +288,7 @@ def create_manager(config):
     state_dir = config.get('paths', 'state_dir')
     script_dir = config.get('paths', 'script_dir')
     plugin_dir = config.get('paths', 'plugin_dir')
-    bro_dist = config.get('paths', 'bro_dist')
+    zeek_dist = config.get('paths', 'zeek_dist')
 
     if state_dir == default_state_dir():
         if not os.path.exists(state_dir) and os.path.exists(legacy_state_dir()):
@@ -293,7 +296,7 @@ def create_manager(config):
 
     try:
         manager = zeekpkg.Manager(state_dir=state_dir, script_dir=script_dir,
-                                 plugin_dir=plugin_dir, bro_dist=bro_dist)
+                                 plugin_dir=plugin_dir, bro_dist=zeek_dist)
     except (OSError, IOError) as error:
         if error.errno == errno.EACCES:
             print_error('{}: {}'.format(type(error).__name__, error))
@@ -1653,7 +1656,7 @@ def cmd_autoconfig(manager, args, config, configfile):
 
     script_dir = read_bro_config_line(cmd.stdout)
     plugin_dir = read_bro_config_line(cmd.stdout)
-    bro_dist = read_bro_config_line(cmd.stdout)
+    zeek_dist = read_bro_config_line(cmd.stdout)
 
     if configfile:
         config_dir = os.path.dirname(configfile)
@@ -1687,8 +1690,8 @@ def cmd_autoconfig(manager, args, config, configfile):
                         script_dir, config_file_exists)
     change_config_value(config, 'paths', 'plugin_dir',
                         plugin_dir, config_file_exists)
-    change_config_value(config, 'paths', 'bro_dist',
-                        bro_dist, config_file_exists)
+    change_config_value(config, 'paths', 'zeek_dist',
+                        zeek_dist, config_file_exists)
 
     with io.open(configfile, 'w', encoding=std_encoding(sys.stdout)) as f:
         config.write(f)
@@ -2141,7 +2144,7 @@ def argparser():
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
         choices=['all', 'sources', 'user_vars', 'state_dir', 'script_dir',
-                 'plugin_dir', 'bro_dist'],
+                 'plugin_dir', 'zeek_dist', 'bro_dist'],
         help='Name of a specific config file field to output.')
 
     # autoconfig
