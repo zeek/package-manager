@@ -212,4 +212,4 @@ users to customize their :doc:`Package Sources <source>`, :doc:`Package
 See the default/example config file below for explanations of the
 available options and how to customize them:
 
-.. literalinclude:: ../bro-pkg.config
+.. literalinclude:: ../zkg.config

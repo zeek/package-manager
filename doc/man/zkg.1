@@ -578,7 +578,7 @@ usage: zkg autoconfig [\-h]
 .UNINDENT
 .SS env
 .sp
-This command returns shell commands that, when executed, will correctly set \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP to utilize the scripts and plugins from packages installed by the package manager. For this command to function properly, either have the \fBbro\-config\fP script (installed by bro) in \fBPATH\fP, or have the \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP environment variables already set so this command can append package\-specific paths to them.
+This command returns shell commands that, when executed, will correctly set \fBZEEKPATH\fP and \fBZEEK_PLUGIN_PATH\fP (also \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP for legacy compatibility) to use scripts and plugins from packages installed by the package manager. For this command to function properly, either have the \fBbro\-config\fP script (installed by zeek) in \fBPATH\fP, or have the \fBZEEKPATH\fP and \fBZEEK_PLUGIN_PATH\fP (or \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP) environment variables already set so this command can append package\-specific paths to them.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -611,7 +611,7 @@ available options and how to customize them:
 #
 # (1) zkg \-\-configfile=/path/to/custom/config
 # (2) the ZKG_CONFIG_FILE environment variable
-# (3) a config file located at $HOME/.bro\-pkg/config
+# (3) a config file located at $HOME/.zkg/config
 # (4) if none of the above exist, then zkg uses builtin/default
 #     values for all settings shown below
 
@@ -621,13 +621,13 @@ available options and how to customize them:
 # packages.  The default source may be removed, changed, or
 # additional sources may be added as long as they use a unique key
 # and a value that is a valid git URL.
-bro = https://github.com/bro/packages
+zeek = https://github.com/zeek/packages
 
 [paths]
 
 # Directory where source repositories are cloned, packages are
 # installed, and other package manager state information is
-# maintained.  If left blank, this defaults to $HOME/.bro\-pkg
+# maintained.  If left blank, this defaults to $HOME/.zkg
 state_dir =
 
 # The directory where package scripts are copied upon installation.
