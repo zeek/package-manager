@@ -206,7 +206,7 @@ def create_config(configfile):
         config.add_section('paths')
 
     if not configfile:
-        config.set('sources', 'bro', 'https://github.com/bro/packages')
+        config.set('sources', 'zeek', 'https://github.com/zeek/packages')
 
     def config_option_set(config, section, option):
         return config.has_option(section, option) and config.get(section,
