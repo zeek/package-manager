@@ -68,9 +68,9 @@ Aggregating Metadata
 --------------------
 
 The maintainer/operator of a package source may choose to periodically aggregate
-the metadata contained in its package's :file:`bro-pkg.meta` files.  The
-:ref:`zkg refresh <refresh-command>` is used to perform the task.  For
-example:
+the metadata contained in its packages' :file:`zkg.meta` (and legacy
+:file:`bro-pkg.meta`) files.  The :ref:`zkg refresh <refresh-command>`
+is used to perform the task.  For example:
 
 .. code-block:: console
 

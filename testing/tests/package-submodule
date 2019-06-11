@@ -15,7 +15,7 @@
 
 @TEST-START-FILE setup_foo
 cd packages/foo
-echo 'script_dir = scripts' >> bro-pkg.meta
+echo 'script_dir = scripts' >> zkg.meta
 git submodule add $(pwd)/../bar scripts
 git commit -am 'add submodule'
 @TEST-END-FILE

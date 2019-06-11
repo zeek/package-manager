@@ -6,5 +6,5 @@
 # @TEST-EXEC: btest-diff scripts/foo3/__load__.bro
 
 cd packages/foo
-echo 'aliases = foo foo2 foo3' >> bro-pkg.meta
+echo 'aliases = foo foo2 foo3' >> zkg.meta
 git commit -am 'new stuff'

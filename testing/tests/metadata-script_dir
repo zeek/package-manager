@@ -4,7 +4,7 @@
 
 cd packages/foo
 mkdir scripts
-echo 'script_dir = scripts' >> bro-pkg.meta
+echo 'script_dir = scripts' >> zkg.meta
 mv __load__.bro scripts/
 git add *
 git commit -m 'new stuff'

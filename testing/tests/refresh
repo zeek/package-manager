@@ -19,17 +19,17 @@
 # version's metadata has no 'description' field
 
 cd packages/foo
-echo 'tags = esoteric lucky land' >> bro-pkg.meta
-echo 'description = This is the foo package description' >> bro-pkg.meta
+echo 'tags = esoteric lucky land' >> zkg.meta
+echo 'description = This is the foo package description' >> zkg.meta
 git commit -am 'new stuff'
 
 cd ..
 mkdir new_pkg
 cd new_pkg
 git init
-echo '[package]' > bro-pkg.meta
-echo 'tags = esoteric lucky land' >> bro-pkg.meta
-echo 'description = This is the new_pkg package description' >> bro-pkg.meta
+echo '[package]' > zkg.meta
+echo 'tags = esoteric lucky land' >> zkg.meta
+echo 'description = This is the new_pkg package description' >> zkg.meta
 echo 'print "hello";' >> __load__.bro
 git add *
 git commit -m 'init'

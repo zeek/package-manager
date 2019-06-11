@@ -8,7 +8,7 @@
 # @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.bro 
 
 cd packages/rot13
-echo "plugin_dir = build/Demo_Rot13.tgz" >> bro-pkg.meta
+echo "plugin_dir = build/Demo_Rot13.tgz" >> zkg.meta
 git commit -am 'new stuff'
 
 cd ../..

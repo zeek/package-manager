@@ -13,7 +13,7 @@ number or combination of those components may be included within a single
 package.
 
 The minimum requirement for a package is that it be in its own git repository
-and contain a metadata file named :file:`bro-pkg.meta` at its top-level that
+and contain a metadata file named :file:`zkg.meta` at its top-level that
 begins with the line::
 
   [package]
@@ -21,6 +21,12 @@ begins with the line::
 This is the package's metadata file in INI file format and may contain
 :ref:`additional fields <metadata-fields>` that describe the package as well
 as how it inter-operates with Bro, the package manager, or other packages.
+
+.. note::
+
+   :file:`zkg.meta` is the canonical metadata file name used :program:`since
+   zkg v2.0`.  The previous metadata file name of :file:`bro-pkg.meta` is also
+   accepted when no :file:`zkg.meta` exists.
 
 .. _package-shorthand-name:
 
@@ -46,11 +52,11 @@ Pure Bro Script Package
 
       $ mkdir foo && cd foo && git init
 
-#. Create a package metadata file, :file:`bro-pkg.meta`:
+#. Create a package metadata file, :file:`zkg.meta`:
 
    .. code-block:: console
 
-      $ echo '[package]' > bro-pkg.meta
+      $ echo '[package]' > zkg.meta
 
 #. Create a :file:`__load__.bro` script with example code in it:
 
@@ -63,7 +69,7 @@ Pure Bro Script Package
    .. code-block:: console
 
       $ mkdir scripts && mv __load__.bro scripts
-      $ echo 'script_dir = scripts' >> bro-pkg.meta
+      $ echo 'script_dir = scripts' >> zkg.meta
 
 #. Commit everything to git:
 
@@ -104,7 +110,7 @@ though the following step are the essentials needed to create a package.
 
       $ cd rot13 && git init
 
-#. Create a package metadata file, :file:`bro-pkg.meta`::
+#. Create a package metadata file, :file:`zkg.meta`::
 
      [package]
      script_dir = scripts/Demo/Rot13
@@ -169,11 +175,11 @@ BroControl Plugin Package
 
       $ mkdir foo && cd foo && git init
 
-#. Create a package metadata file, :file:`bro-pkg.meta`:
+#. Create a package metadata file, :file:`zkg.meta`:
 
    .. code-block:: console
 
-      $ echo '[package]' > bro-pkg.meta
+      $ echo '[package]' > zkg.meta
 
 #. Create an example BroControl plugin, :file:`foo.py`:
 
@@ -200,7 +206,7 @@ BroControl Plugin Package
 
    .. code-block:: console
 
-      $ echo 'plugin_dir = .' >> bro-pkg.meta
+      $ echo 'plugin_dir = .' >> zkg.meta
 
 #. Commit everything to git:
 
@@ -248,7 +254,7 @@ Package Metadata
 ----------------
 
 See the following sub-sections for a full list of available fields that may be
-used in :file:`bro-pkg.meta` files.
+used in :file:`zkg.meta` files.
 
 `description` field
 ~~~~~~~~~~~~~~~~~~~
@@ -256,7 +262,7 @@ used in :file:`bro-pkg.meta` files.
 The description field may be used to give users a general overview of the
 package and its purpose. The :ref:`zkg list <list-command>` will display
 the first sentence of description fields in the listings it displays.  An
-example :file:`bro-pkg.meta` using a description field::
+example :file:`zkg.meta` using a description field::
 
   [package]
   description = Another example package.
@@ -315,7 +321,7 @@ The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
 better discover and search for packages.  The
 :ref:`zkg search <search-command>` command will inspect these tags.  An
-example :file:`bro-pkg.meta` using tags::
+example :file:`zkg.meta` using tags::
 
   [package]
   tags = bro plugin, broctl plugin, scan detection, intel
@@ -376,15 +382,15 @@ package.  E.g. if you have a package named **foo** installed, then it's
 :file:`__load__.bro` will be what Bro loads when doing ``@load foo`` or running
 ``bro foo`` on the command-line.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts
 
-For a :file:`bro-pkg.meta` that looks like the above, the package should have a
+For a :file:`zkg.meta` that looks like the above, the package should have a
 file called :file:`scripts/__load__.bro`.
 
-If the `script_dir` field is not present in :file:`bro-pkg.meta`, it
+If the `script_dir` field is not present in :file:`zkg.meta`, it
 defaults to checking the top-level directory of the package for a
 :file:`__load__.bro` script.  If it's found there, :program:`zkg`
 use the top-level package directory as the value for `script_dir`.  If
@@ -397,7 +403,7 @@ Bro scripts (which may be the case for some plugins).
 The `plugin_dir` field is a path relative to the root of the package that
 contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts
@@ -406,7 +412,7 @@ An example :file:`bro-pkg.meta`::
 For the above example, Bro and BroControl will load any plugins found in the
 installed package's :file:`plugins/` directory.
 
-If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults
+If the `plugin_dir` field is not present in :file:`zkg.meta`, it defaults
 to a directory named :file:`build/` at the top-level of the package.  This is
 the default location where Bro binary plugins get placed when building them from
 source code (see the `build_command field`_).
@@ -430,7 +436,7 @@ This is useful for distributing `Bro Plugins`_ as source code and having the
 package manager take care of building it on the user's machine before installing
 the package.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts/Demo/Rot13
@@ -503,7 +509,7 @@ the details of how the interpolation works.
 The `user_vars` field is used to solicit feedback from users for use during
 execution of the `build_command field`_.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   build_command = ./configure --with-librdkafka=%(LIBRDKAFKA_ROOT)s --with-libdub=%(LIBDBUS_ROOT)s && make
@@ -560,7 +566,7 @@ The `test_command` field is an arbitrary shell command that the package manager
 will run when a user either manually runs the :ref:`test command <test-command>`
 or before the package is installed or upgraded.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   test_command = cd testing && btest -d tests
@@ -577,7 +583,7 @@ would otherwise destroy a user's local modifications to a config file, such
 as upgrading to a newer package version, :program:`zkg` can instead save
 a backup and possibly prompt the user to review the differences.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts
@@ -595,7 +601,7 @@ either be located within the `script_dir` or `plugin_dir`.
 The `depends` field may be used to specify a list of dependencies that the
 package requires.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   depends =

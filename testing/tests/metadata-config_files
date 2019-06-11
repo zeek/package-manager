@@ -21,13 +21,13 @@
 @TEST-START-FILE setup
 cd packages/foo
 echo 'print "foo orig";' > config.bro
-echo 'config_files = config.bro' >> bro-pkg.meta
+echo 'config_files = config.bro' >> zkg.meta
 git add *
 git commit -am 'new stuff'
 
 cd ../bar
 echo 'print "bar 1.0.0";' > config.bro
-echo 'config_files = config.bro' >> bro-pkg.meta
+echo 'config_files = config.bro' >> zkg.meta
 git add *
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0

@@ -9,7 +9,7 @@ cd sources/one
 git commit -am 'add rot13 package'
 
 cd ../../packages/rot13
-echo 'depends = bar *' >> bro-pkg.meta
+echo 'depends = bar *' >> zkg.meta
 echo -e "@load bar\n$(cat scripts/Demo/Rot13/__load__.bro)" > scripts/Demo/Rot13/__load__.bro
 
 cd testing/Baseline/tests.main

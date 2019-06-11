@@ -1967,8 +1967,9 @@ def argparser():
     sub_parser.add_argument(
         '--aggregate', action='store_true',
         help='Crawls the urls listed in package source bro-pkg.index files and'
-        ' aggregates the metadata found in their bro-pkg.meta files.  The'
-        ' aggregated metadata is stored in the local clone of the package'
+        ' aggregates the metadata found in their zkg.meta (or legacy'
+        ' bro-pkg.meta) files.  The aggregated metadata is stored in the local'
+        ' clone of the package'
         ' source that zkg uses internally locating package metadata.'
         ' For each package, the metadata is taken from the highest available'
         ' git version tag or the master branch if no version tags exist')

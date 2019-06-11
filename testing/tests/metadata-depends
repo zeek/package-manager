@@ -21,16 +21,16 @@
 # @TEST-EXEC: btest-diff bundle_depends.out
 
 cd packages/foo
-echo 'depends = bar *' >> bro-pkg.meta
+echo 'depends = bar *' >> zkg.meta
 git commit -am 'new stuff'
 
 cd ../bar
-echo 'depends = baz >=1.0.0' >> bro-pkg.meta
+echo 'depends = baz >=1.0.0' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 
 cd ../baz
-echo 'depends = grault branch=master' >> bro-pkg.meta
+echo 'depends = grault branch=master' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 echo 'print "2.0.0";' > __load__.bro
@@ -38,13 +38,13 @@ git commit -am 'new stuff'
 git tag -a 2.0.0 -m 2.0.0
 
 cd ../grault
-echo 'depends = corge ==1.0.1' >> bro-pkg.meta
+echo 'depends = corge ==1.0.1' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 
 cd ../corge
 git tag -a 1.0.0 -m 1.0.0
-echo 'depends = foo * bar *' >> bro-pkg.meta
+echo 'depends = foo * bar *' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.1 -m 1.0.1
 echo 'print "2.0.0";' > __load__.bro

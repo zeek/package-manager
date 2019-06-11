@@ -12,7 +12,8 @@ from ._util import (
 )
 
 #: The name of files used by packages to store their metadata.
-METADATA_FILENAME = 'bro-pkg.meta'
+METADATA_FILENAME = 'zkg.meta'
+LEGACY_METADATA_FILENAME = 'bro-pkg.meta'
 
 TRACKING_METHOD_VERSION = 'version'
 TRACKING_METHOD_BRANCH = 'branch'
@@ -204,7 +205,7 @@ class PackageInfo(object):
             packages
 
         metadata (dict of str -> str): the contents of the package's
-            :file:`bro-pkg.meta` file
+            :file:`zkg.meta` or :file:`bro-pkg.meta`
 
         versions (list of str): a list of the package's availabe git version
             tags
@@ -218,8 +219,8 @@ class PackageInfo(object):
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong.
 
-        metadata_file: the absolute path to bro-pkg.meta for this
-            package.  Use this if you'd like to parse the metadata
+        metadata_file: the absolute path to the zkg.meta or bro-pkg.meta for
+            this package.  Use this if you'd like to parse the metadata
             yourself. May not be defined, in which case the value is
             None.
     """
@@ -316,10 +317,10 @@ class Package(object):
             or if it's located in a top-level :file:`bro-pkg.index` file.
 
         metadata (dict of str -> str): the contents of the package's
-            :file:`bro-pkg.meta` file.  If the package has not been installed
-            then this information may come from the last aggregation of the
-            source's :file:`aggregate.meta` file (it may not be
-            accurate/up-to-date).
+            :file:`zkg.meta` or :file:`bro-pkg.meta` file.  If the package has
+            not been installed then this information may come from the last
+            aggregation of the source's :file:`aggregate.meta` file (it may not
+            be accurate/up-to-date).
     """
 
     def __init__(self, git_url, source='', directory='', metadata=None,

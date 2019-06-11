@@ -45,6 +45,7 @@ from .source import (
 )
 from .package import (
     METADATA_FILENAME,
+    LEGACY_METADATA_FILENAME,
     TRACKING_METHOD_VERSION,
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_COMMIT,
@@ -100,13 +101,13 @@ class Manager(object):
 
         script_dir (str): the directory where the package manager will
             copy each installed package's `script_dir` (as given by its
-            :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
-            `script_dir` associated with its name.
+            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
+            subdirectory within `script_dir` associated with its name.
 
         plugin_dir (str): the directory where the package manager will
             copy each installed package's `plugin_dir` (as given by its
-            :file:`bro-pkg.meta` file).  Each package gets a subdirectory within
-            `plugin_dir` associated with its name.
+            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
+            subdirectory within `plugin_dir` associated with its name.
 
         source_clonedir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
@@ -685,8 +686,7 @@ class Manager(object):
 
                     _git_checkout(clone, version)
 
-                    metadata_file = os.path.join(
-                        clone.working_dir, METADATA_FILENAME)
+                    metadata_file = _pick_metadata_file(clone.working_dir)
                     # Use raw parser so no value interpolation takes place.
                     metadata_parser = configparser.RawConfigParser()
                     invalid_reason = _parse_package_metadata(
@@ -1874,7 +1874,7 @@ class Manager(object):
 
     def _stage(self, package, version, clone,
                stage_script_dir, stage_plugin_dir):
-        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
+        metadata_file = _pick_metadata_file(clone.working_dir)
 
         # First use raw parser so no value interpolation takes place.
         raw_metadata_parser = configparser.RawConfigParser()
@@ -2161,7 +2161,7 @@ class Manager(object):
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
 
-        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
+        metadata_file = _pick_metadata_file(clone.working_dir)
         # Use raw parser so no value interpolation takes place.
         raw_metadata_parser = configparser.RawConfigParser()
         invalid_reason = _parse_package_metadata(
@@ -2315,7 +2315,7 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         rval = []
 
         for f in files:
-            if f in {'.git', 'bro-pkg.meta'}:
+            if f in {'.git', 'bro-pkg.meta', 'zkg.meta'}:
                 rval.append(f)
 
         return rval
@@ -2382,15 +2382,26 @@ def _get_package_metadata(parser):
     return metadata
 
 
+def _pick_metadata_file(directory):
+    rval = os.path.join(directory, METADATA_FILENAME)
+
+    if os.path.exists(rval):
+        return rval
+
+    return os.path.join(directory, LEGACY_METADATA_FILENAME)
+
+
 def _parse_package_metadata(parser, metadata_file):
     """Return string explaining why metadata is invalid, or '' if valid. """
     if not parser.read(metadata_file):
         LOG.warning('%s: missing metadata file', metadata_file)
-        return 'missing {} metadata file'.format(METADATA_FILENAME)
+        return 'missing {} (or {}) metadata file'.format(
+                METADATA_FILENAME, LEGACY_METADATA_FILENAME)
 
     if not parser.has_section('package'):
         LOG.warning('%s: metadata missing [package]', metadata_file)
-        return '{} is missing [package] section'.format(METADATA_FILENAME)
+        return '{} is missing [package] section'.format(
+                os.path.basename(metadata_file))
 
     return ''
 
@@ -2410,7 +2421,7 @@ def _info_from_clone(clone, package, status, version):
     else:
         version_type = TRACKING_METHOD_BRANCH
 
-    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
+    metadata_file = _pick_metadata_file(clone.working_dir)
     # Use raw parser so no value interpolation takes place.
     metadata_parser = configparser.RawConfigParser()
     invalid_reason = _parse_package_metadata(

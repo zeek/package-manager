@@ -28,8 +28,8 @@ cd ../bar
 echo 'print "bar+ loaded";' > __load__.bro
 git commit -am 'new stuff'
 echo 'print "bar 1.0.0 loaded";' > __load__.bro
-echo 'tags = sega sunset' >> bro-pkg.meta
-echo 'description = bar bar bar' >> bro-pkg.meta
+echo 'tags = sega sunset' >> zkg.meta
+echo 'description = bar bar bar' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 echo 'print "bar++ loaded";' > __load__.bro
