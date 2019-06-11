@@ -1273,12 +1273,12 @@ class Manager(object):
                 all_deps.update(ds)
 
             for dep_name, _ in all_deps.items():
-                if dep_name == 'bro':
-                    # A bro node will get added later.
+                if dep_name == 'bro' or dep_name == 'zeek':
+                    # A zeek node will get added later.
                     continue
 
-                if dep_name == 'bro-pkg':
-                    # A bro-pkg node will get added later.
+                if dep_name == 'bro-pkg' or dep_name == 'zkg':
+                    # A zkg node will get added later.
                     continue
 
                 # Suggestion status propagates to 'depends' field of suggested packages.
@@ -1310,21 +1310,21 @@ class Manager(object):
                 graph[node.name] = node
                 to_process[node.name] = node
 
-        # Add nodes for things that are already installed (including bro)
+        # Add nodes for things that are already installed (including zeek)
         if not ignore_installed_packages:
             bro_version = get_bro_version()
 
             if bro_version:
-                node = Node('bro')
+                node = Node('zeek')
                 node.installed_version = (TRACKING_METHOD_VERSION, bro_version)
-                graph['bro'] = node
+                graph['zeek'] = node
             else:
                 LOG.warning(
                     'could not get zeek version: no "zeek-config" or "bro-config" in PATH ?')
 
-            node = Node('bro-pkg')
+            node = Node('zkg')
             node.installed_version = (TRACKING_METHOD_VERSION, __version__)
-            graph['bro-pkg'] = node
+            graph['zkg'] = node
 
             for ipkg in self.installed_packages():
                 name = ipkg.package.qualified_name()
@@ -1341,10 +1341,10 @@ class Manager(object):
 
         # 2. Fill in the edges of the graph with dependency information.
         for name, node in graph.items():
-            if name == 'bro':
+            if name == 'zeek':
                 continue
 
-            if name == 'bro-pkg':
+            if name == 'zkg':
                 continue
 
             dd = node.info.dependencies(field='depends')
@@ -1364,18 +1364,18 @@ class Manager(object):
                 all_deps.update(ds)
 
             for dep_name, dep_version in all_deps.items():
-                if dep_name == 'bro':
-                    if 'bro' in graph:
-                        graph['bro'].dependers[name] = dep_version
-                elif dep_name == 'bro-pkg':
-                    if 'bro-pkg' in graph:
-                        graph['bro-pkg'].dependers[name] = dep_version
+                if dep_name == 'bro' or dep_name == 'zeek':
+                    if 'zeek' in graph:
+                        graph['zeek'].dependers[name] = dep_version
+                elif dep_name == 'bro-pkg' or dep_name == 'zkg':
+                    if 'zkg' in graph:
+                        graph['zkg'].dependers[name] = dep_version
                 else:
                     for _, dependency_node in graph.items():
-                        if dependency_node.name == 'bro':
+                        if dependency_node.name == 'zeek':
                             continue
 
-                        if dependency_node.name == 'bro-pkg':
+                        if dependency_node.name == 'zkg':
                             continue
 
                         if dependency_node.info.package.matches_path(dep_name):

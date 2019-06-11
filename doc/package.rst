@@ -605,7 +605,7 @@ An example :file:`zkg.meta`::
 
   [package]
   depends =
-    bro >=2.5.0
+    zeek >=2.5.0
     foo *
     https://github.com/bro/bar >=2.0.0
     package_source/path/bar branch=name_of_git_branch
@@ -613,23 +613,37 @@ An example :file:`zkg.meta`::
 The field is a list of dependency names and their version requirement
 specifications.
 
-A dependency name may be either `bro`, `bro-pkg`, a full git URL of the package,
-or a :ref:`package shorthand name <package-shorthand-name>`.
+A dependency name may be either `zeek`, `zkg`, `bro`, `bro-pkg`,
+a full git URL of the package, or a :ref:`package shorthand name
+<package-shorthand-name>`.
 
-- The special `bro` dependency refers not to a package, but the version of
-  Bro that the package requires in order to function.  If the user has
-  :program:`zeek-config` in their :envvar:`PATH` when installing/upgrading a
-  package that specifies a `bro` dependency, then :program:`zkg` will
-  enforce that the requirement is satisfied.
+- The special `zeek` and `bro` dependencies refers not to a package,
+  but the version of Zeek that the package requires in order to function.  If
+  the user has :program:`zeek-config` or :program:`bro-config` in their
+  :envvar:`PATH` when installing/upgrading a package that specifies a `zeek` or
+  `bro` dependency, then :program:`zkg` will enforce that the requirement is
+  satisfied.
 
-- The special `bro-pkg` dependency refers to the version of the package
-  manager that is required by the package.  E.g. if a package takes advantage
-  of new features that are not present in older versions of the package manager,
-  then it should indicate that so users of those old version will see an error
-  message an know to upgrade instead of seeing a cryptic error/exception, or
-  worse, seeing no errors, but without the desired functionality being
-  performed.
-  Note that this feature itself is only available :program:`since bro-pkg v1.2`.
+  .. note::
+
+     In this context, `zeek` and `bro` mean the same thing -- the
+     later is maintained for backwards compatibility while the former
+     became available :program:`since zkg v2.0`.
+
+- The special `zkg` and `bro-pkg` dependencies refers to the version of the
+  package manager that is required by the package.  E.g. if a package takes
+  advantage of new features that are not present in older versions of the
+  package manager, then it should indicate that so users of those old version
+  will see an error message an know to upgrade instead of seeing a cryptic
+  error/exception, or worse, seeing no errors, but without the desired
+  functionality being performed.
+
+  .. note::
+
+     This feature itself, via use of a `bro-pkg` dependency, is only
+     available :program:`since bro-pkg v1.2` while a `zkg` dependency is only
+     recognized :program:`since zkg v2.0`.  Otherwise, `zkg` and `bro-pkg` mean
+     the same thing in this context.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git
