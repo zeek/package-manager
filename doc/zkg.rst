@@ -206,7 +206,7 @@ Config File
 
 The :program:`zkg` command-line tool uses an INI-format config file to allow
 users to customize their :doc:`Package Sources <source>`, :doc:`Package
-<package>` installation paths, Bro executable/source paths, and other
+<package>` installation paths, Zeek executable/source paths, and other
 :program:`zkg` options.
 
 See the default/example config file below for explanations of the

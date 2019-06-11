@@ -23,7 +23,7 @@ Releases are hosted at PyPi_.  To build and upload a release:
 #. Finalize the git repo tag and version with  ``update-changes -R <version>``
    if not done already.
 
-#. Upload the distribution (you will need the credentials for the 'bro'
+#. Upload the distribution (you will need the credentials for the 'zeek'
    account on PyPi):
 
    .. code-block:: console

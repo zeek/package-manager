@@ -1766,7 +1766,7 @@ class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 def top_level_parser():
     top_parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='A command-line package manager for Bro.',
+        description='A command-line package manager for Zeek.',
         epilog='Environment Variables:\n\n'
         '    ``ZKG_CONFIG_FILE``:\t'
         'Same as ``--configfile`` option, but has less precedence.'
@@ -1774,7 +1774,7 @@ def top_level_parser():
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + zeekpkg.__version__)
     top_parser.add_argument('--configfile',
-                            help='Path to Bro Package Manager config file.')
+                            help='Path to Zeek Package Manager config file.')
     top_parser.add_argument('--verbose', '-v', action='count', default=0,
                             help='Increase program output for debugging.'
                             ' Use multiple times for more output (e.g. -vvv).')
@@ -1792,10 +1792,10 @@ def argparser():
                     ' name may be prepended to the package path to resolve' \
                     ' the ambiguity. A full git URL may also be used to refer' \
                     ' to a package that does not belong to a source. E.g. for' \
-                    ' a package source called "bro" that has a package named' \
+                    ' a package source called "zeek" that has a package named' \
                     ' "foo" located in either "alice/zkg.index" or' \
                     ' "alice/bro-pkg.index", the following' \
-                    ' names work: "foo", "alice/foo", "bro/alice/foo".'
+                    ' names work: "foo", "alice/foo", "zeek/alice/foo".'
 
     top_parser = top_level_parser()
     command_parser = top_parser.add_subparsers(
@@ -1806,9 +1806,9 @@ def argparser():
     # test
     sub_parser = command_parser.add_parser(
         'test',
-        help='Runs unit tests for Bro packages.',
-        description='Runs the unit tests for the specified Bro packages.'
-                    ' In most cases, the "bro" and "bro-config" programs will'
+        help='Runs unit tests for Zeek packages.',
+        description='Runs the unit tests for the specified Zeek packages.'
+                    ' In most cases, the "zeek" and "zeek-config" programs will'
                     ' need to be in PATH before running this command.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_test)
@@ -1828,7 +1828,7 @@ def argparser():
     # install
     sub_parser = command_parser.add_parser(
         'install',
-        help='Installs Bro packages.',
+        help='Installs Zeek packages.',
         description='Installs packages from a configured package source or'
                     ' directly from a git URL.  After installing, the package'
                     ' is marked as being "loaded" (see the ``load`` command).',
@@ -1845,7 +1845,7 @@ def argparser():
     sub_parser.add_argument(
         '--nodeps', action='store_true',
         help='Skip all dependency resolution/checks.  Note that using this'
-        ' option risks putting your installed package collection into a '
+        ' option risks putting your installed package collection into a'
         ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
@@ -1864,9 +1864,9 @@ def argparser():
     # bundle
     sub_parser = command_parser.add_parser(
         'bundle',
-        help='Creates a bundle file containing a collection of Bro packages.',
+        help='Creates a bundle file containing a collection of Zeek packages.',
         description='This command creates a bundle file containing a collection'
-                    ' of Bro packages.  If ``--manifest`` is used, the user'
+                    ' of Zeek packages.  If ``--manifest`` is used, the user'
                     ' supplies the list of packages to put in the bundle, else'
                     ' all currently installed packages are put in the bundle.'
                     ' A bundle file can be unpacked on any target system,'
@@ -1894,7 +1894,7 @@ def argparser():
     sub_parser.add_argument(
         '--nodeps', action='store_true',
         help='Skip all dependency resolution/checks.  Note that using this'
-        ' option risks creating a bundle of packages that is in a '
+        ' option risks creating a bundle of packages that is in a'
         ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
@@ -1912,7 +1912,7 @@ def argparser():
     # unbundle
     sub_parser = command_parser.add_parser(
         'unbundle',
-        help='Unpacks Bro packages from a bundle file and installs them.',
+        help='Unpacks Zeek packages from a bundle file and installs them.',
         description='This command unpacks a bundle file formerly created by the'
                     ' ``bundle`` command and installs all the packages'
                     ' contained within.',
@@ -2006,7 +2006,7 @@ def argparser():
     sub_parser.add_argument(
         '--nodeps', action='store_true',
         help='Skip all dependency resolution/checks.  Note that using this'
-        ' option risks putting your installed package collection into a '
+        ' option risks putting your installed package collection into a'
         ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
@@ -2015,10 +2015,10 @@ def argparser():
     # load
     sub_parser = command_parser.add_parser(
         'load',
-        help='Register packages to be be auto-loaded by Bro.',
-        description='The Bro Package Manager keeps track of all packages that'
-        ' are marked as "loaded" and maintains a single Bro script that, when'
-        ' loaded by Bro (e.g. via ``@load packages``), will load the scripts'
+        help='Register packages to be be auto-loaded by Zeek.',
+        description='The Zeek Package Manager keeps track of all packages that'
+        ' are marked as "loaded" and maintains a single Zeek script that, when'
+        ' loaded by Zeek (e.g. via ``@load packages``), will load the scripts'
         ' from all "loaded" packages at once.'
         ' This command adds a set of packages to the "loaded packages" list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -2030,10 +2030,10 @@ def argparser():
     # unload
     sub_parser = command_parser.add_parser(
         'unload',
-        help='Unregister packages to be be auto-loaded by Bro.',
-        description='The Bro Package Manager keeps track of all packages that'
-        ' are marked as "loaded" and maintains a single Bro script that, when'
-        ' loaded by Bro, will load the scripts from all "loaded" packages at'
+        help='Unregister packages to be be auto-loaded by Zeek.',
+        description='The Zeek Package Manager keeps track of all packages that'
+        ' are marked as "loaded" and maintains a single Zeek script that, when'
+        ' loaded by Zeek, will load the scripts from all "loaded" packages at'
         ' once.  This command removes a set of packages from the "loaded'
         ' packages" list.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -2136,7 +2136,7 @@ def argparser():
     # config
     sub_parser = command_parser.add_parser(
         'config',
-        help='Show Bro Package Manager configuration info.',
+        help='Show Zeek Package Manager configuration info.',
         description='The default output of this command is a valid package'
         ' manager config file that corresponds to the one currently being used,'
         ' but also with any defaulted field values filled in.  This command'
@@ -2153,12 +2153,12 @@ def argparser():
     # autoconfig
     sub_parser = command_parser.add_parser(
         'autoconfig',
-        help='Generate a Bro Package Manager configuration file.',
+        help='Generate a Zeek Package Manager configuration file.',
         description='The output of this command is a valid package manager'
-        ' config file that is generated by using the ``bro-config`` script'
-        ' that is installed along with Bro.  It is the suggested configuration'
-        ' to use for most Bro installations.  For this command to work, the'
-        ' ``bro-config`` script must be in ``PATH``.',
+        ' config file that is generated by using the ``zeek-config`` script'
+        ' that is installed along with Zeek.  It is the suggested configuration'
+        ' to use for most Zeek installations.  For this command to work, the'
+        ' ``zeek-config`` (or ``bro-config``) script must be in ``PATH``.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_autoconfig)
 
@@ -2166,12 +2166,12 @@ def argparser():
     sub_parser = command_parser.add_parser(
         'env',
         help='Show the value of environment variables that need to be set for'
-        ' Bro to be able to use installed packages.',
+        ' Zeek to be able to use installed packages.',
         description='This command returns shell commands that, when executed,'
         ' will correctly set ``ZEEKPATH`` and ``ZEEK_PLUGIN_PATH`` (also'
         ' ``BROPATH`` and ``BRO_PLUGIN_PATH`` for legacy compatibility) to use'
         ' scripts and plugins from packages installed by the package manager.'
-        ' For this command to function properly, either have the ``bro-config``'
+        ' For this command to function properly, either have the ``zeek-config``'
         ' script (installed by zeek) in ``PATH``, or have the ``ZEEKPATH`` and'
         ' ``ZEEK_PLUGIN_PATH`` (or ``BROPATH`` and ``BRO_PLUGIN_PATH``)'
         ' environment variables already set so this command'

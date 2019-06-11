@@ -1,6 +1,6 @@
 """
 A module with various data structures used for interacting with and querying
-the properties and status of Bro packages.
+the properties and status of Zeek packages.
 """
 
 import os
@@ -114,8 +114,9 @@ def user_vars(metadata_dict):
 def dependencies(metadata_dict, field='depends'):
     """Returns a dictionary of (str, str) based on metadata's dependency field.
 
-    The keys indicate the name of a package (shorthand name or full git URL)
-    or just 'bro' to indicate a dependency on a particular bro version.
+    The keys indicate the name of a package (shorthand name or full git URL).
+    The names 'zeek' or 'zkg' may also be keys that indicate a dependency on a
+    particular Zeek or zkg version.
 
     The values indicate a semantic version requirement.
 
@@ -199,7 +200,7 @@ class PackageInfo(object):
     If the package is installed, then its status is also available.
 
     Attributes:
-        package (:class:`Package`): the relevant Bro package
+        package (:class:`Package`): the relevant Zeek package
 
         status (:class:`PackageStatus`): this attribute is set for installed
             packages
@@ -219,10 +220,10 @@ class PackageInfo(object):
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong.
 
-        metadata_file: the absolute path to the zkg.meta or bro-pkg.meta for
-            this package.  Use this if you'd like to parse the metadata
-            yourself. May not be defined, in which case the value is
-            None.
+        metadata_file: the absolute path to the :file:`zkg.meta` or
+            :file:`bro-pkg.meta` for this package.  Use this if you'd like to
+            parse the metadata yourself. May not be defined, in which case the
+            value is None.
     """
 
     def __init__(self, package=None, status=None, metadata=None, versions=None,
@@ -259,8 +260,9 @@ class PackageInfo(object):
     def dependencies(self, field='depends'):
         """Returns a dictionary of dependency -> version strings.
 
-        The keys indicate the name of a package (shorthand name or full git URL)
-        or just 'bro' to indicate a dependency on a particular bro version.
+        The keys indicate the name of a package (shorthand name or full git
+        URL).  The names 'zeek' or 'zkg' may also be keys that indicate a
+        dependency on a particular Zeek or zkg version.
 
         The values indicate a semantic version requirement.
 
@@ -293,14 +295,14 @@ class PackageInfo(object):
 
 
 class Package(object):
-    """A Bro package.
+    """A Zeek package.
 
     This class contains properties of a package that are defined by the package
     git repository itself and the package source it came from.
 
     Attributes:
         git_url (str): the git URL which uniquely identifies where the
-            Bro package is located
+            Zeek package is located
 
         name (str): the canonical name of the package, which is always the
             last component of the git URL path
@@ -376,8 +378,9 @@ class Package(object):
     def dependencies(self, field='depends'):
         """Returns a dictionary of dependency -> version strings.
 
-        The keys indicate the name of a package (shorthand name or full git URL)
-        or just 'bro' to indicate a dependency on a particular bro version.
+        The keys indicate the name of a package (shorthand name or full git
+        URL).  The names 'zeek' or 'zkg' may also be keys that indicate a
+        dependency on a particular Zeek or zkg version.
 
         The values indicate a semantic version requirement.
 
@@ -426,8 +429,8 @@ class Package(object):
     def matches_path(self, path):
         """Return whether this package has a matching path/name.
 
-        E.g for a package with :meth:`qualified_name()` of "bro/alice/foo",
-        the following inputs will match: "foo", "alice/foo", "bro/alice/foo"
+        E.g for a package with :meth:`qualified_name()` of "zeek/alice/foo",
+        the following inputs will match: "foo", "alice/foo", "zeek/alice/foo"
         """
         path_parts = path.split('/')
 

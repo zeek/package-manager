@@ -1,6 +1,6 @@
 """
-A module defining the main Bro Package Manager interface which supplies methods
-to interact with and operate on Bro packages.
+A module defining the main Zeek Package Manager interface which supplies
+methods to interact with and operate on Zeek packages.
 """
 
 import os
@@ -78,8 +78,8 @@ class Manager(object):
             a dictionary of installed packaged keyed on package names (the last
             component of the package's git URL)
 
-        bro_dist (str): path to the Bro source code distribution.  This
-            is needed for packages that contain Bro plugins that need to be
+        bro_dist (str): path to the Zeek source code distribution.  This
+            is needed for packages that contain Zeek plugins that need to be
             built from source code.
 
         state_dir (str): the directory where the package manager will
@@ -124,12 +124,12 @@ class Manager(object):
         manifest (str): the path to the package manager's manifest file.
             This file maintains a list of installed packages and their status.
 
-        autoload_script (str): path to a Bro script named :file:`packages.zeek`
+        autoload_script (str): path to a Zeek script named :file:`packages.zeek`
             that the package manager maintains.  It is a list of ``@load`` for
             each installed package that is marked as loaded (see
             :meth:`load()`).
 
-        autoload_package (str): path to a Bro :file:`__load__.zeek` script
+        autoload_package (str): path to a Zeek :file:`__load__.zeek` script
             which is just a symlink to `autoload_script`.  It's always located
             in a directory named :file:`packages`, so as long as
             :envvar:`ZEEKPATH` is configured correctly, ``@load packages`` will
@@ -199,10 +199,10 @@ class Manager(object):
                 delete_path(self.script_dir)
                 shutil.move(prev_script_dir, self.script_dir)
 
-            prev_bropath = os.path.dirname(prev_script_dir)
+            prev_zeekpath = os.path.dirname(prev_script_dir)
 
             for pkg_name in self.installed_pkgs:
-                old_link = os.path.join(prev_bropath, pkg_name)
+                old_link = os.path.join(prev_zeekpath, pkg_name)
                 new_link = os.path.join(self.bropath(), pkg_name)
 
                 if os.path.lexists(old_link):
@@ -379,9 +379,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
         """
         name = name_from_path(pkg_path)
         return os.path.join(self.log_dir, '{}-build.log'.format(name))
@@ -392,9 +392,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
         """
         rval = []
         canon_url = canonical_url(pkg_path)
@@ -411,9 +411,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         A package's name is the last component of it's git URL.
         """
@@ -425,10 +425,10 @@ class Manager(object):
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
-                package to check for whether it has installed any Bro scripts.
+                package to check for whether it has installed any Zeek scripts.
 
         Returns:
-            bool: True if the package has installed Bro scripts.
+            bool: True if the package has installed Zeek scripts.
         """
         return os.path.exists(os.path.join(self.script_dir,
                                            installed_pkg.package.name))
@@ -479,7 +479,7 @@ class Manager(object):
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
-                package to check for whether it has installed any Bro scripts.
+                package to check for whether it has installed any Zeek scripts.
 
         Returns:
             list of (str, str): tuples that describe the modified config files.
@@ -757,9 +757,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
             str: an empty string if package upgrade succeeded else an error
@@ -808,9 +808,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
             bool: True if an installed package was removed, else False.
@@ -852,9 +852,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
             :class:`.package.InstalledPackage`: None if no matching installed
@@ -886,9 +886,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
             :class:`.package.InstalledPackage`: None if no matching installed
@@ -917,15 +917,15 @@ class Manager(object):
     def load(self, pkg_path):
         """Mark an installed package as being "loaded".
 
-        The collection of "loaded" packages is a convenient way for Bro to more
+        The collection of "loaded" packages is a convenient way for Zeek to more
         simply load a whole group of packages installed via the package manager.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
             str: empty string if the package is successfully marked as loaded,
@@ -966,15 +966,15 @@ class Manager(object):
     def unload(self, pkg_path):
         """Unmark an installed package as being "loaded".
 
-        The collection of "loaded" packages is a convenient way for Bro to more
+        The collection of "loaded" packages is a convenient way for Zeek to more
         simply load a whole group of packages installed via the package manager.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
             bool: True if a package is successfully unmarked as loaded.
@@ -1058,9 +1058,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
             version (str): may be a git version tag, branch name, or commit hash
                 from which metadata will be pulled.  If an empty string is
@@ -1737,9 +1737,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
             version (str): if not given, then the latest git version tag is
                 used (or if no version tags exist, the "master" branch is
@@ -2036,9 +2036,9 @@ class Manager(object):
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
-                a package source called "bro" with package named "foo" in
+                a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "bro/alice/foo".
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
             version (str): if not given, then the latest git version tag is
                 installed (or if no version tags exist, the "master" branch is

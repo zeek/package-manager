@@ -1,5 +1,5 @@
 .. _PyPI: https://pypi.python.org/pypi
-.. _BroControl: https://www.zeek.org/sphinx/components/broctl/README.html
+.. _ZeekControl: https://github.com/zeek/zeekctl
 
 Quickstart Guide
 ================
@@ -24,20 +24,20 @@ Using the latest stable release on PyPI_:
 
 .. code-block:: console
 
-  $ pip install bro-pkg
+  $ pip install zkg
 
 Using the latest git development version:
 
 .. code-block:: console
 
-  $ pip install git+git://github.com/bro/package-manager@master
+  $ pip install git+git://github.com/zeek/package-manager@master
 
 Basic Configuration
 -------------------
 
 After installing via :program:`pip`, additional configuration is required.
 First, make sure that the :program:`zeek-config` script that gets installed with
-:program:`bro` is in your :envvar:`PATH`.  Then, as the user you want to run
+:program:`zeek` is in your :envvar:`PATH`.  Then, as the user you want to run
 :program:`zkg` with, do:
 
 .. code-block:: console
@@ -45,27 +45,27 @@ First, make sure that the :program:`zeek-config` script that gets installed with
   $ zkg autoconfig
 
 This automatically generates a config file with the following suggested
-settings that should work for most Bro deployments:
+settings that should work for most Zeek deployments:
 
-- `script_dir`: set to the location of Bro's :file:`site` scripts directory
-  (e.g. :file:`{<bro_install_prefix>}/share/bro/site`)
+- `script_dir`: set to the location of Zeek's :file:`site` scripts directory
+  (e.g. :file:`{<zeek_install_prefix>}/share/zeek/site`)
 
-- `plugin_dir`: set to the location of Bro's default plugin directory (e.g.
-  :file:`{<bro_install_prefix>}/lib/bro/plugins`)
+- `plugin_dir`: set to the location of Zeek's default plugin directory (e.g.
+  :file:`{<zeek_install_prefix>}/lib/zeek/plugins`)
 
 - `zeek_dist`: set to the location of Zeek's source code.
   If you didn't build/install Zeek from source code, this field will not be set,
   but it's only needed if you plan on installing packages that have uncompiled
   Zeek plugins.
 
-With those settings, the package manager will install Bro scripts, Bro plugins,
-and BroControl plugins into directories where :program:`bro` and
-:program:`broctl` will, by default, look for them.  BroControl clusters will
+With those settings, the package manager will install Zeek scripts, Zeek plugins,
+and ZeekControl plugins into directories where :program:`zeek` and
+:program:`zeekctl` will, by default, look for them.  ZeekControl clusters will
 also automatically distribute installed package scripts/plugins to all nodes.
 
 .. note::
 
-  If your Bro installation is owned by "root" and you intend to run
+  If your Zeek installation is owned by "root" and you intend to run
   :program:`zkg` as a different user, then you should grant "write" access
   to the directories specified by `script_dir` and `plugin_dir`.  E.g. you could
   do something like:
@@ -75,8 +75,8 @@ also automatically distribute installed package scripts/plugins to all nodes.
     $ sudo chgrp $USER $(zeek-config --site_dir) $(zeek-config --plugin_dir)
     $ sudo chmod g+rwX $(zeek-config --site_dir) $(zeek-config --plugin_dir)
 
-The final step is to edit your :file:`site/local.bro`.  If you want to
-have Bro automatically load the scripts from all
+The final step is to edit your :file:`site/local.zeek`.  If you want to
+have Zeek automatically load the scripts from all
 :ref:`installed <install-command>` packages that are also marked as
 ":ref:`loaded <load-command>`" add:
 
@@ -100,16 +100,16 @@ If you prefer to not use the suggested `Basic Configuration`_ settings for
 `script_dir` and `plugin_dir`, the default configuration will install all
 package scripts/plugins within :file:`~/.zkg` or you may change them to
 whatever location you prefer.  These will be referred to as "non-standard"
-locations in the sense that vanilla configurations of either :program:`bro` or
-:program:`broctl` will not detect scripts/plugins in those locations without
+locations in the sense that vanilla configurations of either :program:`zeek` or
+:program:`zeekctl` will not detect scripts/plugins in those locations without
 additional configuration.
 
 When using non-standard location, follow these steps to integrate with
-:program:`bro` and :program:`broctl`:
+:program:`zeek` and :program:`zeekctl`:
 
-- To get command-line :program:`bro` to be aware of Bro scripts/plugins in a
+- To get command-line :program:`zeek` to be aware of Zeek scripts/plugins in a
   non-standard location, make sure the :program:`zeek-config` script (that gets
-  installed along with :program:`bro`) is in your :envvar:`PATH` and run:
+  installed along with :program:`zeek`) is in your :envvar:`PATH` and run:
 
   .. code-block:: console
 
@@ -117,21 +117,21 @@ When using non-standard location, follow these steps to integrate with
 
   Note that this sets up the environment only for the current shell session.
 
-- To get :program:`broctl` to be aware of scripts/plugins in a non-standard
+- To get :program:`zeekctl` to be aware of scripts/plugins in a non-standard
   location, run:
 
   .. code-block:: console
 
     $ zkg config script_dir
 
-  And set the `SitePolicyPath` option in :file:`broctl.cfg` based on the output
+  And set the `SitePolicyPath` option in :file:`zeekctl.cfg` based on the output
   you see.  Similarly, run:
 
   .. code-block:: console
 
     $ zkg config plugin_dir
 
-  And set the `SitePluginPath` option in :file:`broctl.cfg` based on the output
+  And set the `SitePluginPath` option in :file:`zeekctl.cfg` based on the output
   you see.
 
 Usage
@@ -156,7 +156,7 @@ Offline Usage
 ~~~~~~~~~~~~~
 
 It's common to have limited network/internet access on the systems where
-Bro is deployed.  To accomodate those scenarios, :program:`zkg` can
+Zeek is deployed.  To accomodate those scenarios, :program:`zkg` can
 be used as normally on a system that *does* have network access to
 create bundles of its package installation environment. Those bundles
 can then be transferred to the deployment systems via whatever means are
@@ -174,20 +174,20 @@ file which contains a snapshot of all currently installed packages:
 
 .. code-block:: console
 
-    $ zkg bundle bro-packages.bundle
+    $ zkg bundle zeek-packages.bundle
 
-Then transfer :file:`bro-packages.bundle` to the Bro deployment
-management host.  For Bro clusters using BroControl_, this will
+Then transfer :file:`zeek-packages.bundle` to the Zeek deployment
+management host.  For Zeek clusters using ZeekControl_, this will
 be the system acting as the "manager" node.  Then on that system
 (assuming it already as :program:`zkg` installed and configured):
 
 .. code-block:: console
 
-    $ zkg unbundle bro-packages.bundle
+    $ zkg unbundle zeek-packages.bundle
 
-Finally, if you're using BroControl_, and the unbundling process
+Finally, if you're using ZeekControl_, and the unbundling process
 was successful, you need to deploy the changes to worker nodes:
 
 .. code-block:: console
 
-    $ broctl deploy
+    $ zeekctl deploy

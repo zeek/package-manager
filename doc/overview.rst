@@ -6,7 +6,7 @@ Zeek Package Manager
 ====================
 
 The Zeek Package Manager makes it easy for Zeek users to install and
-manage third party scripts as well as plugins for Zeek and BroControl.
+manage third party scripts as well as plugins for Zeek and ZeekControl.
 The command-line tool is preconfigured to download packages from the
 `Zeek package source`_ , a GitHub repository that has been set up such
 that any developer can request their Zeek package be included. See the
