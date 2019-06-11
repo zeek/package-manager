@@ -28,5 +28,5 @@
 # @TEST-EXEC: btest-diff after_upgrade.out
 
 cd packages/foo
-echo 'print "hello";' >> __load__.bro
+echo 'print "hello";' >> __load__.zeek
 git commit -am 'new stuff'

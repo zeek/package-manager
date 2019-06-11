@@ -1,53 +1,53 @@
 # @TEST-EXEC: zkg install foo
-# @TEST-EXEC: btest-diff scripts/packages/foo/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/foo/__load__.zeek
 
 # @TEST-EXEC: zkg install alice/bar
-# @TEST-EXEC: btest-diff scripts/packages/bar/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/bar/__load__.zeek
 
 # @TEST-EXEC: zkg install one/alice/baz
-# @TEST-EXEC: btest-diff scripts/packages/baz/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/baz/__load__.zeek
 
 # @TEST-EXEC: zkg install $(pwd)/packages/qux
-# @TEST-EXEC: btest-diff scripts/packages/qux/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/qux/__load__.zeek
 
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: zkg install corge
-# @TEST-EXEC: btest-diff scripts/packages/corge/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/corge/__load__.zeek
 
 # @TEST-EXEC: zkg remove corge
 # @TEST-EXEC: zkg install corge --version=master
-# @TEST-EXEC: cp scripts/packages/corge/__load__.bro corge.master
+# @TEST-EXEC: cp scripts/packages/corge/__load__.zeek corge.master
 # @TEST-EXEC: btest-diff corge.master
 
 cd packages/corge
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "hello";' >> __load__.bro
+echo 'print "hello";' >> __load__.zeek
 git commit -am 'new stuff'
 
 cd ../grault
-echo 'print "grault 1.0.0";' > __load__.bro
+echo 'print "grault 1.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "grault 1.0.1";' > __load__.bro
+echo 'print "grault 1.0.1";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a v1.0.1 -m 1.0.1
-echo 'print "grault 1.0.2";' > __load__.bro
+echo 'print "grault 1.0.2";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
 
 # @TEST-EXEC: zkg install grault
-# @TEST-EXEC: btest-diff scripts/packages/grault/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/grault/__load__.zeek
 
 # @TEST-EXEC: zkg remove grault
 # @TEST-EXEC: zkg install grault --version=v1.0.1
-# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.1.0.1
+# @TEST-EXEC: cp scripts/packages/grault/__load__.zeek grault.1.0.1
 # @TEST-EXEC: btest-diff grault.1.0.1
 #
 # @TEST-EXEC: zkg remove grault
 # @TEST-EXEC: (cd packages/grault && git checkout --detach)
 # @TEST-EXEC: zkg install $(pwd)/packages/grault
-# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.detached
+# @TEST-EXEC: cp scripts/packages/grault/__load__.zeek grault.detached
 # @TEST-EXEC: btest-diff grault.detached
 # @TEST-EXEC: zkg info grault | grep tracking_method > grault.info
 # @TEST-EXEC: btest-diff grault.info
@@ -56,7 +56,7 @@ git tag -a 1.0.2 -m 1.0.2
 # @TEST-EXEC: (cd packages/grault && git checkout 1.0.0)
 # @TEST-EXEC: (cd packages/grault && git rev-parse HEAD) > grault.head.hash
 # @TEST-EXEC: zkg install grault --version=$(cat grault.head.hash)
-# @TEST-EXEC: cp scripts/packages/grault/__load__.bro grault.detached.head
+# @TEST-EXEC: cp scripts/packages/grault/__load__.zeek grault.detached.head
 # @TEST-EXEC: btest-diff grault.detached.head
 # @TEST-EXEC: zkg info grault | grep tracking_method > grault.info
 # @TEST-EXEC: btest-diff grault.info

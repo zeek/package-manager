@@ -33,7 +33,7 @@ cd ../baz
 echo 'suggests = grault branch=master' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "2.0.0";' > __load__.bro
+echo 'print "2.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 2.0.0 -m 2.0.0
 
@@ -47,6 +47,6 @@ git tag -a 1.0.0 -m 1.0.0
 echo 'suggests = foo * bar *' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.1 -m 1.0.1
-echo 'print "2.0.0";' > __load__.bro
+echo 'print "2.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 2.0.0 -m 2.0.0

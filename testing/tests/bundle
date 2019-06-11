@@ -20,24 +20,24 @@
 # @TEST-EXEC: btest-diff manifest.out
 
 cd packages/foo
-echo 'print "foo 1.0.0";' > __load__.bro
+echo 'print "foo 1.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "foo 1.0.1";' > __load__.bro
+echo 'print "foo 1.0.1";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.1 -m 1.0.1
-echo 'print "foo 1.0.2";' > __load__.bro
+echo 'print "foo 1.0.2";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
 
 cd ../bar
-echo 'print "bar 1.0.0";' > __load__.bro
+echo 'print "bar 1.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "bar 1.0.1";' > __load__.bro
+echo 'print "bar 1.0.1";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.1 -m 1.0.1
-echo 'print "bar 1.0.2";' > __load__.bro
+echo 'print "bar 1.0.2";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
 

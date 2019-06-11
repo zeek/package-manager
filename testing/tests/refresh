@@ -30,7 +30,7 @@ git init
 echo '[package]' > zkg.meta
 echo 'tags = esoteric lucky land' >> zkg.meta
 echo 'description = This is the new_pkg package description' >> zkg.meta
-echo 'print "hello";' >> __load__.bro
+echo 'print "hello";' >> __load__.zeek
 git add *
 git commit -m 'init'
 

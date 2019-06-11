@@ -7,37 +7,37 @@
 # @TEST-EXEC: zkg refresh
 # @TEST-EXEC: zkg upgrade
 
-# @TEST-EXEC: btest-diff scripts/packages/foo/__load__.bro
-# @TEST-EXEC: btest-diff scripts/packages/bar/__load__.bro
+# @TEST-EXEC: btest-diff scripts/packages/foo/__load__.zeek
+# @TEST-EXEC: btest-diff scripts/packages/bar/__load__.zeek
 
 @TEST-START-FILE setup_foo
 cd packages/foo
-echo 'print "foo 1.0.0";' > __load__.bro
+echo 'print "foo 1.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "foo 1.0.1";' > __load__.bro
+echo 'print "foo 1.0.1";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.1 -m 1.0.1
-echo 'print "foo 1.0.2";' > __load__.bro
+echo 'print "foo 1.0.2";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
 @TEST-END-FILE
 
 cd packages/foo
-echo 'print "foo 1.0.3";' > __load__.bro
+echo 'print "foo 1.0.3";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.3 -m 1.0.3
-echo 'print "foo 1.0.4";' > __load__.bro
+echo 'print "foo 1.0.4";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.4 -m 1.0.4
-echo 'print "foo master";' > __load__.bro
+echo 'print "foo master";' > __load__.zeek
 git commit -am 'new stuff'
 
 cd ../bar
-echo 'print "bar+ loaded";' > __load__.bro
+echo 'print "bar+ loaded";' > __load__.zeek
 git commit -am 'new stuff'
-echo 'print "bar 1.0.0 loaded";' > __load__.bro
+echo 'print "bar 1.0.0 loaded";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "bar++ loaded";' > __load__.bro
+echo 'print "bar++ loaded";' > __load__.zeek
 git commit -am 'new stuff'

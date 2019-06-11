@@ -1,10 +1,10 @@
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: zkg install foo
-# @TEST-EXEC: btest-diff scripts/foo/__load__.bro 
+# @TEST-EXEC: btest-diff scripts/foo/__load__.zeek
 
 cd packages/foo
 mkdir scripts
 echo 'script_dir = scripts' >> zkg.meta
-mv __load__.bro scripts/
+mv __load__.zeek scripts/
 git add *
 git commit -m 'new stuff'

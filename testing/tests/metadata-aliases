@@ -1,9 +1,9 @@
 
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: zkg install foo
-# @TEST-EXEC: btest-diff scripts/foo/__load__.bro
-# @TEST-EXEC: btest-diff scripts/foo2/__load__.bro
-# @TEST-EXEC: btest-diff scripts/foo3/__load__.bro
+# @TEST-EXEC: btest-diff scripts/foo/__load__.zeek
+# @TEST-EXEC: btest-diff scripts/foo2/__load__.zeek
+# @TEST-EXEC: btest-diff scripts/foo3/__load__.zeek
 
 cd packages/foo
 echo 'aliases = foo foo2 foo3' >> zkg.meta

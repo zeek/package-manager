@@ -10,7 +10,7 @@ git commit -am 'add rot13 package'
 
 cd ../../packages/rot13
 echo 'depends = bar *' >> zkg.meta
-echo -e "@load bar\n$(cat scripts/Demo/Rot13/__load__.bro)" > scripts/Demo/Rot13/__load__.bro
+echo -e "@load bar\n$(cat scripts/Demo/Rot13/__load__.zeek)" > scripts/Demo/Rot13/__load__.zeek
 
 cd testing/Baseline/tests.main
 echo "rot13 plugin is loaded" > output

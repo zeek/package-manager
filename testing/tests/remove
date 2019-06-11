@@ -1,5 +1,5 @@
 # @TEST-EXEC: zkg install foo bar baz
-# @TEST-EXEC: test -f scripts/packages/foo/__load__.bro
+# @TEST-EXEC: test -f scripts/packages/foo/__load__.zeek
 
 # @TEST-EXEC: zkg remove foo
 # @TEST-EXEC: test ! -d scripts/packages/foo

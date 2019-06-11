@@ -1,6 +1,6 @@
 
-#ifndef BRO_PLUGIN_DEMO_ROT13
-#define BRO_PLUGIN_DEMO_ROT13
+#ifndef ZEEK_PLUGIN_DEMO_ROT13
+#define ZEEK_PLUGIN_DEMO_ROT13
 
 #include <plugin/Plugin.h>
 

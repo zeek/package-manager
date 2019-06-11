@@ -3,6 +3,6 @@
 # loaded automatically at that point.
 # 
 
-# @load ./bar.bro 
 
-event bro_init() { print "rot13 script is loaded"; }
+
+event zeek_init() { print "rot13 script is loaded"; }

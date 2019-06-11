@@ -2,7 +2,7 @@
 
 # @TEST-EXEC: zkg install foo
 
-# @TEST-EXEC: cp scripts/packages/foo/__load__.bro foo.install
+# @TEST-EXEC: cp scripts/packages/foo/__load__.zeek foo.install
 # @TEST-EXEC: btest-diff foo.install
 
 # @TEST-EXEC: bash %INPUT
@@ -10,7 +10,7 @@
 # @TEST-EXEC: zkg refresh
 # @TEST-EXEC: zkg upgrade
 
-# @TEST-EXEC: cp scripts/packages/foo/__load__.bro foo.upgrade
+# @TEST-EXEC: cp scripts/packages/foo/__load__.zeek foo.upgrade
 # @TEST-EXEC: btest-diff foo.upgrade
 
 @TEST-START-FILE setup_foo
@@ -21,7 +21,7 @@ git commit -am 'add submodule'
 @TEST-END-FILE
 
 cd packages/bar
-echo 'event bro_init() { print "bar upgrade is loaded"; }' > __load__.bro
+echo 'event zeek_init() { print "bar upgrade is loaded"; }' > __load__.zeek
 git commit -am 'new stuff'
 
 cd ../foo/scripts
