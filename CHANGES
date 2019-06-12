@@ -1,4 +1,8 @@
 
+1.7.0-30 | 2019-06-11 19:33:13 -0700
+
+  * Fix version string replacement via update-changes (Jon Siwek, Corelight)
+
 1.7.0-29 | 2019-06-11 19:26:22 -0700
 
   * Update packaging scripts (Jon Siwek, Corelight)
