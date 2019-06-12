@@ -203,7 +203,7 @@ class Manager(object):
 
             for pkg_name in self.installed_pkgs:
                 old_link = os.path.join(prev_zeekpath, pkg_name)
-                new_link = os.path.join(self.bropath(), pkg_name)
+                new_link = os.path.join(self.zeekpath(), pkg_name)
 
                 if os.path.lexists(old_link):
                     LOG.info('moving package link %s -> %s',
@@ -299,7 +299,7 @@ class Manager(object):
         with open(self.manifest, 'w') as f:
             json.dump(data, f, indent=2, sort_keys=True)
 
-    def bropath(self):
+    def zeekpath(self):
         """Return the path where installed package scripts are located.
 
         This path can be added to :envvar:`ZEEKPATH` for interoperability with
@@ -307,13 +307,28 @@ class Manager(object):
         """
         return os.path.dirname(self.script_dir)
 
-    def bro_plugin_path(self):
+    def bropath(self):
+        """Same as :meth:`zeekpath`.
+
+        Using :meth:`zeekpath` is preferred since this may later be deprecated.
+        """
+        return self.zeekpath()
+
+    def zeek_plugin_path(self):
         """Return the path where installed package plugins are located.
 
         This path can be added to :envvar:`ZEEK_PLUGIN_PATH` for
         interoperability with Zeek.
         """
         return os.path.dirname(self.plugin_dir)
+
+    def bro_plugin_path(self):
+        """Same as :meth:`zeek_plugin_path`.
+
+        Using :meth:`zeek_plugin_path` is preferred since this may later be
+        deprecated.
+        """
+        return self.zeek_plugin_path()
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
@@ -833,10 +848,10 @@ class Manager(object):
         delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
         delete_path(os.path.join(self.script_dir, pkg_to_remove.name))
         delete_path(os.path.join(self.plugin_dir, pkg_to_remove.name))
-        delete_path(os.path.join(self.bropath(), pkg_to_remove.name))
+        delete_path(os.path.join(self.zeekpath(), pkg_to_remove.name))
 
         for alias in pkg_to_remove.aliases():
-            delete_path(os.path.join(self.bropath(), alias))
+            delete_path(os.path.join(self.zeekpath(), alias))
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()

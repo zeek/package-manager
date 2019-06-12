@@ -1734,8 +1734,8 @@ def cmd_env(manager, args, config, configfile):
     zeekpaths = [p for p in zeekpath.split(':')] if zeekpath else []
     pluginpaths = [p for p in pluginpath.split(':')] if pluginpath else []
 
-    zeekpaths.append(manager.bropath())
-    pluginpaths.append(manager.bro_plugin_path())
+    zeekpaths.append(manager.zeekpath())
+    pluginpaths.append(manager.zeek_plugin_path())
 
     if os.environ['SHELL'].endswith('csh'):
         print(u'setenv BROPATH {}'.format(':'.join(zeekpaths)))
