@@ -8,13 +8,13 @@ if version_info[0] + version_info[1] / 10 < 3.5 or os.environ.get('ZKG_PYPI_DIST
     install_requires.append("configparser")
 
 setup(
-    name='bro-pkg',
+    name='bro-pkg' if os.environ.get('ZKG_PYPI_DIST_LEGACY') else 'zkg',
     version=open('VERSION').read().replace('-', '.dev', 1).strip(),
-    description='The Bro Package Manager',
+    description='The Zeek Package Manager',
     long_description=open('README').read(),
     license='University of Illinois/NCSA Open Source License',
-    keywords='bro zeek broctl brocontrol package manager scripts plugins security',
-    maintainer='The Bro Project',
+    keywords='zeek bro zeekctl zeekcontrol broctl brocontrol package manager scripts plugins security',
+    maintainer='The Zeek Project',
     maintainer_email='info@zeek.org',
     url='https://github.com/zeek/package-manager',
     scripts=['bro-pkg', 'zkg'],
