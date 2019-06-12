@@ -1,7 +1,7 @@
-bropkg.manager module
-=====================
+zeekpkg.manager module
+======================
 
-.. automodule:: bropkg.manager
+.. automodule:: zeekpkg.manager
     :members:
     :undoc-members:
     :show-inheritance:

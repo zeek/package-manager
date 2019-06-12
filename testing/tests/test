@@ -1,16 +1,16 @@
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg test rot13
+# @TEST-EXEC: zkg test rot13
 
 # @TEST-EXEC: bash we_need_to_go_deeper
-# @TEST-EXEC-FAIL: bro-pkg test rot13
+# @TEST-EXEC-FAIL: zkg test rot13
 
-echo "$(pwd)/packages/rot13" >> sources/one/bob/bro-pkg.index
+echo "$(pwd)/packages/rot13" >> sources/one/bob/zkg.index
 cd sources/one
 git commit -am 'add rot13 package'
 
 cd ../../packages/rot13
-echo 'depends = bar *' >> bro-pkg.meta
-echo -e "@load bar\n$(cat scripts/Demo/Rot13/__load__.bro)" > scripts/Demo/Rot13/__load__.bro
+echo 'depends = bar *' >> zkg.meta
+echo -e "@load bar\n$(cat scripts/Demo/Rot13/__load__.zeek)" > scripts/Demo/Rot13/__load__.zeek
 
 cd testing/Baseline/tests.main
 echo "rot13 plugin is loaded" > output

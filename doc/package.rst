@@ -1,33 +1,39 @@
-.. _Bro Scripting: https://www.zeek.org/sphinx/scripting/index.html
-.. _Bro Plugins: https://www.zeek.org/sphinx/devel/plugins.html
-.. _BroControl Plugins:  https://www.zeek.org/sphinx/components/broctl/README.html#plugins
+.. _Zeek Scripting: https://docs.zeek.org/en/stable/examples/scripting/index.html
+.. _Zeek Plugins: https://docs.zeek.org/en/stable/devel/plugins.html<Paste>
+.. _ZeekControl Plugins: https://github.com/zeek/zeekctl#plugins
 .. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
-.. _btest: https://github.com/bro/btest
+.. _btest: https://github.com/zeek/btest
 .. _configparser interpolation: https://docs.python.org/3/library/configparser.html#interpolation-of-values
 
 How-To: Create a Package
 ========================
 
-A Bro package may contain Bro scripts, Bro plugins, or BroControl plugins.  Any
+A Zeek package may contain Zeek scripts, Zeek plugins, or ZeekControl plugins.  Any
 number or combination of those components may be included within a single
 package.
 
 The minimum requirement for a package is that it be in its own git repository
-and contain a metadata file named :file:`bro-pkg.meta` at its top-level that
+and contain a metadata file named :file:`zkg.meta` at its top-level that
 begins with the line::
 
   [package]
 
 This is the package's metadata file in INI file format and may contain
 :ref:`additional fields <metadata-fields>` that describe the package as well
-as how it inter-operates with Bro, the package manager, or other packages.
+as how it inter-operates with Zeek, the package manager, or other packages.
+
+.. note::
+
+   :file:`zkg.meta` is the canonical metadata file name used :program:`since
+   zkg v2.0`.  The previous metadata file name of :file:`bro-pkg.meta` is also
+   accepted when no :file:`zkg.meta` exists.
 
 .. _package-shorthand-name:
 
-Note that the shorthand name for your package that may be used by :ref:`bro-pkg
-<bro-pkg>` and Bro script :samp:`@load {<package_name>}` directives will be the
-last component of its git URL. E.g. a package at ``https://github.com/bro/foo``
-may be referred to as **foo** when using :program:`bro-pkg` and a Bro
+Note that the shorthand name for your package that may be used by :ref:`zkg
+<zkg>` and Zeek script :samp:`@load {<package_name>}` directives will be the
+last component of its git URL. E.g. a package at ``https://github.com/zeek/foo``
+may be referred to as **foo** when using :program:`zkg` and a Zeek
 script that wants to load all the scripts within that package can use:
 
 .. code-block:: bro
@@ -37,8 +43,8 @@ script that wants to load all the scripts within that package can use:
 Walkthroughs
 ------------
 
-Pure Bro Script Package
-~~~~~~~~~~~~~~~~~~~~~~~
+Pure Zeek Script Package
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Create a git repository:
 
@@ -46,24 +52,24 @@ Pure Bro Script Package
 
       $ mkdir foo && cd foo && git init
 
-#. Create a package metadata file, :file:`bro-pkg.meta`:
+#. Create a package metadata file, :file:`zkg.meta`:
 
    .. code-block:: console
 
-      $ echo '[package]' > bro-pkg.meta
+      $ echo '[package]' > zkg.meta
 
-#. Create a :file:`__load__.bro` script with example code in it:
-
-   .. code-block:: console
-
-      $ echo 'event bro_init() { print "foo is loaded"; }' > __load__.bro
-
-#. (Optional) Relocate your :file:`__load__.bro` script to any subdirectory:
+#. Create a :file:`__load__.zeek` script with example code in it:
 
    .. code-block:: console
 
-      $ mkdir scripts && mv __load__.bro scripts
-      $ echo 'script_dir = scripts' >> bro-pkg.meta
+      $ echo 'event zeek_init() { print "foo is loaded"; }' > __load__.zeek
+
+#. (Optional) Relocate your :file:`__load__.zeek` script to any subdirectory:
+
+   .. code-block:: console
+
+      $ mkdir scripts && mv __load__.zeek scripts
+      $ echo 'script_dir = scripts' >> zkg.meta
 
 #. Commit everything to git:
 
@@ -71,28 +77,28 @@ Pure Bro Script Package
 
       $ git add * && git commit -m 'First commit'
 
-#. (Optional) Test that Bro correctly loads the script after installing the
-   package with :program:`bro-pkg`:
+#. (Optional) Test that Zeek correctly loads the script after installing the
+   package with :program:`zkg`:
 
    .. code-block:: console
 
-      $ bro-pkg install .
-      $ bro foo
-      $ bro-pkg remove .
+      $ zkg install .
+      $ zeek foo
+      $ zkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
-See `Bro Scripting`_ for more information on developing Bro scripts.
+See `Zeek Scripting`_ for more information on developing Zeek scripts.
 
-Binary Bro Plugin Package
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Binary Zeek Plugin Package
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See `Bro Plugins`_ for more complete information on developing Bro plugins,
+See `Zeek Plugins`_ for more complete information on developing Zeek plugins,
 though the following step are the essentials needed to create a package.
 
 
-#. Create a plugin skeleton using :file:`aux/bro-aux/plugin-support/init-plugin`
-   from Bro's source distribution:
+#. Create a plugin skeleton using :file:`aux/zeek-aux/plugin-support/init-plugin`
+   from Zeek's source distribution:
 
    .. code-block:: console
 
@@ -104,7 +110,7 @@ though the following step are the essentials needed to create a package.
 
       $ cd rot13 && git init
 
-#. Create a package metadata file, :file:`bro-pkg.meta`::
+#. Create a package metadata file, :file:`zkg.meta`::
 
      [package]
      script_dir = scripts/Demo/Rot13
@@ -112,25 +118,15 @@ though the following step are the essentials needed to create a package.
 
    .. note::
 
-      Plugin skeletons generated before Bro 2.6 and also any packages
-      that generally want to support such versions need to pass
-      an additional configuration option such as::
-
-          build_command = ./configure --bro-dist=%(bro_dist)s && make
-
-      See the :ref:`Value Interpolation <metadata-interpolation>`
-      section for more information on what the ``%(bro_dist)s``
-      string does, but a brief explanation is that it will expand to
-      a path containing the Bro source-code on the user's system.
-      For newer versions of Bro, packages are able to work entirely
-      with the installation path and don't require original source code.
+      See :ref:`legacy-bro-support` for notes on configuring packages to
+      support Bro 2.5 or earlier.
 
 #. Add example script code:
 
    .. code-block:: console
 
-      $ echo 'event bro_init() { print "rot13 plugin is loaded"; }' >> scripts/__load__.bro
-      $ echo 'event bro_init() { print "rot13 script is loaded"; }' >> scripts/Demo/Rot13/__load__.bro
+      $ echo 'event zeek_init() { print "rot13 plugin is loaded"; }' >> scripts/__load__.zeek
+      $ echo 'event zeek_init() { print "rot13 script is loaded"; }' >> scripts/Demo/Rot13/__load__.zeek
 
 #. Add an example builtin-function in :file:`src/rot13.bif`:
 
@@ -159,19 +155,19 @@ though the following step are the essentials needed to create a package.
 
       $ git add * && git commit -m 'First commit'
 
-#. (Optional) Test that Bro correctly loads the plugin after installing the
-   package with :program:`bro-pkg`:
+#. (Optional) Test that Zeek correctly loads the plugin after installing the
+   package with :program:`zkg`:
 
    .. code-block:: console
 
-      $ bro-pkg install .
-      $ bro rot13 -e 'print Demo::rot13("Hello")'
-      $ bro-pkg remove .
+      $ zkg install .
+      $ zeek rot13 -e 'print Demo::rot13("Hello")'
+      $ zkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
-BroControl Plugin Package
-~~~~~~~~~~~~~~~~~~~~~~~~~
+ZeekControl Plugin Package
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Create a git repository:
 
@@ -179,20 +175,20 @@ BroControl Plugin Package
 
       $ mkdir foo && cd foo && git init
 
-#. Create a package metadata file, :file:`bro-pkg.meta`:
+#. Create a package metadata file, :file:`zkg.meta`:
 
    .. code-block:: console
 
-      $ echo '[package]' > bro-pkg.meta
+      $ echo '[package]' > zkg.meta
 
-#. Create an example BroControl plugin, :file:`foo.py`:
+#. Create an example ZeekControl plugin, :file:`foo.py`:
 
    .. code-block:: python
 
-      import BroControl.plugin
-      from BroControl import config
+      import ZeekControl.plugin
+      from ZeekControl import config
 
-      class Foo(BroControl.plugin.Plugin):
+      class Foo(ZeekControl.plugin.Plugin):
           def __init__(self):
               super(Foo, self).__init__(apiversion=1)
 
@@ -210,7 +206,7 @@ BroControl Plugin Package
 
    .. code-block:: console
 
-      $ echo 'plugin_dir = .' >> bro-pkg.meta
+      $ echo 'plugin_dir = .' >> zkg.meta
 
 #. Commit everything to git:
 
@@ -218,26 +214,26 @@ BroControl Plugin Package
 
       $ git add * && git commit -m 'First commit'
 
-#. (Optional) Test that BroControl correctly loads the plugin after installing
-   the package with :program:`bro-pkg`:
+#. (Optional) Test that ZeekControl correctly loads the plugin after installing
+   the package with :program:`zkg`:
 
    .. code-block:: console
 
-      $ bro-pkg install .
-      $ broctl
-      $ bro-pkg remove .
+      $ zkg install .
+      $ zeekctl
+      $ zkg remove .
 
 #. (Optional) :ref:`Create a release version tag <package-versioning>`.
 
-See `BroControl Plugins`_ for more information on developing BroControl plugins.
+See `ZeekControl Plugins`_ for more information on developing ZeekControl plugins.
 
-If you want to distribute a BroControl plugin along with a Bro plugin in the
-same package, you may need to add the BroControl plugin's python script to the
-``bro_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Bro
-plugin so that it gets copied into :file:`build/` along with the built Bro
+If you want to distribute a ZeekControl plugin along with a Zeek plugin in the
+same package, you may need to add the ZeekControl plugin's python script to the
+``zeek_plugin_dist_files()`` macro in the :file:`CMakeLists.txt` of the Zeek
+plugin so that it gets copied into :file:`build/` along with the built Zeek
 plugin.  Or you could also modify your `build_command` to copy it there, but
 what ultimately matters is that the `plugin_dir` field points to a directory
-that contains both the Bro plugin and the BroControl plugin.
+that contains both the Zeek plugin and the ZeekControl plugin.
 
 Registering to a Package Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -250,7 +246,7 @@ Registering a package to a package source is always the following basic steps:
 The full process and conventions for submitting to the default package source
 can be found in the :file:`README` at:
 
-  https://github.com/bro/packages
+  https://github.com/zeek/packages
 
 .. _metadata-fields:
 
@@ -258,15 +254,15 @@ Package Metadata
 ----------------
 
 See the following sub-sections for a full list of available fields that may be
-used in :file:`bro-pkg.meta` files.
+used in :file:`zkg.meta` files.
 
 `description` field
 ~~~~~~~~~~~~~~~~~~~
 
 The description field may be used to give users a general overview of the
-package and its purpose. The :ref:`bro-pkg list <list-command>` will display
+package and its purpose. The :ref:`zkg list <list-command>` will display
 the first sentence of description fields in the listings it displays.  An
-example :file:`bro-pkg.meta` using a description field::
+example :file:`zkg.meta` using a description field::
 
   [package]
   description = Another example package.
@@ -295,7 +291,7 @@ same as if using a single alias equal to the package's name.
 
 The low-level details of the way this field operates is that, for each alias,
 it simply creates a symlink of the same name within the directory associated
-with the ``script_dir`` path in the :ref:`config file <bro-pkg-config-file>`.
+with the ``script_dir`` path in the :ref:`config file <zkg-config-file>`.
 
 Available :program:`since bro-pkg v1.5`.
 
@@ -308,7 +304,7 @@ addresses.
 
 It may be used if you have particular requirements or concerns regarding
 how authors or contributors for your package are credited in any public
-listings made by external metadata scraping tools (:program:`bro-pkg`
+listings made by external metadata scraping tools (:program:`zkg`
 does not itself use this data directly for any functional purpose).  It
 may also be useful as a standardized location for users to get
 contact/support info in case they encounter problems with the package.
@@ -324,18 +320,18 @@ For example::
 The `tags` field contains a comma-delimited set of metadata tags that further
 classify and describe the purpose of the package.  This is used to help users
 better discover and search for packages.  The
-:ref:`bro-pkg search <search-command>` command will inspect these tags.  An
-example :file:`bro-pkg.meta` using tags::
+:ref:`zkg search <search-command>` command will inspect these tags.  An
+example :file:`zkg.meta` using tags::
 
   [package]
-  tags = bro plugin, broctl plugin, scan detection, intel
+  tags = zeek plugin, zeekctl plugin, scan detection, intel
 
 Suggested Tags
 ^^^^^^^^^^^^^^
 
 Some ideas for what to put in the `tags` field for packages:
 
-- bro scripting
+- zeek scripting
 
   - conn
   - intel
@@ -352,7 +348,7 @@ Some ideas for what to put in the `tags` field for packages:
 
 - signatures
 
-- bro plugin
+- zeek plugin
 
   - protocol analyzer
   - file analyzer
@@ -362,68 +358,68 @@ Some ideas for what to put in the `tags` field for packages:
   - input reader
   - log writer
 
-- broctl plugin
+- zeekctl plugin
 
 `script_dir` field
 ~~~~~~~~~~~~~~~~~~
 
 The `script_dir` field is a path relative to the root of the package that
-contains a file named :file:`__load__.bro` and possibly other Bro scripts. The
+contains a file named :file:`__load__.zeek` and possibly other Zeek scripts. The
 files located in this directory are copied into
 :file:`{<user_script_dir>}/packages/{<package>}/`, where `<user_script_dir>`
 corresponds to the `script_dir` field of the user's
-:ref:`config file <bro-pkg-config-file>` (typically
-:file:`{<bro_install_prefix>}/share/bro/site`).
+:ref:`config file <zkg-config-file>` (typically
+:file:`{<zeek_install_prefix>}/share/zeek/site`).
 
 When the package is :ref:`loaded <load-command>`,
 an :samp:`@load {<package_name>}` directive is
-added to :file:`{<user_script_dir>}/packages/packages.bro`.
+added to :file:`{<user_script_dir>}/packages/packages.zeek`.
 
-You may place any valid Bro script code within :file:`__load__.bro`, but a
-package that contains many Bro scripts will typically have :file:`__load__.bro`
-just contain a list of ``@load`` directives to load other Bro scripts within the
+You may place any valid Zeek script code within :file:`__load__.zeek`, but a
+package that contains many Zeek scripts will typically have :file:`__load__.zeek`
+just contain a list of ``@load`` directives to load other Zeek scripts within the
 package.  E.g. if you have a package named **foo** installed, then it's
-:file:`__load__.bro` will be what Bro loads when doing ``@load foo`` or running
-``bro foo`` on the command-line.
+:file:`__load__.zeek` will be what Zeek loads when doing ``@load foo`` or running
+``zeek foo`` on the command-line.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts
 
-For a :file:`bro-pkg.meta` that looks like the above, the package should have a
-file called :file:`scripts/__load__.bro`.
+For a :file:`zkg.meta` that looks like the above, the package should have a
+file called :file:`scripts/__load__.zeek`.
 
-If the `script_dir` field is not present in :file:`bro-pkg.meta`, it
+If the `script_dir` field is not present in :file:`zkg.meta`, it
 defaults to checking the top-level directory of the package for a
-:file:`__load__.bro` script.  If it's found there, :program:`bro-pkg`
+:file:`__load__.zeek` script.  If it's found there, :program:`zkg`
 use the top-level package directory as the value for `script_dir`.  If
-it's not found, then :program:`bro-pkg` assumes the package contains no
-Bro scripts (which may be the case for some plugins).
+it's not found, then :program:`zkg` assumes the package contains no
+Zeek scripts (which may be the case for some plugins).
 
 `plugin_dir` field
 ~~~~~~~~~~~~~~~~~~
 
 The `plugin_dir` field is a path relative to the root of the package that
-contains either pre-built `Bro Plugins`_, `BroControl Plugins`_, or both.
+contains either pre-built `Zeek Plugins`_, `ZeekControl Plugins`_, or both.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts
   plugin_dir = plugins
 
-For the above example, Bro and BroControl will load any plugins found in the
+For the above example, Zeek and ZeekControl will load any plugins found in the
 installed package's :file:`plugins/` directory.
 
-If the `plugin_dir` field is not present in :file:`bro-pkg.meta`, it defaults
+If the `plugin_dir` field is not present in :file:`zkg.meta`, it defaults
 to a directory named :file:`build/` at the top-level of the package.  This is
-the default location where Bro binary plugins get placed when building them from
+the default location where Zeek binary plugins get placed when building them from
 source code (see the `build_command field`_).
 
 This field may also be set to the location of a tarfile that has a single top-
-level directory inside it containing the Bro plugin. The default CMake skeleton
-for Bro plugins produces such a tarfile located at
+level directory inside it containing the Zeek plugin. The default CMake skeleton
+for Zeek plugins produces such a tarfile located at
 :file:`build/<namespace>_<plugin>.tgz`. This is a good choice to use for
 packages that will be published to a wider audience as installing from this
 tarfile contains the minimal set of files needed for the plugin to work whereas
@@ -436,30 +432,55 @@ default :file:`build/` directory.
 The `build_command` field is an arbitrary shell command that the package
 manager will run before installing the package.
 
-This is useful for distributing `Bro Plugins`_ as source code and having the
+This is useful for distributing `Zeek Plugins`_ as source code and having the
 package manager take care of building it on the user's machine before installing
 the package.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts/Demo/Rot13
-  build_command = ./configure --bro-dist=%(bro_dist)s && make
+  build_command = ./configure && make
 
-In the above example, the ``%(bro_dist)s`` string is
-:ref:`substituted <metadata-interpolation>` for the path the user has set for
-the `bro_dist` field in the
-:ref:`package manager config file <bro-pkg-config-file>`.
+.. note::
 
-The default CMake skeleton for Bro plugins will use :file:`build/` as the
+   See :ref:`legacy-bro-support` for notes on configuring packages to
+   support Bro 2.5 or earlier.
+
+The default CMake skeleton for Zeek plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
 value of the omitted `plugin_dir` metadata field.
 
 The `script_dir` field is set to the location where the author has placed
-custom scripts for their plugin.  When a package has both a Bro plugin and Bro
-script components, the "plugin" part is always unconditionally loaded by Bro,
+custom scripts for their plugin.  When a package has both a Zeek plugin and Zeek
+script components, the "plugin" part is always unconditionally loaded by Zeek,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
+
+.. _legacy-bro-support:
+
+Supporting Older Bro Versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Plugin skeletons generated before Bro v2.6 and also any packages
+that generally want to support such Bro versions need to pass
+an additional configuration option such as::
+
+    build_command = ./configure --bro-dist=%(bro_dist)s && make
+
+See the :ref:`Value Interpolation <metadata-interpolation>`
+section for more information on what the ``%(bro_dist)s``
+string does, but a brief explanation is that it will expand to
+a path containing the Bro source-code on the user's system.
+For newer versions of Bro, packages are able to work entirely
+with the installation path and don't require original source code.
+
+Also note that other various Zeek scripting and CMake infrastructure may
+have changed between Bro v2.6 and Zeek v3.0.  So if you plan to support
+older version of Bro (before the Zeek rename), then you should keep an eye
+out for various things that got renamed.  For example, the `zeek_init` event
+won't exist in any version before Zeek v3.0, nor will any CMake macros
+that start with `zeek_plugin`.
 
 .. _metadata-interpolation:
 
@@ -467,18 +488,23 @@ Value Interpolation
 ^^^^^^^^^^^^^^^^^^^
 
 The `build_command field`_ may reference the settings any given user has in
-their customized :ref:`package manager config file <bro-pkg-config-file>`.
+their customized :ref:`package manager config file <zkg-config-file>`.
 
 For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
-then :program:`bro-pkg` operations that use that field will automatically
+then :program:`zkg` operations that use that field will automatically
 substitute the actual value of `bro_dist` that the user has in their local
 config file.  Note the trailing 's' character at the end of the interpolation
-string, ``%(bro_dist)s`` is intended/necessary for all such interpolation
-usages.
+string, ``%(bro_dist)s``, is intended/necessary for all such interpolation
+usages.  Note that :program:`since zkg v2.0`, `zeek_dist` is the canonical name
+for `bro_dist` within the :ref:`zkg config file <zkg-config-file>`,
+but either one means the same thing and should work.  To support older
+versions of :program:`bro-pkg`, you'd want to use `bro_dist` in package
+metadata files.
 
-Besides the `bro_dist` config key, any key inside the `user_vars` sections
-of their :ref:`package manager config file <bro-pkg-config-file>` that matches
-the key of an entry in the package's `user_vars field`_ will be interpolated.
+Besides the `bro_dist`/`zeek_dist` config keys, any key inside the
+`user_vars` sections of their :ref:`package manager config file
+<zkg-config-file>` that matches the key of an entry in the package's
+`user_vars field`_ will be interpolated.
 
 Internally, the value substitution and metadata parsing is handled by Python's
 `configparser interpolation`_.  See its documentation if you're interested in
@@ -490,10 +516,10 @@ the details of how the interpolation works.
 The `user_vars` field is used to solicit feedback from users for use during
 execution of the `build_command field`_.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
-  build_command = ./configure --bro-dist=%(bro_dist)s --with-librdkafka=%(LIBRDKAFKA_ROOT)s --with-libdub=%(LIBDBUS_ROOT)s && make
+  build_command = ./configure --with-librdkafka=%(LIBRDKAFKA_ROOT)s --with-libdub=%(LIBDBUS_ROOT)s && make
   user_vars =
     LIBRDKAFKA_ROOT [/usr] "Path to librdkafka installation"
     LIBDBUS_ROOT [/usr] "Path to libdbus installation"
@@ -513,30 +539,30 @@ used for.
 
 Here's what a typical user would see::
 
-  $ bro-pkg install bro-test-package
+  $ zkg install zeek-test-package
   The following packages will be INSTALLED:
-    bro/jsiwek/bro-test-package (1.0.5)
+    zeek/jsiwek/zeek-test-package (1.0.5)
 
   Proceed? [Y/n] y
-  bro/jsiwek/bro-test-package asks for LIBRDKAFKA_ROOT (Path to librdkafka installation) ? [/usr] /usr/local
-  Saved answers to config file: /Users/jon/.bro-pkg/config
-  Installed "bro/jsiwek/bro-test-package" (master)
-  Loaded "bro/jsiwek/bro-test-package"
+  zeek/jsiwek/zeek-test-package asks for LIBRDKAFKA_ROOT (Path to librdkafka installation) ? [/usr] /usr/local
+  Saved answers to config file: /Users/jon/.zkg/config
+  Installed "zeek/jsiwek/zeek-test-package" (master)
+  Loaded "zeek/jsiwek/zeek-test-package"
 
-The :program:`bro-pkg` command will iterate over the `user_vars` field of all
+The :program:`zkg` command will iterate over the `user_vars` field of all
 packages involved in the operation and prompt the user to provide a value that
 will work for their system.
 
-If a user is using the ``--force`` option to :program:`bro-pkg` commands or they
+If a user is using the ``--force`` option to :program:`zkg` commands or they
 are using the Python API directly, it will first look within the `user_vars`
-section of the user's :ref:`package manager config file <bro-pkg-config-file>`
+section of the user's :ref:`package manager config file <zkg-config-file>`
 and, if it can't find the key there, it will fallback to use the default value
 from the package's metadata.
 
 In any case, the user may choose to supply the value of a `user_vars` key via
 an environment variable, in which case, prompts are skipped for any keys
 located in the environment.  The environment is also given priority over any
-values in the user's :ref:`package manager config file <bro-pkg-config-file>`.
+values in the user's :ref:`package manager config file <zkg-config-file>`.
 
 Available :program:`since bro-pkg v1.1`.
 
@@ -547,7 +573,7 @@ The `test_command` field is an arbitrary shell command that the package manager
 will run when a user either manually runs the :ref:`test command <test-command>`
 or before the package is installed or upgraded.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   test_command = cd testing && btest -d tests
@@ -561,14 +587,14 @@ See its documentation for further explanation and examples.
 The `config_files` field may be used to specify a list of files that users
 are intended to directly modify after installation.  Then, on operations that
 would otherwise destroy a user's local modifications to a config file, such
-as upgrading to a newer package version, :program:`bro-pkg` can instead save
+as upgrading to a newer package version, :program:`zkg` can instead save
 a backup and possibly prompt the user to review the differences.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   script_dir = scripts
-  config_files = scripts/foo_config.bro, scripts/bar_config.bro
+  config_files = scripts/foo_config.zeek, scripts/bar_config.zeek
 
 The value of `config_files` is a comma-delimited string of config file paths
 that are relative to the root directory of the package.  Config files should
@@ -582,42 +608,56 @@ either be located within the `script_dir` or `plugin_dir`.
 The `depends` field may be used to specify a list of dependencies that the
 package requires.
 
-An example :file:`bro-pkg.meta`::
+An example :file:`zkg.meta`::
 
   [package]
   depends =
-    bro >=2.5.0
+    zeek >=2.5.0
     foo *
-    https://github.com/bro/bar >=2.0.0
+    https://github.com/zeek/bar >=2.0.0
     package_source/path/bar branch=name_of_git_branch
 
 The field is a list of dependency names and their version requirement
 specifications.
 
-A dependency name may be either `bro`, `bro-pkg`, a full git URL of the package,
-or a :ref:`package shorthand name <package-shorthand-name>`.
+A dependency name may be either `zeek`, `zkg`, `bro`, `bro-pkg`,
+a full git URL of the package, or a :ref:`package shorthand name
+<package-shorthand-name>`.
 
-- The special `bro` dependency refers not to a package, but the version of
-  Bro that the package requires in order to function.  If the user has
-  :program:`bro-config` in their :envvar:`PATH` when installing/upgrading a
-  package that specifies a `bro` dependency, then :program:`bro-pkg` will
-  enforce that the requirement is satisfied.
+- The special `zeek` and `bro` dependencies refers not to a package,
+  but the version of Zeek that the package requires in order to function.  If
+  the user has :program:`zeek-config` or :program:`bro-config` in their
+  :envvar:`PATH` when installing/upgrading a package that specifies a `zeek` or
+  `bro` dependency, then :program:`zkg` will enforce that the requirement is
+  satisfied.
 
-- The special `bro-pkg` dependency refers to the version of the package
-  manager that is required by the package.  E.g. if a package takes advantage
-  of new features that are not present in older versions of the package manager,
-  then it should indicate that so users of those old version will see an error
-  message an know to upgrade instead of seeing a cryptic error/exception, or
-  worse, seeing no errors, but without the desired functionality being
-  performed.
-  Note that this feature itself is only available :program:`since bro-pkg v1.2`.
+  .. note::
+
+     In this context, `zeek` and `bro` mean the same thing -- the
+     later is maintained for backwards compatibility while the former
+     became available :program:`since zkg v2.0`.
+
+- The special `zkg` and `bro-pkg` dependencies refers to the version of the
+  package manager that is required by the package.  E.g. if a package takes
+  advantage of new features that are not present in older versions of the
+  package manager, then it should indicate that so users of those old version
+  will see an error message an know to upgrade instead of seeing a cryptic
+  error/exception, or worse, seeing no errors, but without the desired
+  functionality being performed.
+
+  .. note::
+
+     This feature itself, via use of a `bro-pkg` dependency, is only
+     available :program:`since bro-pkg v1.2` while a `zkg` dependency is only
+     recognized :program:`since zkg v2.0`.  Otherwise, `zkg` and `bro-pkg` mean
+     the same thing in this context.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git
   repository.  Typically this is the safe approach to take when listing
   package dependencies and for publicly visible packages.
 
-- When using shorthand package dependency names, the user's :program:`bro-pkg`
+- When using shorthand package dependency names, the user's :program:`zkg`
   will try to resolve the name into a full git URL based on the package sources
   they have configured.  Typically this approach may be most useful for internal
   or testing environments.
@@ -674,9 +714,9 @@ to function properly.
 
 A package in `suggests` is functionaly equivalent to a package in `depends`
 except in the way it's presented to users in various prompts during
-:program:`bro-pkg` operations.  Users also have the option to ignore
+:program:`zkg` operations.  Users also have the option to ignore
 suggestions by supplying an additional ``--nosuggestions`` flag to
-:program:`bro-pkg` commands.
+:program:`zkg` commands.
 
 Available :program:`since bro-pkg v1.3`.
 
@@ -724,7 +764,7 @@ The :ref:`install command <install-command>` will either install a
 stable release version or the latest commit on a specific git branch of
 a package.
 
-The default installation behavior of :program:`bro-pkg` is to look for
+The default installation behavior of :program:`zkg` is to look for
 the latest release version tag and install that.  If there are no such
 version tags, it will fall back to installing the latest commit of the
 package's *master* branch

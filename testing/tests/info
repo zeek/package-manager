@@ -1,36 +1,36 @@
-# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: zkg install foo
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC: bro-pkg install bar
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC: zkg install bar
 
-# @TEST-EXEC: bro-pkg info foo | grep -v 'url:' | grep -v 'current_hash' > foo.info
+# @TEST-EXEC: zkg info foo | grep -v 'url:' | grep -v 'current_hash' > foo.info
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff foo.info
 
-# @TEST-EXEC: bro-pkg info bar | grep -v 'url:' | grep -v 'current_hash' > bar.info
+# @TEST-EXEC: zkg info bar | grep -v 'url:' | grep -v 'current_hash' > bar.info
 # @TEST-EXEC:  TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff bar.info
 
-# @TEST-EXEC: bro-pkg remove bar
-# @TEST-EXEC: bro-pkg info installed | grep -v 'url:' | grep -v 'current_hash' > installed.info
+# @TEST-EXEC: zkg remove bar
+# @TEST-EXEC: zkg info installed | grep -v 'url:' | grep -v 'current_hash' > installed.info
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff installed.info
 
 cd packages/foo
-echo 'print "foo 1.0.0";' > __load__.bro
+echo 'print "foo 1.0.0";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "foo 1.0.1";' > __load__.bro
+echo 'print "foo 1.0.1";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.1 -m 1.0.1
-echo 'print "foo 1.0.2";' > __load__.bro
+echo 'print "foo 1.0.2";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
 
 cd ../bar
-echo 'print "bar+ loaded";' > __load__.bro
+echo 'print "bar+ loaded";' > __load__.zeek
 git commit -am 'new stuff'
-echo 'print "bar 1.0.0 loaded";' > __load__.bro
-echo 'tags = sega sunset' >> bro-pkg.meta
-echo 'description = bar bar bar' >> bro-pkg.meta
+echo 'print "bar 1.0.0 loaded";' > __load__.zeek
+echo 'tags = sega sunset' >> zkg.meta
+echo 'description = bar bar bar' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
-echo 'print "bar++ loaded";' > __load__.bro
+echo 'print "bar++ loaded";' > __load__.zeek
 git commit -am 'new stuff'

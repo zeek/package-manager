@@ -1,12 +1,12 @@
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: LAST_VAR=/home/jon/sandbox bro-pkg install foo
+# @TEST-EXEC: LAST_VAR=/home/jon/sandbox zkg install foo
 # @TEST-EXEC: btest-diff state/logs/foo-build.log
 
 cd packages/foo
-echo 'user_vars =' >> bro-pkg.meta
-echo '  TEST_VAR [/usr] "First description is here"' >> bro-pkg.meta
-echo '  ANOTHER_VAR [/usr/local] "Second description is here"' >> bro-pkg.meta
-echo '  LAST_VAR [/opt] "Last description is here"' >> bro-pkg.meta
-echo 'build_command = echo "%(LAST_VAR)s\n%(ANOTHER_VAR)s\n%(TEST_VAR)s"' >> bro-pkg.meta
+echo 'user_vars =' >> zkg.meta
+echo '  TEST_VAR [/usr] "First description is here"' >> zkg.meta
+echo '  ANOTHER_VAR [/usr/local] "Second description is here"' >> zkg.meta
+echo '  LAST_VAR [/opt] "Last description is here"' >> zkg.meta
+echo 'build_command = echo "%(LAST_VAR)s\n%(ANOTHER_VAR)s\n%(TEST_VAR)s"' >> zkg.meta
 git commit -am 'new stuff'

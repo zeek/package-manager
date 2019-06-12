@@ -1,18 +1,18 @@
-# @TEST-REQUIRES: type bro-config
-# @TEST-REQUIRES: test -n "$(bro-config --bro_dist)"
+# @TEST-REQUIRES: type zeek-config
+# @TEST-REQUIRES: test -n "$(zeek-config --zeek_dist)"
 
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg install rot13
+# @TEST-EXEC: zkg install rot13
 
 # @TEST-EXEC: btest-diff plugins/packages/rot13/__bro_plugin__ 
-# @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.bro 
+# @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.zeek
 
 cd packages/rot13
-echo "plugin_dir = build/Demo_Rot13.tgz" >> bro-pkg.meta
+echo "plugin_dir = build/Demo_Rot13.tgz" >> zkg.meta
 git commit -am 'new stuff'
 
 cd ../..
 
-echo "$(pwd)/packages/rot13" >> sources/one/bob/bro-pkg.index
+echo "$(pwd)/packages/rot13" >> sources/one/bob/zkg.index
 cd sources/one
 git commit -am 'add rot13 package'

@@ -1,7 +1,7 @@
-bropkg.source module
-====================
+zeekpkg.source module
+=====================
 
-.. automodule:: bropkg.source
+.. automodule:: zeekpkg.source
     :members:
     :undoc-members:
     :show-inheritance:

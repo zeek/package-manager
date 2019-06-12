@@ -6,7 +6,7 @@
 		is_outdated = False
 		is_pinned = False
 		tracking_method = version
-	metadata file: /Users/jon/pro/zeek/package-manager/testing/.tmp/tests.info/state/clones/package/bar/bro-pkg.meta
+	metadata file: /Users/jon/pro/zeek/package-manager/testing/.tmp/tests.info/state/clones/package/bar/zkg.meta
 	metadata (from version "1.0.0"):
 		description = bar bar bar
 		tags = sega sunset

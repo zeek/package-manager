@@ -8,7 +8,7 @@ done
 
 cp -R $SOURCES .
 
-find sources -name 'bro-pkg.index' -exec sed -i -e "s#^#$(pwd)/packages/#" {} \;
+find sources -name 'zkg.index' -exec sed -i -e "s#^#$(pwd)/packages/#" {} \;
 
 for s in sources/*; do
     ( cd $s && git init && git add * && git commit -m 'init' )
@@ -23,4 +23,4 @@ script_dir = $(pwd)/scripts
 plugin_dir = $(pwd)/plugins
 " >> config
 
-type bro-config > /dev/null 2>&1 && echo "bro_dist = $(bro-config --bro_dist)" >> config || true
+type zeek-config > /dev/null 2>&1 && echo "zeek_dist = $(zeek-config --zeek_dist)" >> config || true

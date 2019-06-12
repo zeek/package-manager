@@ -23,4 +23,4 @@ case "$1" in
     ;;
 esac
 
-$TEST_BASE/../bro-pkg --configfile=config "$@" $force
+$TEST_BASE/../zkg --configfile=config "$@" $force

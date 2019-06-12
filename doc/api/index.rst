@@ -1,12 +1,12 @@
 Python API Reference
 ====================
 
-.. automodule:: bropkg
+.. automodule:: zeekpkg
     :members:
     :undoc-members:
     :show-inheritance:
 
-The following Python modules are all provided as part of the ``bropkg``
+The following Python modules are all provided as part of the ``zeekpkg``
 public interface:
 
 .. toctree::

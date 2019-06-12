@@ -1,4 +1,89 @@
 
+1.7.0-29 | 2019-06-11 19:26:22 -0700
+
+  * Update packaging scripts (Jon Siwek, Corelight)
+
+    The new name on PyPi will be "zkg", but a duplicate package (with
+    the same version number) under the old "bro-pkg" name is still
+    built and uploaded along with it.
+
+  * Change name of "bro_dist" Manager ctor arg to "zeek_dist" (Jon Siwek, Corelight)
+
+    Note this is a breaking API change for those that were creating
+    Manager objects using "bro_dist" as a named parameter.
+
+  * Add manager.zeekpath and manager.zeek_plugin_path methods (Jon Siwek, Corelight)
+
+    Same as manager.bropath and manager.bro_plugin_path.
+
+  * Rename internal util functions that had "bro" in them (Jon Siwek, Corelight)
+
+  * Replace "Bro" with "Zeek" in all documentation (Jon Siwek, Corelight)
+
+  * Replace "bro" usages in unit tests (Jon Siwek, Corelight)
+
+  * Support zkg.index files within package sources (Jon Siwek, Corelight)
+
+    bro-pkg.index files, if they exist within a package source, are also
+    still accepted and treated in the same way as before.
+
+  * Allow "zeek" and "zkg" in the "depends" metadata field (Jon Siwek, Corelight)
+
+    These are equivalent to the "bro" and "bro-pkg" dependencies that
+    already existed.
+
+  * Add preference for zkg.meta over bro-pkg.meta files (Jon Siwek, Corelight)
+
+    The new, preferred package metadata file name is zkg.meta, but we'll
+    still accept a bro-pkg.meta if that's all that exists.
+
+  * Add zeek_dist config option (Jon Siwek, Corelight)
+
+    This is treated the same way "bro_dist" worked, which is also still
+    used as a fallback if no "zeek_dist" value is set.
+
+    Package metadata files also now allow either "%(bro_dist)s" or
+    "%(zeek_dist)s" substitutions.
+
+  * Rename example config file to zkg.config (Jon Siwek, Corelight)
+
+  * Change default package source name/url from bro to zeek (Jon Siwek, Corelight)
+
+  * Change default config and state dirs to ~/.zkg (Jon Siwek, Corelight)
+
+    The old, default ~/.bro-pkg will still be used if it already exists
+    so users will be able to keep their current configurations without
+    having to start over from scratch.
+
+  * Add support for using zeek-config script (Jon Siwek, Corelight)
+
+    With fallback to using bro-config if it exists.
+
+  * Support new Zeek environment variables (Jon Siwek, Corelight)
+
+    - ZEEKPATH (BROPATH still used as fallback)
+    - ZEEK_PLUGIN_PATH (BRO_PLUGIN_PATH still used as fallback)
+
+  * Rename bro-pkg man page to zkg (Jon Siwek, Corelight)
+
+  * Allow ZKG_CONFIG_FILE environment variable (Jon Siwek, Corelight)
+
+    Same functionality as the old BRO_PKG_CONFIG_FILE (which is still
+    used as a fallback).
+
+  * Rename internal env. var. used by setup.py (Jon Siwek, Corelight)
+
+  * Remove gh-pages Makefile target (Jon Siwek, Corelight)
+
+  * Add zeekpkg module (Jon Siwek, Corelight)
+
+    The old bropkg module now emits deprecation warnings.
+
+  * Add zkg executable file (Jon Siwek, Corelight)
+
+    The bro-pkg script still exists as a wrapper that prints a deprecation
+    warning by default.
+
 1.7.0-7 | 2019-05-03 19:59:57 -0700
 
   * Improve test_command failure output (Jon Siwek, Corelight)

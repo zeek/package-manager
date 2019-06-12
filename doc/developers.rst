@@ -15,7 +15,7 @@ Versioning/Releases
 
 After making a commit to the *master* branch, you can use the
 :program:`update-changes` script in the `zeek-aux`_ repository to automatically
-adapt version numbers and regenerate the :program:`bro-pkg` man page.  Make sure
+adapt version numbers and regenerate the :program:`zkg` man page.  Make sure
 to install the `documentation dependencies`_ before using it.
 
 Releases are hosted at PyPi_.  To build and upload a release:
@@ -23,7 +23,7 @@ Releases are hosted at PyPi_.  To build and upload a release:
 #. Finalize the git repo tag and version with  ``update-changes -R <version>``
    if not done already.
 
-#. Upload the distribution (you will need the credentials for the 'bro'
+#. Upload the distribution (you will need the credentials for the 'zeek'
    account on PyPi):
 
    .. code-block:: console
@@ -56,7 +56,7 @@ Local Build/Preview
 Use the :file:`Makefile` targets ``make html`` and ``make man`` to build the
 HTML and man page, respectively.  To view the generated HTML output, open
 :file:`doc/_build/index.html`.  The generated man page is located in
-:file:`doc/man/bro-pkg.1`.
+:file:`doc/man/zkg.1`.
 
 If you have also installed :program:`sphinx-autobuild` (e.g. via
 :program:`pip`), there's a :file:`Makefile` target, ``make livehtml``, you can

@@ -1,40 +1,40 @@
-# @TEST-EXEC: bro-pkg install foo
+# @TEST-EXEC: zkg install foo
 
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: bro-pkg refresh
-# @TEST-EXEC: bro-pkg list outdated > outdated.out
+# @TEST-EXEC: zkg refresh
+# @TEST-EXEC: zkg list outdated > outdated.out
 # @TEST-EXEC: btest-diff outdated.out
 
-# @TEST-EXEC: bro-pkg list all > list.out
+# @TEST-EXEC: zkg list all > list.out
 # @TEST-EXEC: btest-diff list.out
 
-# @TEST-EXEC: bro-pkg refresh --aggregate
+# @TEST-EXEC: zkg refresh --aggregate
 
-# @TEST-EXEC: bro-pkg search lucky > search.out
+# @TEST-EXEC: zkg search lucky > search.out
 # @TEST-EXEC: btest-diff search.out
 
-# @TEST-EXEC: bro-pkg list all > list_after_agg.out
+# @TEST-EXEC: zkg list all > list_after_agg.out
 # @TEST-EXEC: btest-diff list_after_agg.out
 # note: foo's description isn't in the list output since the installed
 # version's metadata has no 'description' field
 
 cd packages/foo
-echo 'tags = esoteric lucky land' >> bro-pkg.meta
-echo 'description = This is the foo package description' >> bro-pkg.meta
+echo 'tags = esoteric lucky land' >> zkg.meta
+echo 'description = This is the foo package description' >> zkg.meta
 git commit -am 'new stuff'
 
 cd ..
 mkdir new_pkg
 cd new_pkg
 git init
-echo '[package]' > bro-pkg.meta
-echo 'tags = esoteric lucky land' >> bro-pkg.meta
-echo 'description = This is the new_pkg package description' >> bro-pkg.meta
-echo 'print "hello";' >> __load__.bro
+echo '[package]' > zkg.meta
+echo 'tags = esoteric lucky land' >> zkg.meta
+echo 'description = This is the new_pkg package description' >> zkg.meta
+echo 'print "hello";' >> __load__.zeek
 git add *
 git commit -m 'init'
 
 cd ../..
-echo "$(pwd)/packages/new_pkg" >> sources/one/alice/bro-pkg.index
+echo "$(pwd)/packages/new_pkg" >> sources/one/alice/zkg.index
 cd sources/one
 git commit -am 'add new_pkg'

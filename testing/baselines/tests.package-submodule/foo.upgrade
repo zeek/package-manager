@@ -1,1 +1,1 @@
-event bro_init() { print "bar upgrade is loaded"; }
+event zeek_init() { print "bar upgrade is loaded"; }
