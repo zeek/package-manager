@@ -78,7 +78,7 @@ class Manager(object):
             a dictionary of installed packaged keyed on package names (the last
             component of the package's git URL)
 
-        bro_dist (str): path to the Zeek source code distribution.  This
+        zeek_dist (str): path to the Zeek source code distribution.  This
             is needed for packages that contain Zeek plugins that need to be
             built from source code.
 
@@ -136,7 +136,7 @@ class Manager(object):
             load all installed packages that have been marked as loaded.
     """
 
-    def __init__(self, state_dir, script_dir, plugin_dir, bro_dist='',
+    def __init__(self, state_dir, script_dir, plugin_dir, zeek_dist='',
                  user_vars=None):
         """Creates a package manager instance.
 
@@ -147,7 +147,7 @@ class Manager(object):
 
             plugin_dir (str): value to set the `plugin_dir` attribute to
 
-            bro_dist (str): value to set the `bro_dist` attribute to
+            zeek_dist (str): value to set the `zeek_dist` attribute to
 
             user_vars (dict of str -> str): key-value pair substitutions for
                 use in package build commands.
@@ -159,7 +159,9 @@ class Manager(object):
         LOG.debug('init Manager version %s', __version__)
         self.sources = {}
         self.installed_pkgs = {}
-        self.bro_dist = bro_dist
+        # The bro_dist attribute exists just for backward compatibility
+        self.bro_dist = zeek_dist
+        self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
         self.backup_dir = os.path.join(self.state_dir, 'backups')
@@ -1907,8 +1909,8 @@ class Manager(object):
             return "package has malformed 'user_vars' metadata field"
 
         substitutions = {
-            'bro_dist': self.bro_dist,
-            'zeek_dist': self.bro_dist,
+            'bro_dist': self.zeek_dist,
+            'zeek_dist': self.zeek_dist,
         }
         substitutions.update(self.user_vars)
 

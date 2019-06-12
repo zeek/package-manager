@@ -296,7 +296,7 @@ def create_manager(config):
 
     try:
         manager = zeekpkg.Manager(state_dir=state_dir, script_dir=script_dir,
-                                 plugin_dir=plugin_dir, bro_dist=zeek_dist)
+                                 plugin_dir=plugin_dir, zeek_dist=zeek_dist)
     except (OSError, IOError) as error:
         if error.errno == errno.EACCES:
             print_error('{}: {}'.format(type(error).__name__, error))
