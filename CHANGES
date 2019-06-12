@@ -1,4 +1,8 @@
 
+2.0.0 | 2019-06-11 19:33:36 -0700
+
+  * Release 2.0.0.
+
 1.7.0-30 | 2019-06-11 19:33:13 -0700
 
   * Fix version string replacement via update-changes (Jon Siwek, Corelight)
