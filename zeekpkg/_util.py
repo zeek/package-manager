@@ -161,7 +161,7 @@ def std_encoding(stream):
 
     return locale.getpreferredencoding()
 
-def read_bro_config_line(stdout):
+def read_zeek_config_line(stdout):
     rval = stdout.readline()
 
     # Python 2 returned bytes, Python 3 returned unicode
@@ -171,7 +171,7 @@ def read_bro_config_line(stdout):
     return rval.strip()
 
 
-def get_bro_version():
+def get_zeek_version():
     zeek_config = find_program('zeek-config')
 
     if not zeek_config:
@@ -185,4 +185,4 @@ def get_bro_version():
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1, universal_newlines=True)
 
-    return read_bro_config_line(cmd.stdout)
+    return read_zeek_config_line(cmd.stdout)

@@ -34,10 +34,10 @@ from ._util import (
     copy_over_path,
     git_clone,
     is_sha1,
-    get_bro_version,
+    get_zeek_version,
     std_encoding,
     find_program,
-    read_bro_config_line,
+    read_zeek_config_line,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -1312,11 +1312,11 @@ class Manager(object):
 
         # Add nodes for things that are already installed (including zeek)
         if not ignore_installed_packages:
-            bro_version = get_bro_version()
+            zeek_version = get_zeek_version()
 
-            if bro_version:
+            if zeek_version:
                 node = Node('zeek')
-                node.installed_version = (TRACKING_METHOD_VERSION, bro_version)
+                node.installed_version = (TRACKING_METHOD_VERSION, zeek_version)
                 graph['zeek'] = node
             else:
                 LOG.warning(
@@ -1843,8 +1843,8 @@ class Manager(object):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT,
                                    bufsize=1, universal_newlines=True)
-            line1 = read_bro_config_line(cmd.stdout)
-            line2 = read_bro_config_line(cmd.stdout)
+            line1 = read_zeek_config_line(cmd.stdout)
+            line2 = read_zeek_config_line(cmd.stdout)
 
             if not zeekpath:
                 zeekpath = line1

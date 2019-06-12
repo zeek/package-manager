@@ -5,7 +5,7 @@ from zeekpkg._util import (
     make_dir,
     make_symlink,
     find_program,
-    read_bro_config_line,
+    read_zeek_config_line,
     std_encoding,
 )
 from zeekpkg.package import (
@@ -1654,9 +1654,9 @@ def cmd_autoconfig(manager, args, config, configfile):
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1, universal_newlines=True)
 
-    script_dir = read_bro_config_line(cmd.stdout)
-    plugin_dir = read_bro_config_line(cmd.stdout)
-    zeek_dist = read_bro_config_line(cmd.stdout)
+    script_dir = read_zeek_config_line(cmd.stdout)
+    plugin_dir = read_zeek_config_line(cmd.stdout)
+    zeek_dist = read_zeek_config_line(cmd.stdout)
 
     if configfile:
         config_dir = os.path.dirname(configfile)
@@ -1722,8 +1722,8 @@ def cmd_env(manager, args, config, configfile):
         cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                bufsize=1, universal_newlines=True)
-        line1 = read_bro_config_line(cmd.stdout)
-        line2 = read_bro_config_line(cmd.stdout)
+        line1 = read_zeek_config_line(cmd.stdout)
+        line2 = read_zeek_config_line(cmd.stdout)
 
         if not zeekpath:
             zeekpath = line1
