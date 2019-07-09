@@ -1,4 +1,8 @@
 
+2.0.0-1 | 2019-07-09 10:36:27 -0700
+
+  * Fix a broken link in docs (Jon Siwek, Corelight)
+
 2.0.0 | 2019-06-11 19:33:36 -0700
 
   * Release 2.0.0.

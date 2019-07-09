@@ -1,5 +1,5 @@
 .. _Zeek Scripting: https://docs.zeek.org/en/stable/examples/scripting/index.html
-.. _Zeek Plugins: https://docs.zeek.org/en/stable/devel/plugins.html<Paste>
+.. _Zeek Plugins: https://docs.zeek.org/en/stable/devel/plugins.html
 .. _ZeekControl Plugins: https://github.com/zeek/zeekctl#plugins
 .. _Semantic Version Specification: https://python-semanticversion.readthedocs.io/en/latest/reference.html#version-specifications-the-spec-class
 .. _btest: https://github.com/zeek/btest
