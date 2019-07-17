@@ -2122,8 +2122,8 @@ class Manager(object):
                 status.tracking_method = TRACKING_METHOD_BRANCH
 
         status.current_version = version
-        status.current_hash = _get_hash(clone, version, status.tracking_method)
         _git_checkout(clone, version)
+        status.current_hash = clone.head.object.hexsha
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
 
@@ -2199,15 +2199,6 @@ def _get_branch_names(clone):
     return rval
 
 
-def _get_ref(clone, ref_name, track_method):
-    for ref in clone.refs:
-        if ((track_method == TRACKING_METHOD_BRANCH and
-             'origin' in ref.name and
-             ref.name.split('origin/')[1] == ref_name) or
-             ref.name.split('/')[-1] == ref_name):
-            return ref
-
-
 def _is_version_outdated(clone, version):
     version_tags = _get_version_tags(clone)
     latest = _normalize_version_tag(version_tags[-1])
@@ -2229,13 +2220,6 @@ def _is_clone_outdated(clone, ref_name, tracking_method):
         return False
     else:
         raise NotImplementedError
-
-
-def _get_hash(clone, version, track_method):
-    if track_method == TRACKING_METHOD_COMMIT:
-        return clone.commit(version).hexsha
-
-    return _get_ref(clone, version, track_method).object.hexsha
 
 
 def _is_commit_hash(clone, text):
