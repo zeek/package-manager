@@ -1,4 +1,12 @@
 
+2.0.1-2 | 2019-07-17 10:44:50 -0700
+
+  * Simplify how "current_hash" is determined for installed packages (Jon Siwek, Corelight)
+
+    For packages installed via version tag, this will also change the
+    meaning of "current_hash" from being the hexsha of the tag object itself
+    to the hexsha of the commit object pointed to by the tag.
+
 2.0.1 | 2019-07-09 10:37:20 -0700
 
   * Release 2.0.1.
