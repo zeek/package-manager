@@ -1,4 +1,8 @@
 
+2.0.2 | 2019-07-17 10:46:14 -0700
+
+  * Release 2.0.2.
+
 2.0.1-2 | 2019-07-17 10:44:50 -0700
 
   * Simplify how "current_hash" is determined for installed packages (Jon Siwek, Corelight)
