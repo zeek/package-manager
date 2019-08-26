@@ -19,6 +19,9 @@ TRACKING_METHOD_VERSION = 'version'
 TRACKING_METHOD_BRANCH = 'branch'
 TRACKING_METHOD_COMMIT = 'commit'
 
+PLUGIN_MAGIC_FILE = '__bro_plugin__'
+PLUGIN_MAGIC_FILE_DISABLED = '__bro_plugin__.disabled'
+
 def name_from_path(path):
     """Returns the name of a package given a path to its git repository."""
     return canonical_url(path).split('/')[-1]

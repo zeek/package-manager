@@ -1,4 +1,13 @@
 
+2.0.2-2 | 2019-08-26 14:16:36 -0700
+
+  * When loading/unloading a Zeek package, also enable/disable any plugin (Christian Kreibich, Corelight)
+
+    This patch does this via renaming of the __bro_plugin__ magic file
+    that Zeek looks for when scanning ZEEK_PLUGIN_PATH. To disable a
+    plugin, zkg renames the file to __bro_plugin__.disabled, and renames
+    that file back to __bro_plugin__ when enabling.
+
 2.0.2 | 2019-07-17 10:46:14 -0700
 
   * Release 2.0.2.

@@ -49,6 +49,8 @@ from .package import (
     TRACKING_METHOD_VERSION,
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_COMMIT,
+    PLUGIN_MAGIC_FILE,
+    PLUGIN_MAGIC_FILE_DISABLED,
     name_from_path,
     aliases,
     user_vars,
@@ -253,6 +255,42 @@ class Manager(object):
 
             f.write(content)
 
+    def _write_plugin_magic(self, ipkg):
+        """Enables/disables any Zeek plugin included with a package.
+
+        Zeek's plugin code scans its plugin directories for
+        __bro_plugin__ magic files, which indicate presence of a
+        plugin directory. When this file does not exist, Zeek does not
+        recognize a plugin.
+
+        When we're loading a package, this function renames an
+        existing __bro_plugin__.disabled file to __bro_plugin__, and
+        vice versa when we're unloading a package.
+
+        When the package doesn't include a plugin, or when the plugin
+        directory already contains a correctly named magic file, this
+        function does nothing.
+        """
+        magic_path = os.path.join(
+            self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE)
+        magic_path_disabled = os.path.join(
+            self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE_DISABLED)
+
+        if ipkg.status.is_loaded:
+            if os.path.exists(magic_path_disabled):
+                try:
+                    os.rename(magic_path_disabled, magic_path)
+                except OSError as exception:
+                    LOG.warning('could not enable plugin: %s: %s'.format(
+                        type(exception).__name__, exception))
+        else:
+            if os.path.exists(magic_path):
+                try:
+                    os.rename(magic_path, magic_path_disabled)
+                except OSError as exception:
+                    LOG.warning('could not disable plugin: %s: %s'.format(
+                        type(exception).__name__, exception))
+
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
 
@@ -448,6 +486,19 @@ class Manager(object):
             bool: True if the package has installed Zeek scripts.
         """
         return os.path.exists(os.path.join(self.script_dir,
+                                           installed_pkg.package.name))
+
+    def has_plugin(self, installed_pkg):
+        """Return whether a :class:`.package.InstalledPackage` installed a plugin.
+
+        Args:
+            installed_pkg(:class:`.package.InstalledPackage`): the installed
+                package to check for whether it has installed a Zeek plugin.
+
+        Returns:
+            bool: True if the package has installed a Zeek plugin.
+        """
+        return os.path.exists(os.path.join(self.plugin_dir,
                                            installed_pkg.package.name))
 
     def save_temporary_config_files(self, installed_pkg):
@@ -969,14 +1020,17 @@ class Manager(object):
         pkg_load_fallback = os.path.join(self.script_dir, ipkg.package.name,
                                        '__load__.bro')
 
-        if not os.path.exists(pkg_load_script) and not os.path.exists(pkg_load_fallback):
-            LOG.debug('loading "%s": %s does not exist',
+        if (not os.path.exists(pkg_load_script) and
+            not os.path.exists(pkg_load_fallback) and
+            not self.has_plugin(self, ipkg)):
+            LOG.debug('loading "%s": %s not found and package has no plugin',
                       pkg_path, pkg_load_script)
-            return 'no __load__.zeek within package script_dir'
+            return 'no __load__.zeek within package script_dir and no plugin included'
 
         ipkg.status.is_loaded = True
         self._write_autoloader()
         self._write_manifest()
+        self._write_plugin_magic(ipkg)
         LOG.debug('loaded "%s"', pkg_path)
         return ''
 
@@ -1014,6 +1068,7 @@ class Manager(object):
         ipkg.status.is_loaded = False
         self._write_autoloader()
         self._write_manifest()
+        self._write_plugin_magic(ipkg)
         LOG.debug('unloaded "%s"', pkg_path)
         return True
 
