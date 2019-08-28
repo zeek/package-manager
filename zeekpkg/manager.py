@@ -1022,7 +1022,7 @@ class Manager(object):
 
         if (not os.path.exists(pkg_load_script) and
             not os.path.exists(pkg_load_fallback) and
-            not self.has_plugin(self, ipkg)):
+            not self.has_plugin(ipkg)):
             LOG.debug('loading "%s": %s not found and package has no plugin',
                       pkg_path, pkg_load_script)
             return 'no __load__.zeek within package script_dir and no plugin included'
