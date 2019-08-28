@@ -1,4 +1,8 @@
 
+2.0.4 | 2019-08-28 15:50:13 -0700
+
+  * Release 2.0.4.
+
 2.0.3-2 | 2019-08-28 15:49:54 -0700
 
   * Bugfix: incorrect arguments to Manager.has_plugin() (Christian Kreibich, Corelight)
