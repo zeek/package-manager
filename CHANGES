@@ -1,4 +1,10 @@
 
+1.7.4 | 2019-08-28 15:55:14 -0700
+
+  * Release 1.7.4
+
+  * Bugfix: incorrect arguments to Manager.has_plugin() (Jon Siwek, Corelight)
+
 1.7.3 | 2019-08-26 15:50:16 -0700
 
   * Release 1.7.3
