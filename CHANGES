@@ -1,4 +1,15 @@
 
+2.0.4-1 | 2019-09-18 16:09:19 -0700
+
+  * Improve dependency handling (Jon Siwek, Corelight)
+
+    It now won't report unsatisfiable dependencies between two nodes in the
+    dependency graph that are already installed.  E.g. previously, if one
+    used the --nodeps flag to install package "foo" that had a failed
+    dependency on Zeek, then installing unrelated package "bar" without
+    --nodeps would emit an error about "foo" dependencies being
+    unsatisfiable even though that has no relation to the current operation.
+
 2.0.4 | 2019-08-28 15:50:13 -0700
 
   * Release 2.0.4.

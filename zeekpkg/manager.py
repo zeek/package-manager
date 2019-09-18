@@ -1531,8 +1531,16 @@ class Manager(object):
                 # Check that installed version doesn't conflict with dependers.
                 track_method, required_version = node.installed_version
 
-                if track_method == TRACKING_METHOD_BRANCH:
-                    for depender_name, version_spec in node.dependers.items():
+                for depender_name, version_spec in node.dependers.items():
+                    if ( depender_name in graph and
+                         graph[depender_name].installed_version ):
+                        # Both nodes already installed, so assume compatible.
+                        # They're maybe not actually if the user installed via
+                        # --nodeps, but if that's their desired state, it's
+                        # better not to complain about it now.
+                        continue
+
+                    if track_method == TRACKING_METHOD_BRANCH:
                         if version_spec == '*':
                             continue
 
@@ -1547,8 +1555,7 @@ class Manager(object):
                             ' but "{}" requires {}', node.name,
                             required_version, depender_name, version_spec),
                             new_pkgs)
-                elif track_method == TRACKING_METHOD_COMMIT:
-                    for depender_name, version_spec in node.dependers.items():
+                    elif track_method == TRACKING_METHOD_COMMIT:
                         if version_spec == '*':
                             continue
 
@@ -1561,11 +1568,10 @@ class Manager(object):
                             ' but "{}" requires {}', node.name,
                             required_version, depender_name, version_spec),
                             new_pkgs)
-                else:
-                    normal_version = _normalize_version_tag(required_version)
-                    req_semver = semver.Version.coerce(normal_version)
+                    else:
+                        normal_version = _normalize_version_tag(required_version)
+                        req_semver = semver.Version.coerce(normal_version)
 
-                    for depender_name, version_spec in node.dependers.items():
                         if version_spec.startswith('branch='):
                             version_spec = version_spec[len('branch='):]
                             return (str.format(
