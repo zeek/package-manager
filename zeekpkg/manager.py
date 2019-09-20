@@ -1896,8 +1896,6 @@ class Manager(object):
 
         # Finally, run tests (with correct environment set)
         test_command = pkg_info.metadata['test_command']
-        LOG.debug('running test_command for %s: %s',
-                  package.name, test_command)
 
         zeek_config = find_program('zeek-config')
         path_option = '--zeekpath'
@@ -1945,6 +1943,11 @@ class Manager(object):
         cwd = os.path.join(clone_dir, package.name)
         outfile = os.path.join(cwd, 'zkg.test_command.stdout')
         errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+
+        LOG.debug('running test_command for %s with cwd="%s"'
+                  ' and ZEEKPATH/BROPATH="%s": %s',
+                  package.name, cwd, zeekpath, test_command)
+
         with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
             cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
                     stdout=test_stdout, stderr=test_stderr)
