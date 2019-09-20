@@ -389,11 +389,13 @@ def cmd_test(manager, args, config, configfile):
             print(str.format('{}: all tests passed', name))
         else:
             all_passed = False
+            clone_dir = os.path.join(os.path.join(test_dir, "clones"),
+                                     info.package.name)
             print_error(str.format('error: package "{}" tests failed, inspect'
                                    ' contents of {} for details, especially'
                                    ' any "zkg.test_command.{{stderr,stdout}}"'
-                                   ' files.',
-                                   name, test_dir))
+                                   ' files within {}',
+                                   name, test_dir, clone_dir))
 
     if not all_passed:
         sys.exit(1)
@@ -515,9 +517,13 @@ def cmd_install(manager, args, config, configfile):
                 error_msg = str.format(
                     'failed to run tests for {}: {}', name, error)
             elif not passed:
-                error_msg = str.format(
-                    '{} tests failed, inspect contents of {} for details',
-                    name, test_dir)
+                clone_dir = os.path.join(os.path.join(test_dir, "clones"),
+                                         info.package.name)
+                error_msg = str.format('"{}" tests failed, inspect contents of'
+                                       ' {} for details, especially any'
+                                       ' "zkg.test_command.{{stderr,stdout}}"'
+                                       ' files within {}',
+                                       name, test_dir, clone_dir)
 
             if error_msg:
                 print_error('error: {}'.format(error_msg))
@@ -1148,9 +1154,14 @@ def cmd_upgrade(manager, args, config, configfile):
                 error_msg = str.format(
                     'failed to run tests for {}: {}', name, error)
             elif not passed:
-                error_msg = str.format(
-                    '{} tests failed, inspect contents of {} for details',
-                    name, test_dir)
+                clone_dir = os.path.join(os.path.join(test_dir, "clones"),
+                                         info.package.name)
+                error_msg = str.format('"{}" tests failed, inspect contents of'
+                                       ' {} for details, especially any'
+                                       ' "zkg.test_command.{{stderr,stdout}}"'
+                                       ' files within {}',
+                                       name, test_dir, clone_dir)
+
 
             if error_msg:
                 print_error('error: {}'.format(error_msg))
