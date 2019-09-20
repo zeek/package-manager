@@ -1,4 +1,8 @@
 
+2.0.6 | 2019-09-20 13:06:48 -0700
+
+  * Release 2.0.6.
+
 2.0.5-2 | 2019-09-20 13:03:11 -0700
 
   * GH-54: improve error message for package test failures (Jon Siwek, Corelight)
