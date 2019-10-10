@@ -90,7 +90,7 @@ def prompt_for_user_vars(manager, config, configfile, force, pkg_infos):
 
             if default_value:
                 from_env = True
-        else:
+            else:
                 if config.has_section('user_vars'):
                     v = config.get('user_vars', key, fallback=None)
 
