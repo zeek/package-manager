@@ -1,4 +1,13 @@
 
+2.0.6-3 | 2019-10-14 11:53:46 -0700
+
+  * GH-55: Add fallback option to getting user_vars. (Vlad Grigorescu)
+
+    This generally fixes errors when installing packages that use "user_vars",
+    but the user's zkg config file doesn't have a corresponding key.  And that
+    can happen simply by (separately) installing multiple packages that each
+    use "user_vars".
+
 2.0.6 | 2019-09-20 13:06:48 -0700
 
   * Release 2.0.6.
