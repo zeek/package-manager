@@ -1,4 +1,8 @@
 
+2.0.7 | 2019-10-14 11:56:18 -0700
+
+  * Release 2.0.7.
+
 2.0.6-3 | 2019-10-14 11:53:46 -0700
 
   * GH-55: Add fallback option to getting user_vars. (Vlad Grigorescu)
