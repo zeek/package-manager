@@ -1,4 +1,10 @@
 
+2.0.7-3 | 2020-02-24 10:12:39 -0800
+
+  * Add missing include header to plugin used for tests (Jon Siwek, Corelight)
+
+  * Do not expect SHELL in environment when running `zkg env` (Arne Welzel)
+
 2.0.7 | 2019-10-14 11:56:18 -0700
 
   * Release 2.0.7.
