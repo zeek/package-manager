@@ -24,13 +24,6 @@ def make_dir(path):
             raise
 
 
-def remove_trailing_slashes(path):
-    if path.endswith('/'):
-        return remove_trailing_slashes(path[:-1])
-
-    return path
-
-
 def delete_path(path):
     if os.path.islink(path):
         os.remove(path)
