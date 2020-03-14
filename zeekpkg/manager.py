@@ -8,6 +8,7 @@ import sys
 import copy
 import json
 import shutil
+import urllib
 import filecmp
 import tarfile
 import subprocess
@@ -396,8 +397,19 @@ class Manager(object):
 
         clone_path = os.path.join(self.source_clonedir, name)
 
+        # Support @ in the path to denote the "version" to checkout
+        version = None
+        parse_result = urllib.parse.urlparse(git_url)
+        if parse_result.path and '@' in parse_result.path:
+            git_url, version = git_url.rsplit('@', 1)
+
         try:
-            source = Source(name=name, clone_path=clone_path, git_url=git_url)
+            source = Source(
+                name=name,
+                clone_path=clone_path,
+                git_url=git_url,
+                version=version,
+            )
         except git.exc.GitCommandError as error:
             LOG.warning('failed to clone git repo: %s', error)
             return 'failed to clone git repo'
