@@ -1,0 +1,37 @@
+cpus: &CPUS 8
+
+resources_template: &RESOURCES_TEMPLATE
+  cpu: *CPUS
+  memory: 4GB
+
+env:
+  ZEEK_CI_CPUS: *CPUS
+
+ci_template: &CI_TEMPLATE
+  only_if: >
+    $CIRRUS_PR != '' ||
+    $CIRRUS_BRANCH == 'master' ||
+    $CIRRUS_BRANCH =~ 'release/.*'
+
+  test_script: ci/test.sh
+
+  on_failure:
+    upload_btest_tmp_dir_artifacts:
+      path: "testing/**/tmp.tar.gz"
+  always:
+    upload_btest_xml_results_artifacts:
+      path: "testing/**/btest-results.xml"
+      type: text/xml
+      format: junit
+
+zeek_lts_task:
+  container:
+    dockerfile: ci/zeek-lts/Dockerfile
+    << : *RESOURCES_TEMPLATE
+  << : *CI_TEMPLATE
+
+zeek_feature_task:
+  container:
+    dockerfile: ci/zeek-feature/Dockerfile
+    << : *RESOURCES_TEMPLATE
+  << : *CI_TEMPLATE
