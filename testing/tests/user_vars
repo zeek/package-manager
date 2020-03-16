@@ -8,5 +8,5 @@ echo 'user_vars =' >> zkg.meta
 echo '  TEST_VAR [/usr] "First description is here"' >> zkg.meta
 echo '  ANOTHER_VAR [/usr/local] "Second description is here"' >> zkg.meta
 echo '  LAST_VAR [/opt] "Last description is here"' >> zkg.meta
-echo 'build_command = echo "%(LAST_VAR)s\n%(ANOTHER_VAR)s\n%(TEST_VAR)s"' >> zkg.meta
+echo 'build_command = echo "%(LAST_VAR)s" && echo "%(ANOTHER_VAR)s" && echo "%(TEST_VAR)s"' >> zkg.meta
 git commit -am 'new stuff'

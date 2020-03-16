@@ -1,4 +1,8 @@
 
+2.0.7-5 | 2020-03-16 15:53:08 -0700
+
+  * Add Cirrus CI config (Jon Siwek, Corelight)
+
 2.0.7-3 | 2020-02-24 10:12:39 -0800
 
   * Add missing include header to plugin used for tests (Jon Siwek, Corelight)
