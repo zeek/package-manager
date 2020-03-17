@@ -1,0 +1,20 @@
+# First search for corge in source one master
+#
+# @TEST-EXEC: zkg search corge > search.out
+# @TEST-EXEC: grep -q -m 1 'one/bob/corge' search.out
+
+# Now overwrite source one with the branch
+# @TEST-EXEC: zkg --extra-source one=`pwd`/sources/one@drop-corge search corge > search.out
+# @TEST-EXEC: grep -m 1 'no matches' search.out
+
+# Make sure grault is still there
+# @TEST-EXEC: zkg --extra-source one=`pwd`/sources/one@drop-corge search grault > search.out
+# @TEST-EXEC: grep -m 1 'one/bob/grault' search.out
+
+# Search for quux without source two
+# @TEST-EXEC: zkg search quux > search.out
+# @TEST-EXEC: grep -m 1 'no matches' search.out
+#
+# Now in source two with explicit master branch
+# @TEST-EXEC: zkg --extra-source two=`pwd`/sources/two@master search quux > search.out
+# @TEST-EXEC: grep -m 1 'two/eve/quux' search.out
