@@ -14,12 +14,13 @@ for s in sources/*; do
     ( cd $s && git init && git add * && git commit -m 'init' )
 done
 
-# Create a branch in source "one", drop corge, move back to master
-git -C ./sources/one checkout -b drop-corge
-sed -i '/corge/d' ./sources/one/bob/zkg.index
-git -C ./sources/one add ./bob/zkg.index
-git -C ./sources/one commit -m 'Remove corge'
-git -C ./sources/one checkout master
+# Create a branch drop-corge in source "one" to drop corge from index
+( cd sources/one &&
+  git checkout -b drop-corge &&
+  sed -i '/corge/d' bob/zkg.index &&
+  git add ./bob/zkg.index &&
+  git commit -m 'Remove corge' &&
+  git checkout master )
 
 echo "\
 [sources]
