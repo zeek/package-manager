@@ -6,10 +6,7 @@ the properties and status of Zeek packages.
 import os
 import re
 
-from ._util import (
-    remove_trailing_slashes,
-    find_sentence_end,
-)
+from ._util import find_sentence_end
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = 'zkg.meta'
@@ -29,7 +26,7 @@ def name_from_path(path):
 
 def canonical_url(path):
     """Returns the url of a package given a path to its git repo."""
-    url = remove_trailing_slashes(path)
+    url = path.rstrip('/')
 
     if url.startswith('.') or url.startswith('/'):
         url = os.path.realpath(url)

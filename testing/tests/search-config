@@ -1,0 +1,21 @@
+# Tests that using a branch works in the config.
+#
+# @TEST-EXEC: bash %INPUT
+echo "\
+[sources]
+one = $(pwd)/sources/one@drop-corge
+two = $(pwd)/sources/two
+
+[paths]
+state_dir = $(pwd)/state
+script_dir = $(pwd)/scripts
+plugin_dir = $(pwd)/plugins
+" >> my.config
+
+# No more corge to be found
+# @TEST-EXEC: zkg --config my.config search corge > search.out
+# @TEST-EXEC: grep -m 1 'no matches' search.out
+
+# quux is in source two
+# @TEST-EXEC: zkg --config my.config search quux > search.out
+# @TEST-EXEC: grep -m 1 'two/eve/quux' search.out

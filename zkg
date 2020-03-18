@@ -284,7 +284,7 @@ def is_git_repo_dirty(git_url):
 
     return repo.is_dirty(untracked_files=True)
 
-def create_manager(config):
+def create_manager(args, config):
     state_dir = config.get('paths', 'state_dir')
     script_dir = config.get('paths', 'script_dir')
     plugin_dir = config.get('paths', 'plugin_dir')
@@ -315,7 +315,22 @@ def create_manager(config):
 
         raise
 
-    for key, value in config_items(config, 'sources'):
+    extra_sources = []
+
+    for key_value in args.extra_source or []:
+        if "=" not in key_value:
+            print_error('warning: invalid extra source: "{}"'.format(key_value))
+            continue
+
+        key, value = key_value.split("=", 1)
+
+        if not key or not value:
+            print_error('warning: invalid extra source: "{}"'.format(key_value))
+            continue
+
+        extra_sources.append((key, value))
+
+    for key, value in extra_sources + config_items(config, 'sources'):
         error = manager.add_source(name=key, git_url=value)
 
         if error:
@@ -1789,6 +1804,8 @@ def top_level_parser():
     top_parser.add_argument('--verbose', '-v', action='count', default=0,
                             help='Increase program output for debugging.'
                             ' Use multiple times for more output (e.g. -vvv).')
+    top_parser.add_argument('--extra-source', action='append',
+                            metavar='NAME=URL', help='Add an extra source.')
     return top_parser
 
 
@@ -2217,7 +2234,7 @@ def main():
         configfile = find_configfile()
 
     config = create_config(configfile)
-    manager = create_manager(config)
+    manager = create_manager(args, config)
 
     args.run_cmd(manager, args, config, configfile)
 

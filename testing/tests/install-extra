@@ -1,0 +1,8 @@
+# Install from an extra source
+# @TEST-EXEC: zkg --extra-source two=`pwd`/sources/two search quux > search.out
+# @TEST-EXEC: grep -q -m 1 two/eve/quux search.out
+
+# scripts/zkg doesn't add --force for us, do it by hand
+# @TEST-EXEC: zkg --extra-source two=`pwd`/sources/two install quux --force
+# @TEST-EXEC: zkg list > list.out
+# @TEST-EXEC: grep -q -m 1 'two/eve/quux' list.out

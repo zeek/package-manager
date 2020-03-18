@@ -20,7 +20,10 @@ from .package import (
     name_from_path,
     Package
 )
-from ._util import git_clone
+from ._util import (
+    git_checkout,
+    git_clone
+)
 
 #: The name of package index files.
 INDEX_FILENAME = 'zkg.index'
@@ -44,7 +47,7 @@ class Source(object):
         clone (git.Repo): The local git clone of the package source.
     """
 
-    def __init__(self, name, clone_path, git_url):
+    def __init__(self, name, clone_path, git_url, version=None):
         """Create a package source.
 
         Raises:
@@ -77,6 +80,10 @@ class Source(object):
                     name, old_url, git_url, clone_path)
                 shutil.rmtree(clone_path)
                 self.clone = git_clone(git_url, clone_path, shallow=True)
+
+        # Hmm, maybe this needs to be configurable for people that
+        # use differently named master branches...
+        git_checkout(self.clone, version or "master")
 
     def __str__(self):
         return self.git_url

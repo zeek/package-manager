@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Mar 16, 2020" "2.0.7-5" "Zeek Package Manager"
+.TH "ZKG" "1" "Mar 18, 2020" "2.0.7-12" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -39,6 +39,7 @@ A command\-line package manager for Zeek.
 .nf
 .ft C
 usage: zkg [\-h] [\-\-version] [\-\-configfile CONFIGFILE] [\-\-verbose]
+           [\-\-extra\-source NAME=URL]
            {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env}
            ...
 .ft P
@@ -60,6 +61,9 @@ See \fI\%Config File\fP\&.
 .TP
 .B \-\-verbose=0\fP,\fB  \-v=0
 Increase program output for debugging. Use multiple times for more output (e.g. \-vvv).
+.TP
+.B \-\-extra\-source
+Add an extra source.
 .UNINDENT
 .UNINDENT
 .sp
@@ -620,7 +624,9 @@ available options and how to customize them:
 # The default package source repository from which zkg fetches
 # packages.  The default source may be removed, changed, or
 # additional sources may be added as long as they use a unique key
-# and a value that is a valid git URL.
+# and a value that is a valid git URL.  The git URL may also use a
+# suffix like "@branch\-name" where "branch\-name" is the name of a real
+# branch to checkout (as opposed to the default "master" branch).
 zeek = https://github.com/zeek/packages
 
 [paths]

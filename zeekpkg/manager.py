@@ -8,6 +8,7 @@ import sys
 import copy
 import json
 import shutil
+import urllib
 import filecmp
 import tarfile
 import subprocess
@@ -32,6 +33,7 @@ from ._util import (
     delete_path,
     make_symlink,
     copy_over_path,
+    git_checkout,
     git_clone,
     is_sha1,
     get_zeek_version,
@@ -395,8 +397,20 @@ class Manager(object):
 
         clone_path = os.path.join(self.source_clonedir, name)
 
+        # Support @ in the path to denote the "version" to checkout
+        version = None
+        parse_result = urllib.parse.urlparse(git_url)
+
+        if parse_result.path and '@' in parse_result.path:
+            git_url, version = git_url.rsplit('@', 1)
+
         try:
-            source = Source(name=name, clone_path=clone_path, git_url=git_url)
+            source = Source(
+                name=name,
+                clone_path=clone_path,
+                git_url=git_url,
+                version=version,
+            )
         except git.exc.GitCommandError as error:
             LOG.warning('failed to clone git repo: %s', error)
             return 'failed to clone git repo'
@@ -752,7 +766,7 @@ class Manager(object):
                     else:
                         version = 'master'
 
-                    _git_checkout(clone, version)
+                    git_checkout(clone, version)
 
                     metadata_file = _pick_metadata_file(clone.working_dir)
                     # Use raw parser so no value interpolation takes place.
@@ -1226,7 +1240,7 @@ class Manager(object):
                 version = 'master'
 
         try:
-            _git_checkout(clone, version)
+            git_checkout(clone, version)
         except git.exc.GitCommandError:
             reason = 'no such commit, branch, or version tag: "{}"'.format(
                 version)
@@ -1881,7 +1895,7 @@ class Manager(object):
                         False, test_dir)
 
             try:
-                _git_checkout(clone, version)
+                git_checkout(clone, version)
             except git.exc.GitCommandError as error:
                 LOG.warning('failed to checkout git repo version: %s', error)
                 return (str.format('failed to checkout {} of {}',
@@ -2237,7 +2251,7 @@ class Manager(object):
                 status.tracking_method = TRACKING_METHOD_BRANCH
 
         status.current_version = version
-        _git_checkout(clone, version)
+        git_checkout(clone, version)
         status.current_hash = clone.head.object.hexsha
         status.is_outdated = _is_clone_outdated(
             clone, version, status.tracking_method)
@@ -2401,22 +2415,6 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         return 'failed to copy package {}: {}'.format(dirname, reasons)
 
     return ''
-
-
-def _git_checkout(clone, version):
-    """Checkout a version of a git repo along with any associated submodules.
-
-    Args:
-        clone (git.Repo): the git clone on which to operate
-
-        version (str): the branch, tag, or commit to checkout
-
-    Raises:
-        git.exc.GitCommandError: if the git repo is invalid
-    """
-    clone.git.checkout(version)
-    clone.git.submodule('sync', '--recursive')
-    clone.git.submodule('update', '--recursive', '--init')
 
 
 def _create_readme(file_path):

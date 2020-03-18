@@ -24,13 +24,6 @@ def make_dir(path):
             raise
 
 
-def remove_trailing_slashes(path):
-    if path.endswith('/'):
-        return remove_trailing_slashes(path[:-1])
-
-    return path
-
-
 def delete_path(path):
     if os.path.islink(path):
         os.remove(path)
@@ -115,6 +108,22 @@ def git_clone(git_url, dst_path, shallow=False):
 
     rval.git.fetch('--no-recurse-submodules', tags=True)
     return rval
+
+
+def git_checkout(clone, version):
+    """Checkout a version of a git repo along with any associated submodules.
+
+    Args:
+        clone (git.Repo): the git clone on which to operate
+
+        version (str): the branch, tag, or commit to checkout
+
+    Raises:
+        git.exc.GitCommandError: if the git repo is invalid
+    """
+    clone.git.checkout(version)
+    clone.git.submodule('sync', '--recursive')
+    clone.git.submodule('update', '--recursive', '--init')
 
 
 def is_sha1(s):

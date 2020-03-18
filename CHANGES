@@ -1,4 +1,24 @@
 
+2.0.7-12 | 2020-03-18 15:37:52 -0700
+
+  * Add --extra-source command line parameter (Arne Welzel, Corelight)
+
+    Allow to specify sources without changing the config file. The current
+    approach allows overriding sources specified in the configuration file.
+
+    The option is added to the top-level parser, as a number of commands are
+    using the sources.
+
+  * Support `@` in source paths to denote branch/revision to use (Arne Welzel, Corelight)
+
+    Allow an `@` character in the path part of an URL to be used as a specifier
+    which branch/tag/commit to checkout. Shamelessly copied from `pip` where it
+    can be used to specify the revision of a dependency.
+
+  * Move git_checkout from manager to util (Arne Welzel, Corelight)
+
+  * Replace remove_trailing_slashes with rstrip('/') (Arne Welzel, Corelight)
+
 2.0.7-5 | 2020-03-16 15:53:08 -0700
 
   * Add Cirrus CI config (Jon Siwek, Corelight)
