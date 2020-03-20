@@ -32,6 +32,13 @@ Using the latest git development version:
 
   $ pip install git+git://github.com/zeek/package-manager@master
 
+.. note::
+
+  If not using something like :program:`virtualenv` to manage Python
+  environments, the default user script directory is :file:`~/.local/bin` and
+  you may have to modify your :envvar:`PATH` to search there for
+  :program:`zkg`.
+
 Basic Configuration
 -------------------
 
