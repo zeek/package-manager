@@ -8,15 +8,19 @@ import sys
 import copy
 import json
 import shutil
-import urllib
 import filecmp
 import tarfile
 import subprocess
 
 try:
     from backports import configparser
-except ImportError as err:
+except ImportError:
     import configparser
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 if ( sys.version_info[0] < 3 or
      (sys.version_info[0] == 3 and sys.version_info[1] < 2) ):
@@ -399,7 +403,7 @@ class Manager(object):
 
         # Support @ in the path to denote the "version" to checkout
         version = None
-        parse_result = urllib.parse.urlparse(git_url)
+        parse_result = urlparse(git_url)
 
         if parse_result.path and '@' in parse_result.path:
             git_url, version = git_url.rsplit('@', 1)
