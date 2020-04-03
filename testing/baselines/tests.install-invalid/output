@@ -1,0 +1,2 @@
+error: invalid package ".": Package name ' fronting-whitespace' is not valid.
+error: invalid package ".": Package name 'trailing-whitespace ' is not valid.

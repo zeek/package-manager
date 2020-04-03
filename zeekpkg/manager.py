@@ -61,6 +61,7 @@ from .package import (
     aliases,
     user_vars,
     canonical_url,
+    is_valid_name as is_valid_package_name,
     Package,
     PackageInfo,
     PackageStatus,
@@ -1167,6 +1168,11 @@ class Manager(object):
             A :class:`.package.PackageInfo` object.
         """
         pkg_path = canonical_url(pkg_path)
+        name = name_from_path(pkg_path)
+        if not is_valid_package_name(name):
+            reason = 'Package name {!r} is not valid.'.format(name, pkg_path)
+            return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
+
         LOG.debug('getting info on "%s"', pkg_path)
         ipkg = self.find_installed_package(pkg_path)
 

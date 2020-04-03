@@ -34,6 +34,16 @@ def canonical_url(path):
     return url
 
 
+def is_valid_name(name):
+    """Returns True if name is a valid package name, else False."""
+    if name != name.strip():  # No fronting/trailing whitespace
+        return False
+    if name in ("package", "packages"):
+        return False
+
+    return True
+
+
 def aliases(metadata_dict):
     """Return a list of package aliases found in metadata's 'aliases' field."""
     if 'aliases' not in metadata_dict:
