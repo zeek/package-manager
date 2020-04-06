@@ -63,7 +63,7 @@ def confirmation_prompt(prompt, default_to_yes=True):
     if not choice:
         return default_to_yes
 
-    if choice in yes:
+    if choice.lower() in yes:
         return True
 
     print('Abort.')
