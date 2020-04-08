@@ -1,0 +1,12 @@
+# Test invalid package names
+# @TEST-EXEC-FAIL: bash %INPUT 2>output
+# @TEST-EXEC: btest-diff output
+
+CONFIG=$(pwd)/config
+mkdir -p invalid
+
+cp -R ./packages/bar ./invalid/\ fronting-whitespace
+(cd ./invalid/\ fronting-whitespace && zkg --config=$CONFIG install --force .)
+
+cp -R ./packages/bar './invalid/trailing-whitespace '
+(cd './invalid/trailing-whitespace ' && zkg --config=$CONFIG install --force . )

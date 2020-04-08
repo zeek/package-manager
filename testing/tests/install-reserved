@@ -1,0 +1,9 @@
+# Rename a package to live in a directory called "packages"
+# @TEST-EXEC-FAIL: bash %INPUT 2>output
+# @TEST-EXEC: btest-diff output
+
+CONFIG=$(pwd)/config
+mkdir -p reserved
+cp -R ./packages/bar ./reserved/packages
+
+cd ./reserved/packages && zkg --config=$CONFIG install --force .
