@@ -1,4 +1,8 @@
 
+2.1.2 | 2020-04-07 17:29:47 -0700
+
+  * Release 2.1.2.
+
 2.1.1-3 | 2020-04-07 17:28:27 -0700
 
   * Introduce basic package name validation (Arne Welzel, Corelight)
