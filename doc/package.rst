@@ -97,7 +97,7 @@ See `Zeek Plugins`_ for more complete information on developing Zeek plugins,
 though the following step are the essentials needed to create a package.
 
 
-#. Create a plugin skeleton using :file:`aux/zeek-aux/plugin-support/init-plugin`
+#. Create a plugin skeleton using :file:`aux*/zeek-aux/plugin-support/init-plugin`
    from Zeek's source distribution:
 
    .. code-block:: console

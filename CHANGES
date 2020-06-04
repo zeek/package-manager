@@ -1,4 +1,8 @@
 
+2.1.2-1 | 2020-06-04 11:53:04 -0700
+
+  * Update docs for name change of Zeek's aux/ dir (Jon Siwek, Corelight)
+
 2.1.2 | 2020-04-07 17:29:47 -0700
 
   * Release 2.1.2.
