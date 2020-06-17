@@ -32,6 +32,9 @@ else:
 import git
 import semantic_version as semver
 
+import pickle
+from collections import deque
+
 from ._util import (
     make_dir,
     delete_path,
@@ -143,6 +146,10 @@ class Manager(object):
             in a directory named :file:`packages`, so as long as
             :envvar:`ZEEKPATH` is configured correctly, ``@load packages`` will
             load all installed packages that have been marked as loaded.
+
+        pkg_dependencies (dict of str -> set of tuple(str, str)): a dictionary of
+            package dependencies keyed on a tuple of package names (the last 
+            component of the package's git URL) and its version number.
     """
 
     def __init__(self, state_dir, script_dir, plugin_dir, zeek_dist='',
@@ -246,6 +253,16 @@ class Manager(object):
         delete_path(autoload_package_fallback)
         make_symlink('packages.zeek', autoload_script_fallback)
         make_symlink('packages.zeek', autoload_package_fallback)
+
+        self.pkg_dependencies = {}
+        try:
+            _dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
+            with open(_dep_pickle_path, 'rb') as deps:
+                self.pkg_dependencies = pickle.load(deps)
+        except Exception as exc:
+            LOG.debug("Error reading dependencies: ", exc)
+            LOG.debug("Extracting dependencies")
+            self.extract_dependencies()
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -493,6 +510,22 @@ class Manager(object):
         """
         pkg_name = name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
+
+    def find_package_dependencies(self, pkg_path):
+        """Return a set of tuples of dependent package names and their version
+        number if pkg_path is present in pkg_dependencies.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
+        A package's name is the last component of it's git URL.
+        """
+        pkg_name = name_from_path(pkg_path)
+        return self.pkg_dependencies[pkg_name]
 
     def has_scripts(self, installed_pkg):
         """Return whether a :class:`.package.InstalledPackage` installed scripts.
@@ -889,7 +922,7 @@ class Manager(object):
         else:
             raise NotImplementedError
 
-    def remove(self, pkg_path):
+    def remove(self, pkg_path, dep_listing, runtime_dep_check):
         """Remove an installed package.
 
         Args:
@@ -899,6 +932,10 @@ class Manager(object):
                 :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
+            dep_listing (list): packages that are impacted if pkg_path is removed
+
+            runtime_dep_check (bool): check if dependencies need to be unloaded
+
         Returns:
             bool: True if an installed package was removed, else False.
 
@@ -906,6 +943,14 @@ class Manager(object):
             IOError: if the package manifest file can't be written
             OSError: if the installed package's directory can't be deleted
         """
+
+        # unload all dependencies that might break with the removal of this package
+        if runtime_dep_check:
+            for _name in dep_listing:
+                _ipkg = self.find_installed_package(_name)
+                if _ipkg and _ipkg.status.is_loaded:
+                    self._unload(_name)
+
         pkg_path = canonical_url(pkg_path)
         LOG.debug('removing "%s"', pkg_path)
         ipkg = self.find_installed_package(pkg_path)
@@ -914,7 +959,11 @@ class Manager(object):
             LOG.info('removing "%s": could not find matching package', pkg_path)
             return False
 
-        self.unload(pkg_path)
+        # use _unload instead of unload to address unloading of runtime dependencies
+        if runtime_dep_check:
+            self._unload(pkg_path)
+        else:
+            self.unload(pkg_path)
 
         pkg_to_remove = ipkg.package
         delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
@@ -1052,6 +1101,175 @@ class Manager(object):
         self._write_plugin_magic(ipkg)
         LOG.debug('loaded "%s"', pkg_path)
         return ''
+
+    def _load(self, pkg_path):
+        """Mark dependent (but previously installed) packages as being "loaded".
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
+        Returns:
+            str: empty string if the package is successfully marked as loaded,
+            else an explanation of why it failed.
+
+        """
+
+        # skip loading a package if it is not installed.
+        if not self.find_installed_package(pkg_path):
+            return 'loading dependency failed. package not installed.'
+
+        if self.load(pkg_path):
+            return 'loading dependency failed.'
+
+        for _pkg_path, _ in self.find_package_dependencies(pkg_path):
+            return self._load(_pkg_path)
+
+    def saveState(self):
+        """Save loaded state for all installed packages.
+
+        Returns:
+            dict: dictionary of load status for installed packages
+        """
+
+        saved_state = {}
+        for _pkg_name in self.pkg_dependencies:
+            ipkg = self.find_installed_package(_pkg_name)
+            if ipkg and ipkg.status:
+                saved_state[_pkg_name] = ipkg.status.is_loaded
+        return saved_state
+
+    def get_changed_state(self, saved_state, pkg_lst):
+        """Returns the list of packages that have changed loaded state.
+
+        Args:
+            saved_state (dict): dictionary of saved load state for installed
+            packages.
+
+            pkg_lst (list): list of package names to be skipped
+
+        Returns:
+            dep_listing (str): string installed packages that have changed state
+        
+        """
+        _lst = [name_from_path(_pkg_path) for _pkg_path in pkg_lst]
+        dep_listing = ''
+        for _pkg_name in self.pkg_dependencies:
+            if _pkg_name in _lst:
+                continue
+            _ipkg = self.find_installed_package(_pkg_name)
+            if _ipkg and _ipkg.status.is_loaded != saved_state[_pkg_name]:
+                dep_listing += '  {}\n'.format(_pkg_name)
+        return dep_listing               
+
+    def restoreState(self, saved_state):
+        """Restores state for installed packages.
+
+        Args:
+            saved_state (dict): dictionary of saved load state for installed
+            packages.
+
+        """
+
+        for _pkg_name in self.pkg_dependencies:
+            ipkg = self.find_installed_package(_pkg_name)
+            if ipkg and ipkg.status:
+                ipkg.status.is_loaded = saved_state[_pkg_name]
+        return
+
+    def pkg_descendants(self, pkg_path):
+        """List of packages descendant packages.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
+        Returns:
+            list: list of descendant packages.
+        """
+
+        dep_packages = []
+        queue = deque([name_from_path(pkg_path)])
+        while queue:
+            item = queue.popleft()
+            for _pkg_name in self.pkg_dependencies:
+                descendants = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
+                if item in descendants:
+                    queue.append(_pkg_name)
+                    dep_packages.append(_pkg_name)
+
+        return dep_packages
+
+    def extract_dependencies(self):
+        """Regenerates package dependencies from installed packages.
+
+        """
+
+        for ipkg in self.installed_packages():
+            name = ipkg.package.qualified_name()
+            version = ipkg.status.current_version
+            self.validate_dependencies([(name, version)])
+        return
+
+    def _unload(self, pkg_path):
+        """Unmark dependent (but previously installed packages) as being "loaded".
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
+        Returns:
+            bool: True if a package is successfully unmarked as loaded.
+
+        Raises:
+            IOError: if the loader script or manifest can't be written
+        """
+
+        def _hasAlldescendantsUnloaded(item):
+            _item = name_from_path(item)
+            for _pkg_name in self.pkg_dependencies:
+                descendants = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
+                if _item in descendants:
+                    ipkg = self.find_installed_package(_pkg_name)
+                    if ipkg and ipkg.status.is_loaded:
+                        return False
+            return True
+
+        queue = deque([pkg_path])
+        while queue:
+            item = queue.popleft()
+            deps = self.find_package_dependencies(item)
+            for _pkg_path, _ in deps:
+                ipkg = self.find_installed_package(name_from_path(_pkg_path))
+                # it is possible that this dependency has been removed via zkg
+                if not ipkg:
+                    LOG.debug("Package not installed!")
+                    continue
+                queue.append(_pkg_path)
+
+            ipkg = self.find_installed_package(name_from_path(item))
+            # it is possible that this package has been removed via zkg
+            if not ipkg:
+                LOG.debug("Package not installed!")
+                continue
+            if ipkg.status.is_loaded:
+                if _hasAlldescendantsUnloaded(item):
+                    self.unload(item)
+                    continue
+                else:
+                    LOG.debug('Package is in use. Cannot unload package "{}"'
+                        .format(canonical_url(item)))
+                    return False
+        return True
 
     def unload(self, pkg_path):
         """Unmark an installed package as being "loaded".
@@ -1477,6 +1695,14 @@ class Manager(object):
 
                         if dependency_node.info.package.matches_path(dep_name):
                             dependency_node.dependers[name] = dep_version
+                            _dep_name = dependency_node.info.package.git_url
+                            __dep_name = name_from_path(_dep_name)
+                            if __dep_name not in self.pkg_dependencies:
+                                self.pkg_dependencies[__dep_name] = set(tuple([]))
+                            _name = name_from_path(name)
+                            if _name not in self.pkg_dependencies:
+                                self.pkg_dependencies[_name] = set(tuple([]))
+                            self.pkg_dependencies[_name].add((_dep_name, dep_version))
                             break
 
         # 3. Try to solve for a connected graph with no edge conflicts.
@@ -1709,6 +1935,13 @@ class Manager(object):
                         best_version = node.info.best_version()
 
                 new_pkgs.append((node.info, best_version, node.is_suggestion))
+
+        try:
+            _dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
+            with open(_dep_pickle_path, 'wb') as deps:
+                pickle.dump(self.pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as exc:
+            LOG.debug("Error writing dependencies: ", exc)
 
         return ('', new_pkgs)
 

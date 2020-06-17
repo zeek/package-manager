@@ -1,0 +1,46 @@
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: echo '\nInstall grault' > loaded.out
+# @TEST-EXEC: zkg -r install grault --force >> loaded.out
+
+# @TEST-EXEC: echo '\nUnload grault' >> loaded.out
+# @TEST-EXEC: zkg -r unload grault >> loaded.out
+
+# @TEST-EXEC: echo '\nInstall foo' >> loaded.out
+# @TEST-EXEC: zkg -r install foo --force >> loaded.out
+
+# @TEST-EXEC: echo '\nUnload grault' >> loaded.out
+# @TEST-EXEC-FAIL: zkg -r unload grault >> loaded.out
+
+# @TEST-EXEC: echo '\nUnload foo' >> loaded.out
+# @TEST-EXEC: zkg -r unload foo >> loaded.out
+
+# @TEST-EXEC: echo '\nLoad foo' >> loaded.out
+# @TEST-EXEC: zkg -r load foo >> loaded.out
+
+# @TEST-EXEC: echo '\nRemove grault' >> loaded.out
+# @TEST-EXEC: zkg -r remove grault --force >> loaded.out
+
+# @TEST-EXEC: btest-diff loaded.out
+
+cd packages/foo
+echo 'depends = bar *' >> zkg.meta
+git commit -am 'new stuff'
+
+cd ../bar
+echo 'depends = baz >=1.0.0' >> zkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../baz
+echo 'depends = grault ==1.0.0' >> zkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../grault
+echo 'depends = corge ==1.0.0' >> zkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../corge
+git tag -a 1.0.0 -m 1.0.0

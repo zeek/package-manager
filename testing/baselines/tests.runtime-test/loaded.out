@@ -1,0 +1,64 @@
+
+Install grault
+Installed "one/bob/grault" (1.0.0)
+Loaded "one/bob/grault"
+Installed "one/bob/corge" (1.0.0)
+Loaded "one/bob/corge"
+
+Unload grault
+The following installed packages were additionally unloaded to satisfy runtime dependencies for "one/bob/grault".
+  corge
+
+Unloaded "one/bob/grault"
+
+Install foo
+Installed "one/alice/foo" (master)
+Loaded "one/alice/foo"
+Installed "one/alice/baz" (1.0.0)
+Loaded "one/alice/baz"
+Installed "one/alice/bar" (1.0.0)
+Loaded "one/alice/bar"
+The following installed packages were additionally loaded to satisfy runtime dependencies
+  corge
+  grault
+
+
+Unload grault
+Following packages are dependent on "one/bob/grault" and are currently in use.
+  baz
+  bar
+  foo
+
+Failed unloading "one/bob/grault"
+
+Unload foo
+The following installed packages were additionally unloaded to satisfy runtime dependencies for "one/alice/foo".
+  bar
+  baz
+  corge
+  grault
+
+Unloaded "one/alice/foo"
+
+Load foo
+The following installed packages were additionally loaded to satisfy runtime dependencies for "one/alice/foo".
+  bar
+  baz
+  corge
+  grault
+
+Loaded "one/alice/foo"
+
+Remove grault
+The following packages depend on "one/bob/grault" and removing it will BREAK them.
+  baz
+  bar
+  foo
+
+The following installed packages (or more) will be unloaded as well.
+  bar
+  foo
+  baz
+  corge
+
+Removed "one/bob/grault"

@@ -3,6 +3,7 @@
 from __future__ import print_function
 from zeekpkg._util import (
     make_dir,
+    delete_path,
     make_symlink,
     find_program,
     read_zeek_config_line,
@@ -443,7 +444,7 @@ def cmd_install(manager, args, config, configfile):
 
         package_infos.append((package_info, version, False))
 
-    new_pkgs = []
+    orig_pkgs, new_pkgs = package_infos, []
 
     if not args.nodeps:
         to_validate = [(info.package.qualified_name(), version)
@@ -628,6 +629,25 @@ def cmd_install(manager, args, config, configfile):
                 print('Failed loading "{}": {}'.format(name, load_error))
             else:
                 print('Loaded "{}"'.format(name))
+
+    if args.runtime_dep_check:
+        # now load runtime dependencies after all depends and suggested packages
+        # have been installed and loaded. we do not check for 'find_installed_package'
+        # as all worker threads have been merged at this point and all dependencies
+        # are installed
+        saved_state = manager.saveState()
+        load_error = ''
+        for info, ver, _ in orig_pkgs:
+            name = info.package.qualified_name()
+            load_error = manager._load(name)
+
+        if not load_error:
+            _names = [info.package.qualified_name() for info, _, _ in orig_pkgs]
+            dep_listing = manager.get_changed_state(saved_state, _names)
+            if dep_listing:
+                print('The following installed packages were additionally loaded to satisfy' \
+                    ' runtime dependencies')
+                print(dep_listing)
 
     if installs_failed:
         print_error('error: incomplete installation, the follow packages'
@@ -885,10 +905,32 @@ def cmd_remove(manager, args, config, configfile):
 
     for ipkg in packages_to_remove:
         name = ipkg.package.qualified_name()
+
+        dep_packages = []
+        if args.runtime_dep_check:
+            print('The following packages depend on "{}" and removing it will BREAK them.'.format(name))
+            dep_packages = manager.pkg_descendants(name)
+            dep_listing = ''
+            for _name in dep_packages:
+                dep_listing += '  {}\n'.format(_name)
+            print(dep_listing)
+
+            dep_listing = ''
+            for _name in manager.pkg_dependencies:
+                if _name == zeekpkg.package.name_from_path(name):
+                    continue
+                dep_listing += '  {}\n'.format(_name)
+            if dep_listing:
+                print('The following installed packages (or more) will be unloaded as well.')
+            print(dep_listing)
+
+            if not args.force and not confirmation_prompt('Proceed?', default_to_yes=False):
+                continue
+
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
 
-        if manager.remove(name):
+        if manager.remove(name, dep_packages, args.runtime_dep_check):
             print('Removed "{}"'.format(name))
 
             if backup_files:
@@ -933,7 +975,7 @@ def cmd_purge(manager, args, config, configfile):
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
 
-        if manager.remove(name):
+        if manager.remove(name, [], args.runtime_dep_check):
             print('Removed "{}"'.format(name))
 
             if backup_files:
@@ -945,6 +987,12 @@ def cmd_purge(manager, args, config, configfile):
         else:
             print('Unknown error removing "{}"'.format(name))
             had_failure = True
+
+    try:
+        _dep_pickle_path = os.path.join(manager.scratch_dir, 'deps.pickle')
+        delete_path(_dep_pickle_path)
+    except Exception as exc:
+        print("Error removing dependencies: ", exc)
 
     if had_failure:
         sys.exit(1)
@@ -1297,10 +1345,23 @@ def cmd_load(manager, args, config, configfile):
             continue
 
         name = ipkg.package.qualified_name()
-        load_error = manager.load(name)
+        if args.runtime_dep_check:
+            saved_state = manager.saveState()
+            load_error = manager._load(name)
+
+            if not load_error:
+                dep_listing = manager.get_changed_state(saved_state, [name])
+                if dep_listing:
+                    print('The following installed packages were additionally loaded to satisfy' \
+                        ' runtime dependencies for "{}".'.format(name))
+                    print(dep_listing)
+        else:
+            load_error = manager.load(name)
 
         if load_error:
             had_failure = True
+            if runtime_dep_check:
+                manager.restoreState(saved_state)
             print('Failed to load "{}": {}'.format(name, load_error))
         else:
             print('Loaded "{}"'.format(name))
@@ -1326,12 +1387,31 @@ def cmd_unload(manager, args, config, configfile):
 
         name = ipkg.package.qualified_name()
 
-        if manager.unload(name):
-            print('Unloaded "{}"'.format(name))
+        if args.runtime_dep_check:
+            saved_state = manager.saveState()
+            if manager._unload(name):
+                dep_listing = manager.get_changed_state(saved_state, [name])
+                if dep_listing:
+                    print('The following installed packages were additionally unloaded to satisfy' \
+                    ' runtime dependencies for "{}".'.format(name))
+                    print(dep_listing)
+                print('Unloaded "{}"'.format(name))
+            else:
+                had_failure = True
+                dep_packages = manager.pkg_descendants(name)
+                dep_listing = ''
+                for _name in dep_packages:
+                    dep_listing += '  {}\n'.format(_name)
+                print('Following packages are dependent on "{}" and are currently in use.'.format(name))
+                print(dep_listing)
+                print('Failed unloading "{}"'.format(name))
+                manager.restoreState(saved_state)
         else:
-            had_failure = True
-            print(
-                'Failed unloading "{}": no such package installed'.format(name))
+            if manager.unload(name):
+                print('Unloaded "{}"'.format(name))
+            else:
+                had_failure = True
+                print('Failed unloading "{}": no such package installed'.format(name))
 
     if had_failure:
         sys.exit(1)
@@ -1806,6 +1886,8 @@ def top_level_parser():
                             ' Use multiple times for more output (e.g. -vvv).')
     top_parser.add_argument('--extra-source', action='append',
                             metavar='NAME=URL', help='Add an extra source.')
+    top_parser.add_argument('--runtime_dep_check', '-r', action = "store_true",
+                            help='Enforce runtime package dependency checks.')
     return top_parser
 
 
