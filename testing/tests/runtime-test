@@ -1,25 +1,25 @@
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: echo '\nInstall grault' > loaded.out
-# @TEST-EXEC: zkg -r install grault --force >> loaded.out
+# @TEST-EXEC: zkg install grault --force >> loaded.out
 
 # @TEST-EXEC: echo '\nUnload grault' >> loaded.out
-# @TEST-EXEC: zkg -r unload grault >> loaded.out
+# @TEST-EXEC: zkg unload grault >> loaded.out
 
 # @TEST-EXEC: echo '\nInstall foo' >> loaded.out
-# @TEST-EXEC: zkg -r install foo --force >> loaded.out
+# @TEST-EXEC: zkg install foo --force >> loaded.out
 
 # @TEST-EXEC: echo '\nUnload grault' >> loaded.out
-# @TEST-EXEC-FAIL: zkg -r unload grault >> loaded.out
+# @TEST-EXEC-FAIL: zkg unload grault >> loaded.out
 
 # @TEST-EXEC: echo '\nUnload foo' >> loaded.out
-# @TEST-EXEC: zkg -r unload foo >> loaded.out
+# @TEST-EXEC: zkg unload foo >> loaded.out
 
 # @TEST-EXEC: echo '\nLoad foo' >> loaded.out
-# @TEST-EXEC: zkg -r load foo >> loaded.out
+# @TEST-EXEC: zkg load foo >> loaded.out
 
 # @TEST-EXEC: echo '\nRemove grault' >> loaded.out
-# @TEST-EXEC: zkg -r remove grault --force >> loaded.out
+# @TEST-EXEC: zkg remove grault --force >> loaded.out
 
 # @TEST-EXEC: btest-diff loaded.out
 

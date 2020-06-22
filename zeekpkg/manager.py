@@ -148,8 +148,8 @@ class Manager(object):
             load all installed packages that have been marked as loaded.
 
         pkg_dependencies (dict of str -> set of tuple(str, str)): a dictionary of
-            package dependencies keyed on a tuple of package names (the last 
-            component of the package's git URL) and its version number.
+            installed package dependencies keyed on a tuple of package names (the
+            last component of the package's git URL) and its version number.
     """
 
     def __init__(self, state_dir, script_dir, plugin_dir, zeek_dist='',
@@ -262,7 +262,7 @@ class Manager(object):
         except Exception as exc:
             LOG.debug("Error reading dependencies: ", exc)
             LOG.debug("Extracting dependencies")
-            self.extract_dependencies()
+            self._regenerate_dependency_state()
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -525,7 +525,7 @@ class Manager(object):
         A package's name is the last component of it's git URL.
         """
         pkg_name = name_from_path(pkg_path)
-        return self.pkg_dependencies[pkg_name]
+        return self.pkg_dependencies.get(pkg_name)
 
     def has_scripts(self, installed_pkg):
         """Return whether a :class:`.package.InstalledPackage` installed scripts.
@@ -922,7 +922,7 @@ class Manager(object):
         else:
             raise NotImplementedError
 
-    def remove(self, pkg_path, dep_listing, runtime_dep_check):
+    def remove(self, pkg_path):
         """Remove an installed package.
 
         Args:
@@ -932,10 +932,6 @@ class Manager(object):
                 :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
-            dep_listing (list): packages that are impacted if pkg_path is removed
-
-            runtime_dep_check (bool): check if dependencies need to be unloaded
-
         Returns:
             bool: True if an installed package was removed, else False.
 
@@ -943,13 +939,6 @@ class Manager(object):
             IOError: if the package manifest file can't be written
             OSError: if the installed package's directory can't be deleted
         """
-
-        # unload all dependencies that might break with the removal of this package
-        if runtime_dep_check:
-            for _name in dep_listing:
-                _ipkg = self.find_installed_package(_name)
-                if _ipkg and _ipkg.status.is_loaded:
-                    self._unload(_name)
 
         pkg_path = canonical_url(pkg_path)
         LOG.debug('removing "%s"', pkg_path)
@@ -959,11 +948,7 @@ class Manager(object):
             LOG.info('removing "%s": could not find matching package', pkg_path)
             return False
 
-        # use _unload instead of unload to address unloading of runtime dependencies
-        if runtime_dep_check:
-            self._unload(pkg_path)
-        else:
-            self.unload(pkg_path)
+        self.unload(pkg_path)
 
         pkg_to_remove = ipkg.package
         delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
@@ -1102,7 +1087,7 @@ class Manager(object):
         LOG.debug('loaded "%s"', pkg_path)
         return ''
 
-    def _load(self, pkg_path):
+    def load_with_dependencies(self, pkg_path):
         """Mark dependent (but previously installed) packages as being "loaded".
 
         Args:
@@ -1120,50 +1105,26 @@ class Manager(object):
 
         # skip loading a package if it is not installed.
         if not self.find_installed_package(pkg_path):
-            return 'loading dependency failed. package not installed.'
+            return (pkg_path, 'Loading dependency failed. Package not installed.')
 
-        if self.load(pkg_path):
-            return 'loading dependency failed.'
+        load_error = self.load(pkg_path)
+        if load_error:
+            return (pkg_path, load_error)
 
+        retval = []
         for _pkg_path, _ in self.find_package_dependencies(pkg_path):
-            return self._load(_pkg_path)
+            retval += self.load_with_dependencies(_pkg_path)
 
-    def saveState(self):
+        return retval
+
+    def loaded_package_states(self):
         """Save loaded state for all installed packages.
 
         Returns:
             dict: dictionary of load status for installed packages
         """
 
-        saved_state = {}
-        for _pkg_name in self.pkg_dependencies:
-            ipkg = self.find_installed_package(_pkg_name)
-            if ipkg and ipkg.status:
-                saved_state[_pkg_name] = ipkg.status.is_loaded
-        return saved_state
-
-    def get_changed_state(self, saved_state, pkg_lst):
-        """Returns the list of packages that have changed loaded state.
-
-        Args:
-            saved_state (dict): dictionary of saved load state for installed
-            packages.
-
-            pkg_lst (list): list of package names to be skipped
-
-        Returns:
-            dep_listing (str): string installed packages that have changed state
-        
-        """
-        _lst = [name_from_path(_pkg_path) for _pkg_path in pkg_lst]
-        dep_listing = ''
-        for _pkg_name in self.pkg_dependencies:
-            if _pkg_name in _lst:
-                continue
-            _ipkg = self.find_installed_package(_pkg_name)
-            if _ipkg and _ipkg.status.is_loaded != saved_state[_pkg_name]:
-                dep_listing += '  {}\n'.format(_pkg_name)
-        return dep_listing               
+        return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
 
     def restoreState(self, saved_state):
         """Restores state for installed packages.
@@ -1180,8 +1141,20 @@ class Manager(object):
                 ipkg.status.is_loaded = saved_state[_pkg_name]
         return
 
-    def pkg_descendants(self, pkg_path):
-        """List of packages descendant packages.
+    def list_depender_pkgs(self, pkg_path):
+        """List of depender packages packages.
+
+            If C depends on B and B depends on A, we represent the dependency
+            chain as C -> B -> A. Thus, package C is dependent on A and B,
+            while package B is dependent on just C. So pkg_dependencies would be
+            {
+                'A': set(),
+                'B': set([A, version_of_A])
+                'C': set([B, version_of_B])
+            }
+
+            Further, package A is a direct dependee for B (and implicitly for C),
+            while B is a direct depender (and C is an implicit depender) for A.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
@@ -1191,22 +1164,22 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
         Returns:
-            list: list of descendant packages.
+            list: list of depender packages.
         """
 
-        dep_packages = []
+        depender_packages = []
         queue = deque([name_from_path(pkg_path)])
         while queue:
             item = queue.popleft()
             for _pkg_name in self.pkg_dependencies:
-                descendants = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
-                if item in descendants:
+                pkg_dependees = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
+                if item in pkg_dependees:
                     queue.append(_pkg_name)
-                    dep_packages.append(_pkg_name)
+                    depender_packages.append(_pkg_name)
 
-        return dep_packages
+        return depender_packages
 
-    def extract_dependencies(self):
+    def _regenerate_dependency_state(self):
         """Regenerates package dependencies from installed packages.
 
         """
@@ -1217,7 +1190,7 @@ class Manager(object):
             self.validate_dependencies([(name, version)])
         return
 
-    def _unload(self, pkg_path):
+    def unload_with_unused_dependers(self, pkg_path):
         """Unmark dependent (but previously installed packages) as being "loaded".
 
         Args:
@@ -1234,11 +1207,11 @@ class Manager(object):
             IOError: if the loader script or manifest can't be written
         """
 
-        def _hasAlldescendantsUnloaded(item):
+        def _has_all_dependers_unloaded(item):
             _item = name_from_path(item)
             for _pkg_name in self.pkg_dependencies:
-                descendants = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
-                if _item in descendants:
+                pkg_dependees = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
+                if _item in pkg_dependees:
                     ipkg = self.find_installed_package(_pkg_name)
                     if ipkg and ipkg.status.is_loaded:
                         return False
@@ -1262,7 +1235,7 @@ class Manager(object):
                 LOG.debug("Package not installed!")
                 continue
             if ipkg.status.is_loaded:
-                if _hasAlldescendantsUnloaded(item):
+                if _has_all_dependers_unloaded(item):
                     self.unload(item)
                     continue
                 else:
@@ -1695,14 +1668,14 @@ class Manager(object):
 
                         if dependency_node.info.package.matches_path(dep_name):
                             dependency_node.dependers[name] = dep_version
-                            _dep_name = dependency_node.info.package.git_url
-                            __dep_name = name_from_path(_dep_name)
-                            if __dep_name not in self.pkg_dependencies:
-                                self.pkg_dependencies[__dep_name] = set(tuple([]))
-                            _name = name_from_path(name)
-                            if _name not in self.pkg_dependencies:
-                                self.pkg_dependencies[_name] = set(tuple([]))
-                            self.pkg_dependencies[_name].add((_dep_name, dep_version))
+                            # _dep_name = dependency_node.info.package.git_url
+                            # __dep_name = name_from_path(_dep_name)
+                            # if __dep_name not in self.pkg_dependencies:
+                            #     self.pkg_dependencies[__dep_name] = set(tuple([]))
+                            # _name = name_from_path(name)
+                            # if _name not in self.pkg_dependencies:
+                            #     self.pkg_dependencies[_name] = set(tuple([]))
+                            # self.pkg_dependencies[_name].add((_dep_name, dep_version))
                             break
 
         # 3. Try to solve for a connected graph with no edge conflicts.

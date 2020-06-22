@@ -341,6 +341,28 @@ def create_manager(args, config):
 
     return manager
 
+def get_changed_state(manager, saved_state, pkg_lst):
+    """Returns the list of packages that have changed loaded state.
+
+    Args:
+        saved_state (dict): dictionary of saved load state for installed
+        packages.
+
+        pkg_lst (list): list of package names to be skipped
+
+    Returns:
+        dep_listing (str): string installed packages that have changed state
+    
+    """
+    _lst = [zeekpkg.package.name_from_path(_pkg_path) for _pkg_path in pkg_lst]
+    dep_listing = ''
+    for _pkg_name in manager.pkg_dependencies:
+        if _pkg_name in _lst:
+            continue
+        _ipkg = manager.find_installed_package(_pkg_name)
+        if _ipkg and _ipkg.status.is_loaded != saved_state[_pkg_name]:
+            dep_listing += '  {}\n'.format(_pkg_name)
+    return dep_listing
 
 class InstallWorker(threading.Thread):
 
@@ -451,6 +473,13 @@ def cmd_install(manager, args, config, configfile):
                        for info, version, _ in package_infos]
         invalid_reason, new_pkgs = manager.validate_dependencies(
             to_validate, ignore_suggestions=args.nosuggestions)
+
+        for info, version, suggested in new_pkgs:
+        	deps = info.dependencies()
+        	name_ = info.package.git_url
+        	name = info.package.qualified_name()
+        	_name = zeekpkg.package.name_from_path(name)
+        	print(_name, name_, version, deps)
 
         if invalid_reason:
             print_error('error: failed to resolve dependencies:',
@@ -630,20 +659,20 @@ def cmd_install(manager, args, config, configfile):
             else:
                 print('Loaded "{}"'.format(name))
 
-    if args.runtime_dep_check:
+    if not args.nodeps:
         # now load runtime dependencies after all depends and suggested packages
         # have been installed and loaded. we do not check for 'find_installed_package'
         # as all worker threads have been merged at this point and all dependencies
         # are installed
-        saved_state = manager.saveState()
+        saved_state = manager.loaded_package_states()
         load_error = ''
         for info, ver, _ in orig_pkgs:
             name = info.package.qualified_name()
-            load_error = manager._load(name)
+            load_error = manager.load_with_dependencies(name)
 
         if not load_error:
             _names = [info.package.qualified_name() for info, _, _ in orig_pkgs]
-            dep_listing = manager.get_changed_state(saved_state, _names)
+            dep_listing = get_changed_state(manager, saved_state, _names)
             if dep_listing:
                 print('The following installed packages were additionally loaded to satisfy' \
                     ' runtime dependencies')
@@ -907,13 +936,14 @@ def cmd_remove(manager, args, config, configfile):
         name = ipkg.package.qualified_name()
 
         dep_packages = []
-        if args.runtime_dep_check:
-            print('The following packages depend on "{}" and removing it will BREAK them.'.format(name))
-            dep_packages = manager.pkg_descendants(name)
-            dep_listing = ''
-            for _name in dep_packages:
-                dep_listing += '  {}\n'.format(_name)
-            print(dep_listing)
+        if not args.nodeps:
+            dep_packages = manager.list_depender_pkgs(name)
+            if dep_packages:
+            	print('The following packages depend on "{}" and removing it will BREAK them.'.format(name))
+            	dep_listing = ''
+            	for _name in dep_packages:
+            		dep_listing += '  {}\n'.format(_name)
+            	print(dep_listing)
 
             dep_listing = ''
             for _name in manager.pkg_dependencies:
@@ -922,7 +952,7 @@ def cmd_remove(manager, args, config, configfile):
                 dep_listing += '  {}\n'.format(_name)
             if dep_listing:
                 print('The following installed packages (or more) will be unloaded as well.')
-            print(dep_listing)
+                print(dep_listing)
 
             if not args.force and not confirmation_prompt('Proceed?', default_to_yes=False):
                 continue
@@ -930,7 +960,17 @@ def cmd_remove(manager, args, config, configfile):
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
 
-        if manager.remove(name, dep_packages, args.runtime_dep_check):
+        if not args.nodeps:
+            # unload all dependers that might break with the removal of this package
+            for _name in dep_packages:
+                _ipkg = manager.find_installed_package(_name)
+                if _ipkg and _ipkg.status.is_loaded:
+                    manager.unload_with_unused_dependers(_name)
+
+            # unload all the dependers packages
+            manager.unload_with_unused_dependers(name)
+
+        if manager.remove(name):
             print('Removed "{}"'.format(name))
 
             if backup_files:
@@ -975,7 +1015,7 @@ def cmd_purge(manager, args, config, configfile):
         modifications = manager.modified_config_files(ipkg)
         backup_files = manager.backup_modified_files(name, modifications)
 
-        if manager.remove(name, [], args.runtime_dep_check):
+        if manager.remove(name):
             print('Removed "{}"'.format(name))
 
             if backup_files:
@@ -1331,6 +1371,8 @@ def cmd_upgrade(manager, args, config, configfile):
 
 def cmd_load(manager, args, config, configfile):
     had_failure = False
+    load_error = False
+    dep_error_listing = ''
 
     for name in args.package:
         ipkg = manager.find_installed_package(name)
@@ -1345,12 +1387,17 @@ def cmd_load(manager, args, config, configfile):
             continue
 
         name = ipkg.package.qualified_name()
-        if args.runtime_dep_check:
-            saved_state = manager.saveState()
-            load_error = manager._load(name)
+        if not args.nodeps:
+            saved_state = manager.loaded_package_states()
+
+            loaded_dep_list = manager.load_with_dependencies(name)
+            for _name, _error in loaded_dep_list:
+                if _error:
+                    load_error = True
+                    dep_error_listing += '  {}: {}\n'.format(_name, _error)
 
             if not load_error:
-                dep_listing = manager.get_changed_state(saved_state, [name])
+                dep_listing = get_changed_state(manager, saved_state, [name])
                 if dep_listing:
                     print('The following installed packages were additionally loaded to satisfy' \
                         ' runtime dependencies for "{}".'.format(name))
@@ -1361,6 +1408,9 @@ def cmd_load(manager, args, config, configfile):
         if load_error:
             had_failure = True
             if runtime_dep_check:
+                if dep_error_listing:
+                    print('The following installed dependencies could not be loaded.')
+                    print(dep_error_listing)
                 manager.restoreState(saved_state)
             print('Failed to load "{}": {}'.format(name, load_error))
         else:
@@ -1387,10 +1437,10 @@ def cmd_unload(manager, args, config, configfile):
 
         name = ipkg.package.qualified_name()
 
-        if args.runtime_dep_check:
-            saved_state = manager.saveState()
-            if manager._unload(name):
-                dep_listing = manager.get_changed_state(saved_state, [name])
+        if not args.nodeps:
+            saved_state = manager.loaded_package_states()
+            if manager.unload_with_unused_dependers(name):
+                dep_listing = get_changed_state(manager, saved_state, [name])
                 if dep_listing:
                     print('The following installed packages were additionally unloaded to satisfy' \
                     ' runtime dependencies for "{}".'.format(name))
@@ -1398,7 +1448,7 @@ def cmd_unload(manager, args, config, configfile):
                 print('Unloaded "{}"'.format(name))
             else:
                 had_failure = True
-                dep_packages = manager.pkg_descendants(name)
+                dep_packages = manager.list_depender_pkgs(name)
                 dep_listing = ''
                 for _name in dep_packages:
                     dep_listing += '  {}\n'.format(_name)
@@ -1886,8 +1936,8 @@ def top_level_parser():
                             ' Use multiple times for more output (e.g. -vvv).')
     top_parser.add_argument('--extra-source', action='append',
                             metavar='NAME=URL', help='Add an extra source.')
-    top_parser.add_argument('--runtime_dep_check', '-r', action = "store_true",
-                            help='Enforce runtime package dependency checks.')
+    top_parser.add_argument('--nodeps', action = "store_true",
+                            help='Skip all runtime package dependency checks.')
     return top_parser
 
 
@@ -1952,11 +2002,11 @@ def argparser():
     sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
-    sub_parser.add_argument(
-        '--nodeps', action='store_true',
-        help='Skip all dependency resolution/checks.  Note that using this'
-        ' option risks putting your installed package collection into a'
-        ' broken or unusable state.')
+    # sub_parser.add_argument(
+    #     '--nodeps', action='store_true',
+    #     help='Skip all dependency resolution/checks.  Note that using this'
+    #     ' option risks putting your installed package collection into a'
+    #     ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically installing suggested packages.')
@@ -2001,11 +2051,11 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
-    sub_parser.add_argument(
-        '--nodeps', action='store_true',
-        help='Skip all dependency resolution/checks.  Note that using this'
-        ' option risks creating a bundle of packages that is in a'
-        ' broken or unusable state.')
+    # sub_parser.add_argument(
+    #     '--nodeps', action='store_true',
+    #     help='Skip all dependency resolution/checks.  Note that using this'
+    #     ' option risks creating a bundle of packages that is in a'
+    #     ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically bundling suggested packages.')
@@ -2113,11 +2163,11 @@ def argparser():
     sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
-    sub_parser.add_argument(
-        '--nodeps', action='store_true',
-        help='Skip all dependency resolution/checks.  Note that using this'
-        ' option risks putting your installed package collection into a'
-        ' broken or unusable state.')
+    # sub_parser.add_argument(
+    #     '--nodeps', action='store_true',
+    #     help='Skip all dependency resolution/checks.  Note that using this'
+    #     ' option risks putting your installed package collection into a'
+    #     ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically installing suggested packages.')
