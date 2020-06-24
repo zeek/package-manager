@@ -25,6 +25,7 @@ import filecmp
 import shutil
 import subprocess
 import json
+import pickle
 
 try:
     from backports import configparser
@@ -285,6 +286,62 @@ def is_git_repo_dirty(git_url):
 
     return repo.is_dirty(untracked_files=True)
 
+def regenerate_dependency_state(manager):
+    """
+    Regenerates package dependencies from installed packages.
+    """
+    new_pkgs = []
+
+    to_validate = [(ipkg.package.qualified_name(), ipkg.status.current_version)
+                       for ipkg in manager.installed_packages()]
+
+    invalid_reason, new_pkgs = manager.validate_dependencies(
+            to_validate, ignore_suggestions=True)
+
+    if invalid_reason:
+        print_error('error: failed to resolve dependencies:', invalid_reason)
+        sys.exit(1)
+
+    pkg_dependencies = {}
+
+    for info, version, _ in new_pkgs:
+        name = zeekpkg.package.name_from_path(info.package.git_url)
+        if name not in pkg_dependencies:
+            pkg_dependencies[name] = set(tuple([]))
+        deps = info.dependencies()
+        pkg_dependencies[name] = deps
+
+    return pkg_dependencies
+
+def generate_pkg_dependencies(manager, new_pkgs):
+    pkg_dependencies = load_pkg_dependencies(manager)
+
+    for info, version, _ in new_pkgs:
+        name = zeekpkg.package.name_from_path(info.package.git_url)
+        deps = info.dependencies()
+        pkg_dependencies[name] = deps
+
+    try:
+        dep_pickle_path = os.path.join(manager.scratch_dir, 'deps.pickle')
+        with open(dep_pickle_path, 'wb') as deps:
+           pickle.dump(pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
+    except Exception as exc:
+        zeekpkg.LOG.debug("Error writing dependencies: ", exc)
+
+    manager.set_pkg_dependencies(pkg_dependencies)
+    return pkg_dependencies
+
+def load_pkg_dependencies(manager):
+    try:
+        dep_pickle_path = os.path.join(manager.scratch_dir, 'deps.pickle')
+        with open(dep_pickle_path, 'rb') as deps:
+            return pickle.load(deps)
+    except Exception as exc:
+        zeekpkg.LOG.debug("Error reading dependencies: ", exc)
+        zeekpkg.LOG.debug("Extracting dependencies")        
+        # this is only in case the pickle file is deleted
+        return regenerate_dependency_state(manager)
+
 def create_manager(args, config):
     state_dir = config.get('paths', 'state_dir')
     script_dir = config.get('paths', 'script_dir')
@@ -316,6 +373,9 @@ def create_manager(args, config):
 
         raise
 
+    pkg_dependencies = load_pkg_dependencies(manager)
+    manager.set_pkg_dependencies(pkg_dependencies)
+
     extra_sources = []
 
     for key_value in args.extra_source or []:
@@ -341,6 +401,7 @@ def create_manager(args, config):
 
     return manager
 
+
 def get_changed_state(manager, saved_state, pkg_lst):
     """Returns the list of packages that have changed loaded state.
 
@@ -356,13 +417,14 @@ def get_changed_state(manager, saved_state, pkg_lst):
     """
     _lst = [zeekpkg.package.name_from_path(_pkg_path) for _pkg_path in pkg_lst]
     dep_listing = ''
-    for _pkg_name in manager.pkg_dependencies:
+    for _pkg_name in sorted(manager.get_pkg_dependencies()):
         if _pkg_name in _lst:
             continue
         _ipkg = manager.find_installed_package(_pkg_name)
         if _ipkg and _ipkg.status.is_loaded != saved_state[_pkg_name]:
             dep_listing += '  {}\n'.format(_pkg_name)
     return dep_listing
+
 
 class InstallWorker(threading.Thread):
 
@@ -474,17 +536,13 @@ def cmd_install(manager, args, config, configfile):
         invalid_reason, new_pkgs = manager.validate_dependencies(
             to_validate, ignore_suggestions=args.nosuggestions)
 
-        for info, version, suggested in new_pkgs:
-        	deps = info.dependencies()
-        	name_ = info.package.git_url
-        	name = info.package.qualified_name()
-        	_name = zeekpkg.package.name_from_path(name)
-        	print(_name, name_, version, deps)
-
         if invalid_reason:
             print_error('error: failed to resolve dependencies:',
                         invalid_reason)
             sys.exit(1)
+
+        pkg_dependencies = generate_pkg_dependencies(manager, package_infos + new_pkgs)
+        manager.set_pkg_dependencies(pkg_dependencies)
 
     if not args.force:
         package_listing = ''
@@ -668,7 +726,7 @@ def cmd_install(manager, args, config, configfile):
         load_error = ''
         for info, ver, _ in orig_pkgs:
             name = info.package.qualified_name()
-            load_error = manager.load_with_dependencies(name)
+            load_error = manager.load_with_dependencies(zeekpkg.package.name_from_path(name))
 
         if not load_error:
             _names = [info.package.qualified_name() for info, _, _ in orig_pkgs]
@@ -741,6 +799,9 @@ def cmd_bundle(manager, args, config, configfile):
                 print_error('error: failed to resolve dependencies:',
                             invalid_reason)
                 sys.exit(1)
+
+            pkg_dependencies = generate_pkg_dependencies(manager, new_pkgs)
+            manager.set_pkg_dependencies(pkg_dependencies)
 
         for info, version, suggested in new_pkgs:
             packages_to_bundle.append((info.package.qualified_name(),
@@ -937,7 +998,7 @@ def cmd_remove(manager, args, config, configfile):
 
         dep_packages = []
         if not args.nodeps:
-            dep_packages = manager.list_depender_pkgs(name)
+            dep_packages = sorted(manager.list_depender_pkgs(name))
             if dep_packages:
             	print('The following packages depend on "{}" and removing it will BREAK them.'.format(name))
             	dep_listing = ''
@@ -946,7 +1007,7 @@ def cmd_remove(manager, args, config, configfile):
             	print(dep_listing)
 
             dep_listing = ''
-            for _name in manager.pkg_dependencies:
+            for _name in sorted(manager.get_pkg_dependencies()):
                 if _name == zeekpkg.package.name_from_path(name):
                     continue
                 dep_listing += '  {}\n'.format(_name)
@@ -968,7 +1029,7 @@ def cmd_remove(manager, args, config, configfile):
                     manager.unload_with_unused_dependers(_name)
 
             # unload all the dependers packages
-            manager.unload_with_unused_dependers(name)
+            manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name))
 
         if manager.remove(name):
             print('Removed "{}"'.format(name))
@@ -1182,6 +1243,9 @@ def cmd_upgrade(manager, args, config, configfile):
                         invalid_reason)
             sys.exit(1)
 
+        pkg_dependencies = generate_pkg_dependencies(manager, new_pkgs)
+        manager.set_pkg_dependencies(pkg_dependencies)
+
     allpkgs = outdated_packages + new_pkgs
 
     if not args.force:
@@ -1390,7 +1454,8 @@ def cmd_load(manager, args, config, configfile):
         if not args.nodeps:
             saved_state = manager.loaded_package_states()
 
-            loaded_dep_list = manager.load_with_dependencies(name)
+
+            loaded_dep_list = manager.load_with_dependencies(zeekpkg.package.name_from_path(name))
             for _name, _error in loaded_dep_list:
                 if _error:
                     load_error = True
@@ -1439,7 +1504,7 @@ def cmd_unload(manager, args, config, configfile):
 
         if not args.nodeps:
             saved_state = manager.loaded_package_states()
-            if manager.unload_with_unused_dependers(name):
+            if manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name)):
                 dep_listing = get_changed_state(manager, saved_state, [name])
                 if dep_listing:
                     print('The following installed packages were additionally unloaded to satisfy' \

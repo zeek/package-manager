@@ -51,14 +51,14 @@ Loaded "one/alice/foo"
 
 Remove grault
 The following packages depend on "one/bob/grault" and removing it will BREAK them.
-  baz
   bar
+  baz
   foo
 
 The following installed packages (or more) will be unloaded as well.
   bar
-  foo
   baz
   corge
+  foo
 
 Removed "one/bob/grault"

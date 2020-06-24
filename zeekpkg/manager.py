@@ -32,7 +32,6 @@ else:
 import git
 import semantic_version as semver
 
-import pickle
 from collections import deque
 
 from ._util import (
@@ -255,14 +254,12 @@ class Manager(object):
         make_symlink('packages.zeek', autoload_package_fallback)
 
         self.pkg_dependencies = {}
-        try:
-            _dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
-            with open(_dep_pickle_path, 'rb') as deps:
-                self.pkg_dependencies = pickle.load(deps)
-        except Exception as exc:
-            LOG.debug("Error reading dependencies: ", exc)
-            LOG.debug("Extracting dependencies")
-            self._regenerate_dependency_state()
+
+    def get_pkg_dependencies(self):
+        return self.pkg_dependencies
+
+    def set_pkg_dependencies(self, dep):
+        self.pkg_dependencies = dep
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -511,21 +508,16 @@ class Manager(object):
         pkg_name = name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
 
-    def find_package_dependencies(self, pkg_path):
+    def find_package_dependencies(self, pkg_name):
         """Return a set of tuples of dependent package names and their version
         number if pkg_path is present in pkg_dependencies.
 
         Args:
-            pkg_path (str): the full git URL of a package or the shortened
-                path/name that refers to it within a package source.  E.g. for
-                a package source called "zeek" with package named "foo" in
-                :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+            pkg_name (str): name of the package.
 
         A package's name is the last component of it's git URL.
         """
-        pkg_name = name_from_path(pkg_path)
-        return self.pkg_dependencies.get(pkg_name)
+        return self.get_pkg_dependencies().get(pkg_name)
 
     def has_scripts(self, installed_pkg):
         """Return whether a :class:`.package.InstalledPackage` installed scripts.
@@ -1087,33 +1079,30 @@ class Manager(object):
         LOG.debug('loaded "%s"', pkg_path)
         return ''
 
-    def load_with_dependencies(self, pkg_path):
+    def load_with_dependencies(self, pkg_name):
         """Mark dependent (but previously installed) packages as being "loaded".
 
         Args:
-            pkg_path (str): the full git URL of a package or the shortened
-                path/name that refers to it within a package source.  E.g. for
-                a package source called "zeek" with package named "foo" in
-                :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+            pkg_name (str): name of the package.
 
         Returns:
             str: empty string if the package is successfully marked as loaded,
             else an explanation of why it failed.
 
         """
+        ipkg = self.find_installed_package(pkg_name)
 
         # skip loading a package if it is not installed.
-        if not self.find_installed_package(pkg_path):
-            return (pkg_path, 'Loading dependency failed. Package not installed.')
+        if not ipkg:
+            return (pkg_name, 'Loading dependency failed. Package not installed.')
 
-        load_error = self.load(pkg_path)
+        load_error = self.load(pkg_name)
         if load_error:
-            return (pkg_path, load_error)
+            return (pkg_name, load_error)
 
         retval = []
-        for _pkg_path, _ in self.find_package_dependencies(pkg_path):
-            retval += self.load_with_dependencies(_pkg_path)
+        for pkg in self.find_package_dependencies(pkg_name):
+            retval += self.load_with_dependencies(pkg)
 
         return retval
 
@@ -1135,7 +1124,7 @@ class Manager(object):
 
         """
 
-        for _pkg_name in self.pkg_dependencies:
+        for _pkg_name in self.get_pkg_dependencies():
             ipkg = self.find_installed_package(_pkg_name)
             if ipkg and ipkg.status:
                 ipkg.status.is_loaded = saved_state[_pkg_name]
@@ -1171,34 +1160,19 @@ class Manager(object):
         queue = deque([name_from_path(pkg_path)])
         while queue:
             item = queue.popleft()
-            for _pkg_name in self.pkg_dependencies:
-                pkg_dependees = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
+            for _pkg_name in self.get_pkg_dependencies():
+                pkg_dependees = set([name_from_path(_pkg_path) for _pkg_path in self.get_pkg_dependencies().get(_pkg_name)])
                 if item in pkg_dependees:
                     queue.append(_pkg_name)
                     depender_packages.append(_pkg_name)
 
         return depender_packages
 
-    def _regenerate_dependency_state(self):
-        """Regenerates package dependencies from installed packages.
-
-        """
-
-        for ipkg in self.installed_packages():
-            name = ipkg.package.qualified_name()
-            version = ipkg.status.current_version
-            self.validate_dependencies([(name, version)])
-        return
-
-    def unload_with_unused_dependers(self, pkg_path):
+    def unload_with_unused_dependers(self, pkg_name):
         """Unmark dependent (but previously installed packages) as being "loaded".
 
         Args:
-            pkg_path (str): the full git URL of a package or the shortened
-                path/name that refers to it within a package source.  E.g. for
-                a package source called "zeek" with package named "foo" in
-                :file:`alice/zkg.index`, the following inputs may refer
-                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+            pkg_name (str): name of the package.
 
         Returns:
             bool: True if a package is successfully unmarked as loaded.
@@ -1208,28 +1182,27 @@ class Manager(object):
         """
 
         def _has_all_dependers_unloaded(item):
-            _item = name_from_path(item)
-            for _pkg_name in self.pkg_dependencies:
-                pkg_dependees = set([name_from_path(_pkg_path) for _pkg_path, _ in self.pkg_dependencies[_pkg_name]])
-                if _item in pkg_dependees:
+            for _pkg_name in self.get_pkg_dependencies():
+                pkg_dependees = set([_pkg for _pkg in self.get_pkg_dependencies().get(_pkg_name)])
+                if item in pkg_dependees:
                     ipkg = self.find_installed_package(_pkg_name)
                     if ipkg and ipkg.status.is_loaded:
                         return False
             return True
 
-        queue = deque([pkg_path])
+        queue = deque([pkg_name])
         while queue:
             item = queue.popleft()
             deps = self.find_package_dependencies(item)
-            for _pkg_path, _ in deps:
-                ipkg = self.find_installed_package(name_from_path(_pkg_path))
+            for pkg in deps:
+                ipkg = self.find_installed_package(pkg)
                 # it is possible that this dependency has been removed via zkg
                 if not ipkg:
                     LOG.debug("Package not installed!")
                     continue
-                queue.append(_pkg_path)
+                queue.append(pkg)
 
-            ipkg = self.find_installed_package(name_from_path(item))
+            ipkg = self.find_installed_package(item)
             # it is possible that this package has been removed via zkg
             if not ipkg:
                 LOG.debug("Package not installed!")
@@ -1240,7 +1213,7 @@ class Manager(object):
                     continue
                 else:
                     LOG.debug('Package is in use. Cannot unload package "{}"'
-                        .format(canonical_url(item)))
+                        .format(item))
                     return False
         return True
 
@@ -1668,14 +1641,6 @@ class Manager(object):
 
                         if dependency_node.info.package.matches_path(dep_name):
                             dependency_node.dependers[name] = dep_version
-                            # _dep_name = dependency_node.info.package.git_url
-                            # __dep_name = name_from_path(_dep_name)
-                            # if __dep_name not in self.pkg_dependencies:
-                            #     self.pkg_dependencies[__dep_name] = set(tuple([]))
-                            # _name = name_from_path(name)
-                            # if _name not in self.pkg_dependencies:
-                            #     self.pkg_dependencies[_name] = set(tuple([]))
-                            # self.pkg_dependencies[_name].add((_dep_name, dep_version))
                             break
 
         # 3. Try to solve for a connected graph with no edge conflicts.
@@ -1908,13 +1873,6 @@ class Manager(object):
                         best_version = node.info.best_version()
 
                 new_pkgs.append((node.info, best_version, node.is_suggestion))
-
-        try:
-            _dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
-            with open(_dep_pickle_path, 'wb') as deps:
-                pickle.dump(self.pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
-        except Exception as exc:
-            LOG.debug("Error writing dependencies: ", exc)
 
         return ('', new_pkgs)
 
