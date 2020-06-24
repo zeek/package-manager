@@ -1127,7 +1127,12 @@ class Manager(object):
         for _pkg_name in self.get_pkg_dependencies():
             ipkg = self.find_installed_package(_pkg_name)
             if ipkg and ipkg.status:
+                if ipkg.status.is_loaded == saved_state[_pkg_name]:
+                    continue
                 ipkg.status.is_loaded = saved_state[_pkg_name]
+                self._write_autoloader()
+                self._write_manifest()
+                self._write_plugin_magic(ipkg)
         return
 
     def list_depender_pkgs(self, pkg_path):
