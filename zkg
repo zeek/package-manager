@@ -342,6 +342,37 @@ def load_pkg_dependencies(manager):
         # this is only in case the pickle file is deleted
         return regenerate_dependency_state(manager)
 
+def loaded_package_states(manager):
+    """Save loaded state for all installed packages.
+
+    Returns:
+        dict: dictionary of load status for installed packages
+    """
+
+    return {name: ipkg.status.is_loaded for name, ipkg in manager.installed_pkgs.items()}
+
+def restoreState(manager, saved_state):
+    """Restores state for installed packages.
+
+    Args:
+        saved_state (dict): dictionary of saved load state for installed
+        packages.
+
+    """
+    try:
+        for _pkg_name in manager.get_pkg_dependencies():
+            ipkg = manager.find_installed_package(_pkg_name)
+            if ipkg and ipkg.status:
+                if ipkg.status.is_loaded == saved_state[_pkg_name]:
+                    continue
+                ipkg.status.is_loaded = saved_state[_pkg_name]
+                manager._write_autoloader()
+                manager._write_manifest()
+                manager._write_plugin_magic(ipkg)
+    except IOError as exc:
+        print(exc)
+        sys.exit(1)
+
 def create_manager(args, config):
     state_dir = config.get('paths', 'state_dir')
     script_dir = config.get('paths', 'script_dir')
@@ -421,8 +452,9 @@ def get_changed_state(manager, saved_state, pkg_lst):
         if _pkg_name in _lst:
             continue
         _ipkg = manager.find_installed_package(_pkg_name)
-        if _ipkg and _ipkg.status.is_loaded != saved_state[_pkg_name]:
-            dep_listing += '  {}\n'.format(_pkg_name)
+        if not _ipkg or _ipkg.status.is_loaded == saved_state[_pkg_name]:
+        	continue
+        dep_listing += '  {}\n'.format(_pkg_name)
     return dep_listing
 
 
@@ -547,7 +579,7 @@ def cmd_install(manager, args, config, configfile):
     if not args.force:
         package_listing = ''
 
-        for info, version, _ in package_infos:
+        for info, version, _ in sorted(package_infos, key=lambda x: x[0].package.name):
             name = info.package.qualified_name()
             package_listing += '  {} ({})\n'.format(name, version)
 
@@ -557,7 +589,7 @@ def cmd_install(manager, args, config, configfile):
         if new_pkgs:
             dependency_listing = ''
 
-            for info, version, suggested in new_pkgs:
+            for info, version, suggested in sorted(new_pkgs, key=lambda x: x[0].package.name):
                 name = info.package.qualified_name()
                 dependency_listing += '  {} ({})'.format(
                     name, version)
@@ -573,7 +605,7 @@ def cmd_install(manager, args, config, configfile):
         allpkgs = package_infos + new_pkgs
         extdep_listing = ''
 
-        for info, version, _ in allpkgs:
+        for info, version, _ in sorted(allpkgs, key=lambda x: x[0].package.name):
             name = info.package.qualified_name()
             extdeps = info.dependencies(field='external_depends')
 
@@ -643,7 +675,7 @@ def cmd_install(manager, args, config, configfile):
 
     installs_failed = []
 
-    for info, version, _ in package_infos:
+    for info, version, _ in sorted(package_infos, key=lambda x: x[0].package.name):
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0
@@ -722,19 +754,27 @@ def cmd_install(manager, args, config, configfile):
         # have been installed and loaded. we do not check for 'find_installed_package'
         # as all worker threads have been merged at this point and all dependencies
         # are installed
-        saved_state = manager.loaded_package_states()
-        load_error = ''
-        for info, ver, _ in orig_pkgs:
+        for info, ver, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
+            saved_state = loaded_package_states(manager)
             name = info.package.qualified_name()
             load_error = manager.load_with_dependencies(zeekpkg.package.name_from_path(name))
 
-        if not load_error:
-            _names = [info.package.qualified_name() for info, _, _ in orig_pkgs]
-            dep_listing = get_changed_state(manager, saved_state, _names)
-            if dep_listing:
-                print('The following installed packages were additionally loaded to satisfy' \
-                    ' runtime dependencies')
-                print(dep_listing)
+            if not load_error:
+                dep_listing = get_changed_state(manager, saved_state, [name])
+                if dep_listing:
+                    print('The following installed packages were additionally loaded to satisfy' \
+                          ' runtime dependencies')
+                    print(dep_listing)
+            else:
+                _listing = ''
+                for _name, _error in load_error:
+                    if not _error:
+                        _listing += '  {}\n'.format(_name)
+                if _listing:
+                    print('The following installed packages could NOT be loaded to satisfy' \
+                          ' runtime dependencies for "{}"'.format(name))
+                    print(_listing)
+                restoreState(manager, saved_state)
 
     if installs_failed:
         print_error('error: incomplete installation, the follow packages'
@@ -1022,14 +1062,17 @@ def cmd_remove(manager, args, config, configfile):
         backup_files = manager.backup_modified_files(name, modifications)
 
         if not args.nodeps:
+            saved_state = loaded_package_states(manager)
             # unload all dependers that might break with the removal of this package
             for _name in dep_packages:
                 _ipkg = manager.find_installed_package(_name)
                 if _ipkg and _ipkg.status.is_loaded:
-                    manager.unload_with_unused_dependers(_name)
+                    unload_error = manager.unload_with_unused_dependers(_name)
+                    # had_failure = batched_unload_cleanup(manager, unload_error, saved_state, _name)
 
             # unload all the dependers packages
-            manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name))
+            unload_error = manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name))
+            # had_failure = batched_unload_cleanup(manager, unload_error, saved_state, name)
 
         if manager.remove(name):
             print('Removed "{}"'.format(name))
@@ -1452,8 +1495,8 @@ def cmd_load(manager, args, config, configfile):
 
         name = ipkg.package.qualified_name()
         if not args.nodeps:
-            saved_state = manager.loaded_package_states()
-
+            saved_state = loaded_package_states(manager)
+            load_error = False
 
             loaded_dep_list = manager.load_with_dependencies(zeekpkg.package.name_from_path(name))
             for _name, _error in loaded_dep_list:
@@ -1474,9 +1517,10 @@ def cmd_load(manager, args, config, configfile):
             had_failure = True
             if runtime_dep_check:
                 if dep_error_listing:
-                    print('The following installed dependencies could not be loaded.')
+                    print('The following installed dependencies could not be loaded for "{}".'
+                    	.format(name))
                     print(dep_error_listing)
-                manager.restoreState(saved_state)
+                    restoreState(manager, saved_state)
             print('Failed to load "{}": {}'.format(name, load_error))
         else:
             print('Loaded "{}"'.format(name))
@@ -1503,24 +1547,9 @@ def cmd_unload(manager, args, config, configfile):
         name = ipkg.package.qualified_name()
 
         if not args.nodeps:
-            saved_state = manager.loaded_package_states()
-            if manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name)):
-                dep_listing = get_changed_state(manager, saved_state, [name])
-                if dep_listing:
-                    print('The following installed packages were additionally unloaded to satisfy' \
-                    ' runtime dependencies for "{}".'.format(name))
-                    print(dep_listing)
-                print('Unloaded "{}"'.format(name))
-            else:
-                had_failure = True
-                dep_packages = manager.list_depender_pkgs(name)
-                dep_listing = ''
-                for _name in dep_packages:
-                    dep_listing += '  {}\n'.format(_name)
-                print('Following packages are dependent on "{}" and are currently in use.'.format(name))
-                print(dep_listing)
-                print('Failed unloading "{}"'.format(name))
-                manager.restoreState(saved_state)
+            saved_state = loaded_package_states(manager)
+            unload_error = manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name))
+            had_failure = batched_unload_cleanup(manager, unload_error, saved_state, name)
         else:
             if manager.unload(name):
                 print('Unloaded "{}"'.format(name))
@@ -1531,6 +1560,27 @@ def cmd_unload(manager, args, config, configfile):
     if had_failure:
         sys.exit(1)
 
+
+def batched_unload_cleanup(manager, unload_error, saved_state, name):
+    err_listing, had_failure = '', False
+    for _name, _error in unload_error:
+        if _error:
+            err_listing += '  {}: {}\n'.format(_name, _error)
+
+    if not err_listing:
+        dep_listing = get_changed_state(manager, saved_state, [name])
+        if dep_listing:
+            print('The following installed packages were additionally unloaded to satisfy' \
+            ' runtime dependencies for "{}".'.format(name))
+            print(dep_listing)
+        print('Unloaded "{}"'.format(name))
+    else:
+        had_failure = True
+        print('Following packages could not be unloaded.')
+        print(err_listing)
+        print('Failed unloading "{}"'.format(name))
+        restoreState(manager, saved_state)
+    return had_failure
 
 def cmd_pin(manager, args, config, configfile):
     had_failure = False
@@ -2001,8 +2051,6 @@ def top_level_parser():
                             ' Use multiple times for more output (e.g. -vvv).')
     top_parser.add_argument('--extra-source', action='append',
                             metavar='NAME=URL', help='Add an extra source.')
-    top_parser.add_argument('--nodeps', action = "store_true",
-                            help='Skip all runtime package dependency checks.')
     return top_parser
 
 
@@ -2067,11 +2115,11 @@ def argparser():
     sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
-    # sub_parser.add_argument(
-    #     '--nodeps', action='store_true',
-    #     help='Skip all dependency resolution/checks.  Note that using this'
-    #     ' option risks putting your installed package collection into a'
-    #     ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a'
+        ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically installing suggested packages.')
@@ -2116,11 +2164,11 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
-    # sub_parser.add_argument(
-    #     '--nodeps', action='store_true',
-    #     help='Skip all dependency resolution/checks.  Note that using this'
-    #     ' option risks creating a bundle of packages that is in a'
-    #     ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks creating a bundle of packages that is in a'
+        ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically bundling suggested packages.')
@@ -2167,6 +2215,11 @@ def argparser():
     sub_parser.add_argument(
         '--force', action='store_true',
         help='Skip the confirmation prompt.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a'
+        ' broken or unusable state.')
 
     # purge
     sub_parser = command_parser.add_parser(
@@ -2228,11 +2281,11 @@ def argparser():
     sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
-    # sub_parser.add_argument(
-    #     '--nodeps', action='store_true',
-    #     help='Skip all dependency resolution/checks.  Note that using this'
-    #     ' option risks putting your installed package collection into a'
-    #     ' broken or unusable state.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a'
+        ' broken or unusable state.')
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically installing suggested packages.')
@@ -2251,6 +2304,11 @@ def argparser():
     sub_parser.add_argument(
         'package', nargs='+', default=[],
         help='Name(s) of package(s) to load.')
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a'
+        ' broken or unusable state.')
 
     # unload
     sub_parser = command_parser.add_parser(
@@ -2265,6 +2323,11 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_unload)
     sub_parser.add_argument(
         'package', nargs='+', default=[], help=pkg_name_help)
+    sub_parser.add_argument(
+        '--nodeps', action='store_true',
+        help='Skip all dependency resolution/checks.  Note that using this'
+        ' option risks putting your installed package collection into a'
+        ' broken or unusable state.')
 
     # pin
     sub_parser = command_parser.add_parser(

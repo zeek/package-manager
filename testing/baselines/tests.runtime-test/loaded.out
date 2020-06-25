@@ -1,29 +1,27 @@
 Install grault
-Installed "one/bob/grault" (1.0.0)
-Loaded "one/bob/grault"
 Installed "one/bob/corge" (1.0.0)
 Loaded "one/bob/corge"
+Installed "one/bob/grault" (1.0.0)
+Loaded "one/bob/grault"
 Unload grault
 The following installed packages were additionally unloaded to satisfy runtime dependencies for "one/bob/grault".
   corge
 
 Unloaded "one/bob/grault"
 Install foo
-Installed "one/alice/foo" (master)
-Loaded "one/alice/foo"
-Installed "one/alice/baz" (1.0.0)
-Loaded "one/alice/baz"
 Installed "one/alice/bar" (1.0.0)
 Loaded "one/alice/bar"
+Installed "one/alice/baz" (1.0.0)
+Loaded "one/alice/baz"
+Installed "one/alice/foo" (master)
+Loaded "one/alice/foo"
 The following installed packages were additionally loaded to satisfy runtime dependencies
   corge
   grault
 
 Unload grault
-Following packages are dependent on "one/bob/grault" and are currently in use.
-  baz
-  bar
-  foo
+Following packages could not be unloaded.
+  grault: Package is in use by other packages --- "bar", "baz", "foo".
 
 Failed unloading "one/bob/grault"
 Unload foo

@@ -1106,35 +1106,6 @@ class Manager(object):
 
         return retval
 
-    def loaded_package_states(self):
-        """Save loaded state for all installed packages.
-
-        Returns:
-            dict: dictionary of load status for installed packages
-        """
-
-        return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
-
-    def restoreState(self, saved_state):
-        """Restores state for installed packages.
-
-        Args:
-            saved_state (dict): dictionary of saved load state for installed
-            packages.
-
-        """
-
-        for _pkg_name in self.get_pkg_dependencies():
-            ipkg = self.find_installed_package(_pkg_name)
-            if ipkg and ipkg.status:
-                if ipkg.status.is_loaded == saved_state[_pkg_name]:
-                    continue
-                ipkg.status.is_loaded = saved_state[_pkg_name]
-                self._write_autoloader()
-                self._write_manifest()
-                self._write_plugin_magic(ipkg)
-        return
-
     def list_depender_pkgs(self, pkg_path):
         """List of depender packages packages.
 
@@ -1195,32 +1166,39 @@ class Manager(object):
                         return False
             return True
 
+        errors = []
         queue = deque([pkg_name])
         while queue:
             item = queue.popleft()
+            
             deps = self.find_package_dependencies(item)
             for pkg in deps:
                 ipkg = self.find_installed_package(pkg)
                 # it is possible that this dependency has been removed via zkg
                 if not ipkg:
-                    LOG.debug("Package not installed!")
-                    continue
+                    errors.append((pkg, 'Package not installed.'))
+                    return errors
                 queue.append(pkg)
 
             ipkg = self.find_installed_package(item)
             # it is possible that this package has been removed via zkg
             if not ipkg:
-                LOG.debug("Package not installed!")
-                continue
+                errors.append((item, 'Package not installed.'))
+                return errors
             if ipkg.status.is_loaded:
                 if _has_all_dependers_unloaded(item):
                     self.unload(item)
+                    errors.append((item, ''))
                     continue
                 else:
-                    LOG.debug('Package is in use. Cannot unload package "{}"'
-                        .format(item))
-                    return False
-        return True
+                    dep_packages = sorted(self.list_depender_pkgs(pkg_name))
+                    dep_listing = ''
+                    for _name in dep_packages:
+                        dep_listing += '"{}", '.format(_name)
+                    errors.append((item, 'Package is in use by other packages --- {}.'.format(dep_listing[:-2])))
+                    return errors
+
+        return errors
 
     def unload(self, pkg_path):
         """Unmark an installed package as being "loaded".
