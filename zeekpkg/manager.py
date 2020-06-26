@@ -1138,17 +1138,20 @@ class Manager(object):
             list: list of depender packages.
         """
 
-        depender_packages = []
-        queue = deque([name_from_path(pkg_path)])
+        depender_packages, pkg_name = set(), name_from_path(pkg_path)
+        queue = deque([pkg_name])
         while queue:
             item = queue.popleft()
             for _pkg_name in self.get_pkg_dependencies():
-                pkg_dependees = set([name_from_path(_pkg_path) for _pkg_path in self.get_pkg_dependencies().get(_pkg_name)])
+                pkg_dependees = set([_pkg for _pkg in self.get_pkg_dependencies().get(_pkg_name)])
                 if item in pkg_dependees:
+                    # check if there is a cyclic dependency
+                    if _pkg_name == pkg_name:
+                        return sorted([pkg for pkg in depender_packages] + [pkg_name])
                     queue.append(_pkg_name)
-                    depender_packages.append(_pkg_name)
+                    depender_packages.add(_pkg_name)
 
-        return depender_packages
+        return sorted([pkg for pkg in depender_packages])
 
     def unload_with_unused_dependers(self, pkg_name):
         """Unmark dependent (but previously installed packages) as being "loaded".
@@ -1163,13 +1166,11 @@ class Manager(object):
             IOError: if the loader script or manifest can't be written
         """
 
-        def _has_all_dependers_unloaded(item):
-            for _pkg_name in self.get_pkg_dependencies():
-                pkg_dependees = set([_pkg for _pkg in self.get_pkg_dependencies().get(_pkg_name)])
-                if item in pkg_dependees:
-                    ipkg = self.find_installed_package(_pkg_name)
-                    if ipkg and ipkg.status.is_loaded:
-                        return False
+        def _has_all_dependers_unloaded(item, dependers):
+            for depender in dependers:
+                ipkg = self.find_installed_package(depender)
+                if ipkg and ipkg.status.is_loaded:
+                    return False
             return True
 
         errors = []
@@ -1184,7 +1185,8 @@ class Manager(object):
                 if not ipkg:
                     errors.append((pkg, 'Package not installed.'))
                     return errors
-                queue.append(pkg)
+                if ipkg.status.is_loaded:
+                    queue.append(pkg)
 
             ipkg = self.find_installed_package(item)
             # it is possible that this package has been removed via zkg
@@ -1192,12 +1194,26 @@ class Manager(object):
                 errors.append((item, 'Package not installed.'))
                 return errors
             if ipkg.status.is_loaded:
-                if _has_all_dependers_unloaded(item):
+                dep_packages = self.list_depender_pkgs(item)
+                # check if there is a cyclic dependency
+                if item in dep_packages:
+                    for dep in dep_packages:
+                        if item != dep:
+                            ipkg = self.find_installed_package(dep)
+                            if ipkg and ipkg.status.is_loaded:
+                                self.unload(dep)
+                                errors.append((dep, ''))
                     self.unload(item)
                     errors.append((item, ''))
                     continue
+                # check if all dependers are unloaded
+                elif _has_all_dependers_unloaded(item, dep_packages):
+                    self.unload(item)
+                    errors.append((item, ''))
+                    continue
+                # package is in use
                 else:
-                    dep_packages = sorted(self.list_depender_pkgs(pkg_name))
+                    dep_packages = self.list_depender_pkgs(pkg_name)
                     dep_listing = ''
                     for _name in dep_packages:
                         dep_listing += '"{}", '.format(_name)
