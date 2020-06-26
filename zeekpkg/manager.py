@@ -1079,11 +1079,13 @@ class Manager(object):
         LOG.debug('loaded "%s"', pkg_path)
         return ''
 
-    def load_with_dependencies(self, pkg_name):
+    def load_with_dependencies(self, pkg_name, visited):
         """Mark dependent (but previously installed) packages as being "loaded".
 
         Args:
             pkg_name (str): name of the package.
+
+            visited (set(str)): set of packages visited along the recursive loading 
 
         Returns:
             str: empty string if the package is successfully marked as loaded,
@@ -1101,8 +1103,12 @@ class Manager(object):
             return (pkg_name, load_error)
 
         retval = []
+        visited.add(pkg_name)
+
         for pkg in self.find_package_dependencies(pkg_name):
-            retval += self.load_with_dependencies(pkg)
+            if pkg in visited:
+                continue
+            retval += self.load_with_dependencies(pkg, visited)
 
         return retval
 

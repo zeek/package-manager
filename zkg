@@ -299,15 +299,13 @@ def regenerate_dependency_state(manager):
             to_validate, ignore_suggestions=True)
 
     if invalid_reason:
-        print_error('error: failed to resolve dependencies:', invalid_reason)
+        print_error('regenerate_dependency_state: failed to resolve dependencies:', invalid_reason)
         sys.exit(1)
 
     pkg_dependencies = {}
 
     for info, version, _ in new_pkgs:
         name = zeekpkg.package.name_from_path(info.package.git_url)
-        if name not in pkg_dependencies:
-            pkg_dependencies[name] = set(tuple([]))
         deps = info.dependencies()
         pkg_dependencies[name] = deps
 
@@ -755,25 +753,24 @@ def cmd_install(manager, args, config, configfile):
         # as all worker threads have been merged at this point and all dependencies
         # are installed
         for info, ver, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
-            saved_state = loaded_package_states(manager)
+            _listing, saved_state = '', loaded_package_states(manager)
             name = info.package.qualified_name()
-            load_error = manager.load_with_dependencies(zeekpkg.package.name_from_path(name))
 
-            if not load_error:
+            load_error = manager.load_with_dependencies(zeekpkg.package.name_from_path(name), set())
+            for _name, _error in load_error:
+                if not _error:
+                    _listing += '  {}\n'.format(_name)
+
+            if not _listing:
                 dep_listing = get_changed_state(manager, saved_state, [name])
                 if dep_listing:
                     print('The following installed packages were additionally loaded to satisfy' \
                           ' runtime dependencies')
                     print(dep_listing)
             else:
-                _listing = ''
-                for _name, _error in load_error:
-                    if not _error:
-                        _listing += '  {}\n'.format(_name)
-                if _listing:
-                    print('The following installed packages could NOT be loaded to satisfy' \
-                          ' runtime dependencies for "{}"'.format(name))
-                    print(_listing)
+                print('The following installed packages could NOT be loaded to satisfy' \
+                      ' runtime dependencies for "{}"'.format(name))
+                print(_listing)
                 restoreState(manager, saved_state)
 
     if installs_failed:
@@ -1003,6 +1000,8 @@ def cmd_unbundle(manager, args, config, configfile):
             print('Loaded "{}"'.format(name))
 
     print('Unbundling complete.')
+
+    generate_pkg_dependencies(manager, [(info, version, git_url) for git_url, version, info in bundle_info])
 
 
 def cmd_remove(manager, args, config, configfile):
@@ -1496,9 +1495,9 @@ def cmd_load(manager, args, config, configfile):
         name = ipkg.package.qualified_name()
         if not args.nodeps:
             saved_state = loaded_package_states(manager)
-            load_error = False
+            dep_error_listing, load_error = '', False
 
-            loaded_dep_list = manager.load_with_dependencies(zeekpkg.package.name_from_path(name))
+            loaded_dep_list = manager.load_with_dependencies(zeekpkg.package.name_from_path(name), set())
             for _name, _error in loaded_dep_list:
                 if _error:
                     load_error = True
@@ -1515,7 +1514,7 @@ def cmd_load(manager, args, config, configfile):
 
         if load_error:
             had_failure = True
-            if runtime_dep_check:
+            if not args.nodeps:
                 if dep_error_listing:
                     print('The following installed dependencies could not be loaded for "{}".'
                     	.format(name))
