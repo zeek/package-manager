@@ -1,4 +1,8 @@
 
+2.1.2-2 | 2020-06-26 12:01:08 -0700
+
+  * Fix '"is" with a literal' warning in Python 3.8+ (Jon Siwek, Corelight)
+
 2.1.2-1 | 2020-06-04 11:53:04 -0700
 
   * Update docs for name change of Zeek's aux/ dir (Jon Siwek, Corelight)
