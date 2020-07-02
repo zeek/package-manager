@@ -7,6 +7,7 @@ import os
 import sys
 import copy
 import json
+import pickle
 import shutil
 import filecmp
 import tarfile
@@ -253,13 +254,7 @@ class Manager(object):
         make_symlink('packages.zeek', autoload_script_fallback)
         make_symlink('packages.zeek', autoload_package_fallback)
 
-        self.pkg_dependencies = {}
-
-    def get_pkg_dependencies(self):
-        return self.pkg_dependencies
-
-    def set_pkg_dependencies(self, dep):
-        self.pkg_dependencies = dep
+        self.pkg_dependencies = self.load_pkg_dependencies()
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -517,7 +512,7 @@ class Manager(object):
 
         A package's name is the last component of it's git URL.
         """
-        return self.get_pkg_dependencies().get(pkg_name)
+        return self.pkg_dependencies.get(pkg_name)
 
     def has_scripts(self, installed_pkg):
         """Return whether a :class:`.package.InstalledPackage` installed scripts.
@@ -1079,7 +1074,101 @@ class Manager(object):
         LOG.debug('loaded "%s"', pkg_path)
         return ''
 
-    def load_with_dependencies(self, pkg_name, visited):
+    def regenerate_dependency_state(self):
+        """
+        Regenerates package dependencies from installed packages.
+        """
+        new_pkgs = []
+
+        to_validate = [(ipkg.package.qualified_name(), ipkg.status.current_version)
+                           for ipkg in self.installed_packages()]
+
+        invalid_reason, new_pkgs = self.validate_dependencies(
+                to_validate, ignore_suggestions=True)
+
+        if invalid_reason:
+            print('regenerate_dependency_state: failed to resolve dependencies:', invalid_reason)
+            sys.exit(1)
+
+        pkg_dependencies = {}
+
+        for info, version, _ in new_pkgs:
+            name = name_from_path(info.package.git_url)
+            deps = info.dependencies()
+            pkg_dependencies[name] = deps
+
+        return pkg_dependencies
+
+    def purge_dependency_state(self):
+        try:
+            _dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
+            delete_path(_dep_pickle_path)
+            return ''
+        except Exception as exc:
+            return '{}'.format(str(exc))
+
+    def generate_pkg_dependencies(self, new_pkgs):
+        pkg_dependencies = self.load_pkg_dependencies()
+
+        for info, version, _ in new_pkgs:
+            name = name_from_path(info.package.git_url)
+            deps = info.dependencies()
+            pkg_dependencies[name] = deps
+
+        try:
+            dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
+            with open(dep_pickle_path, 'wb') as deps:
+               pickle.dump(pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as exc:
+            LOG.debug("Error writing dependencies: ", exc)
+
+        self.pkg_dependencies = pkg_dependencies
+        return pkg_dependencies
+
+    def load_pkg_dependencies(self):
+        try:
+            dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
+            with open(dep_pickle_path, 'rb') as deps:
+                return pickle.load(deps)
+        except Exception as exc:
+            LOG.debug("Error reading dependencies: ", exc)
+            LOG.debug("Extracting dependencies")        
+            # this is only in case the pickle file is deleted
+            return self.regenerate_dependency_state()
+
+    def loaded_package_states(self):
+        """Save loaded state for all installed packages.
+
+        Returns:
+            dict: dictionary of load status for installed packages
+        """
+
+        return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
+
+    def restoreState(self, saved_state):
+        """Restores state for installed packages.
+
+        Args:
+            saved_state (dict): dictionary of saved load state for installed
+            packages.
+
+        """
+        try:
+            for _pkg_name in self.pkg_dependencies:
+                ipkg = self.find_installed_package(_pkg_name)
+                if ipkg and ipkg.status:
+                    if ipkg.status.is_loaded == saved_state[_pkg_name]:
+                        continue
+                    ipkg.status.is_loaded = saved_state[_pkg_name]
+                    self._write_autoloader()
+                    self._write_manifest()
+                    self._write_plugin_magic(ipkg)
+        except IOError as exc:
+            print(exc)
+            sys.exit(1)
+
+
+    def load_with_dependencies(self, pkg_name, visited=set()):
         """Mark dependent (but previously installed) packages as being "loaded".
 
         Args:
@@ -1088,19 +1177,19 @@ class Manager(object):
             visited (set(str)): set of packages visited along the recursive loading 
 
         Returns:
-            str: empty string if the package is successfully marked as loaded,
-            else an explanation of why it failed.
+            list(str, str): list of tuples containing dependent package name and whether
+            it was marked as loaded or else an explanation of why the loading failed.
 
         """
         ipkg = self.find_installed_package(pkg_name)
 
         # skip loading a package if it is not installed.
         if not ipkg:
-            return (pkg_name, 'Loading dependency failed. Package not installed.')
+            return [(pkg_name, 'Loading dependency failed. Package not installed.')]
 
         load_error = self.load(pkg_name)
         if load_error:
-            return (pkg_name, load_error)
+            return [(pkg_name, load_error)]
 
         retval = []
         visited.add(pkg_name)
@@ -1142,8 +1231,8 @@ class Manager(object):
         queue = deque([pkg_name])
         while queue:
             item = queue.popleft()
-            for _pkg_name in self.get_pkg_dependencies():
-                pkg_dependees = set([_pkg for _pkg in self.get_pkg_dependencies().get(_pkg_name)])
+            for _pkg_name in self.pkg_dependencies:
+                pkg_dependees = set([_pkg for _pkg in self.pkg_dependencies.get(_pkg_name)])
                 if item in pkg_dependees:
                     # check if there is a cyclic dependency
                     if _pkg_name == pkg_name:
@@ -1160,7 +1249,9 @@ class Manager(object):
             pkg_name (str): name of the package.
 
         Returns:
-            bool: True if a package is successfully unmarked as loaded.
+            list(str, str): list of tuples containing dependent package name and
+            whether it was marked as unloaded or else an explanation of why the
+            unloading failed.
 
         Raises:
             IOError: if the loader script or manifest can't be written
