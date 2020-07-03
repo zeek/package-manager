@@ -481,8 +481,6 @@ def cmd_install(manager, args, config, configfile):
                         invalid_reason)
             sys.exit(1)
 
-        manager.generate_pkg_dependencies(package_infos + new_pkgs)
-
     if not args.force:
         package_listing = ''
 
@@ -746,8 +744,6 @@ def cmd_bundle(manager, args, config, configfile):
                             invalid_reason)
                 sys.exit(1)
 
-            manager.generate_pkg_dependencies(new_pkgs)
-
         for info, version, suggested in new_pkgs:
             packages_to_bundle.append((info.package.qualified_name(),
                                        info.package.git_url, version, True,
@@ -908,9 +904,6 @@ def cmd_unbundle(manager, args, config, configfile):
             print('Loaded "{}"'.format(name))
 
     print('Unbundling complete.')
-
-    manager.generate_pkg_dependencies([(info, version, git_url) for git_url, version, info in bundle_info])
-
 
 def cmd_remove(manager, args, config, configfile):
     packages_to_remove = []
@@ -1190,8 +1183,6 @@ def cmd_upgrade(manager, args, config, configfile):
             print_error('error: failed to resolve dependencies:',
                         invalid_reason)
             sys.exit(1)
-
-        manager.generate_pkg_dependencies(new_pkgs)
 
     allpkgs = outdated_packages + new_pkgs
 
@@ -2402,6 +2393,9 @@ def main():
 
     args.run_cmd(manager, args, config, configfile)
 
+    has_error = manager.write_dependency_state()
+    if has_error:
+        print('Error writing dependencies: {}'.format(has_error))
 
 if __name__ == '__main__':
     main()

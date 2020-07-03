@@ -1107,23 +1107,14 @@ class Manager(object):
         except Exception as exc:
             return '{}'.format(str(exc))
 
-    def generate_pkg_dependencies(self, new_pkgs):
-        pkg_dependencies = self.load_pkg_dependencies()
-
-        for info, version, _ in new_pkgs:
-            name = name_from_path(info.package.git_url)
-            deps = info.dependencies()
-            pkg_dependencies[name] = deps
-
+    def write_dependency_state(self):
         try:
             dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
             with open(dep_pickle_path, 'wb') as deps:
-               pickle.dump(pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
+               pickle.dump(self.pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
+            return ''
         except Exception as exc:
-            LOG.debug("Error writing dependencies: ", exc)
-
-        self.pkg_dependencies = pkg_dependencies
-        return pkg_dependencies
+            return 'Error writing dependencies: {}'.format(str(exc))
 
     def load_pkg_dependencies(self):
         try:
@@ -2556,6 +2547,7 @@ class Manager(object):
 
         package.metadata = raw_metadata
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
+        self.pkg_dependencies[package.name] = package.dependencies()
         self._write_manifest()
         LOG.debug('installed "%s"', package)
         return ''
