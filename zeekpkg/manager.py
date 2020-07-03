@@ -1109,9 +1109,10 @@ class Manager(object):
 
     def write_dependency_state(self):
         try:
-            dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
-            with open(dep_pickle_path, 'wb') as deps:
-               pickle.dump(self.pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
+            if self.pkg_dependencies:
+                dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
+                with open(dep_pickle_path, 'wb') as deps:
+                    pickle.dump(self.pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
             return ''
         except Exception as exc:
             return 'Error writing dependencies: {}'.format(str(exc))
