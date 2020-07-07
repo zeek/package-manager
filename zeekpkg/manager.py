@@ -1083,7 +1083,6 @@ class Manager(object):
         Returns:
             dict: dictionary of "loaded" status for installed packages
         """
-
         return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
 
     def restore_loaded_package_states(self, saved_state):
@@ -1124,6 +1123,7 @@ class Manager(object):
             return [(pkg_name, 'Loading dependency failed. Package not installed.')]
 
         load_error = self.load(pkg_name)
+
         if load_error:
             return [(pkg_name, load_error)]
 
@@ -1133,6 +1133,7 @@ class Manager(object):
         for pkg in self.get_installed_package_dependencies(pkg_name):
             if pkg in visited:
                 continue
+
             retval += self.load_with_dependencies(pkg, visited)
 
         return retval
@@ -1162,7 +1163,6 @@ class Manager(object):
         Returns:
             list: list of depender packages.
         """
-
         depender_packages, pkg_name = set(), name_from_path(pkg_path)
         queue = deque([pkg_name])
         pkg_dependencies = self.installed_package_dependencies()
@@ -1197,7 +1197,6 @@ class Manager(object):
         Raises:
             IOError: if the loader script or manifest can't be written
         """
-
         def _has_all_dependers_unloaded(item, dependers):
             for depender in dependers:
                 ipkg = self.find_installed_package(depender)
@@ -1215,41 +1214,52 @@ class Manager(object):
             for pkg in deps:
                 ipkg = self.find_installed_package(pkg)
                 # it is possible that this dependency has been removed via zkg
+
                 if not ipkg:
                     errors.append((pkg, 'Package not installed.'))
                     return errors
+
                 if ipkg.status.is_loaded:
                     queue.append(pkg)
 
             ipkg = self.find_installed_package(item)
+
             # it is possible that this package has been removed via zkg
             if not ipkg:
                 errors.append((item, 'Package not installed.'))
                 return errors
+
             if ipkg.status.is_loaded:
                 dep_packages = self.list_depender_pkgs(item)
+
                 # check if there is a cyclic dependency
                 if item in dep_packages:
                     for dep in dep_packages:
                         if item != dep:
                             ipkg = self.find_installed_package(dep)
+
                             if ipkg and ipkg.status.is_loaded:
                                 self.unload(dep)
                                 errors.append((dep, ''))
+
                     self.unload(item)
                     errors.append((item, ''))
                     continue
+
                 # check if all dependers are unloaded
                 elif _has_all_dependers_unloaded(item, dep_packages):
                     self.unload(item)
                     errors.append((item, ''))
                     continue
+
                 # package is in use
                 else:
                     dep_packages = self.list_depender_pkgs(pkg_name)
                     dep_listing = ''
+
                     for _name in dep_packages:
                         dep_listing += '"{}", '.format(_name)
+
                     errors.append((item, 'Package is in use by other packages --- {}.'.format(dep_listing[:-2])))
                     return errors
 
