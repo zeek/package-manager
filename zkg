@@ -598,7 +598,7 @@ def cmd_install(manager, args, config, configfile):
         worker = InstallWorker(manager, name, version)
         worker.start()
 
-        while worker.isAlive():
+        while worker.is_alive():
             worker.join(join_timeout)
             time_accumulator += join_timeout
 
