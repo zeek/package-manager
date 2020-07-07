@@ -2555,7 +2555,7 @@ class Manager(object):
 
 def _normalize_version_tag(tag):
     # Change vX.Y.Z into X.Y.Z
-    if len(tag) > 1 and tag[0] is 'v' and tag[1].isdigit():
+    if len(tag) > 1 and tag[0] == 'v' and tag[1].isdigit():
         return tag[1:]
 
     return tag
