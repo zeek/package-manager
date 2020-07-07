@@ -360,7 +360,7 @@ def get_changed_state(manager, saved_state, pkg_lst):
     """
     _lst = [zeekpkg.package.name_from_path(_pkg_path) for _pkg_path in pkg_lst]
     dep_listing = ''
-    for _pkg_name in sorted(manager.pkg_dependencies):
+    for _pkg_name in sorted(manager.installed_package_dependencies()):
         if _pkg_name in _lst:
             continue
         _ipkg = manager.find_installed_package(_pkg_name)
@@ -951,7 +951,7 @@ def cmd_remove(manager, args, config, configfile):
             	print(dep_listing)
 
             dep_listing = ''
-            for _name in sorted(manager.pkg_dependencies):
+            for _name in sorted(manager.installed_package_dependencies()):
                 if _name == zeekpkg.package.name_from_path(name):
                     continue
                 dep_listing += '  {}\n'.format(_name)
