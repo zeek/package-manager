@@ -352,7 +352,7 @@ def get_changed_state(manager, saved_state, pkg_lst):
 
     Returns:
         dep_listing (str): string installed packages that have changed state
-    
+
     """
     _lst = [zeekpkg.package.name_from_path(_pkg_path) for _pkg_path in pkg_lst]
     dep_listing = ''
@@ -1031,10 +1031,6 @@ def cmd_purge(manager, args, config, configfile):
         else:
             print('Unknown error removing "{}"'.format(name))
             had_failure = True
-
-    has_error = manager.purge_dependency_state()
-    if has_error:
-        print('Error removing dependencies: {}'.format(has_error))
 
     if had_failure:
         sys.exit(1)
@@ -2392,10 +2388,6 @@ def main():
     manager = create_manager(args, config)
 
     args.run_cmd(manager, args, config, configfile)
-
-    has_error = manager.write_dependency_state()
-    if has_error:
-        print('Error writing dependencies: {}'.format(has_error))
 
 if __name__ == '__main__':
     main()

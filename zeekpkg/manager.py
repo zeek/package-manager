@@ -7,7 +7,6 @@ import os
 import sys
 import copy
 import json
-import pickle
 import shutil
 import filecmp
 import tarfile
@@ -254,7 +253,10 @@ class Manager(object):
         make_symlink('packages.zeek', autoload_script_fallback)
         make_symlink('packages.zeek', autoload_package_fallback)
 
-        self.pkg_dependencies = self.load_pkg_dependencies()
+        self.pkg_dependencies = {}
+
+        for pkg_name, ipkg in self.installed_pkgs.items():
+            self.pkg_dependencies[pkg_name] = ipkg.package.dependencies()
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -655,7 +657,7 @@ class Manager(object):
             modified_files(list of (str, str)): the return value of
                 :meth:`modified_config_files()`.
 
-            backup_subdir(str): the subdir of `backup_dir` in which 
+            backup_subdir(str): the subdir of `backup_dir` in which
 
         Returns:
             list of str: paths indicating the backup locations.  The order
@@ -947,6 +949,7 @@ class Manager(object):
             delete_path(os.path.join(self.zeekpath(), alias))
 
         del self.installed_pkgs[pkg_to_remove.name]
+        del self.pkg_dependencies[pkg_to_remove.name]
         self._write_manifest()
 
         LOG.debug('removed "%s"', pkg_path)
@@ -1074,60 +1077,6 @@ class Manager(object):
         LOG.debug('loaded "%s"', pkg_path)
         return ''
 
-    def regenerate_dependency_state(self):
-        """
-        Regenerates package dependencies from installed packages.
-        """
-        new_pkgs = []
-
-        to_validate = [(ipkg.package.qualified_name(), ipkg.status.current_version)
-                           for ipkg in self.installed_packages()]
-
-        invalid_reason, new_pkgs = self.validate_dependencies(
-                to_validate, ignore_suggestions=True)
-
-        if invalid_reason:
-            print('regenerate_dependency_state: failed to resolve dependencies:', invalid_reason)
-            sys.exit(1)
-
-        pkg_dependencies = {}
-
-        for info, version, _ in new_pkgs:
-            name = name_from_path(info.package.git_url)
-            deps = info.dependencies()
-            pkg_dependencies[name] = deps
-
-        return pkg_dependencies
-
-    def purge_dependency_state(self):
-        try:
-            _dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
-            delete_path(_dep_pickle_path)
-            return ''
-        except Exception as exc:
-            return '{}'.format(str(exc))
-
-    def write_dependency_state(self):
-        try:
-            if self.pkg_dependencies:
-                dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
-                with open(dep_pickle_path, 'wb') as deps:
-                    pickle.dump(self.pkg_dependencies, deps, protocol=pickle.HIGHEST_PROTOCOL)
-            return ''
-        except Exception as exc:
-            return 'Error writing dependencies: {}'.format(str(exc))
-
-    def load_pkg_dependencies(self):
-        try:
-            dep_pickle_path = os.path.join(self.scratch_dir, 'deps.pickle')
-            with open(dep_pickle_path, 'rb') as deps:
-                return pickle.load(deps)
-        except Exception as exc:
-            LOG.debug("Error reading dependencies: ", exc)
-            LOG.debug("Extracting dependencies")        
-            # this is only in case the pickle file is deleted
-            return self.regenerate_dependency_state()
-
     def loaded_package_states(self):
         """Save loaded state for all installed packages.
 
@@ -1166,7 +1115,7 @@ class Manager(object):
         Args:
             pkg_name (str): name of the package.
 
-            visited (set(str)): set of packages visited along the recursive loading 
+            visited (set(str)): set of packages visited along the recursive loading
 
         Returns:
             list(str, str): list of tuples containing dependent package name and whether
@@ -1260,7 +1209,7 @@ class Manager(object):
         queue = deque([pkg_name])
         while queue:
             item = queue.popleft()
-            
+
             deps = self.find_package_dependencies(item)
             for pkg in deps:
                 ipkg = self.find_installed_package(pkg)
