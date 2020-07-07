@@ -1141,17 +1141,19 @@ class Manager(object):
     def list_depender_pkgs(self, pkg_path):
         """List of depender packages packages.
 
-            If C depends on B and B depends on A, we represent the dependency
-            chain as C -> B -> A. Thus, package C is dependent on A and B,
-            while package B is dependent on just C. So pkg_dependencies would be
+        If C depends on B and B depends on A, we represent the dependency
+        chain as C -> B -> A. Thus, package C is dependent on A and B,
+        while package B is dependent on just C. So pkg_dependencies would
+        be::
+
             {
-                'A': set(),
-                'B': set([A, version_of_A])
-                'C': set([B, version_of_B])
+            'A': set(),
+            'B': set([A, version_of_A])
+            'C': set([B, version_of_B])
             }
 
-            Further, package A is a direct dependee for B (and implicitly for C),
-            while B is a direct depender (and C is an implicit depender) for A.
+        Further, package A is a direct dependee for B (and implicitly for C),
+        while B is a direct depender (and C is an implicit depender) for A.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
