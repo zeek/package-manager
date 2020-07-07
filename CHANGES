@@ -1,4 +1,8 @@
 
+2.2.0 | 2020-07-07 14:45:41 -0700
+
+  * Release 2.2.0.
+
 2.1.2-22 | 2020-07-07 14:44:57 -0700
 
   * Fix Sphinx add_stylesheet deprecation (Jon Siwek, Corelight)
