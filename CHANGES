@@ -1,4 +1,10 @@
 
+2.1.2-22 | 2020-07-07 14:44:57 -0700
+
+  * Fix Sphinx add_stylesheet deprecation (Jon Siwek, Corelight)
+
+  * Fix docstring for Manager.list_depender_pkgs() (Jon Siwek, Corelight)
+
 2.1.2-20 | 2020-07-07 14:30:45 -0700
 
   * Add runtime dependency checks for zkg (Mohan Dhawan, Corelight)
