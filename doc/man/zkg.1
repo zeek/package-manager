@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Jun 26, 2020" "2.1.2-2" "Zeek Package Manager"
+.TH "ZKG" "1" "Jul 07, 2020" "2.1.2-20" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -153,7 +153,7 @@ Unloads (see the \fBunload\fP command) and uninstalls a previously installed pac
 .sp
 .nf
 .ft C
-usage: zkg remove [\-h] [\-\-force] package [package ...]
+usage: zkg remove [\-h] [\-\-force] [\-\-nodeps] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -172,6 +172,9 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .TP
 .B \-\-force=False
 Skip the confirmation prompt.
+.TP
+.B \-\-nodeps=False
+Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a broken or unusable state.
 .UNINDENT
 .UNINDENT
 .SS purge
@@ -346,7 +349,7 @@ The Zeek Package Manager keeps track of all packages that are marked as "loaded"
 .sp
 .nf
 .ft C
-usage: zkg load [\-h] package [package ...]
+usage: zkg load [\-h] [\-\-nodeps] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -359,6 +362,13 @@ usage: zkg load [\-h] package [package ...]
 .B package
 Name(s) of package(s) to load.
 .UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-nodeps=False
+Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a broken or unusable state.
+.UNINDENT
 .UNINDENT
 .SS unload
 .sp
@@ -369,7 +379,7 @@ The Zeek Package Manager keeps track of all packages that are marked as "loaded"
 .sp
 .nf
 .ft C
-usage: zkg unload [\-h] package [package ...]
+usage: zkg unload [\-h] [\-\-nodeps] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -381,6 +391,13 @@ usage: zkg unload [\-h] package [package ...]
 .TP
 .B package
 The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-nodeps=False
+Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a broken or unusable state.
 .UNINDENT
 .UNINDENT
 .SS pin

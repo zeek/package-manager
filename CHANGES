@@ -1,4 +1,12 @@
 
+2.1.2-20 | 2020-07-07 14:30:45 -0700
+
+  * Add runtime dependency checks for zkg (Mohan Dhawan, Corelight)
+
+    The "load", "unload" and "remove" operations now all analyze package
+    dependencies and prompt to any load/unload additional packages as needed
+    to satisfy dependencies.
+
 2.1.2-2 | 2020-06-26 12:01:08 -0700
 
   * Fix '"is" with a literal' warning in Python 3.8+ (Jon Siwek, Corelight)

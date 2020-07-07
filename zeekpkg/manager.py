@@ -32,6 +32,8 @@ else:
 import git
 import semantic_version as semver
 
+from collections import deque
+
 from ._util import (
     make_dir,
     delete_path,
@@ -437,6 +439,11 @@ class Manager(object):
         """Return list of :class:`.package.InstalledPackage`."""
         return [ipkg for _, ipkg in sorted(self.installed_pkgs.items())]
 
+    def installed_package_dependencies(self):
+        """Return dict of package name -> :class:`.package.InstalledPackage`."""
+        return {name: ipkg.package.dependencies()
+                for name, ipkg in self.installed_pkgs.items()}
+
     def loaded_packages(self):
         """Return list of loaded :class:`.package.InstalledPackage`."""
         rval = []
@@ -488,11 +495,27 @@ class Manager(object):
                 a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
-
-        A package's name is the last component of it's git URL.
         """
         pkg_name = name_from_path(pkg_path)
         return self.installed_pkgs.get(pkg_name)
+
+    def get_installed_package_dependencies(self, pkg_path):
+        """Return a set of tuples of dependent package names and their version
+        number if pkg_path is an installed package.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+        """
+        ipkg = self.find_installed_package(pkg_path)
+
+        if ipkg:
+            return ipkg.package.dependencies()
+
+        return None
 
     def has_scripts(self, installed_pkg):
         """Return whether a :class:`.package.InstalledPackage` installed scripts.
@@ -635,7 +658,7 @@ class Manager(object):
             modified_files(list of (str, str)): the return value of
                 :meth:`modified_config_files()`.
 
-            backup_subdir(str): the subdir of `backup_dir` in which 
+            backup_subdir(str): the subdir of `backup_dir` in which
 
         Returns:
             list of str: paths indicating the backup locations.  The order
@@ -906,6 +929,7 @@ class Manager(object):
             IOError: if the package manifest file can't be written
             OSError: if the installed package's directory can't be deleted
         """
+
         pkg_path = canonical_url(pkg_path)
         LOG.debug('removing "%s"', pkg_path)
         ipkg = self.find_installed_package(pkg_path)
@@ -1052,6 +1076,194 @@ class Manager(object):
         self._write_plugin_magic(ipkg)
         LOG.debug('loaded "%s"', pkg_path)
         return ''
+
+    def loaded_package_states(self):
+        """Save "loaded" state for all installed packages.
+
+        Returns:
+            dict: dictionary of "loaded" status for installed packages
+        """
+        return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
+
+    def restore_loaded_package_states(self, saved_state):
+        """Restores state for installed packages.
+
+        Args:
+            saved_state (dict): dictionary of saved "loaded" state for installed
+            packages.
+
+        """
+        for pkg_name, ipkg in self.installed_pkgs.items():
+            if ipkg.status.is_loaded == saved_state[pkg_name]:
+                continue
+
+            ipkg.status.is_loaded = saved_state[pkg_name]
+            self._write_plugin_magic(ipkg)
+
+        self._write_autoloader()
+        self._write_manifest()
+
+    def load_with_dependencies(self, pkg_name, visited=set()):
+        """Mark dependent (but previously installed) packages as being "loaded".
+
+        Args:
+            pkg_name (str): name of the package.
+
+            visited (set(str)): set of packages visited along the recursive loading
+
+        Returns:
+            list(str, str): list of tuples containing dependent package name and whether
+            it was marked as loaded or else an explanation of why the loading failed.
+
+        """
+        ipkg = self.find_installed_package(pkg_name)
+
+        # skip loading a package if it is not installed.
+        if not ipkg:
+            return [(pkg_name, 'Loading dependency failed. Package not installed.')]
+
+        load_error = self.load(pkg_name)
+
+        if load_error:
+            return [(pkg_name, load_error)]
+
+        retval = []
+        visited.add(pkg_name)
+
+        for pkg in self.get_installed_package_dependencies(pkg_name):
+            if pkg in visited:
+                continue
+
+            retval += self.load_with_dependencies(pkg, visited)
+
+        return retval
+
+    def list_depender_pkgs(self, pkg_path):
+        """List of depender packages packages.
+
+            If C depends on B and B depends on A, we represent the dependency
+            chain as C -> B -> A. Thus, package C is dependent on A and B,
+            while package B is dependent on just C. So pkg_dependencies would be
+            {
+                'A': set(),
+                'B': set([A, version_of_A])
+                'C': set([B, version_of_B])
+            }
+
+            Further, package A is a direct dependee for B (and implicitly for C),
+            while B is a direct depender (and C is an implicit depender) for A.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
+        Returns:
+            list: list of depender packages.
+        """
+        depender_packages, pkg_name = set(), name_from_path(pkg_path)
+        queue = deque([pkg_name])
+        pkg_dependencies = self.installed_package_dependencies()
+
+        while queue:
+            item = queue.popleft()
+
+            for _pkg_name in pkg_dependencies:
+                pkg_dependees = set([_pkg for _pkg in pkg_dependencies.get(_pkg_name)])
+
+                if item in pkg_dependees:
+                    # check if there is a cyclic dependency
+                    if _pkg_name == pkg_name:
+                        return sorted([pkg for pkg in depender_packages] + [pkg_name])
+
+                    queue.append(_pkg_name)
+                    depender_packages.add(_pkg_name)
+
+        return sorted([pkg for pkg in depender_packages])
+
+    def unload_with_unused_dependers(self, pkg_name):
+        """Unmark dependent (but previously installed packages) as being "loaded".
+
+        Args:
+            pkg_name (str): name of the package.
+
+        Returns:
+            list(str, str): list of tuples containing dependent package name and
+            whether it was marked as unloaded or else an explanation of why the
+            unloading failed.
+
+        Raises:
+            IOError: if the loader script or manifest can't be written
+        """
+        def _has_all_dependers_unloaded(item, dependers):
+            for depender in dependers:
+                ipkg = self.find_installed_package(depender)
+                if ipkg and ipkg.status.is_loaded:
+                    return False
+            return True
+
+        errors = []
+        queue = deque([pkg_name])
+
+        while queue:
+            item = queue.popleft()
+            deps = self.get_installed_package_dependencies(item)
+
+            for pkg in deps:
+                ipkg = self.find_installed_package(pkg)
+                # it is possible that this dependency has been removed via zkg
+
+                if not ipkg:
+                    errors.append((pkg, 'Package not installed.'))
+                    return errors
+
+                if ipkg.status.is_loaded:
+                    queue.append(pkg)
+
+            ipkg = self.find_installed_package(item)
+
+            # it is possible that this package has been removed via zkg
+            if not ipkg:
+                errors.append((item, 'Package not installed.'))
+                return errors
+
+            if ipkg.status.is_loaded:
+                dep_packages = self.list_depender_pkgs(item)
+
+                # check if there is a cyclic dependency
+                if item in dep_packages:
+                    for dep in dep_packages:
+                        if item != dep:
+                            ipkg = self.find_installed_package(dep)
+
+                            if ipkg and ipkg.status.is_loaded:
+                                self.unload(dep)
+                                errors.append((dep, ''))
+
+                    self.unload(item)
+                    errors.append((item, ''))
+                    continue
+
+                # check if all dependers are unloaded
+                elif _has_all_dependers_unloaded(item, dep_packages):
+                    self.unload(item)
+                    errors.append((item, ''))
+                    continue
+
+                # package is in use
+                else:
+                    dep_packages = self.list_depender_pkgs(pkg_name)
+                    dep_listing = ''
+
+                    for _name in dep_packages:
+                        dep_listing += '"{}", '.format(_name)
+
+                    errors.append((item, 'Package is in use by other packages --- {}.'.format(dep_listing[:-2])))
+                    return errors
+
+        return errors
 
     def unload(self, pkg_path):
         """Unmark an installed package as being "loaded".
