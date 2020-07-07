@@ -1086,7 +1086,7 @@ class Manager(object):
 
         return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
 
-    def restoreState(self, saved_state):
+    def restore_loaded_package_states(self, saved_state):
         """Restores state for installed packages.
 
         Args:

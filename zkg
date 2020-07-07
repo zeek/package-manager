@@ -682,7 +682,7 @@ def cmd_install(manager, args, config, configfile):
                 print('The following installed packages could NOT be loaded to satisfy' \
                       ' runtime dependencies for "{}"'.format(name))
                 print(_listing)
-                manager.restoreState(saved_state)
+                manager.restore_loaded_package_states(saved_state)
 
     if installs_failed:
         print_error('error: incomplete installation, the follow packages'
@@ -1415,7 +1415,7 @@ def cmd_load(manager, args, config, configfile):
                     print('The following installed dependencies could not be loaded for "{}".'
                     	.format(name))
                     print(dep_error_listing)
-                    manager.restoreState(saved_state)
+                    manager.restore_loaded_package_states(saved_state)
             print('Failed to load "{}": {}'.format(name, load_error))
         else:
             print('Loaded "{}"'.format(name))
@@ -1474,7 +1474,7 @@ def batched_unload_cleanup(manager, unload_error, saved_state, name):
         print('Following packages could not be unloaded.')
         print(err_listing)
         print('Failed unloading "{}"'.format(name))
-        manager.restoreState(saved_state)
+        manager.restore_loaded_package_states(saved_state)
     return had_failure
 
 def cmd_pin(manager, args, config, configfile):
