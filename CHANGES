@@ -1,4 +1,13 @@
 
+2.2.0-2 | 2020-08-04 17:56:08 -0700
+
+  * Improve zkg prompt for unloading of dependent packages (Jon Siwek, Corelight)
+
+  * Prevent a package that has no scripts from autoloading (Jon Siwek, Corelight)
+
+    If a package has no scripts, explicitly prevent it from being added to
+    the packages.zeek "autoloader" script since that won't ever work.
+
 2.2.0 | 2020-07-07 14:45:41 -0700
 
   * Release 2.2.0.
