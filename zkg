@@ -968,7 +968,8 @@ def cmd_remove(manager, args, config, configfile):
                 dep_listing += '  {}\n'.format(_name)
 
             if dep_listing:
-                print('The following installed packages (or more) will be unloaded as well.')
+                print('The following installed packages were dependent on the '
+                      'removed package(s) and will be UNLOADED.')
                 print(dep_listing)
 
             if not args.force and not confirmation_prompt('Proceed?', default_to_yes=False):

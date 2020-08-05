@@ -46,7 +46,7 @@ The following packages depend on "one/bob/grault" and removing it will BREAK the
   baz
   foo
 
-The following installed packages (or more) will be unloaded as well.
+The following installed packages were dependent on the removed package(s) and will be UNLOADED.
   bar
   baz
   corge
