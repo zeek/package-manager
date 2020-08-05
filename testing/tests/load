@@ -8,3 +8,8 @@
 # @TEST-EXEC: zkg load foo
 # @TEST-EXEC: cp scripts/packages/packages.zeek after_load.out
 # @TEST-EXEC: btest-diff after_load.out
+
+# @TEST-EXEC: zkg install i-have-no-scripts
+# @TEST-EXEC: zkg load i-have-no-scripts
+# @TEST-EXEC: cp scripts/packages/packages.zeek after_loading_no_scripts.out
+# @TEST-EXEC: btest-diff after_loading_no_scripts.out

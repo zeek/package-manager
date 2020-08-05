@@ -260,7 +260,8 @@ class Manager(object):
                        '# Do not make direct modifications here.\n')
 
             for ipkg in self.loaded_packages():
-                content += '@load ./{}\n'.format(ipkg.package.name)
+                if self.has_scripts(ipkg):
+                    content += '@load ./{}\n'.format(ipkg.package.name)
 
             f.write(content)
 
