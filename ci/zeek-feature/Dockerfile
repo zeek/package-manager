@@ -49,7 +49,7 @@ ENV BASH_ENV="/usr/bin/zeek-ci-env" \
     PROMPT_COMMAND=". /usr/bin/zeek-ci-env" \
     PATH="${PATH}:/usr/local/zeek/bin"
 
-ENV ZEEK_CI_VERSION 3.1.1
+ENV ZEEK_CI_VERSION 3.2.0
 
 RUN cd /tmp && \
     source /opt/rh/devtoolset-7/enable && \
