@@ -2215,6 +2215,7 @@ class Manager(object):
         substitutions = {
             'bro_dist': self.zeek_dist,
             'zeek_dist': self.zeek_dist,
+            'package_base': self.package_clonedir,
         }
         substitutions.update(self.user_vars)
 

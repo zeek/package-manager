@@ -1,0 +1,8 @@
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: zkg install foo
+# @TEST-EXEC: btest-diff state/logs/foo-build.log
+
+cd packages/foo
+echo 'build_command = cd "%(package_base)s" && ls ' >> zkg.meta
+git commit -am 'new stuff'
