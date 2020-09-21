@@ -1,4 +1,16 @@
 
+2.3.0 | 2020-09-21 16:50:10 -0700
+
+  * Release 2.3.0.
+
+  * Add `package_base` as a pre-defined configuration key for value interpolation.
+
+    This enables a package to gain access to files from another package in
+    a well-defined manner. For example, if package `foo` wants to access
+    file `xyz.cfg` from package "bar", it can now declate `bar` as a
+    dependency and then use `%(package_base)s/bar/xyz.cfg` from its
+    `build_command`. (Robin Sommer, Corelight)
+
 2.2.1-2 | 2020-08-10 15:41:16 -0700
 
   * Bump CI to use Zeek 3.2.0 (Jon Siwek, Corelight)
