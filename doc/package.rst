@@ -506,6 +506,12 @@ Besides the `bro_dist`/`zeek_dist` config keys, any key inside the
 <zkg-config-file>` that matches the key of an entry in the package's
 `user_vars field`_ will be interpolated.
 
+Another pre-defined config key is `package_base`, which points to the top-level
+directory where :program:`zkg` stores all installed packages (i.e.  clones of
+each package's git repository). This can be used to gain access to the content
+of another package that was installed as a dependency.  Note that
+`package_base` is only available :program:`since zkg v2.3`
+
 Internally, the value substitution and metadata parsing is handled by Python's
 `configparser interpolation`_.  See its documentation if you're interested in
 the details of how the interpolation works.
