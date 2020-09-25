@@ -584,15 +584,10 @@ def cmd_install(manager, args, config, configfile):
                                            default_to_yes=False):
                     return
 
-    join_timeout = 0.01
-    tick_interval = 1
-
     installs_failed = []
 
     for info, version, _ in sorted(package_infos, key=lambda x: x[0].package.name):
         name = info.package.qualified_name()
-        time_accumulator = 0
-        tick_count = 0
 
         is_overwriting = False
         ipkg = manager.find_installed_package(name)
@@ -606,23 +601,19 @@ def cmd_install(manager, args, config, configfile):
 
         worker = InstallWorker(manager, name, version)
         worker.start()
+        print('Installing "{}"'.format(name), end='')
+        sys.stdout.flush()
 
-        while worker.is_alive():
-            worker.join(join_timeout)
-            time_accumulator += join_timeout
+        while True:
+            worker.join(1.0)
 
-            if time_accumulator >= tick_interval:
-                if tick_count == 0:
-                    print('Installing "{}"'.format(name), end='')
-                else:
-                    print('.', end='')
+            if not worker.is_alive():
+                break
 
-                sys.stdout.flush()
-                tick_count += 1
-                time_accumulator -= tick_interval
+            print('.', end='')
+            sys.stdout.flush()
 
-        if tick_count != 0:
-            print('')
+        print('')
 
         if worker.error:
             print('Failed installing "{}": {}'.format(name, worker.error))

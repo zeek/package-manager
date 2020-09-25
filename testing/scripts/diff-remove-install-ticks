@@ -1,0 +1,11 @@
+#! /usr/bin/env bash
+#
+# Replace 'Installing "foo"...' with 'Installing "foo"'
+
+if [ `uname` == "Linux" ]; then
+   sed="sed -r"
+else
+   sed="sed -E"
+fi
+
+$sed 's/Installing "(.*)"\.*/Installing "\1"/g'

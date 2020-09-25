@@ -1,6 +1,8 @@
 Install grault
+Installing "one/bob/corge"
 Installed "one/bob/corge" (1.0.0)
 Loaded "one/bob/corge"
+Installing "one/bob/grault"
 Installed "one/bob/grault" (1.0.0)
 Loaded "one/bob/grault"
 Unload grault
@@ -9,10 +11,13 @@ The following installed packages were additionally unloaded to satisfy runtime d
 
 Unloaded "one/bob/grault"
 Install foo
+Installing "one/alice/bar"
 Installed "one/alice/bar" (1.0.0)
 Loaded "one/alice/bar"
+Installing "one/alice/baz"
 Installed "one/alice/baz" (1.0.0)
 Loaded "one/alice/baz"
+Installing "one/alice/foo"
 Installed "one/alice/foo" (master)
 Loaded "one/alice/foo"
 The following installed packages were additionally loaded to satisfy runtime dependencies
