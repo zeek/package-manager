@@ -1,4 +1,8 @@
 
+2.3.1 | 2020-09-25 12:24:47 -0700
+
+  * Release 2.3.1.
+
 2.3.0-5 | 2020-09-25 12:22:22 -0700
 
   * GH-70: When running tests, use any already installed dependencies (Robin Sommer, Corelight)
