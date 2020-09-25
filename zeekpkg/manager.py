@@ -2097,7 +2097,7 @@ class Manager(object):
         make_dir(stage_plugin_dir)
 
         request = [(package.qualified_name(), version)]
-        invalid_deps, new_pkgs = self.validate_dependencies(request, True)
+        invalid_deps, new_pkgs = self.validate_dependencies(request, False)
 
         if invalid_deps:
             return (invalid_deps, False, test_dir)

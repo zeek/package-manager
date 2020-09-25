@@ -1,4 +1,17 @@
 
+2.3.0-5 | 2020-09-25 12:22:22 -0700
+
+  * GH-70: When running tests, use any already installed dependencies (Robin Sommer, Corelight)
+
+    Rather than rebuilding them.
+
+  * Small tweak to -v to turn any count >= 3 into debug. (Robin Sommer, Corelight)
+
+  * Simplify installation thread "progress ticks" logic (Jon Siwek, Corelight)
+
+    And canonify the "runtime" test baseline to not depend on any particular
+    duration required to join() the installing-thread.
+
 2.3.0 | 2020-09-21 16:50:10 -0700
 
   * Release 2.3.0.
