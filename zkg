@@ -2391,7 +2391,7 @@ def main():
             zeekpkg.LOG.setLevel(logging.WARNING)
         elif args.verbose == 2:
             zeekpkg.LOG.setLevel(logging.INFO)
-        elif args.verbose == 3:
+        elif args.verbose >= 3:
             zeekpkg.LOG.setLevel(logging.DEBUG)
 
         zeekpkg.LOG.addHandler(handler)
