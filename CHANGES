@@ -1,4 +1,8 @@
 
+2.4.0 | 2020-10-20 15:45:32 -0700
+
+  * Release 2.4.0.
+
 2.3.1-2 | 2020-10-20 14:26:32 -0700
 
   * GH-74: handle `git checkout` failures during `zkg refresh --aggregate` (Jon Siwek, Corelight)
