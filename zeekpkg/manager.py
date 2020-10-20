@@ -849,7 +849,15 @@ class Manager(object):
                     else:
                         version = 'master'
 
-                    git_checkout(clone, version)
+                    try:
+                        git_checkout(clone, version)
+                    except git.exc.GitCommandError as error:
+                        LOG.warn('failed to checkout branch/version "%s" of %s, '
+                                 'skipping aggregation: %s', version, url, error)
+                        msg = 'failed to checkout branch/version "{}": {}'.format(
+                                version, repr(error))
+                        aggregation_issues.append((url, msg))
+                        continue
 
                     metadata_file = _pick_metadata_file(clone.working_dir)
                     # Use raw parser so no value interpolation takes place.

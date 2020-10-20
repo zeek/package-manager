@@ -1,4 +1,12 @@
 
+2.3.1-2 | 2020-10-20 14:26:32 -0700
+
+  * GH-74: handle `git checkout` failures during `zkg refresh --aggregate` (Jon Siwek, Corelight)
+
+    Previously, a checkout failure caused the entire aggregation process
+    to fail, now it will just skip the offending package and later emit
+    a warning that it could not collect its associated metadata.
+
 2.3.1-1 | 2020-10-20 13:37:16 -0700
 
   * GH-75: show more warnings from `zkg refresh --aggregate` (Jon Siwek, Corelight)
