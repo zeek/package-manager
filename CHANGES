@@ -1,4 +1,13 @@
 
+2.3.1-1 | 2020-10-20 13:37:16 -0700
+
+  * GH-75: show more warnings from `zkg refresh --aggregate` (Jon Siwek, Corelight)
+
+    Package metadata collection issues (e.g. missing metadata file) were not
+    previously surfaced (except when using `zkg -v` verbosity), but these
+    might always be interesting to know about for those performing the
+    aggregation themselves.
+
 2.3.1 | 2020-09-25 12:24:47 -0700
 
   * Release 2.3.1.

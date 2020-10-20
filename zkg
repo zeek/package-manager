@@ -1064,8 +1064,15 @@ def cmd_refresh(manager, args, config, configfile):
         src_pkgs_before = {i.qualified_name()
                            for i in manager.source_packages()}
 
-        error = manager.refresh_source(
-            source, aggregate=args.aggregate, push=args.push)
+        error = ''
+        aggregation_issues = []
+
+        if args.aggregate:
+            res = manager.aggregate_source(source, args.push)
+            error = res.refresh_error
+            aggregation_issues = res.package_issues
+        else:
+            error = manager.refresh_source(source, False, args.push)
 
         if error:
             had_failure = True
@@ -1087,7 +1094,14 @@ def cmd_refresh(manager, args, config, configfile):
                 print('\t\t{} {}'.format(change, name))
 
         if args.aggregate:
-            print('\tMetadata aggregated')
+            if aggregation_issues:
+                print('\tWARNING: Metadata aggregated, but excludes the '
+                      'following packages due to described problems:')
+
+                for url, issue in aggregation_issues:
+                    print('\t\t{}: {}'.format(url, issue))
+            else:
+                print('\tMetadata aggregated')
 
         if args.push:
             print('\tPushed aggregated metadata')

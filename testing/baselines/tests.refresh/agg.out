@@ -1,0 +1,6 @@
+Refresh package source: one
+	No changes
+	WARNING: Metadata aggregated, but excludes the following packages due to described problems:
+		/home/jon/pro/zeek/package-manager/testing/.tmp/tests.refresh/packages/bad_pkg: missing zkg.meta (or bro-pkg.meta) metadata file
+Refresh installed packages
+	No new outdated packages

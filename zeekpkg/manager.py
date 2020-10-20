@@ -684,6 +684,51 @@ class Manager(object):
 
         return rval
 
+    class SourceAggregationResults(object):
+        """The return value of a call to :meth:`.Manager.aggregate_source()`.
+
+        Attributes:
+            refresh_error (str): an empty string if no overall error
+                occurred in the "refresh" operation, else a description of
+                what wrong
+
+            package_issues (list of (str, str)): a list of reasons for
+                failing to collect metadata per packages/repository.
+                The first tuple element gives the repository URL in which
+                the problem occurred and the second tuple element describes
+                the failure.
+        """
+
+        def __init__(self, refresh_error='', package_issues=[]):
+            self.refresh_error = refresh_error
+            self.package_issues = package_issues
+
+    def aggregate_source(self, name, push=False):
+        """Pull latest git info from a package source and aggregate metadata.
+
+        This is like calling :meth:`refresh_source()` with the *aggregate*
+        arguments set to True.
+
+        This makes the latest pre-aggregated package metadata available or
+        performs the aggregation locally in order to push it to the actual
+        package source.  Locally aggregated data also takes precedence over
+        the source's pre-aggregated data, so it can be useful in the case
+        the operator of the source does not update their pre-aggregated data
+        at a frequent enough interval.
+
+        Args:
+            name(str): the name of the package source.  E.g. the same name
+                used as a key to :meth:`add_source()`.
+
+            push (bool): whether to push local changes to the aggregated
+                metadata to the remote package source.
+
+        Returns:
+            :class:`.Manager.SourceAggregationResults`: the results of the
+                refresh/aggregation.
+        """
+        return self._refresh_source(name, True, push)
+
     def refresh_source(self, name, aggregate=False, push=False):
         """Pull latest git information from a package source.
 
@@ -710,8 +755,13 @@ class Manager(object):
             str: an empty string if no errors occurred, else a description
             of what went wrong.
         """
+        res = self._refresh_source(name, aggregate, push)
+        return res.refresh_error
+
+    def _refresh_source(self, name, aggregate=False, push=False):
+        """Used by :meth:`refresh_source()` and :meth:`aggregate_source()`."""
         if name not in self.sources:
-            return 'source name does not exist'
+            return self.SourceAggregationResults('source name does not exist')
 
         source = self.sources[name]
         LOG.debug('refresh "%s": pulling %s', name, source.git_url)
@@ -741,7 +791,8 @@ class Manager(object):
             source.clone.git.submodule('update', '--recursive', '--init')
         except git.exc.GitCommandError as error:
             LOG.error('failed to pull source %s: %s', name, error)
-            return 'failed to pull from remote source: {}'.format(error)
+            return self.SourceAggregationResults(
+                    'failed to pull from remote source: {}'.format(error))
 
         if os.path.isfile(agg_file_ours):
             if os.path.isfile(aggregate_file):
@@ -766,6 +817,8 @@ class Manager(object):
                 shutil.copy2(agg_file_ours, aggregate_file)
                 LOG.debug("no aggegrate file in source, restore local one")
 
+        aggregation_issues = []
+
         if aggregate:
             # Use raw parser so no value interpolation takes place.
             parser = configparser.RawConfigParser()
@@ -786,6 +839,7 @@ class Manager(object):
                     except git.exc.GitCommandError as error:
                         LOG.warn('failed to clone %s, skipping aggregation: %s',
                                  url, error)
+                        aggregation_issues.append((url, repr(error)))
                         continue
 
                     version_tags = _get_version_tags(clone)
@@ -806,6 +860,7 @@ class Manager(object):
                     if invalid_reason:
                         LOG.warn('skipping aggregation of %s: bad metadata: %s',
                                  url, invalid_reason)
+                        aggregation_issues.append((url, invalid_reason))
                         continue
 
                     metadata = _get_package_metadata(metadata_parser)
@@ -835,7 +890,7 @@ class Manager(object):
 
             source.clone.git.push()
 
-        return ''
+        return self.SourceAggregationResults('', aggregation_issues)
 
     def refresh_installed_packages(self):
         """Fetch latest git information for installed packages.
