@@ -106,7 +106,13 @@ def git_clone(git_url, dst_path, shallow=False):
     # local git repo that has submodules ?
     rval.git.remote('set-url', 'origin', git_url)
 
-    rval.git.fetch('--no-recurse-submodules', tags=True)
+    # Fetch version tags only if we're not dealing with a shallow
+    # clone, where we only have the most recent commit anyway. This
+    # avoids additional trouble with older git versions, e.g. git
+    # 1.8.3 on Centos 7.
+    if not shallow:
+        rval.git.fetch('--no-recurse-submodules', tags=True)
+
     return rval
 
 
