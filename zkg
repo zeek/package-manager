@@ -1,5 +1,17 @@
 #! /usr/bin/env python3
 
+import os
+import io
+import errno
+import argparse
+import logging
+import threading
+import tarfile
+import filecmp
+import shutil
+import subprocess
+import json
+import configparser
 import sys
 
 try:
@@ -17,6 +29,24 @@ except ImportError:
           file=sys.stderr)
     sys.exit(1)
 
+# For Zeek-bundled installation, explictly add the Python path we've
+# installed ourselves under, so we find the zkgpkg module:
+ZEEK_PYTHON_DIR = '@PY_MOD_INSTALL_DIR@'
+if os.path.isdir(ZEEK_PYTHON_DIR):
+    sys.path.append(os.path.abspath(ZEEK_PYTHON_DIR))
+else:
+    ZEEK_PYTHON_DIR = None
+
+# Also when bundling with Zeek, use directories in the install tree
+# for storing the zkg configuration and its variable state:
+ZEEK_ZKG_CONFIG_DIR = '@ZEEK_ZKG_CONFIG_DIR@'
+if not os.path.isdir(ZEEK_ZKG_CONFIG_DIR):
+    ZEEK_ZKG_CONFIG_DIR = None
+
+ZEEK_ZKG_STATE_DIR = '@ZEEK_ZKG_STATE_DIR@'
+if not os.path.isdir(ZEEK_ZKG_STATE_DIR):
+    ZEEK_ZKG_STATE_DIR = None
+
 from zeekpkg._util import (
     make_dir,
     make_symlink,
@@ -27,19 +57,6 @@ from zeekpkg._util import (
 from zeekpkg.package import (
     TRACKING_METHOD_VERSION,
 )
-
-import os
-import io
-import errno
-import argparse
-import logging
-import threading
-import tarfile
-import filecmp
-import shutil
-import subprocess
-import json
-import configparser
 
 import zeekpkg
 
@@ -172,7 +189,7 @@ def find_configfile():
 
 
 def default_config_dir():
-    return os.path.join(os.path.expanduser('~'), '.zkg')
+    return ZEEK_ZKG_CONFIG_DIR or os.path.join(os.path.expanduser('~'), '.zkg')
 
 
 def legacy_config_dir():
@@ -180,7 +197,7 @@ def legacy_config_dir():
 
 
 def default_state_dir():
-    return os.path.join(os.path.expanduser('~'), '.zkg')
+    return ZEEK_ZKG_STATE_DIR or os.path.join(os.path.expanduser('~'), '.zkg')
 
 
 def legacy_state_dir():
