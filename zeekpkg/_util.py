@@ -105,8 +105,6 @@ def git_clone(git_url, dst_path, shallow=False):
     # unintended inheritence of "origin" seems to only happen when cloning a
     # local git repo that has submodules ?
     rval.git.remote('set-url', 'origin', git_url)
-
-    rval.git.fetch('--no-recurse-submodules', tags=True)
     return rval
 
 
