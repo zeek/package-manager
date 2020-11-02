@@ -1,4 +1,16 @@
 
+2.4.0-2 | 2020-11-02 13:38:01 -0800
+
+  * Remove superfluous "fetch" during git cloning (Jon Siwek, Corelight)
+
+    Fetching tags used to be necessary for shallow clones, but that now
+    happens implicitly since changing to use `git clone --no-single-branch`
+    (which is also needed for zkg's branch-based version tracking).
+
+    A secondary `git fetch` after doing a shallow clone also has negative
+    effect of causing errors on older git versions (e.g. v1.8.3.1, currently
+    found in CentOS 7) since they prohibit fetching from a shallow clone.
+
 2.4.0 | 2020-10-20 15:45:32 -0700
 
   * Release 2.4.0.
