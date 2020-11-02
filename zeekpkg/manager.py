@@ -1203,7 +1203,7 @@ class Manager(object):
         return retval
 
     def list_depender_pkgs(self, pkg_path):
-        """List of depender packages packages.
+        """List of depender packages.
 
         If C depends on B and B depends on A, we represent the dependency
         chain as C -> B -> A. Thus, package C is dependent on A and B,
