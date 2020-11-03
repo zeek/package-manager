@@ -441,7 +441,11 @@ class Manager(object):
         return [ipkg for _, ipkg in sorted(self.installed_pkgs.items())]
 
     def installed_package_dependencies(self):
-        """Return dict of package name -> :class:`.package.InstalledPackage`."""
+        """Return dict of 'package' -> dict of 'dependency' -> 'version'.
+
+        Package-name / dependency-name / and version-requirement values are
+        all strings.
+        """
         return {name: ipkg.package.dependencies()
                 for name, ipkg in self.installed_pkgs.items()}
 
