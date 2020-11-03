@@ -1195,6 +1195,9 @@ class Manager(object):
         visited.add(pkg_name)
 
         for pkg in self.get_installed_package_dependencies(pkg_name):
+            if _is_reserved_pkg_name(pkg):
+                continue
+
             if pkg in visited:
                 continue
 
@@ -1278,6 +1281,9 @@ class Manager(object):
             deps = self.get_installed_package_dependencies(item)
 
             for pkg in deps:
+                if _is_reserved_pkg_name(pkg):
+                    continue
+
                 ipkg = self.find_installed_package(pkg)
                 # it is possible that this dependency has been removed via zkg
 
@@ -2792,3 +2798,7 @@ def _info_from_clone(clone, package, status, version):
                        status=status, metadata=metadata, versions=versions,
                        metadata_version=version, version_type=version_type,
                        metadata_file=metadata_file)
+
+
+def _is_reserved_pkg_name(name):
+    return name == 'bro' or name == 'zeek' or name == 'zkg'
