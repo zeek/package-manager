@@ -413,7 +413,7 @@ class Package(object):
         return user_vars(self.metadata)
 
     def name_with_source_directory(self):
-        """Return the package's within its package source.
+        """Return the package's name within its package source.
 
         E.g. for a package source with a package named "foo" in
         :file:`alice/zkg.index`, this method returns "alice/foo".

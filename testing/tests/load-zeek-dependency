@@ -1,0 +1,16 @@
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: zkg install foo
+# @TEST-EXEC: zkg unload foo
+# @TEST-EXEC: zkg list loaded >nothing-loaded.out
+# @TEST-EXEC: btest-diff nothing-loaded.out
+# @TEST-EXEC: zkg load foo
+# @TEST-EXEC: zkg list loaded >foo-loaded.out
+# @TEST-EXEC: btest-diff foo-loaded.out
+
+# The logic for dependency-aware (un)loading should just silently ignore "zeek"
+# as a special dependency and not a real package to consider (un)loading.
+
+cd packages/foo
+echo 'depends = zeek *' >> zkg.meta
+git commit -am 'new stuff'

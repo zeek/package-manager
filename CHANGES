@@ -1,4 +1,59 @@
 
+2.4.0-13 | 2020-11-03 14:52:09 -0800
+
+  * Improve "remove" operation to not unload already-unloaded dependencies (Jon Siwek, Corelight)
+
+  * Improve how "unload" operation manages dependencies (Jon Siwek, Corelight)
+
+    * Added a confirmation prompt for the "unload" operation
+      and a `--force` option to bypass it
+
+    * The confirmation prompt now lists all dependent packages that
+      will also be unloaded as part of the request
+
+  * Rename the "runtime dependency management" btest (Jon Siwek, Corelight)
+
+  * GH-78: Improve structure/output of "remove" operations (Jon Siwek, Corelight)
+
+    * Previously, the remove operation would indicate that all other
+      installed packages besides the one being removed were dependent
+      and needed to be unloaded.  No such action would ever happen, it
+      was just incorrect/extraneous output.
+
+    * Previously, a second "Proceed?" prompt would appear (as part of the
+      logic to ask if it's alright to unload dependers) even if there's
+      only a single, independent package being removed.
+
+    * With this change, the entire set of depender-packages is gathered
+      up front to display both packages-to-remove and packages-to-unload
+      within the a single "Proceed?" prompt.  This makes it clear what the
+      overall results of the remove operation will be right away rather than
+      prompt per package-to-remove asking just-in-time if it's ok to unload
+      dependers.  That is, easier for user to make a single decision at the
+      start rather than find out midway that something isn't to their liking
+      and abort then, possibly leaving things in an undesirable state that
+      still needs sorting out.
+
+      This is also helps streamline the final output of the resulting
+      unload/remove operations which was previously hard to parse since it
+      included redundant information about which were unloaded and also
+      unimportant errors like saying a package couldn't be unloaded at a
+      certain point because it was still in use by another package except
+      that other package was later scheduled to also be unloaded, making
+      that error moot.
+
+  * Fix various docstring typos/mistakes (Jon Siwek, Corelight)
+
+  * GH-79: fix dependency-aware (un)loading logic to ignore "reserved" names (Jon Siwek, Corelight)
+
+    Both `Manager.load_with_dependencies()` and
+    `Manger.unload_with_unused_dependers()` previously could find a package
+    depending on "zeek" (or "zkg") and consider that as the name of a
+    package to (un)load as part of the operation and fail since they're not
+    real packages that are installed.  Those operations now simply skip over
+    such reserved names when walking the dependency graph since there's
+    nothing to do for them.
+
 2.4.0-2 | 2020-11-02 13:38:01 -0800
 
   * Remove superfluous "fetch" during git cloning (Jon Siwek, Corelight)

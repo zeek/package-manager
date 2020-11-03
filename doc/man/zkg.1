@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Nov 02, 2020" "2.4.0-2" "Zeek Package Manager"
+.TH "ZKG" "1" "Nov 03, 2020" "2.4.0-13" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -380,7 +380,7 @@ The Zeek Package Manager keeps track of all packages that are marked as "loaded"
 .sp
 .nf
 .ft C
-usage: zkg unload [\-h] [\-\-nodeps] package [package ...]
+usage: zkg unload [\-h] [\-\-force] [\-\-nodeps] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -396,6 +396,9 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .TP
 .B Options:
 .INDENT 7.0
+.TP
+.B \-\-force=False
+Skip the confirmation prompt.
 .TP
 .B \-\-nodeps=False
 Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a broken or unusable state.

@@ -441,7 +441,11 @@ class Manager(object):
         return [ipkg for _, ipkg in sorted(self.installed_pkgs.items())]
 
     def installed_package_dependencies(self):
-        """Return dict of package name -> :class:`.package.InstalledPackage`."""
+        """Return dict of 'package' -> dict of 'dependency' -> 'version'.
+
+        Package-name / dependency-name / and version-requirement values are
+        all strings.
+        """
         return {name: ipkg.package.dependencies()
                 for name, ipkg in self.installed_pkgs.items()}
 
@@ -1195,6 +1199,9 @@ class Manager(object):
         visited.add(pkg_name)
 
         for pkg in self.get_installed_package_dependencies(pkg_name):
+            if _is_reserved_pkg_name(pkg):
+                continue
+
             if pkg in visited:
                 continue
 
@@ -1207,8 +1214,7 @@ class Manager(object):
 
         If C depends on B and B depends on A, we represent the dependency
         chain as C -> B -> A. Thus, package C is dependent on A and B,
-        while package B is dependent on just C. So pkg_dependencies would
-        be::
+        while package B is dependent on just A.  Example representation::
 
             {
             'A': set(),
@@ -1278,6 +1284,9 @@ class Manager(object):
             deps = self.get_installed_package_dependencies(item)
 
             for pkg in deps:
+                if _is_reserved_pkg_name(pkg):
+                    continue
+
                 ipkg = self.find_installed_package(pkg)
                 # it is possible that this dependency has been removed via zkg
 
@@ -2792,3 +2801,7 @@ def _info_from_clone(clone, package, status, version):
                        status=status, metadata=metadata, versions=versions,
                        metadata_version=version, version_type=version_type,
                        metadata_file=metadata_file)
+
+
+def _is_reserved_pkg_name(name):
+    return name == 'bro' or name == 'zeek' or name == 'zkg'

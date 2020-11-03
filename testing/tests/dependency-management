@@ -1,0 +1,46 @@
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: echo '** Install grault' >out
+# @TEST-EXEC: zkg install grault >>out
+
+# @TEST-EXEC: echo '** Unload grault' >>out
+# @TEST-EXEC: zkg unload grault >>out
+
+# @TEST-EXEC: echo '** Install foo' >>out
+# @TEST-EXEC: zkg install foo >>out
+
+# @TEST-EXEC: echo '** Unload foo' >>out
+# @TEST-EXEC: zkg unload foo >>out
+
+# @TEST-EXEC: echo '** Load foo' >>out
+# @TEST-EXEC: zkg load foo >>out
+
+# @TEST-EXEC: echo '** Unload bar' >>out
+# @TEST-EXEC: zkg unload bar>>out
+
+# @TEST-EXEC: echo '** Remove grault' >>out
+# @TEST-EXEC: zkg remove grault >>out
+
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-install-ticks btest-diff out
+
+cd packages/foo
+echo 'depends = bar *' >> zkg.meta
+git commit -am 'new stuff'
+
+cd ../bar
+echo 'depends = baz >=1.0.0' >> zkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../baz
+echo 'depends = grault ==1.0.0' >> zkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../grault
+echo 'depends = corge ==1.0.0' >> zkg.meta
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+
+cd ../corge
+git tag -a 1.0.0 -m 1.0.0
