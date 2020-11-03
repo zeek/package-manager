@@ -1,13 +1,13 @@
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: echo 'Install grault' > loaded.out
-# @TEST-EXEC: zkg install grault --force >> loaded.out
+# @TEST-EXEC: zkg install grault >> loaded.out
 
 # @TEST-EXEC: echo 'Unload grault' >> loaded.out
 # @TEST-EXEC: zkg unload grault >> loaded.out
 
 # @TEST-EXEC: echo 'Install foo' >> loaded.out
-# @TEST-EXEC: zkg install foo --force >> loaded.out
+# @TEST-EXEC: zkg install foo >> loaded.out
 
 # @TEST-EXEC: echo 'Unload grault' >> loaded.out
 # @TEST-EXEC-FAIL: zkg unload grault >> loaded.out
@@ -19,7 +19,7 @@
 # @TEST-EXEC: zkg load foo >> loaded.out
 
 # @TEST-EXEC: echo 'Remove grault' >> loaded.out
-# @TEST-EXEC: zkg remove grault --force >> loaded.out
+# @TEST-EXEC: zkg remove grault >> loaded.out
 
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-install-ticks btest-diff loaded.out
 
