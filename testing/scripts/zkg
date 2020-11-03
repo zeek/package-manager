@@ -18,6 +18,9 @@ case "$1" in
     remove)
         force="--force"
     ;;
+    unload)
+        force="--force"
+    ;;
     purge)
         force="--force"
     ;;

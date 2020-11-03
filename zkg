@@ -1440,6 +1440,15 @@ def cmd_load(manager, args, config, configfile):
 
 def cmd_unload(manager, args, config, configfile):
     had_failure = False
+    packages_to_unload = []
+    dependers_to_unload = set()
+
+    def package_will_be_unloaded(pkg_name):
+        for _ipkg in packages_to_unload:
+            if _ipkg.package.name == pkg_name:
+                return True
+
+        return False
 
     for name in args.package:
         ipkg = manager.find_installed_package(name)
@@ -1449,51 +1458,59 @@ def cmd_unload(manager, args, config, configfile):
             print('Failed to unload "{}": no such package installed'.format(name))
             continue
 
-        if not manager.has_scripts(ipkg):
-            print('The package "{}" does not contain scripts to unload.'.format(name))
+        if not ipkg.status.is_loaded:
             continue
 
+        packages_to_unload.append(ipkg)
+
+    if not args.nodeps:
+        for ipkg in packages_to_unload:
+            for pkg_name in manager.list_depender_pkgs(ipkg.package.name):
+                ipkg = manager.find_installed_package(pkg_name)
+
+                if ipkg and not package_will_be_unloaded(ipkg.package.name):
+                    if ipkg.status.is_loaded:
+                        dependers_to_unload.add(ipkg.package.name)
+
+
+    if packages_to_unload and not args.force:
+        print('The following packages will be UNLOADED:')
+
+        for ipkg in packages_to_unload:
+            print('  {}'.format(ipkg.package.qualified_name()))
+
+        print()
+
+        if dependers_to_unload:
+            print('The following dependent packages will be UNLOADED:')
+
+            for pkg_name in sorted(dependers_to_unload):
+                ipkg = manager.find_installed_package(pkg_name)
+                print('  {}'.format(ipkg.package.qualified_name()))
+
+            print()
+
+        if not confirmation_prompt('Proceed?'):
+            if had_failure:
+                sys.exit(1)
+            else:
+                return
+
+    for pkg_name in sorted(dependers_to_unload):
+        packages_to_unload.append(manager.find_installed_package(pkg_name))
+
+    for ipkg in packages_to_unload:
         name = ipkg.package.qualified_name()
 
-        if args.nodeps:
-            if manager.unload(name):
-                print('Unloaded "{}"'.format(name))
-            else:
-                had_failure = True
-                print('Failed unloading "{}": no such package installed'.format(name))
+        if manager.unload(name):
+            print('Unloaded "{}"'.format(name))
         else:
-            saved_state = manager.loaded_package_states()
-            unload_error = manager.unload_with_unused_dependers(zeekpkg.package.name_from_path(name))
-            had_failure = batched_unload_cleanup(manager, unload_error, saved_state, name)
+            had_failure = True
+            print('Failed unloading "{}": no such package installed'.format(name))
 
     if had_failure:
         sys.exit(1)
 
-
-def batched_unload_cleanup(manager, unload_error, saved_state, name):
-    err_listing, had_failure = '', False
-
-    for _name, _error in unload_error:
-        if _error:
-            err_listing += '  {}: {}\n'.format(_name, _error)
-
-    if err_listing:
-        had_failure = True
-        print('The following packages could not be unloaded:')
-        print(err_listing)
-        print('Failed unloading "{}"'.format(name))
-        manager.restore_loaded_package_states(saved_state)
-    else:
-        dep_listing = get_changed_state(manager, saved_state, [name])
-
-        if dep_listing:
-            print('The following installed packages were additionally unloaded to satisfy' \
-            ' runtime dependencies for "{}".'.format(name))
-            print(dep_listing)
-
-        print('Unloaded "{}"'.format(name))
-
-    return had_failure
 
 def cmd_pin(manager, args, config, configfile):
     had_failure = False
@@ -2236,6 +2253,9 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_unload)
     sub_parser.add_argument(
         'package', nargs='+', default=[], help=pkg_name_help)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip the confirmation prompt.')
     sub_parser.add_argument(
         '--nodeps', action='store_true',
         help='Skip all dependency resolution/checks.  Note that using this'

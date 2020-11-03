@@ -1,24 +1,24 @@
 # @TEST-EXEC: bash %INPUT
 
-# @TEST-EXEC: echo 'Install grault' >out
+# @TEST-EXEC: echo '** Install grault' >out
 # @TEST-EXEC: zkg install grault >>out
 
-# @TEST-EXEC: echo 'Unload grault' >>out
+# @TEST-EXEC: echo '** Unload grault' >>out
 # @TEST-EXEC: zkg unload grault >>out
 
-# @TEST-EXEC: echo 'Install foo' >>out
+# @TEST-EXEC: echo '** Install foo' >>out
 # @TEST-EXEC: zkg install foo >>out
 
-# @TEST-EXEC: echo 'Unload grault' >>out
-# @TEST-EXEC-FAIL: zkg unload grault >>out
-
-# @TEST-EXEC: echo 'Unload foo' >>out
+# @TEST-EXEC: echo '** Unload foo' >>out
 # @TEST-EXEC: zkg unload foo >>out
 
-# @TEST-EXEC: echo 'Load foo' >>out
+# @TEST-EXEC: echo '** Load foo' >>out
 # @TEST-EXEC: zkg load foo >>out
 
-# @TEST-EXEC: echo 'Remove grault' >>out
+# @TEST-EXEC: echo '** Unload bar' >>out
+# @TEST-EXEC: zkg unload bar>>out
+
+# @TEST-EXEC: echo '** Remove grault' >>out
 # @TEST-EXEC: zkg remove grault >>out
 
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-install-ticks btest-diff out
