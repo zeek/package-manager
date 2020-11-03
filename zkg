@@ -1488,7 +1488,7 @@ def batched_unload_cleanup(manager, unload_error, saved_state, name):
 
     if err_listing:
         had_failure = True
-        print('Following packages could not be unloaded.')
+        print('The following packages could not be unloaded:')
         print(err_listing)
         print('Failed unloading "{}"'.format(name))
         manager.restore_loaded_package_states(saved_state)

@@ -25,7 +25,7 @@ The following installed packages were additionally loaded to satisfy runtime dep
   grault
 
 Unload grault
-Following packages could not be unloaded.
+The following packages could not be unloaded:
   grault: Package is in use by other packages --- "bar", "baz", "foo".
 
 Failed unloading "one/bob/grault"
@@ -57,11 +57,11 @@ The following installed packages were dependent on the removed package(s) and wi
   corge
   foo
 
-Following packages could not be unloaded.
+The following packages could not be unloaded:
   bar: Package is in use by other packages --- "foo".
 
 Failed unloading "bar"
-Following packages could not be unloaded.
+The following packages could not be unloaded:
   baz: Package is in use by other packages --- "bar", "foo".
 
 Failed unloading "baz"
