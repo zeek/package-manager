@@ -1214,8 +1214,7 @@ class Manager(object):
 
         If C depends on B and B depends on A, we represent the dependency
         chain as C -> B -> A. Thus, package C is dependent on A and B,
-        while package B is dependent on just C. So pkg_dependencies would
-        be::
+        while package B is dependent on just A.  Example representation::
 
             {
             'A': set(),
