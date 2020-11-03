@@ -934,7 +934,8 @@ def cmd_remove(manager, args, config, configfile):
                 ipkg = manager.find_installed_package(pkg_name)
 
                 if ipkg and not package_will_be_removed(ipkg.package.name):
-                    dependers_to_unload.add(ipkg.package.name)
+                    if ipkg.status.is_loaded:
+                        dependers_to_unload.add(ipkg.package.name)
 
     if not args.force:
         print('The following packages will be REMOVED:')

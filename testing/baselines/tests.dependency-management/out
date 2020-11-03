@@ -28,7 +28,5 @@ Loaded "one/alice/foo"
 Unloaded "one/alice/bar"
 Unloaded "one/alice/foo"
 ** Remove grault
-Unloaded "one/alice/bar"
 Unloaded "one/alice/baz"
-Unloaded "one/alice/foo"
 Removed "one/bob/grault"
