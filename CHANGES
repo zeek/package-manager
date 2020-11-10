@@ -1,4 +1,8 @@
 
+2.4.2 | 2020-11-10 15:18:54 -0800
+
+  * Release 2.4.2.
+
 2.4.1-5 | 2020-11-10 15:17:45 -0800
 
   * Fix/improve dependency resolution failure messages (Jon Siwek, Corelight)
