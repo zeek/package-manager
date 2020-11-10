@@ -1899,93 +1899,76 @@ class Manager(object):
                                     new_pkgs)
             else:
                 # Choose best version that satisfies constraints
-                if not node.info.versions:
-                    best_version = 'master'
+                best_version = None
+                need_branch = False
+                need_version = False
+
+                def no_best_version_string(node):
+                    rval = str.format(
+                        '"{}" has no version satisfying dependencies:\n',
+                        node.name)
+
+                    for depender_name, version_spec in node.dependers.items():
+                        rval += str.format('\t"{}" requires: "{}"\n',
+                                           depender_name, version_spec)
+
+                    return rval
+
+                for _, version_spec in node.dependers.items():
+                    if version_spec.startswith('branch='):
+                        need_branch = True
+                    elif version_spec != '*':
+                        need_version = True
+
+                if need_branch and need_version:
+                    return (no_best_version_string(node), new_pkgs)
+
+                if need_branch:
+                    branch_name = None
 
                     for depender_name, version_spec in node.dependers.items():
                         if version_spec == '*':
                             continue
 
-                        if version_spec.startswith('branch='):
-                            version_spec = version_spec[len('branch='):]
-
-                        if version_spec == best_version:
+                        if not branch_name:
+                            branch_name = version_spec[len('branch='):]
                             continue
 
-                        return (str.format(
-                            'unsatisfiable dependency "{}": "{}" requires {}',
-                            node.name, depender_name, version_spec), new_pkgs)
-                else:
-                    best_version = None
-                    need_branch = False
-                    need_version = False
+                        if branch_name != version_spec[len('branch='):]:
+                            return (no_best_version_string(), new_pkgs)
 
-                    def no_best_version_string(node):
-                        rval = str.format(
-                            '"{}" has no version satisfying dependencies:\n',
-                            node.name)
+                    if branch_name:
+                        best_version = branch_name
+                    else:
+                        best_version = 'master'
+                elif need_version:
+                    for version in node.info.versions[::-1]:
+                        normal_version = _normalize_version_tag(version)
+                        req_semver = semver.Version.coerce(normal_version)
 
-                        for depender_name, version_spec in node.dependers.items():
-                            rval += str.format('\t{} needs {}\n',
-                                               depender_name, version_spec)
-
-                        return (rval, new_pkgs)
-
-                    for _, version_spec in node.dependers.items():
-                        if version_spec.startswith('branch='):
-                            need_branch = True
-                        elif version_spec != '*':
-                            need_version = True
-
-                    if need_branch and need_version:
-                        return (no_best_version_string(node), new_pkgs)
-
-                    if need_branch:
-                        branch_name = None
+                        satisfied = True
 
                         for depender_name, version_spec in node.dependers.items():
-                            if version_spec == '*':
-                                continue
+                            try:
+                                semver_spec = semver.Spec(version_spec)
+                            except ValueError:
+                                return (str.format(
+                                    'package "{}" has invalid semver spec: {}',
+                                    depender_name, version_spec), new_pkgs)
 
-                            if not branch_name:
-                                branch_name = version_spec[len('branch='):]
-                                continue
-
-                            if branch_name != version_spec[len('branch='):]:
-                                return (no_best_version_string(), new_pkgs)
-
-                        if branch_name:
-                            best_version = branch_name
-                        else:
-                            best_version = 'master'
-                    elif need_version:
-                        for version in node.info.versions[::-1]:
-                            normal_version = _normalize_version_tag(version)
-                            req_semver = semver.Version.coerce(normal_version)
-
-                            satisfied = True
-
-                            for depender_name, version_spec in node.dependers.items():
-                                try:
-                                    semver_spec = semver.Spec(version_spec)
-                                except ValueError:
-                                    return (str.format(
-                                        'package "{}" has invalid semver spec: {}',
-                                        depender_name, version_spec), new_pkgs)
-
-                                if req_semver not in semver_spec:
-                                    satisfied = False
-                                    break
-
-                            if satisfied:
-                                best_version = version
+                            if req_semver not in semver_spec:
+                                satisfied = False
                                 break
 
-                        if not best_version:
-                            return (no_best_version_string(node), new_pkgs)
-                    else:
-                        # Must have been all '*' wildcards
-                        best_version = node.info.best_version()
+                        if satisfied:
+                            best_version = version
+                            break
+
+                    if not best_version:
+                        return (no_best_version_string(node), new_pkgs)
+                else:
+                    # Must have been all '*' wildcards or no dependers
+                    best_version = node.info.best_version()
 
                 new_pkgs.append((node.info, best_version, node.is_suggestion))
 

@@ -1,4 +1,21 @@
 
+2.4.1-5 | 2020-11-10 15:17:45 -0800
+
+  * Fix/improve dependency resolution failure messages (Jon Siwek, Corelight)
+
+    The no_best_version_string() function was incorrectly returning a tuple
+    instead of a string.
+
+  * GH-83: Fix branch-based dependency analysis for packages with no tags (Jon Siwek, Corelight)
+
+    Branch-based dependency analysis was incorrectly skipped for packages
+    that had no release version tags.
+
+  * GH-82: Enforce dependency requirements of already-installed packages (Jon Siwek, Corelight)
+
+    Treat as an error the installing a package that would break dependency
+    requirements of an already-installed package.
+
 2.4.1 | 2020-11-03 14:55:16 -0800
 
   * Release 2.4.1.

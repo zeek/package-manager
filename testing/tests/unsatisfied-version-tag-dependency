@@ -1,0 +1,9 @@
+
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC-FAIL: zkg install foo >fail.out 2>&1
+# @TEST-EXEC: btest-diff fail.out
+
+cd packages/foo
+echo 'depends = bar =1.0.0' >> zkg.meta
+git commit -am 'depend on bar 1.0.0'

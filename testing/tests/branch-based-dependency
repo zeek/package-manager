@@ -1,0 +1,14 @@
+
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: zkg install --version release/1.0 foo
+# @TEST-EXEC: zkg list installed > installed.out
+# @TEST-EXEC: btest-diff installed.out
+
+cd packages/foo
+git checkout -b release/1.0
+echo 'depends = bar branch=release/1.0' >> zkg.meta
+git commit -am 'depend on bar release/1.0'
+
+cd ../bar
+git checkout -b release/1.0
