@@ -1844,14 +1844,6 @@ class Manager(object):
                 track_method, required_version = node.installed_version
 
                 for depender_name, version_spec in node.dependers.items():
-                    if ( depender_name in graph and
-                         graph[depender_name].installed_version ):
-                        # Both nodes already installed, so assume compatible.
-                        # They're maybe not actually if the user installed via
-                        # --nodeps, but if that's their desired state, it's
-                        # better not to complain about it now.
-                        continue
-
                     if track_method == TRACKING_METHOD_BRANCH:
                         if version_spec == '*':
                             continue
