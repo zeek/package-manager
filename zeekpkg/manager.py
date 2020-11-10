@@ -1917,10 +1917,10 @@ class Manager(object):
                         node.name)
 
                     for depender_name, version_spec in node.dependers.items():
-                        rval += str.format('\t{} needs {}\n',
+                        rval += str.format('\t"{}" requires: "{}"\n',
                                            depender_name, version_spec)
 
-                    return (rval, new_pkgs)
+                    return rval
 
                 for _, version_spec in node.dependers.items():
                     if version_spec.startswith('branch='):

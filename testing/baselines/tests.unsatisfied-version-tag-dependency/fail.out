@@ -1,0 +1,3 @@
+error: failed to resolve dependencies: "one/alice/bar" has no version satisfying dependencies:
+	"one/alice/foo" requires: "=1.0.0"
+
