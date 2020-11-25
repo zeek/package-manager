@@ -13,7 +13,7 @@ Dependencies
 * semantic_version: https://pypi.python.org/pypi/semantic_version
 * btest: https://pypi.python.org/pypi/btest
 
-Note that following the suggested `Installation`_ process via :program:`pip`
+Note that following the suggested `Installation`_ process via :program:`pip3`
 will automatically install dependencies for you.
 
 Installation
@@ -23,13 +23,13 @@ Using the latest stable release on PyPI_:
 
 .. code-block:: console
 
-  $ pip install zkg
+  $ pip3 install zkg
 
 Using the latest git development version:
 
 .. code-block:: console
 
-  $ pip install git+git://github.com/zeek/package-manager@master
+  $ pip3 install git+git://github.com/zeek/package-manager@master
 
 .. note::
 
@@ -41,7 +41,7 @@ Using the latest git development version:
 Basic Configuration
 -------------------
 
-After installing via :program:`pip`, additional configuration is required.
+After installing via :program:`pip3`, additional configuration is required.
 First, make sure that the :program:`zeek-config` script that gets installed with
 :program:`zeek` is in your :envvar:`PATH`.  Then, as the user you want to run
 :program:`zkg` with, do:

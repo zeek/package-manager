@@ -48,7 +48,7 @@ To build documentation locally, find the requirements in
 
 They can be installed like:
 
-  pip install -r requirements.txt
+  pip3 install -r requirements.txt
 
 Local Build/Preview
 ~~~~~~~~~~~~~~~~~~~
@@ -59,7 +59,7 @@ HTML and man page, respectively.  To view the generated HTML output, open
 :file:`doc/man/zkg.1`.
 
 If you have also installed :program:`sphinx-autobuild` (e.g. via
-:program:`pip`), there's a :file:`Makefile` target, ``make livehtml``, you can
+:program:`pip3`), there's a :file:`Makefile` target, ``make livehtml``, you can
 use to help preview documentation changes as you edit the reST files.
 
 Remote Hosting
