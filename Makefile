@@ -24,8 +24,8 @@ test:
 
 .PHONY: dist
 dist:
-	ZKG_PYPI_DIST=yes python setup.py bdist_wheel
-	ZKG_PYPI_DIST=yes ZKG_PYPI_DIST_LEGACY=yes python setup.py bdist_wheel
+	ZKG_PYPI_DIST=yes python3 setup.py bdist_wheel
+	ZKG_PYPI_DIST=yes ZKG_PYPI_DIST_LEGACY=yes python3 setup.py bdist_wheel
 
 .PHONY: upload
 upload: twine-check dist
