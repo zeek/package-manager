@@ -30,24 +30,11 @@ try:
 except ImportError as err:
     import configparser
 
-if ( sys.version_info[0] < 3 or
-     (sys.version_info[0] == 3 and sys.version_info[1] < 2) ):
-    from configparser import SafeConfigParser as GoodConfigParser
-else:
-    # SafeConfigParser renamed to ConfigParser in Python >= 3.2
-    from configparser import ConfigParser as GoodConfigParser
+from configparser import ConfigParser as GoodConfigParser
 
 import git
 
 import zeekpkg
-
-
-def get_input(prompt):
-    if sys.version_info[0] < 3:
-        prompt_bytes = prompt.encode(std_encoding(sys.stdout))
-        return raw_input(prompt_bytes).decode(std_encoding(sys.stdin))
-
-    return input(prompt)
 
 
 def confirmation_prompt(prompt, default_to_yes=True):
@@ -58,7 +45,7 @@ def confirmation_prompt(prompt, default_to_yes=True):
     else:
         prompt += ' [N/y] '
 
-    choice = get_input(prompt).lower()
+    choice = input(prompt).lower()
 
     if not choice:
         if default_to_yes:
@@ -116,7 +103,7 @@ def prompt_for_user_vars(manager, config, configfile, force, pkg_infos):
                 else:
                     prompt = '{} asks for {} ({}) ? [{}] '.format(
                         name, key, desc, default_value)
-                    response = get_input(prompt)
+                    response = input(prompt)
 
                     if response:
                         answers[key] = response
@@ -1816,10 +1803,7 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
 
 def cmd_config(manager, args, config, configfile):
     if args.config_param == 'all':
-        if sys.version_info[0] < 3:
-            from StringIO import StringIO
-        else:
-            from io import StringIO
+        from io import StringIO
 
         out = StringIO()
         config.write(out)

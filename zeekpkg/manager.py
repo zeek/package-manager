@@ -22,12 +22,7 @@ try:
 except ImportError:
     from urlparse import urlparse
 
-if ( sys.version_info[0] < 3 or
-     (sys.version_info[0] == 3 and sys.version_info[1] < 2) ):
-    from configparser import SafeConfigParser as GoodConfigParser
-else:
-    # SafeConfigParser renamed to ConfigParser in Python >= 3.2
-    from configparser import ConfigParser as GoodConfigParser
+from configparser import ConfigParser as GoodConfigParser
 
 import git
 import semantic_version as semver
