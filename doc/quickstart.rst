@@ -7,12 +7,11 @@ Quickstart Guide
 Dependencies
 ------------
 
-* Python 2.7+ or 3.0+
+* Python 3.5+
 * git: https://git-scm.com
 * GitPython: https://pypi.python.org/pypi/GitPython
 * semantic_version: https://pypi.python.org/pypi/semantic_version
 * btest: https://pypi.python.org/pypi/btest
-* configparser backport (not needed when using Python 3.5+): https://pypi.python.org/pypi/configparser
 
 Note that following the suggested `Installation`_ process via :program:`pip`
 will automatically install dependencies for you.

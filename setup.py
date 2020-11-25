@@ -26,7 +26,6 @@ setup(
         'License :: OSI Approved :: University of Illinois/NCSA Open Source License',
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Topic :: System :: Networking :: Monitoring',
         'Topic :: Utilities',
