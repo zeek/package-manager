@@ -1,4 +1,14 @@
 
+2.4.2-5 | 2020-11-26 17:38:59 +0000
+
+  * Update pip invocations to use explicit `pip3` (Jon Siwek, Corelight)
+
+  * Remove Python compatibility logic for versions less than 3.5 (Jon Siwek, Corelight)
+
+  * Update Python invocations to use explicit `python3` (Jon Siwek, Corelight)
+
+  * Update documentation to reflect new minimum Python 3.5 requirement (Jon Siwek, Corelight)
+
 2.4.2 | 2020-11-10 15:18:54 -0800
 
   * Release 2.4.2.

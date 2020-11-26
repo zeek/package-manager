@@ -24,8 +24,8 @@ test:
 
 .PHONY: dist
 dist:
-	ZKG_PYPI_DIST=yes python setup.py bdist_wheel
-	ZKG_PYPI_DIST=yes ZKG_PYPI_DIST_LEGACY=yes python setup.py bdist_wheel
+	python3 setup.py bdist_wheel
+	ZKG_PYPI_DIST_LEGACY=yes python3 setup.py bdist_wheel
 
 .PHONY: upload
 upload: twine-check dist
@@ -39,7 +39,7 @@ twine-check:
 		echo "Uploading to PyPi requires 'twine' and it's not found in PATH."; \
 		echo "Install it and/or make sure it is in PATH."; \
 		echo "E.g. you could use the following command to install it:"; \
-		echo "\tpip install twine"; \
+		echo "\tpip3 install twine"; \
 		echo ; \
 		exit 1; \
 		}

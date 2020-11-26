@@ -169,13 +169,7 @@ def std_encoding(stream):
     return locale.getpreferredencoding()
 
 def read_zeek_config_line(stdout):
-    rval = stdout.readline()
-
-    # Python 2 returned bytes, Python 3 returned unicode
-    if isinstance(rval, bytes):
-        rval = rval.decode(std_encoding(sys.stdout))
-
-    return rval.strip()
+    return stdout.readline().strip()
 
 
 def get_zeek_version():
