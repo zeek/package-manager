@@ -16,11 +16,12 @@ done
 
 # Create a branch drop-corge in source "one" to drop corge from index
 ( cd sources/one &&
+  default_branch=$(git rev-parse --abbrev-ref HEAD) &&
   git checkout -b drop-corge &&
   sed -i -e '/corge/d' bob/zkg.index &&
   git add ./bob/zkg.index &&
   git commit -m 'Remove corge' &&
-  git checkout master )
+  git checkout ${default_branch} )
 
 echo "\
 [sources]

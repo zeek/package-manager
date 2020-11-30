@@ -29,8 +29,10 @@ echo 'depends = baz >=1.0.0' >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 
+default_branch_name=$( cd ../grault && git rev-parse --abbrev-ref HEAD )
+
 cd ../baz
-echo 'depends = grault branch=master' >> zkg.meta
+echo "depends = grault branch=${default_branch_name}" >> zkg.meta
 git commit -am 'new stuff'
 git tag -a 1.0.0 -m 1.0.0
 echo 'print "2.0.0";' > __load__.zeek
