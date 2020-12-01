@@ -1,2 +1,2 @@
-one/alice/foo (installed: master) - This is the foo package description
+one/alice/foo (installed: main) - This is the foo package description
 one/alice/new_pkg - This is the new_pkg package description

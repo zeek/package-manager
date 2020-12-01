@@ -1,12 +1,12 @@
 "one/alice/foo" info:
 	versions: ['1.0.0', '1.0.1', '1.0.2']
 	install status:
-		current_version = master
+		current_version = main
 		is_loaded = True
 		is_outdated = True
 		is_pinned = False
 		tracking_method = branch
 	metadata file: /Users/jon/pro/zeek/package-manager/testing/.tmp/tests.info/state/clones/package/foo/zkg.meta
-	metadata (from version "master"):
+	metadata (from version "main"):
 		<empty metadata file>
 
