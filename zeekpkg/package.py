@@ -240,7 +240,7 @@ class PackageInfo(object):
 
     def __init__(self, package=None, status=None, metadata=None, versions=None,
                  metadata_version='', invalid_reason='', version_type='',
-                 metadata_file=None):
+                 metadata_file=None, default_branch=None):
         self.package = package
         self.status = status
         self.metadata = {} if metadata is None else metadata
@@ -249,6 +249,7 @@ class PackageInfo(object):
         self.version_type = version_type
         self.invalid_reason = invalid_reason
         self.metadata_file = metadata_file
+        self.default_branch = default_branch
 
     def aliases(self):
         """Return a list of package name aliases.
@@ -298,12 +299,12 @@ class PackageInfo(object):
         """Returns the best/latest version of the package that is available.
 
         If the package has any git release tags, this returns the highest one,
-        else it returns the 'master' branch.
+        else it returns the default branch like 'main' or 'master'.
         """
         if self.versions:
             return self.versions[-1]
 
-        return 'master'
+        return self.default_branch
 
 
 class Package(object):

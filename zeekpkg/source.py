@@ -21,6 +21,7 @@ from .package import (
     Package
 )
 from ._util import (
+    git_default_branch,
     git_checkout,
     git_clone
 )
@@ -81,9 +82,7 @@ class Source(object):
                 shutil.rmtree(clone_path)
                 self.clone = git_clone(git_url, clone_path, shallow=True)
 
-        # Hmm, maybe this needs to be configurable for people that
-        # use differently named master branches...
-        git_checkout(self.clone, version or "master")
+        git_checkout(self.clone, version or git_default_branch(self.clone))
 
     def __str__(self):
         return self.git_url

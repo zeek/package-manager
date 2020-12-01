@@ -2010,8 +2010,8 @@ def argparser():
         ' If the package name refers to a local git repo with a working tree,'
         ' then its currently active branch is used.'
         ' The default for other cases is to use'
-        ' the latest version tag, or if a package has none, the "master"'
-        ' branch.')
+        ' the latest version tag, or if a package has none,'
+        ' the default branch, like "main" or "master".')
 
     # install
     sub_parser = command_parser.add_parser(
@@ -2046,8 +2046,8 @@ def argparser():
         ' If the package name refers to a local git repo with a working tree,'
         ' then its currently active branch is used.'
         ' The default for other cases is to use'
-        ' the latest version tag, or if a package has none, the "master"'
-        ' branch.')
+        ' the latest version tag, or if a package has none,'
+        ' the default branch, like "main" or "master".')
 
     # bundle
     sub_parser = command_parser.add_parser(
@@ -2167,7 +2167,7 @@ def argparser():
         ' clone of the package'
         ' source that zkg uses internally locating package metadata.'
         ' For each package, the metadata is taken from the highest available'
-        ' git version tag or the master branch if no version tags exist')
+        ' git version tag or the default branch, like "main" or "master", if no version tags exist')
     sub_parser.add_argument(
         '--push', action='store_true',
         help='Push all local changes to package sources to upstream repos')
@@ -2319,7 +2319,7 @@ def argparser():
         ' on whether the package is currently installed.  If installed,'
         ' the metadata will be pulled from the installed version.  If not'
         ' installed, the latest version tag is used, or if a package has no'
-        ' version tags, the "master" branch is used.')
+        ' version tags, the default branch, like "main" or "master", is used.')
     sub_parser.add_argument(
         '--nolocal', action='store_true',
         help='Do not read information from locally installed packages.'
