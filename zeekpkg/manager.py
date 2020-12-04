@@ -11,18 +11,12 @@ import shutil
 import filecmp
 import tarfile
 import subprocess
-
-try:
-    from backports import configparser
-except ImportError:
-    import configparser
+import configparser
 
 try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-
-from configparser import ConfigParser as GoodConfigParser
 
 import git
 import semantic_version as semver
@@ -1403,7 +1397,7 @@ class Manager(object):
             return (str(error), infos)
 
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = GoodConfigParser(delimiters='=')
+        config = configparser.ConfigParser(delimiters='=')
         config.optionxform = str
 
         if not config.read(manifest_file):
@@ -1988,7 +1982,7 @@ class Manager(object):
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = GoodConfigParser(delimiters='=')
+        config = configparser.ConfigParser(delimiters='=')
         config.optionxform = str
         config.add_section('bundle')
 
@@ -2061,7 +2055,7 @@ class Manager(object):
             return str(error)
 
         manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = GoodConfigParser(delimiters='=')
+        config = configparser.ConfigParser(delimiters='=')
         config.optionxform = str
 
         if not config.read(manifest_file):
@@ -2266,7 +2260,7 @@ class Manager(object):
             if k not in substitutions:
                 substitutions[k] = v
 
-        metadata_parser = GoodConfigParser(defaults=substitutions)
+        metadata_parser = configparser.ConfigParser(defaults=substitutions)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
 

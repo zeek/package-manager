@@ -9,11 +9,7 @@ located and metadata tags that help classify/describe it.
 import os
 import shutil
 import git
-
-try:
-    from backports import configparser
-except ImportError as err:
-    import configparser
+import configparser
 
 from . import LOG
 from .package import (

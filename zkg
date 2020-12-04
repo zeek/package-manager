@@ -23,13 +23,7 @@ import filecmp
 import shutil
 import subprocess
 import json
-
-try:
-    from backports import configparser
-except ImportError as err:
-    import configparser
-
-from configparser import ConfigParser as GoodConfigParser
+import configparser
 
 import git
 
@@ -180,7 +174,7 @@ def legacy_state_dir():
 
 
 def create_config(configfile):
-    config = GoodConfigParser()
+    config = configparser.ConfigParser()
 
     if configfile:
         if not os.path.isfile(configfile):
@@ -683,7 +677,7 @@ def cmd_bundle(manager, args, config, configfile):
 
     if args.manifest:
         if len(args.manifest) == 1 and os.path.isfile(args.manifest[0]):
-            config = GoodConfigParser(delimiters='=')
+            config = configparser.ConfigParser(delimiters='=')
             config.optionxform = str
 
             if config.read(args.manifest[0]) and config.has_section('bundle'):
