@@ -25,12 +25,10 @@ test:
 .PHONY: dist
 dist:
 	python3 setup.py bdist_wheel
-	ZKG_PYPI_DIST_LEGACY=yes python3 setup.py bdist_wheel
 
 .PHONY: upload
 upload: twine-check dist
 	twine upload -u zeek dist/zkg-$(VERSION)-py2.py3-none-any.whl
-	twine upload -u zeek dist/bro_pkg-$(VERSION)-py2.py3-none-any.whl
 
 .PHONY: twine-check
 twine-check:

@@ -4,17 +4,17 @@ import os
 install_requires = ['gitpython', 'semantic_version', 'btest']
 
 setup(
-    name='bro-pkg' if os.environ.get('ZKG_PYPI_DIST_LEGACY') else 'zkg',
+    name='zkg',
     version=open('VERSION').read().replace('-', '.dev', 1).strip(),
     description='The Zeek Package Manager',
     long_description=open('README').read(),
     license='University of Illinois/NCSA Open Source License',
-    keywords='zeek bro zeekctl zeekcontrol broctl brocontrol package manager scripts plugins security',
+    keywords='zeek zeekctl zeekcontrol package manager scripts plugins security',
     maintainer='The Zeek Project',
     maintainer_email='info@zeek.org',
     url='https://github.com/zeek/package-manager',
-    scripts=['bro-pkg', 'zkg'],
-    packages=['bropkg', 'zeekpkg'],
+    scripts=['zkg'],
+    packages=['zeekpkg'],
     install_requires=install_requires,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
