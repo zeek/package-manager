@@ -1,4 +1,8 @@
 
+2.5.0 | 2020-12-04 10:30:29 -0800
+
+  * Release 2.5.0.
+
 2.4.2-9 | 2020-12-04 10:28:22 -0800
 
   * Extend test suite to cover a package with a "main" default branch (Jon Siwek, Corelight)
