@@ -1,4 +1,16 @@
 
+2.5.0-4 | 2020-12-04 12:43:42 -0800
+
+  * Remove deprecated bro-pkg script and bropkg module (Jon Siwek, Corelight)
+
+    The PyPI bro-pkg package will also no longer be kept in sync with zkg.
+
+  * Simplify configparser imports/usages (Jon Siwek, Corelight)
+
+  * Remove future print_function imports (Jon Siwek, Corelight)
+
+  * Remove configparser from requirements.txt (Jon Siwek, Corelight)
+
 2.5.0 | 2020-12-04 10:30:29 -0800
 
   * Release 2.5.0.
