@@ -1,7 +1,6 @@
 # Requirements for general zkg usage
 GitPython
 semantic_version
-configparser
 btest
 # Requirements for development (e.g. building docs)
 Sphinx
