@@ -19,6 +19,12 @@
 # @TEST-EXEC: zkg list installed > manifest.out
 # @TEST-EXEC: btest-diff manifest.out
 
+default_branch_name=$( cd packages/baz && git rev-parse --abbrev-ref HEAD )
+echo "[bundle]" > manifest.txt
+echo "foo = 1.0.0" >> manifest.txt
+echo "bar = 1.0.1" >> manifest.txt
+echo "baz = ${default_branch_name}" >> manifest.txt
+
 cd packages/foo
 echo 'print "foo 1.0.0";' > __load__.zeek
 git commit -am 'new stuff'
@@ -40,10 +46,3 @@ git tag -a 1.0.1 -m 1.0.1
 echo 'print "bar 1.0.2";' > __load__.zeek
 git commit -am 'new stuff'
 git tag -a 1.0.2 -m 1.0.2
-
-@TEST-START-FILE manifest.txt
-[bundle]
-foo = 1.0.0
-bar = 1.0.1
-baz = master
-@TEST-END-FILE

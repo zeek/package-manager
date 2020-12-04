@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Nov 10, 2020" "2.4.2" "Zeek Package Manager"
+.TH "ZKG" "1" "Dec 04, 2020" "2.4.2-9" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -99,7 +99,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .INDENT 7.0
 .TP
 .B \-\-version
-The version of the package to test.  Only one package may be specified at a time when using this flag.  A version tag, branch name, or commit hash may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the "master" branch.
+The version of the package to test.  Only one package may be specified at a time when using this flag.  A version tag, branch name, or commit hash may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the default branch, like "main" or "master".
 .UNINDENT
 .UNINDENT
 .SS install
@@ -141,7 +141,7 @@ Skip all dependency resolution/checks.  Note that using this option risks puttin
 Skip automatically installing suggested packages.
 .TP
 .B \-\-version
-The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag, branch name, or commit hash may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the "master" branch.
+The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag, branch name, or commit hash may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the default branch, like "main" or "master".
 .UNINDENT
 .UNINDENT
 .SS remove
@@ -292,7 +292,7 @@ usage: zkg refresh [\-h] [\-\-aggregate] [\-\-push] [\-\-sources SOURCES [SOURCE
 .INDENT 7.0
 .TP
 .B \-\-aggregate=False
-Crawls the urls listed in package source zkg.index (or legacy bro\-pkg.index) files and aggregates the metadata found in their zkg.meta (or legacy bro\-pkg.meta) files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally locating package metadata. For each package, the metadata is taken from the highest available git version tag or the master branch if no version tags exist
+Crawls the urls listed in package source zkg.index (or legacy bro\-pkg.index) files and aggregates the metadata found in their zkg.meta (or legacy bro\-pkg.meta) files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
 .TP
 .B \-\-push=False
 Push all local changes to package sources to upstream repos
@@ -531,7 +531,7 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .INDENT 7.0
 .TP
 .B \-\-version
-The version of the package metadata to inspect.  A version tag, branch name, or commit hash and only one package at a time may be given when using this flag.  If unspecified, the behavior depends on whether the package is currently installed.  If installed, the metadata will be pulled from the installed version.  If not installed, the latest version tag is used, or if a package has no version tags, the "master" branch is used.
+The version of the package metadata to inspect.  A version tag, branch name, or commit hash and only one package at a time may be given when using this flag.  If unspecified, the behavior depends on whether the package is currently installed.  If installed, the metadata will be pulled from the installed version.  If not installed, the latest version tag is used, or if a package has no version tags, the default branch, like "main" or "master", is used.
 .TP
 .B \-\-nolocal=False
 Do not read information from locally installed packages. Instead read info from remote GitHub.
@@ -633,7 +633,8 @@ available options and how to customize them:
 # additional sources may be added as long as they use a unique key
 # and a value that is a valid git URL.  The git URL may also use a
 # suffix like "@branch\-name" where "branch\-name" is the name of a real
-# branch to checkout (as opposed to the default "master" branch).
+# branch to checkout (as opposed to the default branch, which is typically
+# "main" or "master").
 zeek = https://github.com/zeek/packages
 
 [paths]

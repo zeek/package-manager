@@ -1,4 +1,4 @@
-# First search for corge in source one master
+# First search for corge in source one default branch (i.e. 'master' or 'main')
 #
 # @TEST-EXEC: zkg search corge > search.out
 # @TEST-EXEC: grep -q -m 1 'one/bob/corge' search.out
@@ -15,6 +15,7 @@
 # @TEST-EXEC: zkg search quux > search.out
 # @TEST-EXEC: grep -m 1 'no matches' search.out
 #
-# Now in source two with explicit master branch
-# @TEST-EXEC: zkg --extra-source two=`pwd`/sources/two@master search quux > search.out
+# Now in source two with explicit branch (i.e. using the default of 'master' or 'main')
+# @TEST-EXEC: ( cd $(pwd)/sources/two && git rev-parse --abbrev-ref HEAD ) > default_branch_name
+# @TEST-EXEC: zkg --extra-source two=`pwd`/sources/two@$(cat default_branch_name) search quux > search.out
 # @TEST-EXEC: grep -m 1 'two/eve/quux' search.out

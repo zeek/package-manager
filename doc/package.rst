@@ -755,11 +755,11 @@ remote repository:
 
 Alternatively, if you expect to have a simple development process for
 your package, you may choose to not create any version tags and just
-always make commits directly to your package's *master* branch.  Users
-will receive package updates differently depending on whether you decide
-to use release version tags or not.  See the :ref:`package upgrade
-process <package-upgrade-process>` documentation for more details on
-the differences.
+always make commits directly to your package's default branch (typically named
+*main* or *master*).  Users will receive package updates differently depending
+on whether you decide to use release version tags or not.  See the
+:ref:`package upgrade process <package-upgrade-process>` documentation for more
+details on the differences.
 
 .. _package-upgrade-process:
 
@@ -773,7 +773,7 @@ a package.
 The default installation behavior of :program:`zkg` is to look for
 the latest release version tag and install that.  If there are no such
 version tags, it will fall back to installing the latest commit of the
-package's *master* branch
+package's default branch (typically named *main* or *master*)
 
 Upon installing a package via a :ref:`git version tag
 <package-versioning>`, the :ref:`upgrade command <upgrade-command>` will

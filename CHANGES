@@ -1,4 +1,30 @@
 
+2.4.2-9 | 2020-12-04 10:28:22 -0800
+
+  * Extend test suite to cover a package with a "main" default branch (Jon Siwek, Corelight)
+
+    As opposed to historical default of "master" being the convention.
+
+  * GH-76: Detect default branch name of packages automatically (Jon Siwek, Corelight)
+
+    Rather than use the hardcoded 'master' branch as the conventional
+    default, zkg will now attempt to select a package's default branch as
+    follows:
+
+    If there is a remote named 'origin' and it has a HEAD reference,
+    whatever branch that points to is taken to be the default branch.
+
+    If there is not a remote named 'origin' or it does not have a HEAD,
+    then the default branch is selected in this order: 'main' if it exists,
+    'master' if it exists, the currently active branch (HEAD) if there is
+    one, else the commit hash of the current detached head.
+
+    Note that zkg still prioritized release version tags, like 'v1.0.0',
+    over branches and the default branch selection logic only applies
+    when no such release version tag exists.
+
+  * Make test cases resilient to non-master default git branch names (Jon Siwek, Corelight)
+
 2.4.2-5 | 2020-11-26 17:38:59 +0000
 
   * Update pip invocations to use explicit `pip3` (Jon Siwek, Corelight)

@@ -34,6 +34,7 @@ from ._util import (
     delete_path,
     make_symlink,
     copy_over_path,
+    git_default_branch,
     git_checkout,
     git_clone,
     is_sha1,
@@ -846,7 +847,7 @@ class Manager(object):
                     if len(version_tags):
                         version = version_tags[-1]
                     else:
-                        version = 'master'
+                        version = git_default_branch(clone)
 
                     try:
                         git_checkout(clone, version)
@@ -1437,8 +1438,8 @@ class Manager(object):
 
             version (str): may be a git version tag, branch name, or commit hash
                 from which metadata will be pulled.  If an empty string is
-                given, then the latest git version tag is used (or the "master"
-                branch if no version tags exist).
+                given, then the latest git version tag is used (or the default
+                branch like "main" or "master" if no version tags exist).
 
             prefer_installed (bool): if this is set, then the information from
                 any current installation of the package is returned instead of
@@ -1525,12 +1526,7 @@ class Manager(object):
             if len(versions):
                 version = versions[-1]
             else:
-                if 'master' not in _get_branch_names(clone):
-                    reason = 'git repo has no "master" branch or version tags'
-                    return PackageInfo(package=package, status=status,
-                                       invalid_reason=reason)
-
-                version = 'master'
+                version = git_default_branch(clone)
 
         try:
             git_checkout(clone, version)
@@ -1935,7 +1931,7 @@ class Manager(object):
                     if branch_name:
                         best_version = branch_name
                     else:
-                        best_version = 'master'
+                        best_version = node.info.default_branch
                 elif need_version:
                     for version in node.info.versions[::-1]:
                         normal_version = _normalize_version_tag(version)
@@ -2102,9 +2098,9 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
             version (str): if not given, then the latest git version tag is
-                used (or if no version tags exist, the "master" branch is
-                used).  If given, it may be either a git version tag or a
-                git branch name.
+                used (or if no version tags exist, the default branch like
+                "main" or "master" is used).  If given, it may be either a git
+                version tag or a git branch name.
 
         Returns:
             (str, bool, str): a tuple containing an error message string,
@@ -2405,9 +2401,9 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
 
             version (str): if not given, then the latest git version tag is
-                installed (or if no version tags exist, the "master" branch is
-                installed).  If given, it may be either a git version tag, a
-                git branch name, or a git commit hash.
+                installed (or if no version tags exist, the default branch like
+                "main" or "master" is installed).  If given, it may be either a
+                git version tag, a git branch name, or a git commit hash.
 
         Returns:
             str: empty string if package installation succeeded else an error
@@ -2513,10 +2509,7 @@ class Manager(object):
                 version = version_tags[-1]
                 status.tracking_method = TRACKING_METHOD_VERSION
             else:
-                if 'master' not in _get_branch_names(clone):
-                    return 'git repo has no "master" branch or version tags'
-
-                version = 'master'
+                version = git_default_branch(clone)
                 status.tracking_method = TRACKING_METHOD_BRANCH
 
         status.current_version = version
@@ -2745,6 +2738,7 @@ def _info_from_clone(clone, package, status, version):
         A :class:`.package.PackageInfo` object.
     """
     versions = _get_version_tags(clone)
+    default_branch = git_default_branch(clone)
 
     if _is_commit_hash(clone, version):
         version_type = TRACKING_METHOD_COMMIT
@@ -2763,14 +2757,16 @@ def _info_from_clone(clone, package, status, version):
         return PackageInfo(package=package, invalid_reason=invalid_reason,
                            status=status, versions=versions,
                            metadata_version=version, version_type=version_type,
-                           metadata_file=metadata_file)
+                           metadata_file=metadata_file,
+                           default_branch=default_branch)
 
     metadata = _get_package_metadata(metadata_parser)
 
     return PackageInfo(package=package, invalid_reason=invalid_reason,
                        status=status, metadata=metadata, versions=versions,
                        metadata_version=version, version_type=version_type,
-                       metadata_file=metadata_file)
+                       metadata_file=metadata_file,
+                       default_branch=default_branch)
 
 
 def _is_reserved_pkg_name(name):

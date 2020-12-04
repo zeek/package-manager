@@ -15,7 +15,7 @@ Installing "one/alice/baz"
 Installed "one/alice/baz" (1.0.0)
 Loaded "one/alice/baz"
 Installing "one/alice/foo"
-Installed "one/alice/foo" (master)
+Installed "one/alice/foo" (main)
 Loaded "one/alice/foo"
 The following installed packages were additionally loaded to satisfy runtime dependencies
   grault

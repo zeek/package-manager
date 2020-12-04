@@ -3,7 +3,12 @@
 cp -R $PACKAGES .
 
 for p in packages/*; do
-    ( cd $p && git init && git add * && git commit -m 'init' )
+    if [ $p = 'packages/foo' ]; then
+        # Use a different default branch than 'master' for testing purposes
+        ( cd $p && git init && git checkout -b main && git add * && git commit -m 'init' )
+    else
+        ( cd $p && git init && git add * && git commit -m 'init' )
+    fi
 done
 
 cp -R $SOURCES .
@@ -16,11 +21,12 @@ done
 
 # Create a branch drop-corge in source "one" to drop corge from index
 ( cd sources/one &&
+  default_branch=$(git rev-parse --abbrev-ref HEAD) &&
   git checkout -b drop-corge &&
   sed -i -e '/corge/d' bob/zkg.index &&
   git add ./bob/zkg.index &&
   git commit -m 'Remove corge' &&
-  git checkout master )
+  git checkout ${default_branch} )
 
 echo "\
 [sources]

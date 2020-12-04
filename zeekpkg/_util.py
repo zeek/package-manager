@@ -124,6 +124,57 @@ def git_checkout(clone, version):
     clone.git.submodule('update', '--recursive', '--init')
 
 
+def git_default_branch(repo):
+    """Return default branch of a git repo, like 'main' or 'master'.
+
+    If the Git repository has a remote named 'origin', the default branch
+    is taken from the value of its HEAD reference (if it has one).
+
+    If the Git repository has no remote named 'origin' or that remote has no
+    HEAD, the default branch is selected in this order: 'main' if it exists,
+    'master' if it exists, the currently checked out branch if any, else the
+    current detached commit.
+
+    Args:
+        repo (git.Repo): the git clone on which to operate
+    """
+
+    try:
+        remote = repo.remote('origin')
+    except ValueError:
+        remote = None
+
+    if remote:
+        # Technically possible that remote has no HEAD, so guard against that.
+        try:
+            head_ref_name = remote.refs.HEAD.ref.name
+        except:
+            head_ref_name = None
+
+        if head_ref_name:
+            remote_prefix = 'origin/'
+
+            if head_ref_name.startswith(remote_prefix):
+                return head_ref_name[len(remote_prefix):]
+
+            return head_ref_name
+
+    ref_names = [ref.name for ref in repo.refs]
+
+    if 'main' in ref_names:
+        return 'main'
+
+    if 'master' in ref_names:
+        return 'master'
+
+    try:
+        # See if there's a branch currently checked out
+        return repo.head.ref.name
+    except TypeError:
+        # No branch checked out, return commit hash
+        return repo.head.object.hexsha
+
+
 def is_sha1(s):
     if not s:
         return False;

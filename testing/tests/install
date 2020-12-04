@@ -16,7 +16,8 @@
 # @TEST-EXEC: btest-diff scripts/packages/corge/__load__.zeek
 
 # @TEST-EXEC: zkg remove corge
-# @TEST-EXEC: zkg install corge --version=master
+# @TEST-EXEC: ( cd $(pwd)/packages/corge && git rev-parse --abbrev-ref HEAD ) > default_branch_name
+# @TEST-EXEC: zkg install corge --version=$(cat default_branch_name)
 # @TEST-EXEC: cp scripts/packages/corge/__load__.zeek corge.master
 # @TEST-EXEC: btest-diff corge.master
 
