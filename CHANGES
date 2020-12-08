@@ -1,4 +1,12 @@
 
+2.5.0-7 | 2020-12-07 17:19:11 -0800
+
+  * Replace remaining use of Thread.isAlive with Thread.is_alive (Christian Kreibich, Corelight)
+
+    isAlive() has been deprecated for a while. Python 3.9 (Fedora 33's
+    default) no longer includes it, which broke the metadata-depends and
+    metadata-suggests tests.
+
 2.5.0-4 | 2020-12-04 12:43:42 -0800
 
   * Remove deprecated bro-pkg script and bropkg module (Jon Siwek, Corelight)
