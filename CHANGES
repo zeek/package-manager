@@ -1,4 +1,12 @@
 
+2.5.0-8 | 2020-12-10 15:25:50 -0800
+
+  * Add explanatory error message to zkg for failed imports of dependencies (Jon Siwek, Corelight)
+
+    If the external gitpython or semantic-version dependencies aren't
+    available when running `zkg`, it now shows an error messages to explain
+    what's required and an example of how to install them.
+
 2.5.0-7 | 2020-12-07 17:19:11 -0800
 
   * Replace remaining use of Thread.isAlive with Thread.is_alive (Christian Kreibich, Corelight)

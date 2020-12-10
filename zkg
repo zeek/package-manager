@@ -1,5 +1,22 @@
 #! /usr/bin/env python3
 
+import sys
+
+try:
+    import git
+    import semantic_version as semver
+except ImportError:
+    print("error: zkg failed to import one or more dependencies:\n"
+          "\n"
+          "* GitPython:        https://pypi.org/project/GitPython\n"
+          "* semantic-version: https://pypi.org/project/semantic-version\n"
+          "\n"
+          "If you use 'pip', they can be installed like:\n"
+          "\n"
+          "     pip3 install GitPython semantic-version",
+          file=sys.stderr)
+    sys.exit(1)
+
 from zeekpkg._util import (
     make_dir,
     make_symlink,
@@ -13,7 +30,6 @@ from zeekpkg.package import (
 
 import os
 import io
-import sys
 import errno
 import argparse
 import logging
@@ -24,8 +40,6 @@ import shutil
 import subprocess
 import json
 import configparser
-
-import git
 
 import zeekpkg
 
