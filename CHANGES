@@ -1,4 +1,8 @@
 
+2.6.0 | 2020-12-12 21:20:21 -0800
+
+  * Release 2.6.0.
+
 2.5.0-12 | 2020-12-12 21:18:34 -0800
 
   * Update quickstart docs to note zkg comes installed with Zeek 4.0.0+ (Jon Siwek, Corelight)
