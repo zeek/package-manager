@@ -1,4 +1,17 @@
 
+2.5.0-10 | 2020-12-12 20:21:32 -0800
+
+  * Support cmake-driven installation of zkg when bundled with Zeek (Christian Kreibich, Corelight)
+
+    This adds cmake-level templating of the toplevel zkg script to substitute
+    paths that let zkg find its own module. When installing independently,
+    this mechanism has no effect, since the zeekpkg module continues to be
+    found via usual PYTHONPATH mechanisms.
+
+    The templating also lets us adjust the default location of the config
+    and state directories, since in Zeek-bundled installs they are
+    separate.
+
 2.5.0-8 | 2020-12-10 15:25:50 -0800
 
   * Add explanatory error message to zkg for failed imports of dependencies (Jon Siwek, Corelight)
