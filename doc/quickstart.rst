@@ -13,23 +13,38 @@ Dependencies
 * semantic_version: https://pypi.python.org/pypi/semantic_version
 * btest: https://pypi.python.org/pypi/btest
 
-Note that following the suggested `Installation`_ process via :program:`pip3`
-will automatically install dependencies for you.
+Note that following the :program:`zkg` `Installation`_ process via
+:program:`pip3` will automatically install its dependencies for you.
 
 Installation
 ------------
 
-Using the latest stable release on PyPI_:
+* Zeek 4.0.0 or greater comes with a bundled :program:`zkg` that is
+  included as part of its installation.  This is often the easiest choice since
+  it comes pre-configured to work correctly for that particular Zeek
+  installation and some `Basic Configuration`_ steps can be skipped.  The
+  directions to build and install Zeek from source are here:
+  https://docs.zeek.org/en/current/install/install.html
 
-.. code-block:: console
+  Note that this method does require independent installation of
+  :program:`zkg`'s dependencies, which is usually easiest to do via
+  :program:`pip3`:
 
-  $ pip3 install zkg
+  .. code-block:: console
 
-Using the latest git development version:
+    $ pip3 install gitpython semantic-version
 
-.. code-block:: console
+* To install the latest release of :program:`zkg` on PyPI_:
 
-  $ pip3 install git+git://github.com/zeek/package-manager@master
+  .. code-block:: console
+
+    $ pip3 install zkg
+
+* To install the latest Git development version of :program:`zkg`:
+
+  .. code-block:: console
+
+    $ pip3 install git+git://github.com/zeek/package-manager@master
 
 .. note::
 
@@ -41,8 +56,14 @@ Using the latest git development version:
 Basic Configuration
 -------------------
 
-After installing via :program:`pip3`, additional configuration is required.
-First, make sure that the :program:`zeek-config` script that gets installed with
+After installing via :program:`pip3`, but not when using the :program:`zkg`
+that comes pre-bundled with a Zeek installation, additional configuration is
+still required in the form of running a ``zkg autoconfig`` command, but in
+either case, do read onward to get a better understanding of how the package
+manager is configured, what directories it uses, etc.
+
+To configure :program:`zkg` for use with a given Zeek installation, make
+sure that the :program:`zeek-config` script that gets installed with
 :program:`zeek` is in your :envvar:`PATH`.  Then, as the user you want to run
 :program:`zkg` with, do:
 

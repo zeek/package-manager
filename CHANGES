@@ -1,4 +1,10 @@
 
+2.5.0-12 | 2020-12-12 21:18:34 -0800
+
+  * Update quickstart docs to note zkg comes installed with Zeek 4.0.0+ (Jon Siwek, Corelight)
+
+  * Install zkg.1 man page as part of CMake builds (Jon Siwek, Corelight)
+
 2.5.0-10 | 2020-12-12 20:21:32 -0800
 
   * Support cmake-driven installation of zkg when bundled with Zeek (Christian Kreibich, Corelight)
