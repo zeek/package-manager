@@ -18,6 +18,12 @@ endif ()
 install(DIRECTORY DESTINATION ${PY_MOD_INSTALL_DIR})
 install(DIRECTORY zeekpkg DESTINATION ${PY_MOD_INSTALL_DIR})
 
+if ( NOT ZEEK_MAN_INSTALL_PATH )
+    set(ZEEK_MAN_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/share/man)
+endif ()
+
+install(FILES doc/man/zkg.1 DESTINATION ${ZEEK_MAN_INSTALL_PATH}/man1)
+
 message(
     "\n=====================|  ZKG Build Summary  |===================="
     "\n"
