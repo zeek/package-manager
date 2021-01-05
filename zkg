@@ -44,7 +44,7 @@ ZEEK_BIN_DIR = '@ZEEK_BIN_DIR@'
 if os.path.isdir(ZEEK_BIN_DIR):
     try:
         if ZEEK_BIN_DIR not in os.environ['PATH'].split(os.pathsep):
-            os.environ['PATH'] += os.pathsep + ZEEK_BIN_DIR
+            os.environ['PATH'] = ZEEK_BIN_DIR + os.pathsep + os.environ['PATH']
     except KeyError:
         os.environ['PATH'] = ZEEK_BIN_DIR
 else:
