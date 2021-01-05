@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 project(zkg)
 
+set(ZEEK_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
 set(orig_file ${CMAKE_CURRENT_SOURCE_DIR}/zkg)
 set(configed_file ${CMAKE_CURRENT_BINARY_DIR}/zkg)
 configure_file(${orig_file} ${configed_file} @ONLY)
