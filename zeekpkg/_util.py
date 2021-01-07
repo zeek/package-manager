@@ -3,7 +3,6 @@ These are meant to be private utility methods for internal use.
 """
 
 import os
-import sys
 import errno
 import shutil
 import git

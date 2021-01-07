@@ -1,5 +1,4 @@
 from setuptools import setup
-import os
 
 install_requires = ['gitpython', 'semantic_version', 'btest']
 

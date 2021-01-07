@@ -51,7 +51,6 @@ def aliases(metadata_dict):
     if 'aliases' not in metadata_dict:
         return []
 
-    import re
     return re.split(',\s*|\s+', metadata_dict['aliases'])
 
 
@@ -60,7 +59,6 @@ def tags(metadata_dict):
     if 'tags' not in metadata_dict:
         return []
 
-    import re
     return re.split(',\s*', metadata_dict['tags'])
 
 

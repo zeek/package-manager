@@ -6,7 +6,6 @@ import errno
 import argparse
 import logging
 import threading
-import tarfile
 import filecmp
 import shutil
 import subprocess
@@ -16,7 +15,7 @@ import sys
 
 try:
     import git
-    import semantic_version as semver
+    import semantic_version as semver # lgtm[py/unused-import]
 except ImportError:
     print("error: zkg failed to import one or more dependencies:\n"
           "\n"
@@ -1840,9 +1839,7 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
 
 def cmd_config(manager, args, config, configfile):
     if args.config_param == 'all':
-        from io import StringIO
-
-        out = StringIO()
+        out = io.StringIO()
         config.write(out)
         print(out.getvalue())
         out.close()

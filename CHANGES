@@ -1,4 +1,12 @@
 
+2.6.0-8 | 2021-01-06 21:33:22 -0800
+
+  * Remove unneeded Python module imports (Jon Siwek, Corelight)
+
+  * Remove excess argument to a string format() (Jon Siwek, Corelight)
+
+  * Remove an unreachable return statement (Jon Siwek, Corelight)
+
 2.6.0-5 | 2021-01-06 21:02:09 -0800
 
   * Fix missing argument to a function in dependency analysis logic (Jon Siwek, Corelight)
