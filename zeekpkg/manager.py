@@ -1448,7 +1448,7 @@ class Manager(object):
         name = name_from_path(pkg_path)
 
         if not is_valid_package_name(name):
-            reason = 'Package name {!r} is not valid.'.format(name, pkg_path)
+            reason = 'Package name {!r} is not valid.'.format(name)
             return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
 
         LOG.debug('getting info on "%s"', pkg_path)
