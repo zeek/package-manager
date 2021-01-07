@@ -37,6 +37,19 @@ if os.path.isdir(ZEEK_PYTHON_DIR):
 else:
     ZEEK_PYTHON_DIR = None
 
+# Similarly, make Zeek's binary installation path available by
+# default. This helps package installations succeed that require
+# e.g. zeek-config for their build process.
+ZEEK_BIN_DIR = '@ZEEK_BIN_DIR@'
+if os.path.isdir(ZEEK_BIN_DIR):
+    try:
+        if ZEEK_BIN_DIR not in os.environ['PATH'].split(os.pathsep):
+            os.environ['PATH'] = ZEEK_BIN_DIR + os.pathsep + os.environ['PATH']
+    except KeyError:
+        os.environ['PATH'] = ZEEK_BIN_DIR
+else:
+    ZEEK_BIN_DIR = None
+
 # Also when bundling with Zeek, use directories in the install tree
 # for storing the zkg configuration and its variable state:
 ZEEK_ZKG_CONFIG_DIR = '@ZEEK_ZKG_CONFIG_DIR@'
