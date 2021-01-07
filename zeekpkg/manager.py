@@ -2455,8 +2455,6 @@ class Manager(object):
                         pkg_path)
             return 'failed to clone package "{}": {}'.format(pkg_path, error)
 
-        return ''
-
     def _install(self, package, version, use_existing_clone=False):
         """Install a :class:`.package.Package`.
 
