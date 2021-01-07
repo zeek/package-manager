@@ -1920,7 +1920,7 @@ class Manager(object):
                             continue
 
                         if branch_name != version_spec[len('branch='):]:
-                            return (no_best_version_string(), new_pkgs)
+                            return (no_best_version_string(node), new_pkgs)
 
                     if branch_name:
                         best_version = branch_name
