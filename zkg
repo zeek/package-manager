@@ -13,6 +13,8 @@ import json
 import configparser
 import sys
 
+from collections import OrderedDict
+
 try:
     import git
     import semantic_version as semver # lgtm[py/unused-import]
@@ -1956,6 +1958,12 @@ def cmd_env(manager, args, config, configfile):
 
     zeekpaths.append(manager.zeekpath())
     pluginpaths.append(manager.zeek_plugin_path())
+
+    def remove_redundant_paths(paths):
+        return list(OrderedDict.fromkeys(paths))
+
+    zeekpaths = remove_redundant_paths(zeekpaths)
+    pluginpaths = remove_redundant_paths(pluginpaths)
 
     if os.environ.get('SHELL', '').endswith('csh'):
         print(u'setenv BROPATH {}'.format(':'.join(zeekpaths)))
