@@ -349,14 +349,20 @@ def create_manager(args, config):
 
             def check_permission(d):
                 if os.access(d, os.W_OK):
-                    return
+                    return True
 
                 print_error(
                     'error: user does not have write access in {}'.format(d))
+                return False
 
-            check_permission(state_dir)
-            check_permission(script_dir)
-            check_permission(plugin_dir)
+            permissions_trouble = not all([check_permission(state_dir),
+                                           check_permission(script_dir),
+                                           check_permission(plugin_dir)])
+
+            if permissions_trouble and not args.user:
+                print_error(
+                    'Consider the --user flag to manage zkg state via {}/config'
+                    .format(home_config_dir()))
             sys.exit(1)
 
         raise
