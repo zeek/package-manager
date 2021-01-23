@@ -1,0 +1,5 @@
+#! /usr/bin/env bash
+#
+# Replace occurrences of the current working directory with "<...>"
+
+sed "s#$(pwd)#<...>#g"

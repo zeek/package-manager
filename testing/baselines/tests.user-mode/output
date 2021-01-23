@@ -1,0 +1,28 @@
+[sources]
+one = <...>/sources/one
+
+[paths]
+state_dir = <...>/zeekroot/var/lib/zkg
+script_dir = <...>/zeekroot/share/zeek/site
+plugin_dir = <...>/zeekroot/lib/zeek/plugins
+zeek_dist = 
+
+
+Installing "one/alice/foo"
+Installed "one/alice/foo" (main)
+Loaded "one/alice/foo"
+one/alice/foo (installed: main)
+Installing "zeek/alice/bar"
+Installed "zeek/alice/bar" (master)
+Loaded "zeek/alice/bar"
+zeek/alice/bar (installed: master)
+Successfully wrote config file to <...>/home/testuser/.zkg/config
+[sources]
+
+[paths]
+state_dir = <...>/home/testuser/.zkg
+script_dir = <...>/home/testuser/.zkg/script_dir
+plugin_dir = <...>/home/testuser/.zkg/plugin_dir
+zeek_dist = 
+
+
