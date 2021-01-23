@@ -31,7 +31,7 @@ except ImportError:
     sys.exit(1)
 
 # For Zeek-bundled installation, explictly add the Python path we've
-# installed ourselves under, so we find the zkgpkg module:
+# installed ourselves under, so we find the zeekpkg module:
 ZEEK_PYTHON_DIR = '@PY_MOD_INSTALL_DIR@'
 if os.path.isdir(ZEEK_PYTHON_DIR):
     sys.path.append(os.path.abspath(ZEEK_PYTHON_DIR))
@@ -52,14 +52,18 @@ else:
     ZEEK_BIN_DIR = None
 
 # Also when bundling with Zeek, use directories in the install tree
-# for storing the zkg configuration and its variable state:
-ZEEK_ZKG_CONFIG_DIR = '@ZEEK_ZKG_CONFIG_DIR@'
+# for storing the zkg configuration and its variable state. Support
+# for overrides via environment variables simplifies testing.
+ZEEK_ZKG_CONFIG_DIR = os.getenv('ZEEK_ZKG_CONFIG_DIR') or '@ZEEK_ZKG_CONFIG_DIR@'
 if not os.path.isdir(ZEEK_ZKG_CONFIG_DIR):
     ZEEK_ZKG_CONFIG_DIR = None
 
-ZEEK_ZKG_STATE_DIR = '@ZEEK_ZKG_STATE_DIR@'
+ZEEK_ZKG_STATE_DIR = os.getenv('ZEEK_ZKG_STATE_DIR') or '@ZEEK_ZKG_STATE_DIR@'
 if not os.path.isdir(ZEEK_ZKG_STATE_DIR):
     ZEEK_ZKG_STATE_DIR = None
+
+# The default package source we fall back to as needed
+ZKG_DEFAULT_SOURCE = 'https://github.com/zeek/packages'
 
 from zeekpkg._util import (
     make_dir,
@@ -247,7 +251,9 @@ def create_config(args, configfile):
         config.add_section('paths')
 
     if not configfile:
-        config.set('sources', 'zeek', 'https://github.com/zeek/packages')
+        default = os.getenv('ZKG_DEFAULT_SOURCE', ZKG_DEFAULT_SOURCE)
+        if default:
+            config.set('sources', 'zeek', default)
 
     def config_option_set(config, section, option):
         return config.has_option(section, option) and config.get(section,
@@ -2027,7 +2033,10 @@ def top_level_parser():
         description='A command-line package manager for Zeek.',
         epilog='Environment Variables:\n\n'
         '    ``ZKG_CONFIG_FILE``:\t'
-        'Same as ``--configfile`` option, but has less precedence.'
+        'Same as ``--configfile`` option, but has less precedence.\n'
+        '    ``ZKG_DEFAULT_SOURCE``:\t'
+        'The default package source to use (normally {}).'
+        .format(ZKG_DEFAULT_SOURCE)
     )
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + zeekpkg.__version__)
