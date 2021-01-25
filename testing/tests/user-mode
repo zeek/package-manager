@@ -1,0 +1,32 @@
+# Establish a skeletal Zeek installation layout and alternative home directory
+# @TEST-EXEC: setup-zeek-and-home
+
+# Pretending to be the Zeek-bundled zkg, install a package and show it
+# @TEST-EXEC: zkg-zeek config >>output
+# @TEST-EXEC: zkg-zeek install --force foo >>output
+# @TEST-EXEC: zkg-zeek list >>output
+
+# At this point, zkg should have crated manifest and package state in
+# the Zeek install tree. The home directory should still be left
+# alone.
+# @TEST-EXEC: test -f zeekroot/var/lib/zkg/manifest.json
+# @TEST-EXEC: test -f zeekroot/share/zeek/site/packages/foo/__load__.zeek
+# @TEST-EXEC: test ! -d home/testuser/.zkg
+
+# Switching to user mode, install a different package.
+# @TEST-EXEC: zkg-zeek --user --extra-source zeek=$(pwd)/sources/one install --force bar >>output
+#
+# Only that package should get listed, and zkg should have built up
+# state in the home directory.
+# @TEST-EXEC: zkg-zeek --user list >>output
+# @TEST-EXEC: test -f home/testuser/.zkg/manifest.json
+# @TEST-EXEC: test ! -f home/testuser/.zkg/script_dir/packages/foo/__load__.zeek
+# @TEST-EXEC: test -f home/testuser/.zkg/script_dir/packages/bar/__load__.zeek
+
+# So far this didn't need a config file, but we can produce one:
+# @TEST-EXEC: test ! -f home/testuser/.zkg/config
+# @TEST-EXEC: zkg-zeek --user autoconfig >>output
+# @TEST-EXEC: test -f home/testuser/.zkg/config
+# @TEST-EXEC: zkg-zeek --user config >>output
+
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-cwd btest-diff output

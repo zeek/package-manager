@@ -1,4 +1,34 @@
 
+2.6.1-7 | 2021-01-25 11:54:28 -0800
+
+  * Documentation updates for user mode (Christian Kreibich, Corelight)
+
+  * Expand use of environment variables to override internal settings (Christian Kreibich, Corelight)
+
+    - ZKG_DEFAULT_SOURCE allows setting an alternative default package
+      source when https://github.com/zeek/packages isn't desirable. An
+      empty value causes no source to be defined.
+
+    - ZEEK_ZKG_CONFIG_DIR and ZEEK_ZKG_STATE_DIR allow overriding internal
+      storage locations configured during a Zeek-bundled install. This is
+      mainly to aid testing, so the help output does not include these.
+
+  * Suggest use of --user when zkg detects write-permission problems (Christian Kreibich, Corelight)
+
+  * Add user mode to zkg (Christian Kreibich, Corelight)
+
+    The --user flag forces zkg to manage state, including scripts and
+    plugin directories, in ~/.zkg. --user is mutually exclusive to
+    --configfile, and also overrides any ZKG_CONFIG_FILE environment
+    variable.
+
+    The flag exists for all commands, so you can also use e.g. autoconfig
+    to write out a config file with those settings. As before, "zkg env"
+    reports the environment variables required for operating Zeek with
+    these settings.
+
+  * Avoid reporting repeated paths in "zkg env" (Christian Kreibich, Corelight)
+
 2.6.1 | 2021-01-06 21:35:39 -0800
 
   * Release 2.6.1.

@@ -13,6 +13,8 @@ import json
 import configparser
 import sys
 
+from collections import OrderedDict
+
 try:
     import git
     import semantic_version as semver # lgtm[py/unused-import]
@@ -29,7 +31,7 @@ except ImportError:
     sys.exit(1)
 
 # For Zeek-bundled installation, explictly add the Python path we've
-# installed ourselves under, so we find the zkgpkg module:
+# installed ourselves under, so we find the zeekpkg module:
 ZEEK_PYTHON_DIR = '@PY_MOD_INSTALL_DIR@'
 if os.path.isdir(ZEEK_PYTHON_DIR):
     sys.path.append(os.path.abspath(ZEEK_PYTHON_DIR))
@@ -50,14 +52,18 @@ else:
     ZEEK_BIN_DIR = None
 
 # Also when bundling with Zeek, use directories in the install tree
-# for storing the zkg configuration and its variable state:
-ZEEK_ZKG_CONFIG_DIR = '@ZEEK_ZKG_CONFIG_DIR@'
+# for storing the zkg configuration and its variable state. Support
+# for overrides via environment variables simplifies testing.
+ZEEK_ZKG_CONFIG_DIR = os.getenv('ZEEK_ZKG_CONFIG_DIR') or '@ZEEK_ZKG_CONFIG_DIR@'
 if not os.path.isdir(ZEEK_ZKG_CONFIG_DIR):
     ZEEK_ZKG_CONFIG_DIR = None
 
-ZEEK_ZKG_STATE_DIR = '@ZEEK_ZKG_STATE_DIR@'
+ZEEK_ZKG_STATE_DIR = os.getenv('ZEEK_ZKG_STATE_DIR') or '@ZEEK_ZKG_STATE_DIR@'
 if not os.path.isdir(ZEEK_ZKG_STATE_DIR):
     ZEEK_ZKG_STATE_DIR = None
+
+# The default package source we fall back to as needed
+ZKG_DEFAULT_SOURCE = 'https://github.com/zeek/packages'
 
 from zeekpkg._util import (
     make_dir,
@@ -177,7 +183,15 @@ def file_is_not_empty(path):
     return os.path.isfile(path) and os.path.getsize(path) > 0
 
 
-def find_configfile():
+def find_configfile(args):
+    if args.user:
+        configfile = os.path.join(home_config_dir(), 'config')
+
+        if file_is_not_empty(configfile):
+            return configfile
+
+        return None
+
     configfile = os.environ.get('ZKG_CONFIG_FILE')
 
     if not configfile:
@@ -200,8 +214,12 @@ def find_configfile():
     return None
 
 
+def home_config_dir():
+    return os.path.join(os.path.expanduser('~'), '.zkg')
+
+
 def default_config_dir():
-    return ZEEK_ZKG_CONFIG_DIR or os.path.join(os.path.expanduser('~'), '.zkg')
+    return ZEEK_ZKG_CONFIG_DIR or home_config_dir()
 
 
 def legacy_config_dir():
@@ -209,14 +227,14 @@ def legacy_config_dir():
 
 
 def default_state_dir():
-    return ZEEK_ZKG_STATE_DIR or os.path.join(os.path.expanduser('~'), '.zkg')
+    return ZEEK_ZKG_STATE_DIR or home_config_dir()
 
 
 def legacy_state_dir():
     return os.path.join(os.path.expanduser('~'), '.bro-pkg')
 
 
-def create_config(configfile):
+def create_config(args, configfile):
     config = configparser.ConfigParser()
 
     if configfile:
@@ -233,7 +251,9 @@ def create_config(configfile):
         config.add_section('paths')
 
     if not configfile:
-        config.set('sources', 'zeek', 'https://github.com/zeek/packages')
+        default = os.getenv('ZKG_DEFAULT_SOURCE', ZKG_DEFAULT_SOURCE)
+        if default:
+            config.set('sources', 'zeek', default)
 
     def config_option_set(config, section, option):
         return config.has_option(section, option) and config.get(section,
@@ -245,8 +265,13 @@ def create_config(configfile):
 
         return default
 
+    if args.user:
+        def_state_dir = home_config_dir()
+    else:
+        def_state_dir = default_state_dir()
+
     state_dir = get_option(config, 'paths', 'state_dir',
-                           os.path.join(default_state_dir()))
+                           os.path.join(def_state_dir))
     script_dir = get_option(config, 'paths', 'script_dir',
                             os.path.join(state_dir, 'script_dir'))
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
@@ -330,14 +355,20 @@ def create_manager(args, config):
 
             def check_permission(d):
                 if os.access(d, os.W_OK):
-                    return
+                    return True
 
                 print_error(
                     'error: user does not have write access in {}'.format(d))
+                return False
 
-            check_permission(state_dir)
-            check_permission(script_dir)
-            check_permission(plugin_dir)
+            permissions_trouble = not all([check_permission(state_dir),
+                                           check_permission(script_dir),
+                                           check_permission(plugin_dir)])
+
+            if permissions_trouble and not args.user:
+                print_error(
+                    'Consider the --user flag to manage zkg state via {}/config'
+                    .format(home_config_dir()))
             sys.exit(1)
 
         raise
@@ -1855,6 +1886,13 @@ def cmd_config(manager, args, config, configfile):
 
 
 def cmd_autoconfig(manager, args, config, configfile):
+    if args.user:
+        configfile = os.path.join(home_config_dir(), 'config')
+        with io.open(configfile, 'w', encoding=std_encoding(sys.stdout)) as f:
+            config.write(f)
+        print('Successfully wrote config file to {}'.format(configfile))
+        return
+
     zeek_config = find_program('zeek-config')
 
     if zeek_config:
@@ -1957,6 +1995,12 @@ def cmd_env(manager, args, config, configfile):
     zeekpaths.append(manager.zeekpath())
     pluginpaths.append(manager.zeek_plugin_path())
 
+    def remove_redundant_paths(paths):
+        return list(OrderedDict.fromkeys(paths))
+
+    zeekpaths = remove_redundant_paths(zeekpaths)
+    pluginpaths = remove_redundant_paths(pluginpaths)
+
     if os.environ.get('SHELL', '').endswith('csh'):
         print(u'setenv BROPATH {}'.format(':'.join(zeekpaths)))
         print(u'setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
@@ -1989,12 +2033,20 @@ def top_level_parser():
         description='A command-line package manager for Zeek.',
         epilog='Environment Variables:\n\n'
         '    ``ZKG_CONFIG_FILE``:\t'
-        'Same as ``--configfile`` option, but has less precedence.'
+        'Same as ``--configfile`` option, but has less precedence.\n'
+        '    ``ZKG_DEFAULT_SOURCE``:\t'
+        'The default package source to use (normally {}).'
+        .format(ZKG_DEFAULT_SOURCE)
     )
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + zeekpkg.__version__)
-    top_parser.add_argument('--configfile',
-                            help='Path to Zeek Package Manager config file.')
+
+    group = top_parser.add_mutually_exclusive_group()
+    group.add_argument('--configfile', metavar='FILE',
+                       help='Path to Zeek Package Manager config file. Precludes --user.')
+    group.add_argument('--user', action='store_true',
+                       help='Store all state in user\'s home directory. Precludes --configfile.')
+
     top_parser.add_argument('--verbose', '-v', action='count', default=0,
                             help='Increase program output for debugging.'
                             ' Use multiple times for more output (e.g. -vvv).')
@@ -2398,7 +2450,9 @@ def argparser():
         ' config file that is generated by using the ``zeek-config`` script'
         ' that is installed along with Zeek.  It is the suggested configuration'
         ' to use for most Zeek installations.  For this command to work, the'
-        ' ``zeek-config`` (or ``bro-config``) script must be in ``PATH``.',
+        ' ``zeek-config`` (or ``bro-config``) script must be in ``PATH``,'
+        ' unless the --user option is given, in which case this creates'
+        ' a config that does not touch the Zeek installation.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_autoconfig)
 
@@ -2443,9 +2497,9 @@ def main():
     configfile = args.configfile
 
     if not configfile:
-        configfile = find_configfile()
+        configfile = find_configfile(args)
 
-    config = create_config(configfile)
+    config = create_config(args, configfile)
     manager = create_manager(args, config)
 
     args.run_cmd(manager, args, config, configfile)

@@ -56,6 +56,27 @@ Installation
 Basic Configuration
 -------------------
 
+:program:`zkg` supports four broad approaches to managing Zeek packages:
+
+- Keep package metadata in :file:`$HOME/.zkg/` and maintain
+  Zeek-relevant package content (such as scripts and plugins) in the
+  Zeek installation tree. This is :program:`zkg`'s "traditional"
+  approach.
+
+- Keep all state and package content within the Zeek installation
+  tree. Zeek 4's bundled :program:`zkg` installation provides this by
+  default. If you use multiple Zeek installations in parallel, this
+  approach allows you to install different sets of Zeek packages
+  with each Zeek version.
+
+- Keep all state and package content in :file:`$HOME/.zkg/`. This is
+  the preferred approach when you're running :program:`zkg` and
+  :program:`zeek` as different users. :program:`zkg`'s ``--user`` mode
+  enables this approach.
+
+- Custom configurations where you select your own state and content
+  locations.
+
 After installing via :program:`pip3`, but not when using the :program:`zkg`
 that comes pre-bundled with a Zeek installation, additional configuration is
 still required in the form of running a ``zkg autoconfig`` command, but in
@@ -93,9 +114,17 @@ also automatically distribute installed package scripts/plugins to all nodes.
 .. note::
 
   If your Zeek installation is owned by "root" and you intend to run
-  :program:`zkg` as a different user, then you should grant "write" access
-  to the directories specified by `script_dir` and `plugin_dir`.  E.g. you could
-  do something like:
+  :program:`zkg` as a different user, you have two options.
+
+  First, you can use :program:`zkg`'s user mode (``zkg --user``). In
+  user mode, :program:`zkg` consults :file:`$HOME/.zkg/config` for
+  configuration settings. Creating this config file in user mode
+  (``zkg --user autoconfig``) ensures that all state and content
+  directories reside within :file:`$HOME/.zkg/`. :program:`zkg` reports
+  according environment variables in the output of ``zkg --user env``.
+
+  Second, you can grant "write" access to the directories specified by
+  `script_dir` and `plugin_dir`, perhaps using something like:
 
   .. code-block:: console
 

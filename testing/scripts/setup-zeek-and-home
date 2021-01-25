@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+#
+# Helper script that establishes a skeletal equivalent of a
+# Zeek-bundled zkg state & config, and provides an alternative home
+# directory.
+
+zeek_zkg_config_dir=$(pwd)/zeekroot/etc/zkg
+zeek_zkg_state_dir=$(pwd)/zeekroot/var/lib/zkg
+zeek_site_dir=$(pwd)/zeekroot/share/zeek/site
+zeek_plugins_dir=$(pwd)/zeekroot/lib/zeek/plugins
+
+mkdir -p home/testuser ${zeek_zkg_config_dir} ${zeek_zkg_state_dir} \
+      ${zeek_site_dir} ${zeek_plugins_dir}
+
+echo "\
+[sources]
+one = $(pwd)/sources/one
+[paths]
+state_dir = ${zeek_zkg_state_dir}
+script_dir = ${zeek_site_dir}
+plugin_dir = ${zeek_plugins_dir}
+" >> ${zeek_zkg_config_dir}/config
+

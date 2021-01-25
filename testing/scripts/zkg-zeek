@@ -1,0 +1,17 @@
+#! /usr/bin/env bash
+#
+# Invokes zkg to get the same behavior as with a Zeek-bundled install:
+# no config file is spelled out by default, but a config and state
+# directory are set as with the installation via CMake.
+
+# Pretend a different home directory, as created by setup-zeek-and-home
+export HOME=$(pwd)/home/testuser
+
+# Make zkg use the (pseudo) Zeek-bundled locations created by setup-zeek
+export ZEEK_ZKG_CONFIG_DIR=$(pwd)/zeekroot/etc/zkg
+export ZEEK_ZKG_STATE_DIR=$(pwd)/zeekroot/var/lib/zkg
+
+# Don't use a default package source in zkg:
+export ZKG_DEFAULT_SOURCE=
+
+$TEST_BASE/../zkg "$@"
