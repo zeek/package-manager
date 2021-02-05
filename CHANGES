@@ -1,4 +1,10 @@
 
+2.7.0-2 | 2021-02-05 15:29:41 -0800
+
+  * Teach autoconfig command the --force option (Jon Siwek, Corelight)
+
+    Allows for skipping confirmation prompts
+
 2.7.0 | 2021-01-25 12:05:08 -0800
 
   * Release 2.7.0.
