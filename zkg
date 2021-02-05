@@ -1941,7 +1941,7 @@ def cmd_autoconfig(manager, args, config, configfile):
         if old_value:
             prompt += u'\n(previous value: {})'.format(old_value)
 
-        if confirmation_prompt(prompt):
+        if args.force or confirmation_prompt(prompt):
             config.set(section, option, new_value)
 
     change_config_value(config, 'paths', 'script_dir',
@@ -2455,6 +2455,9 @@ def argparser():
         ' a config that does not touch the Zeek installation.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_autoconfig)
+    sub_parser.add_argument(
+        '--force', action='store_true',
+        help='Skip any confirmation prompt.')
 
     # env
     sub_parser = command_parser.add_parser(
