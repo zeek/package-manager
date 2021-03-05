@@ -3,15 +3,15 @@ A module defining the main Zeek Package Manager interface which supplies
 methods to interact with and operate on Zeek packages.
 """
 
-import os
-import sys
-import copy
-import json
-import shutil
-import filecmp
-import tarfile
-import subprocess
 import configparser
+import copy
+import filecmp
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tarfile
 
 try:
     from urllib.parse import urlparse

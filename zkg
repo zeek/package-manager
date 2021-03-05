@@ -1,17 +1,17 @@
 #! /usr/bin/env python3
 
-import os
-import io
-import errno
 import argparse
-import logging
-import threading
+import configparser
+import errno
 import filecmp
+import io
+import json
+import logging
+import os
 import shutil
 import subprocess
-import json
-import configparser
 import sys
+import threading
 
 from collections import OrderedDict
 

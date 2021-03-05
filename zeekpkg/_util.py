@@ -2,10 +2,10 @@
 These are meant to be private utility methods for internal use.
 """
 
-import os
 import errno
-import shutil
 import git
+import os
+import shutil
 
 
 def make_dir(path):
