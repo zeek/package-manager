@@ -30,8 +30,9 @@ zeek_lts_task:
     << : *RESOURCES_TEMPLATE
   << : *CI_TEMPLATE
 
-zeek_feature_task:
-  container:
-    dockerfile: ci/zeek-feature/Dockerfile
-    << : *RESOURCES_TEMPLATE
-  << : *CI_TEMPLATE
+# Note: this gets re-enabled when there's a Zeek 4.1 release.
+# zeek_feature_task:
+#   container:
+#     dockerfile: ci/zeek-feature/Dockerfile
+#     << : *RESOURCES_TEMPLATE
+#   << : *CI_TEMPLATE
