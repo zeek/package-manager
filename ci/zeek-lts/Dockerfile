@@ -33,13 +33,7 @@ RUN yum -y install \
     wget \
   && yum clean all && rm -rf /var/cache/yum
 
-# Many distros adhere to PEP 394's recommendation for `python` = `python2` so
-# this is a simple workaround until we drop Python 2 support and explicitly
-# use `python3` for all invocations (e.g. in shebangs).
-RUN ln -sf /usr/bin/python3 /usr/local/bin/python
-RUN ln -sf /usr/bin/pip3 /usr/local/bin/pip
-
-RUN pip install GitPython semantic_version btest
+RUN pip3 install GitPython semantic_version btest
 
 RUN echo 'unset BASH_ENV PROMPT_COMMAND ENV' > /usr/bin/zeek-ci-env && \
     echo 'source /opt/rh/devtoolset-7/enable' >> /usr/bin/zeek-ci-env
@@ -49,7 +43,7 @@ ENV BASH_ENV="/usr/bin/zeek-ci-env" \
     PROMPT_COMMAND=". /usr/bin/zeek-ci-env" \
     PATH="${PATH}:/usr/local/zeek/bin"
 
-ENV ZEEK_CI_VERSION 3.0.3
+ENV ZEEK_CI_VERSION 4.0.0
 
 RUN cd /tmp && \
     source /opt/rh/devtoolset-7/enable && \
