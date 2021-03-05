@@ -1,4 +1,18 @@
 
+2.7.1-5 | 2021-03-05 15:56:09 -0800
+
+  * Prevent local githooks from interfering with zkg's commands (Christian Kreibich, Corelight)
+
+    This adds --no-verify during git commits and pushes to prevent githook
+    interference.
+
+  * Prevent local githooks from interfering with the testsuite (Christian Kreibich, Corelight)
+
+    This adds a git wrapper script that skips any git configuration done in
+    the user's home, including typical local git hooks.
+
+  * Update CI to test Zeek 4.0 and not test 3.2 anymore (Jon Siwek, Corelight)
+
 2.7.1 | 2021-02-05 15:29:59 -0800
 
   * Release 2.7.1.

@@ -888,9 +888,9 @@ class Manager(object):
 
             if source.clone.is_dirty():
                 source.clone.git.commit(
-                    '--message', 'Update aggregated metadata.')
+                    '--no-verify', '--message', 'Update aggregated metadata.')
 
-            source.clone.git.push()
+            source.clone.git.push('--no-verify')
 
         return self.SourceAggregationResults('', aggregation_issues)
 
