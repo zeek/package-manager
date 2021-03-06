@@ -1,4 +1,10 @@
 
+2.7.1-7 | 2021-03-05 16:39:22 -0800
+
+  * Update plugin used in test suite for Zeek 4.1 compatibility (Jon Siwek, Corelight)
+
+  * Update test baselines to include btest header info (Jon Siwek, Corelight)
+
 2.7.1-5 | 2021-03-05 15:56:09 -0800
 
   * Prevent local githooks from interfering with zkg's commands (Christian Kreibich, Corelight)
