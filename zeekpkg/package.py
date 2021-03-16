@@ -243,6 +243,7 @@ class PackageInfo(object):
         self.status = status
         self.metadata = {} if metadata is None else metadata
         self.versions = [] if versions is None else versions
+        self.preferred_version = None
         self.metadata_version = metadata_version
         self.version_type = version_type
         self.invalid_reason = invalid_reason
@@ -293,12 +294,24 @@ class PackageInfo(object):
         """
         return user_vars(self.metadata)
 
+    def set_preferred_version(self, version):
+        """Notes down the given version as preferrable.
+
+        Preferred versions take effect when we'd otherwise just consider the greatest semver tag.
+
+        version (str): the preferable version.
+        """
+        self.preferred_version = version
+
     def best_version(self):
         """Returns the best/latest version of the package that is available.
 
-        If the package has any git release tags, this returns the highest one,
-        else it returns the default branch like 'main' or 'master'.
+        If we have a preferred version on file for this package, we use it.
+        Otherwise, if the package has any git release tags, this returns the
+        highest one, else it returns the default branch like 'main' or 'master'.
         """
+        if self.preferred_version:
+            return self.preferred_version
         if self.versions:
             return self.versions[-1]
 

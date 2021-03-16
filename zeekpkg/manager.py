@@ -1511,27 +1511,64 @@ class Manager(object):
         Raises:
             git.exc.GitCommandError: when failing to clone the package repo
         """
+        def _info_from_checkout(clone, ver):
+            try:
+                git_checkout(clone, ver)
+                LOG.debug('checked out "%s", branch/version "%s"', package, ver)
+                return _info_from_clone(clone, package, status, ver)
+            except git.exc.GitCommandError:
+                reason = 'no such commit, branch, or version tag: "{}"'.format(ver)
+                return PackageInfo(package=package, status=status,
+                                   invalid_reason=reason)
+
+        def is_ver_compatible(ver, spec):
+            normal_version = _normalize_version_tag(ver)
+            req_semver = semver.Version.coerce(normal_version)
+
+            try:
+                semver_spec = semver.Spec(spec)
+            except ValueError:
+                LOG.info('package "%s" has invalid semver spec: %s',
+                    package.name, spec)
+                return False
+
+            return req_semver in semver_spec
+
+        def is_zeek_compatible(dd):
+            if 'zeek' not in dd:
+                return True
+            return is_ver_compatible(get_zeek_version(), dd['zeek'])
+
+        def is_zkg_compatible(dd):
+            if 'zkg' not in dd:
+                return True
+            return is_ver_compatible(__version__, dd['zkg'])
+
         clonepath = os.path.join(self.scratch_dir, package.name)
         clone = _clone_package(package, clonepath, version)
         versions = _get_version_tags(clone)
 
-        if not version:
+        # Explicit version requested
+        if version:
+            info = _info_from_checkout(clone, version)
+            if not info.invalid_reason:
+                return info
 
-            if len(versions):
-                version = versions[-1]
-            else:
-                version = git_default_branch(clone)
+        # Nothing explicit, but package has version tags -- find one
+        # that satisfies local invariants Zeek and zkg:
+        if versions:
+            for ver in versions[::-1]:
+                info = _info_from_checkout(clone, ver)
+                if info.invalid_reason:
+                    continue
+                dd = info.dependencies()
+                if is_zeek_compatible(dd) and is_zkg_compatible(dd):
+                    info.set_preferred_version(ver)
+                    return info
 
-        try:
-            git_checkout(clone, version)
-        except git.exc.GitCommandError:
-            reason = 'no such commit, branch, or version tag: "{}"'.format(
-                version)
-            return PackageInfo(package=package, status=status,
-                               invalid_reason=reason)
-
-        LOG.debug('checked out "%s", branch/version "%s"', package, version)
-        return _info_from_clone(clone, package, status, version)
+        # We either hit a git problem or none of the version tags had
+        # satisfiable Zeek/zkg dependencies. Use default branch:
+        return _info_from_checkout(clone, git_default_branch(clone))
 
     def package_versions(self, installed_package):
         """Returns a list of version number tags available for a package.
