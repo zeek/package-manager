@@ -54,13 +54,15 @@ from .package import (
     PLUGIN_MAGIC_FILE_DISABLED,
     name_from_path,
     aliases,
-    user_vars,
     canonical_url,
     is_valid_name as is_valid_package_name,
     Package,
     PackageInfo,
     PackageStatus,
     InstalledPackage
+)
+from .uservar import (
+    UserVar,
 )
 from . import (
     __version__,
@@ -2288,7 +2290,18 @@ class Manager(object):
             return invalid_reason
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
-        requested_user_vars = user_vars(raw_metadata)
+
+        # Ensure any listed executables exist as advertised. Do this first so
+        # that we don't build anything if it fails.
+        for p in self._get_executables(raw_metadata):
+            full_path = os.path.join(clone.working_dir, p)
+            if not os.path.isfile(full_path):
+                return str.format("executable '{}' is missing", p)
+
+            if not os.access(full_path, os.X_OK):
+                return str.format("file '{}' is not executable", p)
+
+        requested_user_vars = UserVar.parse_dict(raw_metadata)
 
         if requested_user_vars is None:
             return "package has malformed 'user_vars' metadata field"
@@ -2300,14 +2313,14 @@ class Manager(object):
         }
         substitutions.update(self.user_vars)
 
-        for k, v, _ in requested_user_vars:
-            val_from_env = os.environ.get(k)
+        for uvar in requested_user_vars:
+            val_from_env = os.environ.get(uvar.name())
 
             if val_from_env:
-                substitutions[k] = val_from_env
+                substitutions[uvar.name()] = val_from_env
 
-            if k not in substitutions:
-                substitutions[k] = v
+            if uvar.name() not in substitutions:
+                substitutions[uvar.name()] = uvar.val()
 
         metadata_parser = configparser.ConfigParser(defaults=substitutions)
         invalid_reason = _parse_package_metadata(

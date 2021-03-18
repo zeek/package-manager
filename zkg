@@ -78,6 +78,9 @@ from zeekpkg._util import (
 from zeekpkg.package import (
     TRACKING_METHOD_VERSION,
 )
+from zeekpkg.uservar import (
+    UserVar,
+)
 
 import zeekpkg
 
@@ -106,7 +109,7 @@ def confirmation_prompt(prompt, default_to_yes=True):
     return False
 
 
-def prompt_for_user_vars(manager, config, configfile, force, pkg_infos):
+def prompt_for_user_vars(manager, config, configfile, args, pkg_infos):
     answers = {}
 
     for info in pkg_infos:
@@ -117,45 +120,10 @@ def prompt_for_user_vars(manager, config, configfile, force, pkg_infos):
             print_error(str.format('error: malformed user_vars in "{}"', name))
             sys.exit(1)
 
-        if not requested_user_vars:
-            continue
+        for uvar in requested_user_vars:
+            answers[uvar.name()] = uvar.resolve(name, config, args.user_var, args.force)
 
-        for key, value, desc in requested_user_vars:
-            from_env = False
-            default_value = os.environ.get(key)
-
-            if default_value:
-                from_env = True
-            else:
-                if config.has_section('user_vars'):
-                    v = config.get('user_vars', key, fallback=None)
-
-                    if v:
-                        default_value = v
-                    else:
-                        default_value = value
-                else:
-                    default_value = value
-
-            if force:
-                answers[key] = default_value
-            else:
-                if from_env:
-                    print(str.format(
-                        '{} will use value of {} ({}) from environment: {}',
-                        name, key, desc, default_value))
-                    answers[key] = default_value
-                else:
-                    prompt = '{} asks for {} ({}) ? [{}] '.format(
-                        name, key, desc, default_value)
-                    response = input(prompt)
-
-                    if response:
-                        answers[key] = response
-                    else:
-                        answers[key] = default_value
-
-    if not force and answers:
+    if not args.force and answers:
         for key, value in answers.items():
             if not config.has_section('user_vars'):
                 config.add_section('user_vars')
@@ -608,7 +576,7 @@ def cmd_install(manager, args, config, configfile):
 
     package_infos += new_pkgs
 
-    prompt_for_user_vars(manager, config, configfile, args.force,
+    prompt_for_user_vars(manager, config, configfile, args,
                          [info for info, _, _ in package_infos])
 
     if not args.skiptests:
@@ -932,7 +900,7 @@ def cmd_unbundle(manager, args, config, configfile):
         if not confirmation_prompt('Proceed?'):
             return
 
-    prompt_for_user_vars(manager, config, configfile, args.force,
+    prompt_for_user_vars(manager, config, configfile, args,
                          [info for _, _, info in bundle_info])
 
     error = manager.unbundle(args.bundle_filename)
@@ -1306,7 +1274,7 @@ def cmd_upgrade(manager, args, config, configfile):
         if not confirmation_prompt('Proceed?'):
             return
 
-    prompt_for_user_vars(manager, config, configfile, args.force,
+    prompt_for_user_vars(manager, config, configfile, args,
                          [info for info, _, _ in allpkgs])
 
     if not args.skiptests:
@@ -2085,6 +2053,16 @@ def argparser():
                     ' "alice/bro-pkg.index", the following' \
                     ' names work: "foo", "alice/foo", "zeek/alice/foo".'
 
+    def add_uservar_args(parser, force_help=None):
+        parser.add_argument(
+            '--force', action='store_true',
+            help=force_help or "Don't prompt for confirmation or user variables.")
+        parser.add_argument(
+            '--user-var', action='append', metavar='NAME=VAL', type=UserVar.parse_arg,
+            help='A user variable assignment. This avoids prompting'
+            ' for input and lets you provide a value when using --force.'
+            ' Use repeatedly as needed for multiple values.')
+
     top_parser = top_level_parser()
     command_parser = top_parser.add_subparsers(
         title='commands', dest='command',
@@ -2125,9 +2103,6 @@ def argparser():
     sub_parser.add_argument(
         'package', nargs='+', help=pkg_name_help)
     sub_parser.add_argument(
-        '--force', action='store_true',
-        help='Skip the confirmation prompt.')
-    sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
     sub_parser.add_argument(
@@ -2148,6 +2123,7 @@ def argparser():
         ' The default for other cases is to use'
         ' the latest version tag, or if a package has none,'
         ' the default branch, like "main" or "master".')
+    add_uservar_args(sub_parser)
 
     # bundle
     sub_parser = command_parser.add_parser(
@@ -2211,12 +2187,10 @@ def argparser():
         metavar='filename.bundle',
         help='The path of the bundle file to install.')
     sub_parser.add_argument(
-        '--force', action='store_true',
-        help='Skip the confirmation prompt.')
-    sub_parser.add_argument(
         '--replace', action='store_true',
         help='Using this flag first removes all installed packages before then'
         ' installing the packages from the bundle.')
+    add_uservar_args(sub_parser)
 
     # remove
     sub_parser = command_parser.add_parser(
@@ -2291,9 +2265,6 @@ def argparser():
     sub_parser.add_argument(
         'package', nargs='*', default=[], help=pkg_name_help)
     sub_parser.add_argument(
-        '--force', action='store_true',
-        help='Skip the confirmation prompt.')
-    sub_parser.add_argument(
         '--skiptests', action='store_true',
         help='Skip running unit tests for packages before installation.')
     sub_parser.add_argument(
@@ -2304,6 +2275,7 @@ def argparser():
     sub_parser.add_argument(
         '--nosuggestions', action='store_true',
         help='Skip automatically installing suggested packages.')
+    add_uservar_args(sub_parser)
 
     # load
     sub_parser = command_parser.add_parser(
