@@ -101,6 +101,10 @@ settings that should work for most Zeek deployments:
 - `plugin_dir`: set to the location of Zeek's default plugin directory (e.g.
   :file:`{<zeek_install_prefix>}/lib/zeek/plugins`)
 
+- `bin_dir`: set to the location where :program:`zkg` installs
+  executables that packages provide (e.g.,
+  :file:`{<zeek_install_prefix>}/bin`).
+
 - `zeek_dist`: set to the location of Zeek's source code.
   If you didn't build/install Zeek from source code, this field will not be set,
   but it's only needed if you plan on installing packages that have uncompiled
@@ -124,12 +128,13 @@ also automatically distribute installed package scripts/plugins to all nodes.
   according environment variables in the output of ``zkg --user env``.
 
   Second, you can grant "write" access to the directories specified by
-  `script_dir` and `plugin_dir`, perhaps using something like:
+  `script_dir`, `plugin_dir`, and `bin_dir`; perhaps using something like:
 
   .. code-block:: console
 
-    $ sudo chgrp $USER $(zeek-config --site_dir) $(zeek-config --plugin_dir)
-    $ sudo chmod g+rwX $(zeek-config --site_dir) $(zeek-config --plugin_dir)
+    $ sudo chgrp $USER $(zeek-config --site_dir) $(zeek-config
+    --plugin_dir) $(zeek-config --prefix)/bin
+    $ sudo chmod g+rwX $(zeek-config --site_dir) $(zeek-config --plugin_dir) $(zeek-config --prefix)/bin
 
 The final step is to edit your :file:`site/local.zeek`.  If you want to
 have Zeek automatically load the scripts from all
@@ -189,6 +194,16 @@ When using non-standard location, follow these steps to integrate with
 
   And set the `SitePluginPath` option in :file:`zeekctl.cfg` based on the output
   you see.
+
+- To have your shell find executables that packages provide, update
+  your :envvar:`PATH`:
+
+  .. code-block:: console
+
+    $ export PATH=$(zkg config bin_dir):$PATH
+
+  (Executing ```zkg env```, as described above, includes this
+  already.)
 
 Usage
 -----

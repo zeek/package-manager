@@ -35,6 +35,7 @@ one = $(pwd)/sources/one
 state_dir = $(pwd)/state
 script_dir = $(pwd)/scripts
 plugin_dir = $(pwd)/plugins
+bin_dir = $(pwd)/bin
 " >> config
 
 type zeek-config > /dev/null 2>&1 && echo "zeek_dist = $(zeek-config --zeek_dist)" >> config || true

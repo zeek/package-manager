@@ -457,6 +457,24 @@ script components, the "plugin" part is always unconditionally loaded by Zeek,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
+`executables` field
+~~~~~~~~~~~~~~~~~~~
+
+The `executables` fields lists shell scripts or other executables that
+the package provides. The package manager will make these executables
+available inside the user's :file:`bin_dir` directory. 
+
+An example :file:`zkg.meta`, if the ``Rot13`` example plugin
+were also building an executable ``a.out``::
+
+  [package]
+  script_dir = scripts/Demo/Rot13
+  build_command = ./configure && make
+  executables = build/a.out
+
+The package manager makes executables available by maintaining symbolic
+links referring from :file:`bin_dir` to the actual files.
+
 .. _legacy-bro-support:
 
 Supporting Older Bro Versions
