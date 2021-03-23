@@ -5,7 +5,15 @@ responses to zkg's input prompting.
 """
 import os
 import re
+import readline
 
+def _rlinput(prompt, prefill=''):
+    """Variation of input() that supports pre-filling a value."""
+    readline.set_startup_hook(lambda: readline.insert_text(prefill))
+    try:
+        return input(prompt)
+    finally:
+        readline.set_startup_hook()
 
 class UserVar():
     """A class representing a single user variable.
@@ -101,7 +109,8 @@ class UserVar():
         desc = ' (' + self._desc + ')' if self._desc else ''
         print('"{}" requires a "{}" value{}: '.format(
             name, self._name, desc))
-        self._val = input(self._name + ': ')
+        self._val = _rlinput(self._name + ': ', val)
+        self._val = _rlinput(self._name + ': ', val)
 
         return self._val
 
