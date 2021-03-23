@@ -3,8 +3,10 @@ These are meant to be private utility methods for internal use.
 """
 
 import errno
+import importlib.machinery
 import os
 import shutil
+import types
 
 import git
 import semantic_version as semver
@@ -281,3 +283,25 @@ def get_zeek_version():
                            bufsize=1, universal_newlines=True)
 
     return read_zeek_config_line(cmd.stdout)
+
+def load_source(filename):
+    """Loads given Python script from disk.
+
+    Args:
+        filename (str): name of a Python script file
+
+    Returns:
+        types.ModuleType: a module representing the loaded file
+    """
+    # https://stackoverflow.com/questions/67631/how-to-import-a-module-given-the-full-path
+    # We currrently require Python 3.5+, where the following looks sufficient:
+    absname = os.path.abspath(filename)
+    dirname = os.path.dirname(absname)
+
+    # Naming here is unimportant, since we access members of the new
+    # module via the returned instance.
+    loader = importlib.machinery.SourceFileLoader('template_' + dirname, absname)
+    mod = types.ModuleType(loader.name)
+    loader.exec_module(mod)
+
+    return mod
