@@ -68,7 +68,11 @@ if not os.path.isdir(ZEEK_ZKG_STATE_DIR):
 # The default package source we fall back to as needed
 ZKG_DEFAULT_SOURCE = 'https://github.com/zeek/packages'
 
+# The default package template
+ZKG_DEFAULT_TEMPLATE = 'https://github.com/zeek/package-template'
+
 from zeekpkg._util import (
+    delete_path,
     make_dir,
     make_symlink,
     find_program,
@@ -77,6 +81,10 @@ from zeekpkg._util import (
 )
 from zeekpkg.package import (
     TRACKING_METHOD_VERSION,
+)
+from zeekpkg.template import (
+    LoadError,
+    Template,
 )
 from zeekpkg.uservar import (
     UserVar,
@@ -121,7 +129,12 @@ def prompt_for_user_vars(manager, config, configfile, args, pkg_infos):
             sys.exit(1)
 
         for uvar in requested_user_vars:
-            answers[uvar.name()] = uvar.resolve(name, config, args.user_var, args.force)
+            try:
+                answers[uvar.name()] = uvar.resolve(name, config, args.user_var, args.force)
+            except ValueError:
+                print_error(str.format('error: could not determine value of user variable "{}",'
+                                       ' provide via environment or --user-var', uvar.name()))
+                sys.exit(1)
 
     if not args.force and answers:
         for key, value in answers.items():
@@ -221,10 +234,18 @@ def create_config(args, configfile):
     if not config.has_section('paths'):
         config.add_section('paths')
 
+    if not config.has_section('templates'):
+        config.add_section('templates')
+
     if not configfile:
         default = os.getenv('ZKG_DEFAULT_SOURCE', ZKG_DEFAULT_SOURCE)
         if default:
             config.set('sources', 'zeek', default)
+
+    if not configfile or not config.has_option('templates', 'default'):
+        default = os.getenv('ZKG_DEFAULT_TEMPLATE', ZKG_DEFAULT_TEMPLATE)
+        if default:
+            config.set('templates', 'default', default)
 
     def config_option_set(config, section, option):
         return config.has_option(section, option) and config.get(section,
@@ -267,6 +288,7 @@ def create_config(args, configfile):
 
     expand_config_values(config, 'sources')
     expand_config_values(config, 'paths')
+    expand_config_values(config, 'templates')
 
     for key, value in config.items('paths'):
         if value and not os.path.isabs(value):
@@ -1995,6 +2017,97 @@ def cmd_env(manager, args, config, configfile):
         print(u'export PATH={}:$PATH'.format(manager.bin_dir))
 
 
+def cmd_create(manager, args, config, configfile):
+
+    tmplname = (args.template
+                or config.get('templates', 'default', fallback=None)
+                or ZKG_DEFAULT_TEMPLATE)
+    try:
+        tmpl = Template.load(config, tmplname, args.version)
+    except LoadError as error:
+        msg = 'problem while loading template {}: {}'.format(tmplname, error)
+        zeekpkg.LOG.exception(msg)
+        print_error('error: ' + msg)
+        sys.exit(1)
+
+    try:
+        package = tmpl.package()
+        uvars = tmpl.define_user_vars()
+        uvar_names = set(package.needed_user_vars())
+
+        # Overlay any requested features onto the package.
+        if args.features:
+            # If the user provided comma-separated values, split the
+            # strings. (Argparse expects space separation.) Also
+            # filter any duplicates.
+            fnames = set()
+            for feat in args.features:
+                fnames |= set([f.strip() for f in feat.split(',') if f])
+            features = tmpl.features()
+            for feature in features:
+                if feature.name() in fnames:
+                    package.add_feature(feature)
+                    uvar_names |= set(feature.needed_user_vars())
+                    fnames.remove(feature.name())
+            if len(fnames) > 0:
+                # Alert if the user requested an unknown feature.
+                knowns = ', '.join([f'"{f.name()}"' for f in features])
+                unknowns = ', '.join([f'"{name}"' for name in fnames])
+                print_error('error: the following features are unknown: {}.'
+                            ' Template "{}" offers {}.'.format(
+                                unknowns, tmpl.name(), knowns or 'no features'))
+                sys.exit(1)
+
+        # Remove user vars we don't actually require from consideration
+        uvars = [uvar for uvar in uvars if uvar.name() in uvar_names]
+
+        # Resolve the variables via user input, args, etc
+        for uvar in uvars:
+            try:
+                uvar.resolve(tmpl.name(), config, args.user_var, args.force)
+            except ValueError:
+                print_error(str.format('error: could not determine value of user variable "{}",'
+                                       ' provide via environment or --user-var', uvar.name()))
+                sys.exit(1)
+
+        # Apply them to the template. After this, any parameter can be
+        # retrieved from the template via tmpl.lookup_param().
+        tmpl._set_user_vars(uvars)
+
+        # Verify that resulting template parameters are formatted correctly
+        try:
+            package.do_validate(tmpl)
+        except zeekpkg.template.InputError as error:
+            print_error('error: template input invalid, ' + str(error))
+            sys.exit(1)
+
+        # And finally, instantiate the package.
+        try:
+            if os.path.isdir(args.packagedir):
+                if not args.force:
+                    print('Package directory {} already exists.'
+                          .format(args.packagedir))
+                    if not confirmation_prompt('Delete?'):
+                        sys.exit(1)
+                try:
+                    delete_path(args.packagedir)
+                    zeekpkg.LOG.info('Removed existing package directory %s', args.packagedir)
+                except OSError as err:
+                    print_error('error: could not remove package directory {}: {}'
+                                .format(args.packagedir, err))
+                    sys.exit(1)
+
+            package.do_instantiate(tmpl, args.packagedir, args.force)
+        except zeekpkg.template.OutputError as error:
+            print_error('error: template instantiation failed, ' + str(error))
+            sys.exit(1)
+    except Exception as error:
+        msg = 'problem during template instantiation: {}'.format(error)
+        zeekpkg.LOG.exception(msg)
+        print_error('error: ' + msg)
+        sys.exit(1)
+
+
 class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     # Workaround for underlying argparse bug: https://bugs.python.org/issue9338
     def _format_args(self, action, default_metavar):
@@ -2017,8 +2130,10 @@ def top_level_parser():
         '    ``ZKG_CONFIG_FILE``:\t'
         'Same as ``--configfile`` option, but has less precedence.\n'
         '    ``ZKG_DEFAULT_SOURCE``:\t'
-        'The default package source to use (normally {}).'
-        .format(ZKG_DEFAULT_SOURCE)
+        'The default package source to use (normally {}).\n'
+        '    ``ZKG_DEFAULT_TEMPLATE``:\t'
+        'The default package template to use (normally {}).\n'
+        .format(ZKG_DEFAULT_SOURCE, ZKG_DEFAULT_TEMPLATE)
     )
     top_parser.add_argument('--version', action='version',
                             version='%(prog)s ' + zeekpkg.__version__)
@@ -2461,6 +2576,35 @@ def argparser():
         ' can append package-specific paths to them.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sub_parser.set_defaults(run_cmd=cmd_env)
+
+    # create
+    sub_parser = command_parser.add_parser(
+        'create', help='Create a new Zeek package.',
+        description='This command creates a new Zeek package in the directory'
+        ' provided via --packagedir. If this directory exists, zkg will not'
+        ' modify it unless you provide --force.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    sub_parser.add_argument(
+        '--packagedir', metavar='DIR', required=True,
+        help='Output directory into which to produce the new package. Required.')
+    sub_parser.add_argument(
+        '--version',
+        help='The template version to use.  A version tag, branch name, or'
+        ' commit hash may be specified here.  If --template refers to a local'
+        ' git repo with a working tree, then zkg uses it as-is and the version'
+        ' is ignored.  The default for other cases is to use the latest'
+        ' version tag, or if a template has none, the default branch, like'
+        ' "main" or "master".')
+    sub_parser.add_argument(
+        '--features', nargs='+', metavar='FEATURE',
+        help='Additional features to include in your package. See the template'
+        ' information for details.')
+    sub_parser.add_argument(
+        '--template', metavar='URL',
+        help='By default, zkg uses its own package template. This makes it'
+        ' select an alternative.')
+    sub_parser.set_defaults(run_cmd=cmd_create)
+    add_uservar_args(sub_parser)
 
     return top_parser
 
