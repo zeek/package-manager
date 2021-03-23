@@ -1,0 +1,34 @@
+# This test verifies template instantiation.
+
+# Provide variable via --user-var and ensure resulting package installs
+# @TEST-EXEC: zkg create --packagedir out1 --template $TEMPLATES/foo --user-var name=test1 >output
+# @TEST-EXEC: zkg install ./out1
+
+# Provide variable via environment and ensure resulting package installs.
+# @TEST-EXEC: name=test2 zkg create --packagedir out2 --template $TEMPLATES/foo >>output
+# @TEST-EXEC: zkg install ./out2
+#
+# Verify the README does not exist -- it's provided by a template feature
+# @TEST-EXEC: test ! -f out2/README
+
+# Same as first test, but now request the readme feature. This uses
+# --force to suppress user input, making user var resolution fall back
+# to the default for the readme parameter.
+# @TEST-EXEC: zkg create --force --packagedir out3 --template $TEMPLATES/foo --feature readme --user-var name=test3 >>output
+# @TEST-EXEC: zkg install ./out3
+# @TEST-EXEC: btest-diff out3/README
+# @TEST-EXEC: btest-diff out3/scripts/main.zeek
+#
+# Verify the zkg.meta content.
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-zkg-version btest-diff out3/zkg.meta
+
+# zkg should now have all three packages installed.
+# @TEST-EXEC: zkg list >>output
+
+# Fail to provide a user variable when using --force (thus suppressing input). This should fail.
+# @TEST-EXEC-FAIL: zkg create --force --packagedir out4 --template $TEMPLATES/foo >>output 2>&1
+
+# Request an unknown feature. This should fail.
+# @TEST-EXEC-FAIL: zkg create --packagedir out5 --template $TEMPLATES/foo --feature doesntexist >>output 2>&1
+
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff output
