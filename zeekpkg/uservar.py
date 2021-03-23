@@ -110,7 +110,6 @@ class UserVar():
         print('"{}" requires a "{}" value{}: '.format(
             name, self._name, desc))
         self._val = _rlinput(self._name + ': ', val)
-        self._val = _rlinput(self._name + ': ', val)
 
         return self._val
 
