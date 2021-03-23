@@ -7,6 +7,16 @@ import os
 import re
 import readline
 
+def slugify(string):
+    """Returns file-system-safe, lower-case version of the input string.
+
+    Any character sequence outside of [a-zA-Z0-9_]+ gets replaced by a
+    single underscore. If the variable has no value or the value is an
+    empty string, returns the given default.
+    """
+    return re.sub(r'[^\w]+', '_', string, flags=re.ASCII).lower()
+
+
 def _rlinput(prompt, prefill=''):
     """Variation of input() that supports pre-filling a value."""
     readline.set_startup_hook(lambda: readline.insert_text(prefill))
@@ -14,6 +24,7 @@ def _rlinput(prompt, prefill=''):
         return input(prompt)
     finally:
         readline.set_startup_hook()
+
 
 class UserVar():
     """A class representing a single user variable.
