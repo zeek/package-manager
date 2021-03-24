@@ -1,4 +1,17 @@
 
+2.7.1-9 | 2021-03-24 15:38:03 -0700
+
+  * Add support for packages shipping executables. (Robin Sommer, Corelight)
+
+    This introduces a new "executables" metadata field that a package can
+    set to scripts or binaries that it wants to make available to users. On
+    package installation, zkg will link these executables into a new,
+    central "bin_dir" that users can put into their PATH. By default, that's
+    "<state>/bin", but it can be relocated through a corresponding "bin_dir"
+    entry in the configuration file. On package removal, these symlinks get
+    removed from "bin_dir". Users can automatically update their path
+    through something like PATH=$(zkg config bin_dir):$PATH.
+
 2.7.1-7 | 2021-03-05 16:39:22 -0800
 
   * Update plugin used in test suite for Zeek 4.1 compatibility (Jon Siwek, Corelight)

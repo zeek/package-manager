@@ -1,0 +1,27 @@
+# @TEST-EXEC: bash %INPUT
+#
+# @TEST-EXEC: zkg install foo
+# @TEST-EXEC: test -L bin/exec1 && test -L bin/exec2
+#
+# @TEST-EXEC: sed -i.bak 's/\(^bin_dir.*\)/\1-new/g' config
+# @TEST-EXEC: zkg list 
+# @TEST-EXEC: test -L bin-new/exec1 && test -L bin-new/exec2
+# @TEST-EXEC: ./bin-new/exec1 >>output
+# @TEST-EXEC: ./bin-new/exec2 >>output
+# @TEST-EXEC: test '!' -e bin/exec1 && test '!' -e bin/exec2
+# @TEST-EXEC: test '!' -d bin
+#
+# @TEST-EXEC: btest-diff output
+
+cd packages/foo
+echo "test_command = true" >>zkg.meta
+echo "executables =  x/exec1   x/exec2  " >>zkg.meta
+
+mkdir x
+echo "echo from exec1" >x/exec1
+echo "echo from exec2" >x/exec2
+chmod +x x/exec1 x/exec2
+
+git add *
+git commit -m 'new stuff'
+

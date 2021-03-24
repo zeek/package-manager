@@ -110,6 +110,11 @@ class Manager(object):
             :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
             subdirectory within `plugin_dir` associated with its name.
 
+        bin_dir (str): the directory where the package manager will link
+            executables into that are provided by an installed package through
+            `executables` (as given by its :file:`zkg.meta` or
+            :file:`bro-pkg.meta`)
+
         source_clonedir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
             associated with its name.
@@ -138,7 +143,7 @@ class Manager(object):
     """
 
     def __init__(self, state_dir, script_dir, plugin_dir, zeek_dist='',
-                 user_vars=None):
+                 user_vars=None, bin_dir=''):
         """Creates a package manager instance.
 
         Args:
@@ -152,6 +157,10 @@ class Manager(object):
 
             user_vars (dict of str -> str): key-value pair substitutions for
                 use in package build commands.
+
+            bin_dir (str): value to set the `bin_dir` attribute to.  If
+                empty/nil value, defaults to setting `bin_dir` attribute to
+                `<state_dir>/bin`.
 
         Raises:
             OSError: when a package manager state directory can't be created
@@ -172,6 +181,7 @@ class Manager(object):
         self.script_dir = os.path.join(script_dir, 'packages')
         self._plugin_dir = plugin_dir
         self.plugin_dir = os.path.join(plugin_dir, 'packages')
+        self.bin_dir = bin_dir or os.path.join(self.state_dir, 'bin')
         self.source_clonedir = os.path.join(self.state_dir, 'clones', 'source')
         self.package_clonedir = os.path.join(
             self.state_dir, 'clones', 'package')
@@ -186,13 +196,18 @@ class Manager(object):
         make_dir(self.package_clonedir)
         make_dir(self.script_dir)
         make_dir(self.plugin_dir)
+        make_dir(self.bin_dir)
         _create_readme(os.path.join(self.script_dir, 'README'))
         _create_readme(os.path.join(self.plugin_dir, 'README'))
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
 
-        prev_script_dir, prev_plugin_dir = self._read_manifest()
+        prev_script_dir, prev_plugin_dir, prev_bin_dir = self._read_manifest()
+
+        refresh_bin_dir = False # whether we need to updates link in bin_dir
+        relocating_bin_dir = False # whether bin_dir has relocated
+        need_manifest_update = False
 
         if os.path.realpath(prev_script_dir) != os.path.realpath(self.script_dir):
             LOG.info('relocating script_dir %s -> %s', prev_script_dir,
@@ -216,7 +231,8 @@ class Manager(object):
                     LOG.info('skip moving package link %s -> %s',
                              old_link, new_link)
 
-            self._write_manifest()
+            need_manifest_update = True
+            refresh_bin_dir = True
 
         if os.path.realpath(prev_plugin_dir) != os.path.realpath(self.plugin_dir):
             LOG.info('relocating plugin_dir %s -> %s', prev_plugin_dir,
@@ -226,6 +242,28 @@ class Manager(object):
                 delete_path(self.plugin_dir)
                 shutil.move(prev_plugin_dir, self.plugin_dir)
 
+            need_manifest_update = True
+            refresh_bin_dir = True
+
+        if prev_bin_dir and os.path.realpath(prev_bin_dir) != os.path.realpath(self.bin_dir):
+            LOG.info('relocating bin_dir %s -> %s', prev_bin_dir, self.bin_dir)
+            need_manifest_update = True
+            refresh_bin_dir = True
+            relocating_bin_dir = True
+
+        if refresh_bin_dir:
+            self._refresh_bin_dir(self.bin_dir)
+
+        if relocating_bin_dir:
+            self._clear_bin_dir(prev_bin_dir)
+            try:
+                # We try to remove the old bin_dir. That may not succeed in case
+                # it wasn't actually managed by us, but that's ok.
+                os.rmdir(prev_bin_dir)
+            except os.error:
+                pass
+
+        if need_manifest_update:
             self._write_manifest()
 
         self._write_autoloader()
@@ -319,7 +357,7 @@ class Manager(object):
                 status = PackageStatus(**status_dict)
                 self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
-            return data['script_dir'], data['plugin_dir']
+            return data['script_dir'], data['plugin_dir'], data.get('bin_dir', None)
 
     def _write_manifest(self):
         """Writes the manifest file containing the list of installed packages.
@@ -334,7 +372,8 @@ class Manager(object):
                              'status_dict': installed_pkg.status.__dict__})
 
         data = {'manifest_version': 1, 'script_dir': self.script_dir,
-                'plugin_dir': self.plugin_dir, 'installed_packages': pkg_list}
+                'plugin_dir': self.plugin_dir, 'bin_dir': self.bin_dir,
+                'installed_packages': pkg_list}
 
         with open(self.manifest, 'w') as f:
             json.dump(data, f, indent=2, sort_keys=True)
@@ -1006,6 +1045,15 @@ class Manager(object):
 
         for alias in pkg_to_remove.aliases():
             delete_path(os.path.join(self.zeekpath(), alias))
+
+        for exec in self._get_executables(pkg_to_remove.metadata):
+            link = os.path.join(self.bin_dir, os.path.basename(exec))
+            if os.path.islink(link):
+                try:
+                    LOG.debug('removing link %s', link)
+                    os.unlink(link)
+                except os.error as excpt:
+                    LOG.warn('cannot remove link for %s', exec)
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
@@ -2225,6 +2273,9 @@ class Manager(object):
                     stdout=test_stdout, stderr=test_stderr)
         return ('', cmd.wait() == 0, test_dir)
 
+    def _get_executables(self, metadata):
+        return metadata.get('executables', '').split()
+
     def _stage(self, package, version, clone,
                stage_script_dir, stage_plugin_dir):
         metadata_file = _pick_metadata_file(clone.working_dir)
@@ -2238,6 +2289,16 @@ class Manager(object):
             return invalid_reason
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
+
+        # Ensure any listed executables exist as advertised. Do this first so
+        # that we don't build anything if it fails.
+        for p in self._get_executables(raw_metadata):
+            full_path = os.path.join(clone.working_dir, p)
+            if not os.path.isfile(full_path):
+                return str.format("executable '{}' is missing", p)
+
+            if not os.access(full_path, os.X_OK):
+                return str.format("file '{}' is not executable", p)
 
         requested_user_vars = user_vars(raw_metadata)
 
@@ -2540,8 +2601,37 @@ class Manager(object):
         package.metadata = raw_metadata
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()
+        self._refresh_bin_dir(self.bin_dir)
         LOG.debug('installed "%s"', package)
         return ''
+
+    # Ensure we have links in bin_dir for all executables coming with any of
+    # the currently installed packages.
+    def _refresh_bin_dir(self, bin_dir, prev_bin_dir=None):
+        for ipkg in self.installed_pkgs.values():
+            for exec in self._get_executables(ipkg.package.metadata):
+                # Put symlinks in place that are missing in current directory
+                src = os.path.join(self.package_clonedir, ipkg.package.name, exec)
+                dst = os.path.join(bin_dir, os.path.basename(exec))
+
+                if not os.path.exists(dst) or not os.path.islink(dst) or os.path.realpath(src) != os.path.realpath(dst):
+                    LOG.debug('creating link %s -> %s', src, dst)
+                    make_symlink(src, dst, force=True)
+                else:
+                    LOG.debug('link %s is up to date', dst)
+
+    # Remove all links in bin_dir that are associated with executables
+    # coming with any of the currently installed package.
+    def _clear_bin_dir(self, bin_dir):
+        for ipkg in self.installed_pkgs.values():
+            for exec in self._get_executables(ipkg.package.metadata):
+                old = os.path.join(bin_dir, os.path.basename(exec))
+                if os.path.islink(old):
+                    try:
+                        os.unlink(old)
+                        LOG.debug('removed link %s', old)
+                    except:
+                        LOG.warn('failed to remove link %s', old)
 
 def _normalize_version_tag(tag):
     # Change vX.Y.Z into X.Y.Z

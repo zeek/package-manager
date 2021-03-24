@@ -6,6 +6,7 @@ one = <...>/sources/one
 state_dir = <...>/zeekroot/var/lib/zkg
 script_dir = <...>/zeekroot/share/zeek/site
 plugin_dir = <...>/zeekroot/lib/zeek/plugins
+bin_dir = <...>/zeekroot/var/lib/zkg/bin
 zeek_dist = 
 
 
@@ -24,6 +25,7 @@ Successfully wrote config file to <...>/home/testuser/.zkg/config
 state_dir = <...>/home/testuser/.zkg
 script_dir = <...>/home/testuser/.zkg/script_dir
 plugin_dir = <...>/home/testuser/.zkg/plugin_dir
+bin_dir = <...>/home/testuser/.zkg/bin
 zeek_dist = 
 
 

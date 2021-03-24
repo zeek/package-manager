@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Mar 05, 2021" "2.7.1-7" "Zeek Package Manager"
+.TH "ZKG" "1" "Mar 24, 2021" "2.7.1-9" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -38,7 +38,8 @@ A command\-line package manager for Zeek.
 .sp
 .nf
 .ft C
-usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL] {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env} ...
+usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL]
+           {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env} ...
 .ft P
 .fi
 .UNINDENT
@@ -559,7 +560,7 @@ The default output of this command is a valid package manager config file that c
 .sp
 .nf
 .ft C
-usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,zeek_dist,bro_dist}]
+usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bin_dir,zeek_dist,bro_dist}]
 .ft P
 .fi
 .UNINDENT
@@ -572,7 +573,7 @@ usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,
 .B config_param
 Name of a specific config file field to output.
 .sp
-Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, zeek_dist, bro_dist
+Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, bin_dir, zeek_dist, bro_dist
 .UNINDENT
 .UNINDENT
 .SS autoconfig
@@ -684,6 +685,14 @@ script_dir =
 # installed packages, zkg will automatically relocate them
 # the next time you run any zkg command.
 plugin_dir =
+
+# The directory where executables from packages are linked into upon
+# installation.  If left blank or with \-\-user this defaults to <state_dir>/bin.
+# In Zeek\-bundled installations, it defaults to <zeek_install_prefix>/bin.
+# If you decide to change this location after having already
+# installed packages, zkg will automatically relocate them
+# the next time you run any zkg command.
+bin_dir =
 
 # The directory containing Zeek distribution source code.  This is only
 # needed when installing packages that contain Zeek plugins that are

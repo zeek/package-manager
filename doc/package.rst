@@ -426,6 +426,27 @@ tarfile contains the minimal set of files needed for the plugin to work whereas
 some extra files will get installed to user systems if the `plugin_dir` uses the
 default :file:`build/` directory.
 
+`executables` field
+~~~~~~~~~~~~~~~~~~~
+
+The `executables` field is a whitespace-delimited list of shell scripts or
+other executables that the package provides. The package manager will make
+these executables available inside the user's :file:`bin_dir` directory as
+specified in the :ref:`config file <zkg-config-file>`.
+
+An example :file:`zkg.meta`, if the ``Rot13`` example plugin
+were also building an executable ``a.out``::
+
+  [package]
+  script_dir = scripts/Demo/Rot13
+  build_command = ./configure && make
+  executables = build/a.out
+
+The package manager makes executables available by maintaining symbolic
+links referring from :file:`bin_dir` to the actual files.
+
+Available :program:`since bro-pkg v2.8`.
+
 `build_command` field
 ~~~~~~~~~~~~~~~~~~~~~
 

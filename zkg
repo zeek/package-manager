@@ -276,6 +276,8 @@ def create_config(args, configfile):
                             os.path.join(state_dir, 'script_dir'))
     plugin_dir = get_option(config, 'paths', 'plugin_dir',
                             os.path.join(state_dir, 'plugin_dir'))
+    bin_dir = get_option(config, 'paths', 'bin_dir',
+                         os.path.join(state_dir, 'bin'))
     zeek_dist = get_option(config, 'paths', 'zeek_dist', '')
 
     if not zeek_dist:
@@ -284,6 +286,7 @@ def create_config(args, configfile):
     config.set('paths', 'state_dir', state_dir)
     config.set('paths', 'script_dir', script_dir)
     config.set('paths', 'plugin_dir', plugin_dir)
+    config.set('paths', 'bin_dir', bin_dir)
     config.set('paths', 'zeek_dist', zeek_dist)
 
     def expand_config_values(config, section):
@@ -340,6 +343,7 @@ def create_manager(args, config):
     state_dir = config.get('paths', 'state_dir')
     script_dir = config.get('paths', 'script_dir')
     plugin_dir = config.get('paths', 'plugin_dir')
+    bin_dir = config.get('paths', 'bin_dir')
     zeek_dist = config.get('paths', 'zeek_dist')
 
     if state_dir == default_state_dir():
@@ -348,7 +352,8 @@ def create_manager(args, config):
 
     try:
         manager = zeekpkg.Manager(state_dir=state_dir, script_dir=script_dir,
-                                 plugin_dir=plugin_dir, zeek_dist=zeek_dist)
+                                 plugin_dir=plugin_dir, bin_dir=bin_dir,
+                                 zeek_dist=zeek_dist)
     except (OSError, IOError) as error:
         if error.errno == errno.EACCES:
             print_error('{}: {}'.format(type(error).__name__, error))
@@ -363,7 +368,8 @@ def create_manager(args, config):
 
             permissions_trouble = not all([check_permission(state_dir),
                                            check_permission(script_dir),
-                                           check_permission(plugin_dir)])
+                                           check_permission(plugin_dir),
+                                           check_permission(bin_dir)])
 
             if permissions_trouble and not args.user:
                 print_error(
@@ -1908,12 +1914,13 @@ def cmd_autoconfig(manager, args, config, configfile):
     dist_option = '--zeek_dist' if have_zeek_config else '--bro_dist'
 
     cmd = subprocess.Popen([zeek_config,
-                            '--site_dir', '--plugin_dir', dist_option],
+                            '--site_dir', '--plugin_dir', '--prefix', dist_option],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1, universal_newlines=True)
 
     script_dir = read_zeek_config_line(cmd.stdout)
     plugin_dir = read_zeek_config_line(cmd.stdout)
+    bin_dir = os.path.join(read_zeek_config_line(cmd.stdout), 'bin')
     zeek_dist = read_zeek_config_line(cmd.stdout)
 
     if configfile:
@@ -1948,6 +1955,8 @@ def cmd_autoconfig(manager, args, config, configfile):
                         script_dir, config_file_exists)
     change_config_value(config, 'paths', 'plugin_dir',
                         plugin_dir, config_file_exists)
+    change_config_value(config, 'paths', 'bin_dir',
+                        bin_dir, config_file_exists)
     change_config_value(config, 'paths', 'zeek_dist',
                         zeek_dist, config_file_exists)
 
@@ -2006,11 +2015,13 @@ def cmd_env(manager, args, config, configfile):
         print(u'setenv BRO_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
         print(u'setenv ZEEKPATH {}'.format(':'.join(zeekpaths)))
         print(u'setenv ZEEK_PLUGIN_PATH {}'.format(':'.join(pluginpaths)))
+        print(u'setenv PATH {}:$PATH'.format(manager.bin_dir))
     else:
         print(u'export BROPATH={}'.format(':'.join(zeekpaths)))
         print(u'export BRO_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
         print(u'export ZEEKPATH={}'.format(':'.join(zeekpaths)))
         print(u'export ZEEK_PLUGIN_PATH={}'.format(':'.join(pluginpaths)))
+        print(u'export PATH={}:$PATH'.format(manager.bin_dir))
 
 
 class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -2439,7 +2450,7 @@ def argparser():
     sub_parser.add_argument(
         'config_param', nargs='?', default='all',
         choices=['all', 'sources', 'user_vars', 'state_dir', 'script_dir',
-                 'plugin_dir', 'zeek_dist', 'bro_dist'],
+                 'plugin_dir', 'bin_dir', 'zeek_dist', 'bro_dist'],
         help='Name of a specific config file field to output.')
 
     # autoconfig
