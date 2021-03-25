@@ -18,7 +18,7 @@ from collections import OrderedDict
 try:
     import git
     import semantic_version as semver # lgtm[py/unused-import]
-except ImportError:
+except ImportError as error:
     print("error: zkg failed to import one or more dependencies:\n"
           "\n"
           "* GitPython:        https://pypi.org/project/GitPython\n"
@@ -26,7 +26,10 @@ except ImportError:
           "\n"
           "If you use 'pip', they can be installed like:\n"
           "\n"
-          "     pip3 install GitPython semantic-version",
+          "     pip3 install GitPython semantic-version\n"
+          "\n"
+          "Also check the following exception output for possible alternate explanations:\n\n"
+          "{}: {}".format(type(error).__name__, error),
           file=sys.stderr)
     sys.exit(1)
 
