@@ -1,4 +1,8 @@
 
+2.8.0 | 2021-03-26 16:50:59 -0700
+
+  * Release 2.8.0.
+
 2.7.1-13 | 2021-03-26 16:50:20 -0700
 
   * Check existence of executables only after the build process. (Robin Sommer, Corelight)
