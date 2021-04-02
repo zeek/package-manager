@@ -86,6 +86,23 @@ def short_description(metadata_dict):
     return rval.lstrip()
 
 
+def user_vars(metadata_dict):
+    """Returns a list of (str, str, str) from metadata's 'user_vars' field.
+
+    Each entry in the returned list is a the name of a variable, its value,
+    and its description.
+
+    If the 'user_vars' field is not present, an empty list is returned.  If it
+    is malformed, then None is returned.
+    """
+    uvars = UserVar.parse_dict(metadata_dict)
+
+    if uvars is None:
+        return None
+
+    return [(uvar.name(), uvar.val(), uvar.desc()) for uvar in uvars]
+
+
 def dependencies(metadata_dict, field='depends'):
     """Returns a dictionary of (str, str) based on metadata's dependency field.
 
