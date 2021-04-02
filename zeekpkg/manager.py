@@ -2291,15 +2291,6 @@ class Manager(object):
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
 
-        # Ensure any listed executables exist as advertised. Do this first so
-        # that we don't build anything if it fails.
-        for p in self._get_executables(raw_metadata):
-            full_path = os.path.join(clone.working_dir, p)
-            if not os.path.isfile(full_path):
-                return str.format("executable '{}' is missing", p)
-
-            if not os.access(full_path, os.X_OK):
-                return str.format("file '{}' is not executable", p)
 
         requested_user_vars = UserVar.parse_dict(raw_metadata)
 
