@@ -2108,6 +2108,37 @@ def cmd_create(manager, args, config, configfile):
         sys.exit(1)
 
 
+def cmd_template_info(manager, args, config, configfile):
+    tmplname = (args.template
+                or config.get('templates', 'default', fallback=None)
+                or ZKG_DEFAULT_TEMPLATE)
+
+    try:
+        tmpl = Template.load(config, tmplname, args.version)
+    except LoadError as error:
+        msg = 'problem while loading template {}: {}'.format(tmplname, error)
+        zeekpkg.LOG.exception(msg)
+        print_error('error: ' + msg)
+        sys.exit(1)
+
+    tmplinfo = tmpl.info()
+
+    if args.json:
+        print(json.dumps(tmplinfo, indent=args.jsonpretty, sort_keys=True))
+    else:
+        print('API version: ' + tmplinfo['api_version'])
+        print('features: ' + ', '.join(tmplinfo['features']))
+        print('origin: ' + tmplinfo['origin'])
+        print('provides package: ' + str(tmplinfo['provides_package']).lower())
+        print('user vars:')
+        for uvar_name, uvar_info in tmplinfo['user_vars'].items():
+            print('\t{}: {}, {}, used by {}'.format(
+                uvar_name, uvar_info['description'],
+                uvar_info['default'] or 'no default',
+                ', '.join(uvar_info['used_by']) or 'not used'))
+        print('versions: ' + ', '.join(tmplinfo['versions']))
+
+
 class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     # Workaround for underlying argparse bug: https://bugs.python.org/issue9338
     def _format_args(self, action, default_metavar):
@@ -2177,6 +2208,13 @@ def argparser():
             help='A user variable assignment. This avoids prompting'
             ' for input and lets you provide a value when using --force.'
             ' Use repeatedly as needed for multiple values.')
+
+    def add_json_args(parser, help_text):
+        parser.add_argument('--json', action='store_true', help=help_text)
+        parser.add_argument(
+            '--jsonpretty', type=int, default=None, metavar='SPACES',
+            help='Optional number of spaces to indent for pretty-printed'
+            ' JSON output.')
 
     top_parser = top_level_parser()
     command_parser = top_parser.add_subparsers(
@@ -2511,13 +2549,7 @@ def argparser():
         '--nolocal', action='store_true',
         help='Do not read information from locally installed packages.'
         ' Instead read info from remote GitHub.')
-    sub_parser.add_argument(
-        '--json', action='store_true',
-        help='Output package information as JSON.')
-    sub_parser.add_argument(
-        '--jsonpretty', type=int, default=None, metavar='SPACES',
-        help='Optional number of spaces to indent for pretty-printed'
-        ' JSON output.')
+    add_json_args(sub_parser, 'Output package information as JSON.')
     sub_parser.add_argument(
         '--allvers', action='store_true',
         help='When outputting package information as JSON, show metadata for'
@@ -2597,14 +2629,43 @@ def argparser():
         ' "main" or "master".')
     sub_parser.add_argument(
         '--features', nargs='+', metavar='FEATURE',
-        help='Additional features to include in your package. See the template'
-        ' information for details.')
+        help='Additional features to include in your package. Use the ``template'
+        ' info`` command for information about available features.')
     sub_parser.add_argument(
         '--template', metavar='URL',
         help='By default, zkg uses its own package template. This makes it'
         ' select an alternative.')
     sub_parser.set_defaults(run_cmd=cmd_create)
     add_uservar_args(sub_parser)
+
+    # Template management commands
+
+    sub_parser = command_parser.add_parser(
+        'template', help='Manage package templates.')
+
+    template_command_parser = sub_parser.add_subparsers(
+        title='template commands',
+        help='See `%(prog)s template <command> -h for per-command usage info.')
+
+    # template info
+
+    sub_parser = template_command_parser.add_parser(
+        'info', help='Shows information about a package template.',
+        description='This command shows versions and supported features for'
+        ' a given package.')
+    add_json_args(sub_parser, 'Output template information as JSON.')
+    sub_parser.add_argument(
+        '--version',
+        help='The template version to report on.  A version tag, branch name,'
+        ' or commit hash may be specified here.  If the selected template'
+        ' refers to a local git repo, the version is ignored.  The default'
+        ' for other cases is to use the latest version tag, or if a template'
+        ' has none, the default branch, like "main" or "master".')
+    sub_parser.add_argument(
+        'template', metavar='URL', nargs='?',
+        help='URL of a package template repository, or local path to one.'
+        ' When not provided, the configured default template is used.')
+    sub_parser.set_defaults(run_cmd=cmd_template_info)
 
     return top_parser
 
