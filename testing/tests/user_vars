@@ -1,7 +1,12 @@
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: LAST_VAR=/home/jon/sandbox zkg install foo
-# @TEST-EXEC: btest-diff state/logs/foo-build.log
+# @TEST-EXEC: cp state/logs/foo-build.log state/logs/foo-build.log1
+# @TEST-EXEC: btest-diff state/logs/foo-build.log1
+
+# @TEST-EXEC: zkg install --user-var TEST_VAR="Initial description is here" --user-var LAST_VAR=/home/jon/sandbox2 foo
+# @TEST-EXEC: cp state/logs/foo-build.log state/logs/foo-build.log2
+# @TEST-EXEC: btest-diff state/logs/foo-build.log2
 
 cd packages/foo
 echo 'user_vars =' >> zkg.meta

@@ -1,0 +1,5 @@
+[package]
+script_dir = scripts
+summary = TODO: A summary of @NAME@ in one line
+description = TODO: A more detailed description of @NAME@.
+    It can span multiple lines, with this indentation.

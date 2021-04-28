@@ -6,10 +6,10 @@ section of the file names a Zeek package along with the git URL where it is
 located and metadata tags that help classify/describe it.
 """
 
+import configparser
+import git
 import os
 import shutil
-import git
-import configparser
 
 from . import LOG
 from .package import (

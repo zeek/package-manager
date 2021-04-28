@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Mar 31, 2021" "2.8.0" "Zeek Package Manager"
+.TH "ZKG" "1" "Apr 28, 2021" "2.8.0-18" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -38,8 +38,7 @@ A command\-line package manager for Zeek.
 .sp
 .nf
 .ft C
-usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL]
-           {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env} ...
+usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL] {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
 .ft P
 .fi
 .UNINDENT
@@ -73,6 +72,7 @@ Environment Variables:
 .INDENT 3.5
 \fBZKG_CONFIG_FILE\fP:	Same as \fB\-\-configfile\fP option, but has less precedence.
 \fBZKG_DEFAULT_SOURCE\fP:	The default package source to use (normally \fI\%https://github.com/zeek/packages\fP).
+\fBZKG_DEFAULT_TEMPLATE\fP:	The default package template to use (normally \fI\%https://github.com/zeek/package\-template\fP).
 .UNINDENT
 .UNINDENT
 
@@ -116,7 +116,7 @@ Installs packages from a configured package source or directly from a git URL.  
 .sp
 .nf
 .ft C
-usage: zkg install [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-version VERSION] package [package ...]
+usage: zkg install [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-version VERSION] [\-\-force] [\-\-user\-var NAME=VAL] package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -133,9 +133,6 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .B Options:
 .INDENT 7.0
 .TP
-.B \-\-force=False
-Skip the confirmation prompt.
-.TP
 .B \-\-skiptests=False
 Skip running unit tests for packages before installation.
 .TP
@@ -147,6 +144,12 @@ Skip automatically installing suggested packages.
 .TP
 .B \-\-version
 The version of the package to install.  Only one package may be specified at a time when using this flag.  A version tag, branch name, or commit hash may be specified here. If the package name refers to a local git repo with a working tree, then its currently active branch is used. The default for other cases is to use the latest version tag, or if a package has none, the default branch, like "main" or "master".
+.TP
+.B \-\-force=False
+Don\(aqt prompt for confirmation or user variables.
+.TP
+.B \-\-user\-var
+A user variable assignment. This avoids prompting for input and lets you provide a value when using \-\-force. Use repeatedly as needed for multiple values.
 .UNINDENT
 .UNINDENT
 .SS remove
@@ -253,7 +256,7 @@ This command unpacks a bundle file formerly created by the \fBbundle\fP command 
 .sp
 .nf
 .ft C
-usage: zkg unbundle [\-h] [\-\-force] [\-\-replace] filename.bundle
+usage: zkg unbundle [\-h] [\-\-replace] [\-\-force] [\-\-user\-var NAME=VAL] filename.bundle
 .ft P
 .fi
 .UNINDENT
@@ -270,11 +273,14 @@ The path of the bundle file to install.
 .B Options:
 .INDENT 7.0
 .TP
-.B \-\-force=False
-Skip the confirmation prompt.
-.TP
 .B \-\-replace=False
 Using this flag first removes all installed packages before then installing the packages from the bundle.
+.TP
+.B \-\-force=False
+Don\(aqt prompt for confirmation or user variables.
+.TP
+.B \-\-user\-var
+A user variable assignment. This avoids prompting for input and lets you provide a value when using \-\-force. Use repeatedly as needed for multiple values.
 .UNINDENT
 .UNINDENT
 .SS refresh
@@ -315,7 +321,7 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .sp
 .nf
 .ft C
-usage: zkg upgrade [\-h] [\-\-force] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [package ...]
+usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-force] [\-\-user\-var NAME=VAL] [package [package ...]]
 .ft P
 .fi
 .UNINDENT
@@ -332,9 +338,6 @@ The name(s) of package(s) to operate on.  The package may be named in several wa
 .B Options:
 .INDENT 7.0
 .TP
-.B \-\-force=False
-Skip the confirmation prompt.
-.TP
 .B \-\-skiptests=False
 Skip running unit tests for packages before installation.
 .TP
@@ -343,6 +346,12 @@ Skip all dependency resolution/checks.  Note that using this option risks puttin
 .TP
 .B \-\-nosuggestions=False
 Skip automatically installing suggested packages.
+.TP
+.B \-\-force=False
+Don\(aqt prompt for confirmation or user variables.
+.TP
+.B \-\-user\-var
+A user variable assignment. This avoids prompting for input and lets you provide a value when using \-\-force. Use repeatedly as needed for multiple values.
 .UNINDENT
 .UNINDENT
 .SS load
@@ -615,6 +624,80 @@ usage: zkg env [\-h]
 .UNINDENT
 .INDENT 0.0
 .UNINDENT
+.SS create
+.sp
+This command creates a new Zeek package in the directory provided via \-\-packagedir. If this directory exists, zkg will not modify it unless you provide \-\-force.
+
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+usage: zkg create [\-h] \-\-packagedir DIR [\-\-version VERSION] [\-\-features FEATURE [FEATURE ...]] [\-\-template URL] [\-\-force] [\-\-user\-var NAME=VAL]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-packagedir
+Output directory into which to produce the new package. Required.
+.TP
+.B \-\-version
+The template version to use.  A version tag, branch name, or commit hash may be specified here.  If \-\-template refers to a local git repo with a working tree, then zkg uses it as\-is and the version is ignored.  The default for other cases is to use the latest version tag, or if a template has none, the default branch, like "main" or "master".
+.TP
+.B \-\-features
+Additional features to include in your package. Use the \(ga\(gatemplate info\(ga\(ga command for information about available features.
+.TP
+.B \-\-template
+By default, zkg uses its own package template. This makes it select an alternative.
+.TP
+.B \-\-force=False
+Don\(aqt prompt for confirmation or user variables.
+.TP
+.B \-\-user\-var
+A user variable assignment. This avoids prompting for input and lets you provide a value when using \-\-force. Use repeatedly as needed for multiple values.
+.UNINDENT
+.UNINDENT
+.SS template info
+.sp
+This command shows versions and supported features for a given package.
+
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+usage: zkg template info [\-h] [\-\-json] [\-\-jsonpretty SPACES] [\-\-version VERSION] [URL]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Positional arguments:
+.INDENT 7.0
+.TP
+.B URL
+URL of a package template repository, or local path to one. When not provided, the configured default template is used.
+.UNINDENT
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-\-json=False
+Output template information as JSON.
+.TP
+.B \-\-jsonpretty
+Optional number of spaces to indent for pretty\-printed JSON output.
+.TP
+.B \-\-version
+The template version to report on.  A version tag, branch name, or commit hash may be specified here.  If the selected template refers to a local git repo, the version is ignored.  The default for other cases is to use the latest version tag, or if a template has none, the default branch, like "main" or "master".
+.UNINDENT
+.UNINDENT
 .SH CONFIG FILE
 .sp
 The \fBzkg\fP command\-line tool uses an INI\-format config file to allow
@@ -698,6 +781,12 @@ bin_dir =
 # needed when installing packages that contain Zeek plugins that are
 # not pre\-built.  The legacy name of this option is "bro_dist".
 zeek_dist =
+
+[templates]
+
+# The URL of the package template repository that the "zkg create" command
+# will instantiate by default.
+default = https://github.com/zeek/package\-template
 
 [user_vars]
 

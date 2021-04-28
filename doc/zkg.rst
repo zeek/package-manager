@@ -197,6 +197,22 @@ env
     :prog: zkg
     :path: env
 
+create
+~~~~~~
+.. argparse::
+    :module: zkg
+    :func: argparser
+    :prog: zkg
+    :path: create
+
+template info
+~~~~~~~~~~~~~
+.. argparse::
+    :module: zkg
+    :func: argparser
+    :prog: zkg
+    :path: template info
+
 .. _bro-pkg-config-file:
 
 .. _zkg-config-file:

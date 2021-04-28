@@ -3,15 +3,15 @@ A module defining the main Zeek Package Manager interface which supplies
 methods to interact with and operate on Zeek packages.
 """
 
-import os
-import sys
-import copy
-import json
-import shutil
-import filecmp
-import tarfile
-import subprocess
 import configparser
+import copy
+import filecmp
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tarfile
 
 try:
     from urllib.parse import urlparse
@@ -31,11 +31,14 @@ from ._util import (
     git_default_branch,
     git_checkout,
     git_clone,
+    git_pull,
+    git_version_tags,
     is_sha1,
     get_zeek_version,
     std_encoding,
     find_program,
     read_zeek_config_line,
+    normalize_version_tag,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -51,13 +54,15 @@ from .package import (
     PLUGIN_MAGIC_FILE_DISABLED,
     name_from_path,
     aliases,
-    user_vars,
     canonical_url,
     is_valid_name as is_valid_package_name,
     Package,
     PackageInfo,
     PackageStatus,
     InstalledPackage
+)
+from .uservar import (
+    UserVar,
 )
 from . import (
     __version__,
@@ -819,9 +824,7 @@ class Manager(object):
 
         try:
             source.clone.git.fetch('--recurse-submodules=yes')
-            source.clone.git.pull()
-            source.clone.git.submodule('sync', '--recursive')
-            source.clone.git.submodule('update', '--recursive', '--init')
+            git_pull(source.clone)
         except git.exc.GitCommandError as error:
             LOG.error('failed to pull source %s: %s', name, error)
             return self.SourceAggregationResults(
@@ -875,7 +878,7 @@ class Manager(object):
                         aggregation_issues.append((url, repr(error)))
                         continue
 
-                    version_tags = _get_version_tags(clone)
+                    version_tags = git_version_tags(clone)
 
                     if len(version_tags):
                         version = version_tags[-1]
@@ -995,12 +998,10 @@ class Manager(object):
         clone = git.Repo(clonepath)
 
         if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
-            version_tags = _get_version_tags(clone)
+            version_tags = git_version_tags(clone)
             return self._install(ipkg.package, version_tags[-1])
         elif ipkg.status.tracking_method == TRACKING_METHOD_BRANCH:
-            clone.git.pull()
-            clone.git.submodule('sync', '--recursive')
-            clone.git.submodule('update', '--recursive', '--init')
+            git_pull(clone)
             return self._install(ipkg.package, ipkg.status.current_version)
         elif ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
             # The above check for whether the installed package is outdated
@@ -1561,7 +1562,7 @@ class Manager(object):
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
         clone = _clone_package(package, clonepath, version)
-        versions = _get_version_tags(clone)
+        versions = git_version_tags(clone)
 
         if not version:
 
@@ -1594,7 +1595,7 @@ class Manager(object):
         name = installed_package.package.name
         clonepath = os.path.join(self.package_clonedir, name)
         clone = git.Repo(clonepath)
-        return _get_version_tags(clone)
+        return git_version_tags(clone)
 
     def validate_dependencies(self, requested_packages,
                               ignore_installed_packages=False,
@@ -1847,7 +1848,7 @@ class Manager(object):
                             required_version, depender_name, version_spec),
                             new_pkgs)
                 else:
-                    normal_version = _normalize_version_tag(required_version)
+                    normal_version = normalize_version_tag(required_version)
                     req_semver = semver.Version.coerce(normal_version)
 
                     for depender_name, version_spec in node.dependers.items():
@@ -1906,7 +1907,7 @@ class Manager(object):
                             required_version, depender_name, version_spec),
                             new_pkgs)
                     else:
-                        normal_version = _normalize_version_tag(required_version)
+                        normal_version = normalize_version_tag(required_version)
                         req_semver = semver.Version.coerce(normal_version)
 
                         if version_spec.startswith('branch='):
@@ -1976,7 +1977,7 @@ class Manager(object):
                         best_version = node.info.default_branch
                 elif need_version:
                     for version in node.info.versions[::-1]:
-                        normal_version = _normalize_version_tag(version)
+                        normal_version = normalize_version_tag(version)
                         req_semver = semver.Version.coerce(normal_version)
 
                         satisfied = True
@@ -2289,7 +2290,9 @@ class Manager(object):
             return invalid_reason
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
-        requested_user_vars = user_vars(raw_metadata)
+
+
+        requested_user_vars = UserVar.parse_dict(raw_metadata)
 
         if requested_user_vars is None:
             return "package has malformed 'user_vars' metadata field"
@@ -2301,14 +2304,14 @@ class Manager(object):
         }
         substitutions.update(self.user_vars)
 
-        for k, v, _ in requested_user_vars:
-            val_from_env = os.environ.get(k)
+        for uvar in requested_user_vars:
+            val_from_env = os.environ.get(uvar.name())
 
             if val_from_env:
-                substitutions[k] = val_from_env
+                substitutions[uvar.name()] = val_from_env
 
-            if k not in substitutions:
-                substitutions[k] = v
+            if uvar.name() not in substitutions:
+                substitutions[uvar.name()] = uvar.val()
 
         metadata_parser = configparser.ConfigParser(defaults=substitutions)
         invalid_reason = _parse_package_metadata(
@@ -2537,7 +2540,7 @@ class Manager(object):
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
         status.is_pinned = ipkg.status.is_pinned if ipkg else False
 
-        version_tags = _get_version_tags(clone)
+        version_tags = git_version_tags(clone)
 
         if version:
             if _is_commit_hash(clone, version):
@@ -2631,30 +2634,6 @@ class Manager(object):
                     except:
                         LOG.warn('failed to remove link %s', old)
 
-def _normalize_version_tag(tag):
-    # Change vX.Y.Z into X.Y.Z
-    if len(tag) > 1 and tag[0] == 'v' and tag[1].isdigit():
-        return tag[1:]
-
-    return tag
-
-def _get_version_tags(clone):
-    tags = []
-
-    for tagref in clone.tags:
-        tag = str(tagref.name)
-        normal_tag = _normalize_version_tag(tag)
-
-        try:
-            sv = semver.Version.coerce(normal_tag)
-        except ValueError:
-            # Skip tags that aren't compatible semantic versions.
-            continue
-        else:
-            tags.append((normal_tag, tag, sv))
-
-    return [t[1] for t in sorted(tags, key=lambda e: e[2])]
-
 
 def _get_branch_names(clone):
     rval = []
@@ -2671,9 +2650,9 @@ def _get_branch_names(clone):
 
 
 def _is_version_outdated(clone, version):
-    version_tags = _get_version_tags(clone)
-    latest = _normalize_version_tag(version_tags[-1])
-    return _normalize_version_tag(version) != latest
+    version_tags = git_version_tags(clone)
+    latest = normalize_version_tag(version_tags[-1])
+    return normalize_version_tag(version) != latest
 
 
 def _is_branch_outdated(clone, branch):
@@ -2817,7 +2796,7 @@ def _info_from_clone(clone, package, status, version):
     Returns:
         A :class:`.package.PackageInfo` object.
     """
-    versions = _get_version_tags(clone)
+    versions = git_version_tags(clone)
     default_branch = git_default_branch(clone)
 
     if _is_commit_hash(clone, version):

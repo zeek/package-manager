@@ -9,8 +9,8 @@ be added in order to help log/debug applications.
 
 import logging
 
-__version__ = "2.8.0"
-__all__ = ['manager', 'package', 'source']
+__version__ = "2.8.0-18"
+__all__ = ['manager', 'package', 'source', 'template', 'uservar']
 
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
@@ -18,3 +18,4 @@ LOG.addHandler(logging.NullHandler())
 from .manager import *
 from .package import *
 from .source import *
+from .uservar import *

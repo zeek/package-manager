@@ -40,8 +40,121 @@ script that wants to load all the scripts within that package can use:
 
   @load foo
 
+Bootstrapping packages with :program:`zkg`
+------------------------------------------
+
+The easiest way to start a new Zeek package is via :program:`zkg`
+itself: its ``zkg create`` command lets you generate new Zeek packages
+from the command line.
+
+This functionality is available since :program:`since zkg v2.9`.  See the
+:ref:`Walkthroughs <manual-package-creation>` section for step-by-step
+processes that show how to manually create packages (e.g. perhaps when using
+older :program:`zkg` versions).
+
+Concepts
+~~~~~~~~
+
+:program:`zkg` instantiates new packages from a *package template*.
+Templates are standalone git repositories. The URL of :program:`zkg`'s
+default template is https://github.com/zeek/package-template, but you
+can provide your own.
+
+.. note::
+
+   At :program:`zkg` configuration time, the ``ZKG_DEFAULT_TEMPLATE``
+   environment variable lets you override the default, and the
+   ``--template`` argument to ``zkg create`` allows overrides upon
+   instantiation. You can review the template :program:`zkg` will use
+   by default via the ``zkg config`` command's output.
+
+A template provides a basic *package* layout, with optional added
+*features* that enhance the package. For example, the default template
+lets you add a native-code plugin and support for GitHub actions.
+
+Templates are parameterized via :ref:`user variables <user-vars>`.
+These variables provide the basic configuration required when
+instantiating the template, for example to give the package a name. A
+template uses resolved user variables to populate internal
+*parameters* that the template requires. Think of parameters as
+derivatives of the user variables, for example to provide different
+capitalizations or suffixes.
+
+A template operates as a :program:`zkg` plugin, including runnable
+Python code. This code has full control over how a package gets
+instantiated, defining required user variables and features,
+and possibly customizing content production.
+
+The ``create`` command
+~~~~~~~~~~~~~~~~~~~~~~
+
+When using the ``zkg create`` command, you specify an output directory
+for the new package tree, name the features you'd like to add, and
+optionally define user variables. :program:`zkg` will prompt
+you for any variables it still needs to resolve, and guides you
+through the package creation. A basic invocation might look as follows:
+
+.. code-block:: console
+
+    $ zkg create --packagedir foobar --feature plugin
+    "package-template" requires a "name" value (the name of the package, e.g. "FooBar"):
+    name: Foobar
+    "package-template" requires a "namespace" value (a namespace for the package, e.g. "MyOrg"):
+    namespace: MyOrg
+
+The resulting package now resides in the ``foobar`` directory.
+Unless you provide ``--force``, :program:`zkg` will not overwrite an
+existing package. When the requested output directory exists, it will
+prompt for permission to delete the existing directory.
+
+After instantiation, the package is immediately installable via
+:program:`zkg`. You'll see details of how it got generated in its
+initial commit, and the newly minted ``zkg.meta`` has details of the
+provided user variables:
+
+.. code-block:: console
+
+    $ cat foobar/zkg.meta
+    ...
+    [template]
+    source = package-template
+    version = master
+    zkg_version = 2.8.0
+    features = plugin
+
+    [template_vars]
+    name = Foobar
+    namespace = MyOrg
+
+This information is currently informational only, but in the future
+will enable baselining changes in package templates to assist with
+package modernization.
+
+To keep templates in sync with :program:`zkg` versions, templates
+employ semantic API versioning. An incompatible template will refuse
+to load and lead to an according error message. Much like Zeek
+packages, templates support git-level versioning to accommodate
+compatibility windows.
+
+See the output of ``zkg create --help`` for a complete summary of the
+available options.
+
+Obtaining information about a template
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The best source for the capabilities of a template is its
+documentation, but to get a quick overview of a given template's
+features and user variables, consider the ``zkg template info``
+command, which summarizes a template in plain text, or in JSON when
+invoked with the ``--json`` argument.
+
+.. _manual-package-creation:
+
 Walkthroughs
 ------------
+
+For historical reference, the following sections cover manual ways of
+establishing Zeek packages.
 
 Pure Zeek Script Package
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -537,6 +650,8 @@ Internally, the value substitution and metadata parsing is handled by Python's
 `configparser interpolation`_.  See its documentation if you're interested in
 the details of how the interpolation works.
 
+.. _user-vars:
+
 `user_vars` field
 ~~~~~~~~~~~~~~~~~
 
@@ -588,7 +703,9 @@ from the package's metadata.
 
 In any case, the user may choose to supply the value of a `user_vars` key via
 an environment variable, in which case, prompts are skipped for any keys
-located in the environment.  The environment is also given priority over any
+located in the environment. The user may also provide `user_vars` via
+``--user-var NAME=VAL`` command-line arguments. These arguments are given
+priority over environment variables, which in turn take precedence over any
 values in the user's :ref:`package manager config file <zkg-config-file>`.
 
 Available :program:`since bro-pkg v1.1`.

@@ -2,11 +2,14 @@
 These are meant to be private utility methods for internal use.
 """
 
-import os
 import errno
+import importlib.machinery
+import os
 import shutil
-import git
+import types
 
+import git
+import semantic_version as semver
 
 def make_dir(path):
     """Create a directory or do nothing if it already exists.
@@ -21,6 +24,16 @@ def make_dir(path):
             raise
         elif os.path.isfile(path):
             raise
+
+
+def normalize_version_tag(tag):
+    """Given version string "vX.Y.Z", returns "X.Y.Z".
+    Returns other input strings unchanged.
+    """
+    if len(tag) > 1 and tag[0] == 'v' and tag[1].isdigit():
+        return tag[1:]
+
+    return tag
 
 
 def delete_path(path):
@@ -174,6 +187,39 @@ def git_default_branch(repo):
         return repo.head.object.hexsha
 
 
+def git_version_tags(repo):
+    """Returns semver-sorted list of version tag strings in the given repo."""
+    tags = []
+
+    for tagref in repo.tags:
+        tag = str(tagref.name)
+        normal_tag = normalize_version_tag(tag)
+
+        try:
+            sv = semver.Version.coerce(normal_tag)
+        except ValueError:
+            # Skip tags that aren't compatible semantic versions.
+            continue
+        else:
+            tags.append((normal_tag, tag, sv))
+
+    return [t[1] for t in sorted(tags, key=lambda e: e[2])]
+
+
+def git_pull(repo):
+    """Does a git pull followed up a submodule update.
+
+    Args:
+        clone (git.Repo): the git clone on which to operate
+
+    Raises:
+        git.exc.GitCommandError: in case of git trouble
+    """
+    repo.git.pull()
+    repo.git.submodule('sync', '--recursive')
+    repo.git.submodule('update', '--recursive', '--init')
+
+
 def is_sha1(s):
     if not s:
         return False;
@@ -237,3 +283,25 @@ def get_zeek_version():
                            bufsize=1, universal_newlines=True)
 
     return read_zeek_config_line(cmd.stdout)
+
+def load_source(filename):
+    """Loads given Python script from disk.
+
+    Args:
+        filename (str): name of a Python script file
+
+    Returns:
+        types.ModuleType: a module representing the loaded file
+    """
+    # https://stackoverflow.com/questions/67631/how-to-import-a-module-given-the-full-path
+    # We currrently require Python 3.5+, where the following looks sufficient:
+    absname = os.path.abspath(filename)
+    dirname = os.path.dirname(absname)
+
+    # Naming here is unimportant, since we access members of the new
+    # module via the returned instance.
+    loader = importlib.machinery.SourceFileLoader('template_' + dirname, absname)
+    mod = types.ModuleType(loader.name)
+    loader.exec_module(mod)
+
+    return mod

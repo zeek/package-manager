@@ -1,4 +1,82 @@
 
+2.8.0-18 | 2021-04-28 12:21:12 -0700
+
+  * Add "template info" command (Christian Kreibich, Corelight)
+
+    "template info" shows information about the provided template (or
+    the default), in either JSON or plaintext. This verifies whether
+    a given template is loadable and reports supported features,
+    user vars, and tagged versions.
+
+  * Provide default branch name in our git wrapper (Christian Kreibich, Corelight)
+
+    Newer git versions trigger a warning when the default branch name is
+    not set, which cluttered up the logs. This adds the default name,
+    preserving "master" since that branch name is currently visible in
+    test baselines.
+
+  * Add templating functionality to zkg toplevel script (Christian Kreibich, Corelight)
+
+    - Provide "zkg create" to instantiate a template, with optional
+    features and user vars for parameterization.
+
+    - ZKG_DEFAULT_TEMPLATE points at the default template repo,
+    https://github.com/zeek/package-template.
+
+  * Add a "slug" helper for user vars (Christian Kreibich, Corelight)
+
+    For templates it'll often be handy to render a variable value into a
+    file-system-safe identifier ("slug"). This provides uservar.slugify()
+    for this purpose.
+
+  * Add Zeek package templating module (Christian Kreibich, Corelight)
+
+    This provides infrastructure for structuring and instantiating Zeek
+    package templates. Templates are standalone git repos, managed as
+    follows:
+
+    - Template objects define package templates, including an output
+    directory, a specific package template, any additional features, and
+    parameters substituted when instantiating. Parameters derive from user
+    variables in a way defined by the template.
+
+    - The Package and Feature classes model template content and allow
+    validation of input parameters and instantiation of content. The
+    package class has additional functionality for initializing new
+    packages as git repos and adding template metadata to its zkg.meta.
+
+    - A hierarchy of exceptions accommodates template-specific problems.
+
+    These aren't currently imported into the zeekpkg namespace -- you need
+    to use zeekpkg.template.* when accessing those components.
+
+  * Add _util.load_source() for sourcing a Python script as a module (Christian Kreibich, Corelight)
+
+    Templates are driven by a toplevel __init__.py script, which we source
+    via this function.
+
+  * Prefill the prompt for user vars with current value (Christian Kreibich, Corelight)
+
+    This preserves the current model of allowing a quick hit of enter to
+    confirm the existing value, but also lets you empty out the value to
+    provide an empty string as the new value.
+
+  * Refactor user vars into their own class and module (Christian Kreibich, Corelight)
+
+    - Moves user-var functionality to a new uservar module and adds
+    UserVar, a class representing an individual user variable. These can
+    be created explicitly, parsed from a dict, or parsed from a NAME=VAL
+    string.
+
+    - Adds support for --user-arg NAME=VAL for the install, unbundle, and
+    upgrade commands. This can be provided repeatedly and lets you provide
+    user variables via the command line.
+
+    - Slightly tweaks the user prompt to accommodate situations other than
+    package installation.
+
+  * Migrate some git helpers to _util for broader access (Christian Kreibich, Corelight)
+
 2.8.0 | 2021-03-26 16:50:59 -0700
 
   * Release 2.8.0.

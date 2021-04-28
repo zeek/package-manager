@@ -9,4 +9,7 @@ PATH="$ORIGPATH"
 HOME=
 XDG_CONFIG_HOME=
 
-git -c user.name=zkg -c user.email=zkg@zeek.org "$@"
+git -c init.defaultBranch=master \
+    -c user.name=zkg \
+    -c user.email=zkg@zeek.org \
+    "$@"

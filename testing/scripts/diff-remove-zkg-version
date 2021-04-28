@@ -1,0 +1,8 @@
+#! /usr/bin/env bash
+#
+# Suppress lines starting with "zkg_version", which we have in some
+# zkg.meta comparisons that would render these sensitive to the
+# version of zkg.
+
+grep -v "^zkg_version"
+exit 0

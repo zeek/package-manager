@@ -6,6 +6,7 @@ the properties and status of Zeek packages.
 import os
 import re
 
+from .uservar import UserVar
 from ._util import find_sentence_end
 
 #: The name of files used by packages to store their metadata.
@@ -88,37 +89,18 @@ def short_description(metadata_dict):
 def user_vars(metadata_dict):
     """Returns a list of (str, str, str) from metadata's 'user_vars' field.
 
-    Each entry in the returned list is a the name of a variable, it's value,
+    Each entry in the returned list is a the name of a variable, its value,
     and its description.
 
     If the 'user_vars' field is not present, an empty list is returned.  If it
     is malformed, then None is returned.
     """
-    text = metadata_dict.get('user_vars')
+    uvars = UserVar.parse_dict(metadata_dict)
 
-    if not text:
-        return []
+    if uvars is None:
+        return None
 
-    rval = []
-
-    text = text.strip()
-    entries = re.split('(\w+\s+\\[.*\\]\s+".*")\s+', text)
-    entries = list(filter(None, entries))
-
-    for entry in entries:
-        m = re.match('(\w+)\s+\\[(.*)\\]\s+"(.*)"', entry)
-
-        if not m:
-            return None
-
-        groups = m.groups()
-
-        if len(groups) != 3:
-            return None
-
-        rval.append((groups[0], groups[1], groups[2]))
-
-    return rval
+    return [(uvar.name(), uvar.val(), uvar.desc()) for uvar in uvars]
 
 
 def dependencies(metadata_dict, field='depends'):
@@ -283,15 +265,15 @@ class PackageInfo(object):
         return dependencies(self.metadata, field)
 
     def user_vars(self):
-        """Returns a list of (str, str, str) from metadata's 'user_vars' field.
-
-        Each entry in the returned list is a the name of a variable, it's value,
-        and its description.
+        """Returns a list of user variables parsed from metadata's 'user_vars' field.
 
         If the 'user_vars' field is not present, an empty list is returned.  If
         it is malformed, then None is returned.
+
+        Returns:
+            list of zeekpkg.uservar.UserVar, or None on error
         """
-        return user_vars(self.metadata)
+        return UserVar.parse_dict(self.metadata)
 
     def best_version(self):
         """Returns the best/latest version of the package that is available.
