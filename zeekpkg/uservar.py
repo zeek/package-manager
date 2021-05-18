@@ -10,7 +10,7 @@ import readline
 def slugify(string):
     """Returns file-system-safe, lower-case version of the input string.
 
-    Any character sequence outside of [a-zA-Z0-9_]+ gets replaced by a
+    Any character sequence outside of ``[a-zA-Z0-9_]+`` gets replaced by a
     single underscore. If the variable has no value or the value is an
     empty string, returns the given default.
     """

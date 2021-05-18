@@ -1,4 +1,12 @@
 
+2.8.0-22 | 2021-05-18 13:13:17 -0700
+
+  * Minor docstring formatting improvements (Jon Siwek, Corelight)
+
+  * Add 'uservar' and 'template' modules to API docs (Jon Siwek, Corelight)
+
+  * Fix sphinxarg extension's use of old Sphinx logging API (Jon Siwek, Corelight)
+
 2.8.0-19 | 2021-05-18 12:03:36 -0700
 
   * Minor developer guide tweaks (Jon Siwek, Corelight)
