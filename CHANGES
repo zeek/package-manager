@@ -1,4 +1,8 @@
 
+2.9.0 | 2021-05-18 15:07:05 -0700
+
+  * Release 2.9.0.
+
 2.8.0-24 | 2021-05-18 15:06:32 -0700
 
   * Add an baseline canonifier to user-mode btest (Jon Siwek, Corelight)
