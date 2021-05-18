@@ -29,7 +29,7 @@ from ._util import (
     make_dir,
 )
 
-API_VERSION = '1.0.0-rc1'
+API_VERSION = '1.0.0'
 
 class Error(Exception):
     """Base class for any template-related errors."""
