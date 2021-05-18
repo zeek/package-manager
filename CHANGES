@@ -1,4 +1,8 @@
 
+2.8.0-19 | 2021-05-18 12:03:36 -0700
+
+  * Minor developer guide tweaks (Jon Siwek, Corelight)
+
 2.8.0-18 | 2021-04-28 12:21:12 -0700
 
   * Add "template info" command (Christian Kreibich, Corelight)

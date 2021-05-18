@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Apr 28, 2021" "2.8.0-18" "Zeek Package Manager"
+.TH "ZKG" "1" "May 18, 2021" "2.8.0-19" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -38,7 +38,8 @@ A command\-line package manager for Zeek.
 .sp
 .nf
 .ft C
-usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL] {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
+usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL]
+           {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
 .ft P
 .fi
 .UNINDENT
@@ -321,7 +322,7 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .sp
 .nf
 .ft C
-usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-force] [\-\-user\-var NAME=VAL] [package [package ...]]
+usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-force] [\-\-user\-var NAME=VAL] [package ...]
 .ft P
 .fi
 .UNINDENT

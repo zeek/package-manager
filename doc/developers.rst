@@ -46,7 +46,7 @@ To build documentation locally, find the requirements in
 
   .. literalinclude:: ../requirements.txt
 
-They can be installed like:
+They can be installed like::
 
   pip3 install -r requirements.txt
 
@@ -54,9 +54,9 @@ Local Build/Preview
 ~~~~~~~~~~~~~~~~~~~
 
 Use the :file:`Makefile` targets ``make html`` and ``make man`` to build the
-HTML and man page, respectively.  To view the generated HTML output, open
-:file:`doc/_build/index.html`.  The generated man page is located in
-:file:`doc/man/zkg.1`.
+HTML and man page, respectively, or ``make doc`` to build them both.  To view
+the generated HTML output, open :file:`doc/_build/index.html`.  The generated
+man page is located in :file:`doc/man/zkg.1`.
 
 If you have also installed :program:`sphinx-autobuild` (e.g. via
 :program:`pip3`), there's a :file:`Makefile` target, ``make livehtml``, you can
