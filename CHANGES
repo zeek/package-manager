@@ -1,4 +1,10 @@
 
+2.8.0-24 | 2021-05-18 15:06:32 -0700
+
+  * Add an baseline canonifier to user-mode btest (Jon Siwek, Corelight)
+
+  * Change templating API_VERSION to 1.0.0 (Jon Siwek, Corelight)
+
 2.8.0-22 | 2021-05-18 13:13:17 -0700
 
   * Minor docstring formatting improvements (Jon Siwek, Corelight)

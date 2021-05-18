@@ -29,4 +29,4 @@
 # @TEST-EXEC: test -f home/testuser/.zkg/config
 # @TEST-EXEC: zkg-zeek --user config >>output
 
-# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-cwd btest-diff output
+# @TEST-EXEC: TEST_DIFF_CANONIFIER="$SCRIPTS/diff-remove-cwd | $SCRIPTS/diff-remove-install-ticks" btest-diff output
