@@ -403,6 +403,9 @@ class ArgParseDirective(Directive):
 
 
 def env_get_outdated_hook(app, env, added, changed, removed):
+    from sphinx.util import logging
+    logger = logging.getLogger(__name__)
+
     rval = set()
 
     if not hasattr(env, 'argparse_usages'):
@@ -420,7 +423,7 @@ def env_get_outdated_hook(app, env, added, changed, removed):
     for docname in rval:
         from sphinx.util.console import blue
         msg = blue('found outdated argparse doc: {0}'.format(docname))
-        app.builder.info(msg)
+        logger.info(msg)
 
     return list(rval)
 
