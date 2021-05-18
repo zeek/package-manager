@@ -2,9 +2,6 @@ Python API Reference
 ====================
 
 .. automodule:: zeekpkg
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 The following Python modules are all provided as part of the ``zeekpkg``
 public interface:
@@ -15,3 +12,5 @@ public interface:
    manager
    package
    source
+   template
+   uservar
