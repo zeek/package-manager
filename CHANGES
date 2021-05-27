@@ -1,4 +1,12 @@
 
+2.9.0-1 | 2021-05-27 13:46:33 -0700
+
+  * Update Python requirement to 3.6+ (Jon Siwek, Corelight)
+
+    Some new code that came in with zkg 2.9.0 does indeed use Python
+    3.6 features (f-strings), but also early Python versions are generally
+    end-of-life already.
+
 2.9.0 | 2021-05-18 15:07:05 -0700
 
   * Release 2.9.0.

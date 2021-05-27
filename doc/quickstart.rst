@@ -7,7 +7,7 @@ Quickstart Guide
 Dependencies
 ------------
 
-* Python 3.5+
+* Python 3.6+
 * git: https://git-scm.com
 * GitPython: https://pypi.python.org/pypi/GitPython
 * semantic_version: https://pypi.python.org/pypi/semantic_version
