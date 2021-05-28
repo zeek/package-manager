@@ -2006,6 +2006,8 @@ class Manager(object):
 
                 new_pkgs.append((node.info, best_version, node.is_suggestion))
 
+        # TODO: really, the package list should be sorted in terms of dependency
+        #       hierarchy (children before parents, or arbitrary order for cycles)
         return ('', new_pkgs)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
@@ -2184,39 +2186,11 @@ class Manager(object):
             return (invalid_deps, False, test_dir)
 
         pkgs = []
+
+        for info, ver, _ in new_pkgs:
+            pkgs.append((info, ver))
+
         pkgs.append((pkg_info, version))
-
-        for info, version, _ in new_pkgs:
-            pkgs.append((info, version))
-
-        # Clone all packages, checkout right version, and build/install to
-        # staging area.
-        for info, version in pkgs:
-            clonepath = os.path.join(clone_dir, info.package.name)
-
-            try:
-                clone = _clone_package(info.package, clonepath, version)
-            except git.exc.GitCommandError as error:
-                LOG.warning('failed to clone git repo: %s', error)
-                return ('failed to clone {}'.format(info.package.git_url),
-                        False, test_dir)
-
-            try:
-                git_checkout(clone, version)
-            except git.exc.GitCommandError as error:
-                LOG.warning('failed to checkout git repo version: %s', error)
-                return (str.format('failed to checkout {} of {}',
-                                   version, info.package.git_url),
-                        False, test_dir)
-
-            fail_msg = self._stage(info.package, version,
-                                   clone, stage_script_dir, stage_plugin_dir)
-
-            if fail_msg:
-                return (fail_msg, False, test_dir)
-
-        # Finally, run tests (with correct environment set)
-        test_command = pkg_info.metadata['test_command']
 
         zeek_config = find_program('zeek-config')
         path_option = '--zeekpath'
@@ -2261,6 +2235,50 @@ class Manager(object):
         env['ZEEK_PLUGIN_PATH'] = pluginpath
         env['BROPATH'] = zeekpath
         env['BRO_PLUGIN_PATH'] = pluginpath
+
+        # Clone all packages, checkout right version, and build/install to
+        # staging area.
+        for info, version in pkgs:
+            clonepath = os.path.join(clone_dir, info.package.name)
+
+            try:
+                clone = _clone_package(info.package, clonepath, version)
+            except git.exc.GitCommandError as error:
+                LOG.warning('failed to clone git repo: %s', error)
+                return ('failed to clone {}'.format(info.package.git_url),
+                        False, test_dir)
+
+            try:
+                git_checkout(clone, version)
+            except git.exc.GitCommandError as error:
+                LOG.warning('failed to checkout git repo version: %s', error)
+                return (str.format('failed to checkout {} of {}',
+                                   version, info.package.git_url),
+                        False, test_dir)
+
+            fail_msg = self._stage(info.package, version,
+                                   clone, stage_script_dir, stage_plugin_dir,
+                                   env)
+
+            if fail_msg:
+                return (fail_msg, False, test_dir)
+
+            executables = self._get_executables(info.metadata)
+            exe_paths = set()
+
+            for exe in executables:
+                if not exe.startswith(os.sep):
+                    exe = os.path.join(clonepath, exe)
+
+                exe_paths.add(os.path.dirname(exe))
+
+            for exe_path in exe_paths:
+                LOG.debug('adding %s to PATH: %s', exe_path, env['PATH'])
+                env['PATH'] = exe_path + os.pathsep + env['PATH']
+
+        # Finally, run tests (with correct environment set)
+        test_command = pkg_info.metadata['test_command']
+
         cwd = os.path.join(clone_dir, package.name)
         outfile = os.path.join(cwd, 'zkg.test_command.stdout')
         errfile = os.path.join(cwd, 'zkg.test_command.stderr')
@@ -2278,7 +2296,7 @@ class Manager(object):
         return metadata.get('executables', '').split()
 
     def _stage(self, package, version, clone,
-               stage_script_dir, stage_plugin_dir):
+               stage_script_dir, stage_plugin_dir, env=None):
         metadata_file = _pick_metadata_file(clone.working_dir)
 
         # First use raw parser so no value interpolation takes place.
@@ -2330,6 +2348,7 @@ class Manager(object):
             bufsize = 4096
             build = subprocess.Popen(build_command,
                                      shell=True, cwd=clone.working_dir,
+                                     env=env or os.environ,
                                      bufsize=bufsize,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
