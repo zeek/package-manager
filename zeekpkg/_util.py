@@ -305,3 +305,25 @@ def load_source(filename):
     loader.exec_module(mod)
 
     return mod
+
+def configparser_section_dict(parser, section):
+    """Returns a dict representing a ConfigParser section.
+
+    Args:
+        parser (configparser.ConfigParser): a ConfigParser instance
+
+        section (str): the name of a config section
+
+    Returns:
+        dict: a dict with key/val entries corresponding to the requested
+        section, or an empty dict if the given parser has no such section.
+    """
+    res = {}
+
+    if not parser.has_section(section):
+        return {}
+
+    for key, val in parser.items(section):
+        res[key] = val
+
+    return res
