@@ -39,6 +39,7 @@ from ._util import (
     find_program,
     read_zeek_config_line,
     normalize_version_tag,
+    configparser_section_dict,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -871,6 +872,16 @@ class Manager(object):
         if aggregate:
             # Use raw parser so no value interpolation takes place.
             parser = configparser.RawConfigParser()
+            prev_parser = configparser.RawConfigParser()
+            prev_packages = set()
+
+            if os.path.isfile(aggregate_file):
+                prev_parser.read(aggregate_file)
+                prev_packages = set(prev_parser.sections())
+
+            agg_adds = []
+            agg_mods = []
+            agg_dels = []
 
             for index_file in source.package_index_files():
                 urls = []
@@ -933,8 +944,28 @@ class Manager(object):
                     parser.set(qualified_name, 'url', url)
                     parser.set(qualified_name, 'version', version)
 
+                    if qualified_name not in prev_packages:
+                        agg_adds.append(qualified_name)
+                    else:
+                        prev_meta = configparser_section_dict(prev_parser, qualified_name)
+                        new_meta = configparser_section_dict(parser, qualified_name)
+                        if prev_meta != new_meta:
+                            agg_mods.append(qualified_name)
+
             with open(aggregate_file, 'w') as f:
                 parser.write(f)
+
+            agg_dels = list(prev_packages.difference(set(parser.sections())))
+
+            adds_str = ' (' + ', '.join(sorted(agg_adds)) + ')' if agg_adds else ''
+            mods_str = ' (' + ', '.join(sorted(agg_mods)) + ')' if agg_mods else ''
+            dels_str = ' (' + ', '.join(sorted(agg_dels)) + ')' if agg_dels else ''
+
+            LOG.debug('metadata refresh: %d additions%s, %d changes%s, %d removals%s',
+                      len(agg_adds), adds_str,
+                      len(agg_mods), mods_str,
+                      len(agg_dels), dels_str)
+
 
         if push:
             if os.path.isfile(os.path.join(source.clone.working_dir,
@@ -942,8 +973,15 @@ class Manager(object):
                 source.clone.git.add(AGGREGATE_DATA_FILE)
 
             if source.clone.is_dirty():
+                # There's an assumption here that the dirty state is
+                # due to a metadata refresh. This could be incorrect
+                # if somebody makes local modifications and then runs
+                # the refresh without --aggregate, but it's not clear
+                # why one would use zkg for this as opposed to git
+                # itself.
                 source.clone.git.commit(
                     '--no-verify', '--message', 'Update aggregated metadata.')
+                LOG.info('committed package source "%s" metadata update', name)
 
             source.clone.git.push('--no-verify')
 

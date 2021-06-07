@@ -1129,7 +1129,7 @@ def cmd_refresh(manager, args, config, configfile):
                           for i in manager.source_packages()}
 
         if src_pkgs_before == src_pkgs_after:
-            print('\tNo changes')
+            print('\tNo membership changes')
         else:
             print('\tChanges:')
             diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
