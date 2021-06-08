@@ -33,11 +33,13 @@ except ImportError as error:
           file=sys.stderr)
     sys.exit(1)
 
-# For Zeek-bundled installation, explictly add the Python path we've
-# installed ourselves under, so we find the zeekpkg module:
+# For Zeek-bundled installation, prepend the Python path of the Zeek
+# installation. This ensures we find the matching zeekpkg module
+# first, avoiding potential conflicts with installations elsewhere on
+# the system.
 ZEEK_PYTHON_DIR = '@PY_MOD_INSTALL_DIR@'
 if os.path.isdir(ZEEK_PYTHON_DIR):
-    sys.path.append(os.path.abspath(ZEEK_PYTHON_DIR))
+    sys.path.insert(0, os.path.abspath(ZEEK_PYTHON_DIR))
 else:
     ZEEK_PYTHON_DIR = None
 
