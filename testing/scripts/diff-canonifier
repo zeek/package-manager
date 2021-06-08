@@ -1,0 +1,11 @@
+#! /usr/bin/env bash
+#
+# Default canonifier that combines several others.
+
+DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
+
+$DIR/diff-remove-timestamps \
+    | $DIR/diff-remove-zkg-version \
+    | $DIR/diff-remove-abspath
+
+exit 0

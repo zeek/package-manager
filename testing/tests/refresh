@@ -8,8 +8,9 @@
 # @TEST-EXEC: zkg list all > list.out
 # @TEST-EXEC: btest-diff list.out
 
-# @TEST-EXEC: zkg refresh --aggregate >agg.out
+# @TEST-EXEC: zkg -vvv refresh --aggregate --push >agg.out 2>agg.errout
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff agg.out
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff agg.errout
 
 # @TEST-EXEC: zkg search lucky > search.out
 # @TEST-EXEC: btest-diff search.out
@@ -46,5 +47,11 @@ git commit -m 'init'
 cd ../..
 echo "$(pwd)/packages/new_pkg" >> sources/one/alice/zkg.index
 echo "$(pwd)/packages/bad_pkg" >> sources/one/alice/zkg.index
-cd sources/one
-git commit -am 'add packages'
+cd sources
+
+( cd one && git commit -am 'add packages' )
+
+# Make it a bare repo so we can push to it
+mv one one.tmp
+git clone --bare one.tmp one
+rm -rf one.tmp
