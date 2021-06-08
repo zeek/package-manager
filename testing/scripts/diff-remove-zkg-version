@@ -1,8 +1,8 @@
 #! /usr/bin/env bash
 #
-# Suppress lines starting with "zkg_version", which we have in some
-# zkg.meta comparisons that would render these sensitive to the
-# version of zkg.
+# Suppress lines including our zkg version, based on the VERSION file
+# at the toplevel of the source tree.
 
-grep -v "^zkg_version"
+ver=$(cat $TEST_BASE/../VERSION)
+grep -v "$ver"
 exit 0
