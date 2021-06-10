@@ -443,6 +443,19 @@ class Manager(object):
         version = None
         parse_result = urlparse(git_url)
 
+        # Prepend 'ssh://' and replace the first ':' with '/' if git_url
+        # looks like a scp-like URL, e.g. git@github.com:user/repo.git.
+        # urlparse will otherwise parse everything into path and the @
+        # is confusing the versioning logic. Note that per the git-clone
+        # docs git recognizes scp-style URLs only when there are no slashes
+        # before the first colon.
+        colonidx, slashidx = git_url.find(':'), git_url.find('/')
+
+        if '://' not in git_url and colonidx > 0 and (slashidx == -1 or slashidx > colonidx):
+            parse_result = urlparse('ssh://' + git_url.replace(':', '/', 1))
+        else:
+            parse_result = urlparse(git_url)
+
         if parse_result.path and '@' in parse_result.path:
             git_url, version = git_url.rsplit('@', 1)
 
