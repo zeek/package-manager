@@ -1,4 +1,41 @@
 
+2.10.0 | 2021-06-21 19:51:19 -0700
+
+  * Release 2.10.0.
+
+2.9.0-10 | 2021-06-21 19:08:22 -0700
+
+  * When zkg is bundled with Zeek, prepend Zeek's Python module path (Christian Kreibich, Corelight)
+
+    Prepending instead of appending ensures that the bundled zkg picks the
+    zeekpkg module shipped with Zeek, not any others available elsewhere
+    in Python's search path.
+
+  * Improve the package source refresh test (Christian Kreibich, Corelight)
+
+    This test now also verifies the "refresh --push" behavior. To do this
+    it makes the "remote" package source bare and verifies the log zkg
+    generates at the debug level, with a bit of additional canonification.
+
+    For better output filtering, the diff-remove-abspath canonifier now
+    recognizes whitespace (it's the same as used by Zeek), and
+    diff-remove-zkg-version now actually filters the current zkg version,
+    not just a related token that appeared in one test.
+
+  * Add logging to package source refreshes (Christian Kreibich, Corelight)
+
+    At log level INFO zkg now reports whether the local aggregate.meta was
+    dirty during a "refresh --push" and thus led to a commit; at log level
+    DEBUG it also reports the package additions/changes/drops that end up
+    in such a commit.
+
+  * Harden "@" interpretation in package source URLs (Christian Kreibich and Arne Welzel, Corelight)
+
+    urlparse parses scp-style git URLs ("git@github.com:foo/bar") crudely
+    as path-only URLs, exposing us to a risk of confusing user@ prefixes
+    with @version suffixes. We now look for scp-style URLs and transform
+    those explicitly to the "ssh://" schema to disambiguate.
+
 2.9.0-1 | 2021-05-27 13:46:33 -0700
 
   * Update Python requirement to 3.6+ (Jon Siwek, Corelight)
