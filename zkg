@@ -2646,8 +2646,9 @@ def argparser():
         'template', help='Manage package templates.')
 
     template_command_parser = sub_parser.add_subparsers(
-        title='template commands',
-        help='See `%(prog)s template <command> -h for per-command usage info.')
+        title='template commands', dest='command',
+        help='See %(prog)s <command> -h for per-command usage info.')
+    template_command_parser.required = True
 
     # template info
 
