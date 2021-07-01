@@ -1128,7 +1128,12 @@ def cmd_refresh(manager, args, config, configfile):
     if not args.sources:
         args.sources = list(manager.sources.keys())
 
+    if args.fail_on_aggregate_problems and not args.aggregate:
+        print_error('warning: --fail-on-aggregate-problems without --aggregate'
+                    ' has no effect.')
+
     had_failure = False
+    had_aggregation_failure = False
 
     for source in args.sources:
         print('Refresh package source: {}'.format(source))
@@ -1172,6 +1177,8 @@ def cmd_refresh(manager, args, config, configfile):
 
                 for url, issue in aggregation_issues:
                     print('\t\t{}: {}'.format(url, issue))
+                if args.fail_on_aggregate_problems:
+                    had_aggregation_failure = True
             else:
                 print('\tMetadata aggregated')
 
@@ -1196,6 +1203,8 @@ def cmd_refresh(manager, args, config, configfile):
 
     if had_failure:
         sys.exit(1)
+    if had_aggregation_failure:
+        sys.exit(2)
 
 
 def version_change_string(manager, installed_package):
@@ -2418,10 +2427,14 @@ def argparser():
         ' (or legacy bro-pkg.index) files and'
         ' aggregates the metadata found in their zkg.meta (or legacy'
         ' bro-pkg.meta) files.  The aggregated metadata is stored in the local'
-        ' clone of the package'
-        ' source that zkg uses internally locating package metadata.'
+        ' clone of the package source that zkg uses internally for locating'
+        ' package metadata.'
         ' For each package, the metadata is taken from the highest available'
         ' git version tag or the default branch, like "main" or "master", if no version tags exist')
+    sub_parser.add_argument(
+        '--fail-on-aggregate-problems', action='store_true',
+        help='When using --aggregate, exit with error when any packages trigger'
+        ' metadata problems. Normally such problems only cause a warning.')
     sub_parser.add_argument(
         '--push', action='store_true',
         help='Push all local changes to package sources to upstream repos')
