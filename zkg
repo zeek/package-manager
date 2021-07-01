@@ -1937,7 +1937,7 @@ def cmd_autoconfig(manager, args, config, configfile):
         zeek_config = find_program('bro-config')
 
     if not zeek_config:
-        print_error('error: no "zeek-config" or "bro-config" not found in PATH')
+        print_error('error: no "zeek-config" or "bro-config" in PATH')
         sys.exit(1)
 
     dist_option = '--zeek_dist' if have_zeek_config else '--bro_dist'
