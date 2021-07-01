@@ -323,16 +323,44 @@ def active_git_branch(path):
     rval = str(rval)
     return rval
 
-def is_git_repo_dirty(git_url):
-    if not git_url.startswith('.') and not git_url.startswith('/'):
+
+def is_local_git_repo_url(git_url):
+    return git_url.startswith('.') or git_url.startswith('/')
+
+
+def is_local_git_repo(git_url):
+    try:
+        # The Repo class takes a file system path as first arg. This
+        # can fail in two ways: (1) the path doesn't exist or isn't
+        # accessible, (2) it's not the root directory of a git repo.
+        git.Repo(git_url)
+        return True
+    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError) as error:
         return False
 
+
+def is_local_git_repo_dirty(git_url):
+    if not is_local_git_repo(git_url):
+        return False
     try:
         repo = git.Repo(git_url)
     except git.exc.NoSuchPathError as error:
         return False
 
     return repo.is_dirty(untracked_files=True)
+
+
+def check_local_git_repo(git_url):
+    if is_local_git_repo_url(git_url):
+        if not is_local_git_repo(git_url):
+            print_error('error: path {} is not a git repository'.format(git_url))
+            return False
+        if is_local_git_repo_dirty(git_url):
+            print_error('error: local git clone at {} is dirty'.format(git_url))
+            return False
+
+    return True
+
 
 def create_manager(args, config):
     state_dir = config.get('paths', 'state_dir')
@@ -453,8 +481,7 @@ def cmd_test(manager, args, config, configfile):
     package_infos = []
 
     for name in args.package:
-        if is_git_repo_dirty(name):
-            print_error('error: local git clone at {} is dirty'.format(name))
+        if not check_local_git_repo(name):
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
@@ -514,8 +541,7 @@ def cmd_install(manager, args, config, configfile):
     package_infos = []
 
     for name in args.package:
-        if is_git_repo_dirty(name):
-            print_error('error: local git clone at {} is dirty'.format(name))
+        if not check_local_git_repo(name):
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
@@ -769,8 +795,7 @@ def cmd_bundle(manager, args, config, configfile):
         new_pkgs = []
 
         for name, version in packages:
-            if is_git_repo_dirty(name):
-                print_error('error: local git clone at {} is dirty'.format(name))
+            if not check_local_git_repo(name):
                 sys.exit(1)
 
             if not version:
