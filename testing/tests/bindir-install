@@ -1,3 +1,6 @@
+# "zkg test" internally requires zeek-config
+# @TEST-REQUIRES: type zeek-config
+
 # @TEST-EXEC: bash %INPUT
 #
 # @TEST-EXEC: zkg test foo
