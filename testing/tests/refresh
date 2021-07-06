@@ -8,6 +8,16 @@
 # @TEST-EXEC: zkg list all > list.out
 # @TEST-EXEC: btest-diff list.out
 
+# With --fail-on-aggregate problems, the following should fail since
+# there are metadata problems in the package set.
+# @TEST-EXEC-FAIL: zkg -vvv refresh --aggregate --fail-on-aggregate-problems >agg.fail.out 2>agg.fail.errout
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff agg.fail.out
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff agg.fail.errout
+
+# Remove the aggregated metadata so the next invocation has a clean slate
+# @TEST-EXEC: rm -f state/clones/source/one/aggregate.meta
+
+# This time we trigger only warnings for offending packages, commit, and push.
 # @TEST-EXEC: zkg -vvv refresh --aggregate --push >agg.out 2>agg.errout
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff agg.out
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff agg.errout
