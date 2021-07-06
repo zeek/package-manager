@@ -1,3 +1,31 @@
+2.10.0-10 | 2021-07-05 20:53:39 -0700
+
+  * Require zeek-config for two additional tests that will fail without it (Christian Kreibich, Corelight)
+
+  * Add --fail-on-aggregate-problems to the refresh command (Christian Kreibich, Corelight)
+
+    When provided (in addition to --aggregate), any package metadata processing
+    problems cause zkg to exit with error. Without the flag, such problems only
+    trigger a warning.
+
+  * Added resilience when specifying local paths as package git repos (Christian Kreibich, Corelight)
+
+    In addition to failing when a given path doesn't exist, the git.Repo()
+    constructor also fails when a given path exists but is not a git
+    repository. That scenario caused backtraces with package installs,
+    testing, and bundling when providing such invalid local paths.
+
+    We now check for this case and provide according output. This adds
+    guards for the install, test, and bundling commands, which are the
+    entry points for providing local URLs.
+
+    This also expands the test case for invalid repos.
+
+  * Fix crash in case the user enters just "zkg template" (Christian Kreibich, Corelight)
+
+    The output of "zkg template" (which will gain various commands over
+    time) now mirrors that when just saying "zkg". Also, the help output
+    in `zkg template --help` no longer double-mentions "template".
 
 2.10.0 | 2021-06-21 19:51:19 -0700
 
