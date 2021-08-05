@@ -1,0 +1,6 @@
+# @TEST-EXEC: zkg install foo bar baz
+# @TEST-EXEC: test -f scripts/packages/foo/__load__.zeek
+
+# @TEST-EXEC: zkg uninstall --force foo
+# @TEST-EXEC: test ! -d scripts/packages/foo
+# @TEST-EXEC: btest-diff scripts/packages/packages.zeek
