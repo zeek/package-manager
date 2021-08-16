@@ -2384,6 +2384,7 @@ def argparser():
     # remove
     sub_parser = command_parser.add_parser(
         'remove',
+        aliases=['uninstall'],
         help='Uninstall a package.',
         description='Unloads (see the ``unload`` command) and uninstalls a'
         ' previously installed package.',

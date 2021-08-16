@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Jul 05, 2021" "2.11.0" "Zeek Package Manager"
+.TH "ZKG" "1" "Aug 16, 2021" "2.11.0-4" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -38,7 +38,7 @@ A command\-line package manager for Zeek.
 .sp
 .nf
 .ft C
-usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL] {test,install,bundle,unbundle,remove,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
+usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL] {test,install,bundle,unbundle,remove,uninstall,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
 .ft P
 .fi
 .UNINDENT
@@ -183,6 +183,13 @@ Skip the confirmation prompt.
 .TP
 .B \-\-nodeps=False
 Skip all dependency resolution/checks.  Note that using this option risks putting your installed package collection into a broken or unusable state.
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+You may also say \fBuninstall\fP\&.
 .UNINDENT
 .UNINDENT
 .SS purge

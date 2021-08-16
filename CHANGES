@@ -1,4 +1,10 @@
 
+2.11.0-4 | 2021-08-16 14:04:35 -0700
+
+  * Accept `uninstall` as an alias for `remove`. (Benjamin Bannier, Corelight)
+
+  * Incorporate sphinx-argparse upstream fix for aliased commands (Christian Kreibich, Corelight)
+
 2.11.0 | 2021-07-05 20:58:29 -0700
 
   * Release 2.11.0.

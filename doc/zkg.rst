@@ -47,6 +47,10 @@ remove
     :prog: zkg
     :path: remove
 
+.. note::
+
+   You may also say ``uninstall``.
+           
 .. _purge-command:
 
 purge
