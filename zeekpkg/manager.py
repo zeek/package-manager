@@ -2223,10 +2223,14 @@ class Manager(object):
         clone_dir = os.path.join(test_dir, 'clones')
         stage_script_dir = os.path.join(test_dir, 'scripts', 'packages')
         stage_plugin_dir = os.path.join(test_dir, 'plugins', 'packages')
+        stage_bin_dir = os.path.join(test_dir, 'bin')
+
         delete_path(test_dir)
+
         make_dir(clone_dir)
         make_dir(stage_script_dir)
         make_dir(stage_plugin_dir)
+        make_dir(stage_bin_dir)
 
         request = [(package.qualified_name(), version)]
         invalid_deps, new_pkgs = self.validate_dependencies(request, False)
@@ -2260,8 +2264,8 @@ class Manager(object):
                                    version, info.package.git_url),
                         False, test_dir)
 
-            fail_msg = self._stage(info.package, version,
-                                   clone, stage_script_dir, stage_plugin_dir)
+            fail_msg = self._stage(info.package, version, clone, stage_script_dir,
+                                   stage_plugin_dir, stage_bin_dir)
 
             if fail_msg:
                 return (fail_msg, False, test_dir)
@@ -2308,6 +2312,7 @@ class Manager(object):
         pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath
 
         env = os.environ.copy()
+        env['PATH'] = stage_bin_dir + os.pathsep + os.environ.get('PATH', '')
         env['ZEEKPATH'] = zeekpath
         env['ZEEK_PLUGIN_PATH'] = pluginpath
         env['BROPATH'] = zeekpath
@@ -2328,8 +2333,8 @@ class Manager(object):
     def _get_executables(self, metadata):
         return metadata.get('executables', '').split()
 
-    def _stage(self, package, version, clone,
-               stage_script_dir, stage_plugin_dir):
+    def _stage(self, package, version, clone, stage_script_dir,
+               stage_plugin_dir, stage_bin_dir=None):
         metadata_file = _pick_metadata_file(clone.working_dir)
 
         # First use raw parser so no value interpolation takes place.
@@ -2477,7 +2482,7 @@ class Manager(object):
 
             if pkg_plugin_dir != 'build':
                 # It's common for a package to not have build directory for
-                # for plugins, so don't error out in that case, just log it.
+                # plugins, so don't error out in that case, just log it.
                 return str.format("package's 'plugin_dir' does not exist: {}",
                                   pkg_plugin_dir)
 
@@ -2496,6 +2501,10 @@ class Manager(object):
 
             if not os.access(full_path, os.X_OK):
                 return str.format("file '{}' is not executable", p)
+
+            if stage_bin_dir is not None:
+                make_symlink(full_path, os.path.join(
+                    stage_bin_dir, os.path.basename(p)), force=True)
 
     def install(self, pkg_path, version=''):
         """Install a package.
