@@ -1672,17 +1672,25 @@ class Manager(object):
             the first element of the tuple is an empty string if dependency
             graph was successfully validated, else an error string explaining
             what is invalid.  In the case it was validated, the second element
-            is a list of tuples where the first elements are dependency packages
-            that would need to be installed in order to satisfy the
-            dependencies of the requested packages (it will not include any
-            packages that are already installed or that are in the
-            `requested_packages` argument).
-            The second element of tuples in the list is a version string of
-            the associated package that satisfies dependency requirements.
-            The third element of the tuples in the list is a boolean value
-            indicating whether the package is included in the list because it's
-            merely suggested by another package.
+            is a list of tuples, each representing a package,  where:
 
+            - The first element is a dependency package that would need to be
+              installed in order to satisfy the dependencies of the requested
+              packages.
+
+            - The second element of tuples in the list is a version string of
+              the associated package that satisfies dependency requirements.
+
+            - The third element of the tuples in the list is a boolean value
+              indicating whether the package is included in the list because
+              it's merely suggested by another package.
+
+            The list will not include any packages that are already installed or
+            that are in the `requested_packages` argument. The list is sorted in
+            dependency order: whenever a dependency in turn has dependencies,
+            those are guaranteed to appear in order in the list. This means that
+            reverse iteration of the list guarantees processing of dependencies
+            prior to the depender packages.
         """
         class Node(object):
 
@@ -1691,7 +1699,8 @@ class Manager(object):
                 self.info = None
                 self.requested_version = None  # (tracking method, version)
                 self.installed_version = None  # (tracking method, version)
-                self.dependers = dict()  # name -> version
+                self.dependers = dict()  # name -> version, name needs self at version
+                self.dependees = dict()  # name -> version, self needs name at version
                 self.is_suggestion = False
 
             def __str__(self):
@@ -1700,8 +1709,8 @@ class Manager(object):
                     self.name, self.requested_version, self.installed_version,
                     self.dependers, self.is_suggestion)
 
-        new_pkgs = []
-        graph = dict()
+        graph = dict() # Node.name -> Node, nodes store edges
+        requests = [] # List of Node, just for requested packages
 
         # 1. Try to make nodes for everything in the dependency graph...
 
@@ -1710,17 +1719,17 @@ class Manager(object):
             info = self.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                return ('invalid package "{}": {}'.format(name,
-                                                          info.invalid_reason),
-                        new_pkgs)
+                return ('invalid package "{}": {}'.format(
+                    name, info.invalid_reason), [])
 
             node = Node(info.package.qualified_name())
             node.info = info
             method = node.info.version_type
             node.requested_version = (method, version)
             graph[node.name] = node
+            requests.append(node)
 
-        # Recursively add nodes for all dependencies of requested packages
+        # Recursively add nodes for all dependencies of requested packages,
         to_process = copy.copy(graph)
 
         while to_process:
@@ -1730,14 +1739,14 @@ class Manager(object):
 
             if dd is None:
                 return (str.format('package "{}" has malformed "depends" field',
-                                   node.name), new_pkgs)
+                                   node.name), [])
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
                     return (str.format('package "{}" has malformed "suggests" field',
-                                       node.name), new_pkgs)
+                                       node.name), [])
 
                 all_deps.update(ds)
 
@@ -1757,7 +1766,7 @@ class Manager(object):
                 if info.invalid_reason:
                     return (str.format(
                         'package "{}" has invalid dependency "{}": {}',
-                        node.name, dep_name, info.invalid_reason), new_pkgs)
+                        node.name, dep_name, info.invalid_reason), [])
 
                 dep_name = info.package.qualified_name()
 
@@ -1821,14 +1830,14 @@ class Manager(object):
 
             if dd is None:
                 return (str.format('package "{}" has malformed "depends" field',
-                                   node.name), new_pkgs)
+                                   node.name), [])
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
                     return (str.format('package "{}" has malformed "suggests" field',
-                                       node.name), new_pkgs)
+                                       node.name), [])
 
                 all_deps.update(ds)
 
@@ -1836,9 +1845,11 @@ class Manager(object):
                 if dep_name == 'bro' or dep_name == 'zeek':
                     if 'zeek' in graph:
                         graph['zeek'].dependers[name] = dep_version
+                        node.dependees['zeek'] = dep_version
                 elif dep_name == 'bro-pkg' or dep_name == 'zkg':
                     if 'zkg' in graph:
                         graph['zkg'].dependers[name] = dep_version
+                        node.dependees['zkg'] = dep_version
                 else:
                     for _, dependency_node in graph.items():
                         if dependency_node.name == 'zeek':
@@ -1849,17 +1860,42 @@ class Manager(object):
 
                         if dependency_node.info.package.matches_path(dep_name):
                             dependency_node.dependers[name] = dep_version
+                            node.dependees[dependency_node.name] = dep_version
                             break
 
         # 3. Try to solve for a connected graph with no edge conflicts.
-        for name, node in graph.items():
+
+        # Traverse graph in breadth-first order, starting from artificial root
+        # with all nodes requested by caller as child nodes.
+        nodes_todo = requests
+
+        # The resulting list of packages required to satisfy dependencies,
+        # in depender -> dependent (i.e., root -> leaves in dependency tree)
+        # order.
+        new_pkgs = []
+
+        while nodes_todo:
+            node = nodes_todo.pop(0)
+            for name in node.dependees:
+                nodes_todo.append(graph[name])
+
+            # Avoid cyclic dependencies: ensure we traverse these edges only
+            # once. (The graph may well be a dag, so it's okay to encounter
+            # specific nodes repeatedly.)
+            node.dependees = []
+
             if not node.dependers:
                 if node.installed_version:
+                    # We can ignore packages alreaday installed if nothing else
+                    # depends on them.
                     continue
 
                 if node.requested_version:
+                    # Only the packges requested by the caller have a requested
+                    # version. We skip those too if nothing depends on them.
                     continue
 
+                # A new package nothing depends on -- odd?
                 new_pkgs.append((node.info, node.info.best_version(),
                                  node.is_suggestion))
                 continue
@@ -2057,7 +2093,19 @@ class Manager(object):
 
                 new_pkgs.append((node.info, best_version, node.is_suggestion))
 
-        return ('', new_pkgs)
+        # Remove duplicate new nodes, preserving their latest (i.e. deepest-in-
+        # tree) occurrences. Traversing the resulting list right-to-left guarantees
+        # that we never visit a node before we've visited all of its dependees.
+        seen_nodes = set()
+        res = []
+
+        for it in reversed(new_pkgs):
+            if it[0].package.name in seen_nodes:
+                continue
+            seen_nodes.add(it[0].package.name)
+            res.insert(0, it)
+
+        return ('', res)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
