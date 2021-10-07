@@ -667,7 +667,7 @@ def cmd_install(manager, args, config, configfile):
 
     installs_failed = []
 
-    for info, version, _ in sorted(package_infos, key=lambda x: x[0].package.name):
+    for info, version, _ in reversed(package_infos):
         name = info.package.qualified_name()
 
         is_overwriting = False
@@ -1381,7 +1381,7 @@ def cmd_upgrade(manager, args, config, configfile):
     join_timeout = 0.01
     tick_interval = 1
 
-    for info, version, _ in new_pkgs:
+    for info, version, _ in reversed(new_pkgs):
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0

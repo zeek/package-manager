@@ -2294,7 +2294,7 @@ class Manager(object):
 
         # Clone all packages, checkout right version, and build/install to
         # staging area.
-        for info, version in pkgs:
+        for info, version in reversed(pkgs):
             clonepath = os.path.join(clone_dir, info.package.name)
 
             try:
