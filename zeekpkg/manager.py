@@ -2286,6 +2286,11 @@ class Manager(object):
         if invalid_deps:
             return (invalid_deps, False, test_dir)
 
+        env, err = self._get_subprocess_env(stage_script_dir, stage_plugin_dir, stage_bin_dir)
+        if env is None:
+            LOG.warning('%s when running tests for %s', err, package.name)
+            return (err, False, test_dir)
+
         pkgs = []
         pkgs.append((pkg_info, version))
 
@@ -2313,7 +2318,7 @@ class Manager(object):
                         False, test_dir)
 
             fail_msg = self._stage(info.package, version, clone, stage_script_dir,
-                                   stage_plugin_dir, stage_bin_dir)
+                                   stage_plugin_dir, stage_bin_dir, env)
 
             if fail_msg:
                 return (fail_msg, False, test_dir)
@@ -2321,68 +2326,25 @@ class Manager(object):
         # Finally, run tests (with correct environment set)
         test_command = pkg_info.metadata['test_command']
 
-        zeek_config = find_program('zeek-config')
-        path_option = '--zeekpath'
-
-        if not zeek_config:
-            zeek_config = find_program('bro-config')
-            path_option = '--bropath'
-
-        zeekpath = os.environ.get('ZEEKPATH')
-
-        if not zeekpath:
-            zeekpath = os.environ.get('BROPATH')
-
-        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH')
-
-        if not pluginpath:
-            pluginpath = os.environ.get('BRO_PLUGIN_PATH')
-
-        if zeek_config:
-            cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   bufsize=1, universal_newlines=True)
-            line1 = read_zeek_config_line(cmd.stdout)
-            line2 = read_zeek_config_line(cmd.stdout)
-
-            if not zeekpath:
-                zeekpath = line1
-
-            if not pluginpath:
-                pluginpath = line2
-        else:
-            LOG.warning('zeek-config not found when running tests for %s',
-                        package.name)
-            return ('no "zeek-config" or "bro-config" found in PATH', False, test_dir)
-
-        zeekpath = os.path.dirname(stage_script_dir) + ':' + zeekpath
-        pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath
-
-        env = os.environ.copy()
-        env['PATH'] = stage_bin_dir + os.pathsep + os.environ.get('PATH', '')
-        env['ZEEKPATH'] = zeekpath
-        env['ZEEK_PLUGIN_PATH'] = pluginpath
-        env['BROPATH'] = zeekpath
-        env['BRO_PLUGIN_PATH'] = pluginpath
         cwd = os.path.join(clone_dir, package.name)
         outfile = os.path.join(cwd, 'zkg.test_command.stdout')
         errfile = os.path.join(cwd, 'zkg.test_command.stderr')
 
-        LOG.debug('running test_command for %s with cwd="%s"'
-                  ' and ZEEKPATH/BROPATH="%s": %s',
-                  package.name, cwd, zeekpath, test_command)
+        LOG.debug('running test_command for %s with cwd="%s", PATH="%s",'
+                  ' and ZEEKPATH="%s": %s', package.name, cwd,
+                  env['PATH'], env['ZEEKPATH'], test_command)
 
         with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
             cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
                     stdout=test_stdout, stderr=test_stderr)
+
         return ('', cmd.wait() == 0, test_dir)
 
     def _get_executables(self, metadata):
         return metadata.get('executables', '').split()
 
     def _stage(self, package, version, clone, stage_script_dir,
-               stage_plugin_dir, stage_bin_dir=None):
+               stage_plugin_dir, stage_bin_dir=None, env=None):
         metadata_file = _pick_metadata_file(clone.working_dir)
 
         # First use raw parser so no value interpolation takes place.
@@ -2394,8 +2356,6 @@ class Manager(object):
             return invalid_reason
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
-
-
         requested_user_vars = UserVar.parse_dict(raw_metadata)
 
         if requested_user_vars is None:
@@ -2434,7 +2394,7 @@ class Manager(object):
             bufsize = 4096
             build = subprocess.Popen(build_command,
                                      shell=True, cwd=clone.working_dir,
-                                     bufsize=bufsize,
+                                     env=env, bufsize=bufsize,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
 
@@ -2741,6 +2701,46 @@ class Manager(object):
                         LOG.debug('removed link %s', old)
                     except:
                         LOG.warn('failed to remove link %s', old)
+
+    def _get_subprocess_env(self, script_dir, plugin_dir, bin_dir):
+        zeekpath = os.environ.get('ZEEKPATH') or os.environ.get('BROPATH')
+        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH') or os.environ.get('BRO_PLUGIN_PATH')
+
+        if not ( zeekpath and pluginpath ):
+            zeek_config = find_program('zeek-config')
+            path_option = '--zeekpath'
+
+            if not zeek_config:
+                zeek_config = find_program('bro-config')
+                path_option = '--bropath'
+
+            if zeek_config:
+                cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       bufsize=1, universal_newlines=True)
+                line1 = read_zeek_config_line(cmd.stdout)
+                line2 = read_zeek_config_line(cmd.stdout)
+
+                if not zeekpath:
+                    zeekpath = line1
+
+                    if not pluginpath:
+                        pluginpath = line2
+            else:
+                return None, 'no "zeek-config" or "bro-config" found in PATH'
+
+        zeekpath = os.path.dirname(script_dir) + os.pathsep + zeekpath
+        pluginpath = os.path.dirname(plugin_dir) + os.pathsep + pluginpath
+
+        env = os.environ.copy()
+        env['PATH'] = bin_dir + os.pathsep + os.environ.get('PATH', '')
+        env['ZEEKPATH'] = zeekpath
+        env['ZEEK_PLUGIN_PATH'] = pluginpath
+        env['BROPATH'] = zeekpath
+        env['BRO_PLUGIN_PATH'] = pluginpath
+
+        return env, ''
 
 
 def _get_branch_names(clone):
