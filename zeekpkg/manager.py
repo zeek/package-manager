@@ -70,6 +70,89 @@ from . import (
     LOG,
 )
 
+class Stage(object):
+    def __init__(self, manager, state_dir=None):
+        self.manager = manager
+
+        if state_dir:
+            self.state_dir = state_dir
+            self.clone_dir = os.path.join(self.state_dir, 'clones')
+            self.script_dir = os.path.join(self.state_dir, 'scripts', 'packages')
+            self.plugin_dir = os.path.join(self.state_dir, 'plugins', 'packages')
+            self.bin_dir = os.path.join(self.state_dir, 'bin')
+        else:
+            # Stages not given a test directory are essentially a shortcut to
+            # standard functionality; this doesn't require all directories:
+            self.state_dir = None
+            self.clone_dir = manager.package_clonedir
+            self.script_dir = manager.script_dir
+            self.plugin_dir = manager.plugin_dir
+            self.bin_dir = manager.bin_dir
+
+    def populate(self):
+        # If we're staging to a temporary location, blow anything existing there
+        # away first.
+        if self.state_dir:
+            delete_path(self.state_dir)
+
+        make_dir(self.clone_dir)
+        make_dir(self.script_dir)
+        make_dir(self.plugin_dir)
+        make_dir(self.bin_dir)
+
+        # To preserve %(package_base)s functionality in build/test commands
+        # during staging in testing folders, we need to provide one location
+        # that combines the existing installed packages, plus any under test,
+        # with the latter overriding any already installed ones.  We symlink the
+        # real install folders into the staging one. The subsequent cloning of
+        # the packages under test will remove those links as needed.
+        if self.state_dir:
+            with os.scandir(self.manager.package_clonedir) as it:
+                for entry in it:
+                    if not entry.is_dir():
+                        continue
+                    make_symlink(entry.path, os.path.join(self.clone_dir, entry.name))
+
+    def get_subprocess_env(self):
+        zeekpath = os.environ.get('ZEEKPATH') or os.environ.get('BROPATH')
+        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH') or os.environ.get('BRO_PLUGIN_PATH')
+
+        if not (zeekpath and pluginpath):
+            zeek_config = find_program('zeek-config')
+            path_option = '--zeekpath'
+
+            if not zeek_config:
+                zeek_config = find_program('bro-config')
+                path_option = '--bropath'
+
+            if zeek_config:
+                cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       bufsize=1, universal_newlines=True)
+                line1 = read_zeek_config_line(cmd.stdout)
+                line2 = read_zeek_config_line(cmd.stdout)
+
+                if not zeekpath:
+                    zeekpath = line1
+
+                if not pluginpath:
+                    pluginpath = line2
+            else:
+                return None, 'no "zeek-config" or "bro-config" found in PATH'
+
+        zeekpath = os.path.dirname(self.script_dir) + os.pathsep + zeekpath
+        pluginpath = os.path.dirname(self.plugin_dir) + os.pathsep + pluginpath
+
+        env = os.environ.copy()
+        env['PATH'] = self.bin_dir + os.pathsep + os.environ.get('PATH', '')
+        env['ZEEKPATH'] = zeekpath
+        env['ZEEK_PLUGIN_PATH'] = pluginpath
+        env['BROPATH'] = zeekpath
+        env['BRO_PLUGIN_PATH'] = pluginpath
+
+        return env, ''
+
 
 class Manager(object):
     """A package manager object performs various operations on packages.
@@ -2267,29 +2350,19 @@ class Manager(object):
             version = pkg_info.metadata_version
 
         package = pkg_info.package
-        test_dir = os.path.join(self.package_testdir, package.name)
-        clone_dir = os.path.join(test_dir, 'clones')
-        stage_script_dir = os.path.join(test_dir, 'scripts', 'packages')
-        stage_plugin_dir = os.path.join(test_dir, 'plugins', 'packages')
-        stage_bin_dir = os.path.join(test_dir, 'bin')
-
-        delete_path(test_dir)
-
-        make_dir(clone_dir)
-        make_dir(stage_script_dir)
-        make_dir(stage_plugin_dir)
-        make_dir(stage_bin_dir)
+        stage = Stage(self, os.path.join(self.package_testdir, package.name))
+        stage.populate()
 
         request = [(package.qualified_name(), version)]
         invalid_deps, new_pkgs = self.validate_dependencies(request, False)
 
         if invalid_deps:
-            return (invalid_deps, False, test_dir)
+            return (invalid_deps, False, stage.state_dir)
 
-        env, err = self._get_subprocess_env(stage_script_dir, stage_plugin_dir, stage_bin_dir)
+        env, err = stage.get_subprocess_env()
         if env is None:
             LOG.warning('%s when running tests for %s', err, package.name)
-            return (err, False, test_dir)
+            return (err, False, stage.state_dir)
 
         pkgs = []
         pkgs.append((pkg_info, version))
@@ -2300,14 +2373,21 @@ class Manager(object):
         # Clone all packages, checkout right version, and build/install to
         # staging area.
         for info, version in reversed(pkgs):
-            clonepath = os.path.join(clone_dir, info.package.name)
+            clonepath = os.path.join(stage.clone_dir, info.package.name)
+
+            # After we prepared the stage, the clonepath might exist (as a
+            # symlink to the installed-version package clone) if we're testing
+            # an alternative version of an installed package.  Remove the
+            # symlink.
+            if os.path.islink(clonepath):
+                delete_path(clonepath)
 
             try:
                 clone = _clone_package(info.package, clonepath, version)
             except git.exc.GitCommandError as error:
                 LOG.warning('failed to clone git repo: %s', error)
                 return ('failed to clone {}'.format(info.package.git_url),
-                        False, test_dir)
+                        False, stage.state_dir)
 
             try:
                 git_checkout(clone, version)
@@ -2315,18 +2395,17 @@ class Manager(object):
                 LOG.warning('failed to checkout git repo version: %s', error)
                 return (str.format('failed to checkout {} of {}',
                                    version, info.package.git_url),
-                        False, test_dir)
+                        False, stage.state_dir)
 
-            fail_msg = self._stage(info.package, version, clone, stage_script_dir,
-                                   stage_plugin_dir, stage_bin_dir, env)
+            fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
-                return (fail_msg, False, test_dir)
+                return (fail_msg, False, self.state_dir)
 
         # Finally, run tests (with correct environment set)
         test_command = pkg_info.metadata['test_command']
 
-        cwd = os.path.join(clone_dir, package.name)
+        cwd = os.path.join(stage.clone_dir, package.name)
         outfile = os.path.join(cwd, 'zkg.test_command.stdout')
         errfile = os.path.join(cwd, 'zkg.test_command.stderr')
 
@@ -2338,13 +2417,43 @@ class Manager(object):
             cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
                     stdout=test_stdout, stderr=test_stderr)
 
-        return ('', cmd.wait() == 0, test_dir)
+        return ('', cmd.wait() == 0, stage.state_dir)
 
     def _get_executables(self, metadata):
         return metadata.get('executables', '').split()
 
-    def _stage(self, package, version, clone, stage_script_dir,
-               stage_plugin_dir, stage_bin_dir=None, env=None):
+    def _stage(self, package, version, clone, stage, env=None):
+        """Stage a package.
+
+        Staging is the act of getting a package ready for use at a particular
+        location in the file system, called a "stage". The stage may be the
+        actual installation folders for the system's Zeek distribution, or one
+        purely internal to zkg's stage management when testing a package. The
+        steps involved in staging include cloning and checking out the package
+        at the desired version, building it if it features a build_command, and
+        installing script & plugin folders inside the requested stage.
+
+        Args:
+            package (:class:`.package.Package`): the package to stage
+
+            version (str): the git tag, branch name, or commit hash of the
+                package version to stage
+
+            clone (:class:`git.Repo`): the on-disk clone of the package's
+                git repository.
+
+            stage (:class:`Stage`): the staging object describing the disk
+                locations for installation.
+
+            env (dict of str -> str): an optional environment to pass to the
+                child process executing the package's build_command, if any.
+                If None, the current environment is used.
+
+        Returns:
+            str: empty string if staging succeeded, otherwise an error string
+            explaining why it failed.
+
+        """
         metadata_file = _pick_metadata_file(clone.working_dir)
 
         # First use raw parser so no value interpolation takes place.
@@ -2364,7 +2473,7 @@ class Manager(object):
         substitutions = {
             'bro_dist': self.zeek_dist,
             'zeek_dist': self.zeek_dist,
-            'package_base': self.package_clonedir,
+            'package_base': stage.clone_dir,
         }
         substitutions.update(self.user_vars)
 
@@ -2438,7 +2547,7 @@ class Manager(object):
 
         pkg_script_dir = metadata.get('script_dir', '')
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
-        script_dir_dst = os.path.join(stage_script_dir, package.name)
+        script_dir_dst = os.path.join(stage.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
             return str.format("package's 'script_dir' does not exist: {}",
@@ -2449,14 +2558,14 @@ class Manager(object):
         # Check if __load__.bro exists for compatibility with older packages
         if os.path.isfile(pkgload + 'zeek') or os.path.isfile(pkgload + 'bro'):
             try:
-                symlink_path = os.path.join(os.path.dirname(stage_script_dir),
+                symlink_path = os.path.join(os.path.dirname(stage.script_dir),
                                             package.name)
                 make_symlink(os.path.join('packages', package.name),
                              symlink_path)
 
                 for alias in aliases(metadata):
                     symlink_path = os.path.join(
-                            os.path.dirname(stage_script_dir), alias)
+                            os.path.dirname(stage.script_dir), alias)
                     make_symlink(os.path.join('packages', package.name),
                                  symlink_path)
 
@@ -2482,7 +2591,7 @@ class Manager(object):
 
         pkg_plugin_dir = metadata.get('plugin_dir', 'build')
         plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
-        plugin_dir_dst = os.path.join(stage_plugin_dir, package.name)
+        plugin_dir_dst = os.path.join(stage.plugin_dir, package.name)
 
         if not os.path.exists(plugin_dir_src):
             LOG.info('installing "%s": package "plugin_dir" does not exist: %s',
@@ -2510,9 +2619,11 @@ class Manager(object):
             if not os.access(full_path, os.X_OK):
                 return str.format("file '{}' is not executable", p)
 
-            if stage_bin_dir is not None:
+            if stage.bin_dir is not None:
                 make_symlink(full_path, os.path.join(
-                    stage_bin_dir, os.path.basename(p)), force=True)
+                    stage.bin_dir, os.path.basename(p)), force=True)
+
+        return ''
 
     def install(self, pkg_path, version=''):
         """Install a package.
@@ -2651,9 +2762,10 @@ class Manager(object):
 
         raw_metadata = _get_package_metadata(raw_metadata_parser)
 
-        fail_msg = self._stage(package, version, clone, self.script_dir,
-                               self.plugin_dir)
-
+        # A dummy stage that uses the actual installation folders;
+        # we do not need to populate() it.
+        stage = Stage(self)
+        fail_msg = self._stage(package, version, clone, stage)
         if fail_msg:
             return fail_msg
 
@@ -2701,46 +2813,6 @@ class Manager(object):
                         LOG.debug('removed link %s', old)
                     except:
                         LOG.warn('failed to remove link %s', old)
-
-    def _get_subprocess_env(self, script_dir, plugin_dir, bin_dir):
-        zeekpath = os.environ.get('ZEEKPATH') or os.environ.get('BROPATH')
-        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH') or os.environ.get('BRO_PLUGIN_PATH')
-
-        if not ( zeekpath and pluginpath ):
-            zeek_config = find_program('zeek-config')
-            path_option = '--zeekpath'
-
-            if not zeek_config:
-                zeek_config = find_program('bro-config')
-                path_option = '--bropath'
-
-            if zeek_config:
-                cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT,
-                                       bufsize=1, universal_newlines=True)
-                line1 = read_zeek_config_line(cmd.stdout)
-                line2 = read_zeek_config_line(cmd.stdout)
-
-                if not zeekpath:
-                    zeekpath = line1
-
-                    if not pluginpath:
-                        pluginpath = line2
-            else:
-                return None, 'no "zeek-config" or "bro-config" found in PATH'
-
-        zeekpath = os.path.dirname(script_dir) + os.pathsep + zeekpath
-        pluginpath = os.path.dirname(plugin_dir) + os.pathsep + pluginpath
-
-        env = os.environ.copy()
-        env['PATH'] = bin_dir + os.pathsep + os.environ.get('PATH', '')
-        env['ZEEKPATH'] = zeekpath
-        env['ZEEK_PLUGIN_PATH'] = pluginpath
-        env['BROPATH'] = zeekpath
-        env['BRO_PLUGIN_PATH'] = pluginpath
-
-        return env, ''
 
 
 def _get_branch_names(clone):
