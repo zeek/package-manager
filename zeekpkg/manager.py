@@ -953,9 +953,8 @@ class Manager(object):
         aggregation_issues = []
 
         if aggregate:
-            # Use raw parser so no value interpolation takes place.
-            parser = configparser.RawConfigParser()
-            prev_parser = configparser.RawConfigParser()
+            parser = configparser.ConfigParser(interpolation=None)
+            prev_parser = configparser.ConfigParser(interpolation=None)
             prev_packages = set()
 
             if os.path.isfile(aggregate_file):
@@ -1003,8 +1002,7 @@ class Manager(object):
                         continue
 
                     metadata_file = _pick_metadata_file(clone.working_dir)
-                    # Use raw parser so no value interpolation takes place.
-                    metadata_parser = configparser.RawConfigParser()
+                    metadata_parser = configparser.ConfigParser(interpolation=None)
                     invalid_reason = _parse_package_metadata(
                         metadata_parser, metadata_file)
 
@@ -2364,6 +2362,11 @@ class Manager(object):
             LOG.warning('%s when running tests for %s', err, package.name)
             return (err, False, stage.state_dir)
 
+        # Interpolate the test command:
+        metadata, invalid_reason = self._interpolate_package_metadata(pkg_info.metadata, stage)
+        if invalid_reason:
+            return (invalid_reason, False, stage.state_dir)
+
         pkgs = []
         pkgs.append((pkg_info, version))
 
@@ -2403,7 +2406,7 @@ class Manager(object):
                 return (fail_msg, False, self.state_dir)
 
         # Finally, run tests (with correct environment set)
-        test_command = pkg_info.metadata['test_command']
+        test_command = metadata['test_command']
 
         cwd = os.path.join(stage.clone_dir, package.name)
         outfile = os.path.join(cwd, 'zkg.test_command.stdout')
@@ -2455,45 +2458,17 @@ class Manager(object):
 
         """
         metadata_file = _pick_metadata_file(clone.working_dir)
-
-        # First use raw parser so no value interpolation takes place.
-        raw_metadata_parser = configparser.RawConfigParser()
-        invalid_reason = _parse_package_metadata(
-            raw_metadata_parser, metadata_file)
-
-        if invalid_reason:
-            return invalid_reason
-
-        raw_metadata = _get_package_metadata(raw_metadata_parser)
-        requested_user_vars = UserVar.parse_dict(raw_metadata)
-
-        if requested_user_vars is None:
-            return "package has malformed 'user_vars' metadata field"
-
-        substitutions = {
-            'bro_dist': self.zeek_dist,
-            'zeek_dist': self.zeek_dist,
-            'package_base': stage.clone_dir,
-        }
-        substitutions.update(self.user_vars)
-
-        for uvar in requested_user_vars:
-            val_from_env = os.environ.get(uvar.name())
-
-            if val_from_env:
-                substitutions[uvar.name()] = val_from_env
-
-            if uvar.name() not in substitutions:
-                substitutions[uvar.name()] = uvar.val()
-
-        metadata_parser = configparser.ConfigParser(defaults=substitutions)
+        metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
-
         if invalid_reason:
             return invalid_reason
 
         metadata = _get_package_metadata(metadata_parser)
+        metadata, invalid_reason = self._interpolate_package_metadata(metadata, stage)
+        if invalid_reason:
+            return invalid_reason
+
         LOG.debug('building "%s": version %s', package, version)
         build_command = metadata.get('build_command', '')
 
@@ -2611,7 +2586,7 @@ class Manager(object):
             return error
 
         # Ensure any listed executables exist as advertised.
-        for p in self._get_executables(raw_metadata):
+        for p in self._get_executables(metadata):
             full_path = os.path.join(clone.working_dir, p)
             if not os.path.isfile(full_path):
                 return str.format("executable '{}' is missing", p)
@@ -2752,15 +2727,14 @@ class Manager(object):
             clone, version, status.tracking_method)
 
         metadata_file = _pick_metadata_file(clone.working_dir)
-        # Use raw parser so no value interpolation takes place.
-        raw_metadata_parser = configparser.RawConfigParser()
+        metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(
-            raw_metadata_parser, metadata_file)
+            metadata_parser, metadata_file)
 
         if invalid_reason:
             return invalid_reason
 
-        raw_metadata = _get_package_metadata(raw_metadata_parser)
+        raw_metadata = _get_package_metadata(metadata_parser)
 
         # A dummy stage that uses the actual installation folders;
         # we do not need to populate() it.
@@ -2785,6 +2759,38 @@ class Manager(object):
         self._refresh_bin_dir(self.bin_dir)
         LOG.debug('installed "%s"', package)
         return ''
+
+    def _interpolate_package_metadata(self, metadata, stage):
+        # This is a bit circular: we need to parse the user variables, if any,
+        # from the metadata before we can substitute them into other package
+        # metadata.
+
+        requested_user_vars = UserVar.parse_dict(metadata)
+        if requested_user_vars is None:
+            return None, "package has malformed 'user_vars' metadata field"
+
+        substitutions = {
+            'bro_dist': self.zeek_dist,
+            'zeek_dist': self.zeek_dist,
+            'package_base': stage.clone_dir,
+        }
+
+        substitutions.update(self.user_vars)
+
+        for uvar in requested_user_vars:
+            val_from_env = os.environ.get(uvar.name())
+
+            if val_from_env:
+                substitutions[uvar.name()] = val_from_env
+
+            if uvar.name() not in substitutions:
+                substitutions[uvar.name()] = uvar.val()
+
+        # Now apply the substitutions via a new config parser:
+        metadata_parser = configparser.ConfigParser(defaults=substitutions)
+        metadata_parser.read_dict({'package': metadata})
+
+        return _get_package_metadata(metadata_parser), None
 
     # Ensure we have links in bin_dir for all executables coming with any of
     # the currently installed packages.
@@ -2987,8 +2993,7 @@ def _info_from_clone(clone, package, status, version):
         version_type = TRACKING_METHOD_BRANCH
 
     metadata_file = _pick_metadata_file(clone.working_dir)
-    # Use raw parser so no value interpolation takes place.
-    metadata_parser = configparser.RawConfigParser()
+    metadata_parser = configparser.ConfigParser(interpolation=None)
     invalid_reason = _parse_package_metadata(
         metadata_parser, metadata_file)
 
