@@ -7,6 +7,7 @@
 # @TEST-EXEC: zkg install --user-var TEST_VAR="Initial description is here" --user-var LAST_VAR=/home/jon/sandbox2 foo
 # @TEST-EXEC: cp state/logs/foo-build.log state/logs/foo-build.log2
 # @TEST-EXEC: btest-diff state/logs/foo-build.log2
+# @TEST-EXEC: btest-diff state/testing/foo/clones/test.log
 
 cd packages/foo
 echo 'user_vars =' >> zkg.meta
@@ -14,4 +15,5 @@ echo '  TEST_VAR [/usr] "First description is here"' >> zkg.meta
 echo '  ANOTHER_VAR [/usr/local] "Second description is here"' >> zkg.meta
 echo '  LAST_VAR [/opt] "Last description is here"' >> zkg.meta
 echo 'build_command = echo "%(LAST_VAR)s" && echo "%(ANOTHER_VAR)s" && echo "%(TEST_VAR)s"' >> zkg.meta
+echo 'test_command = echo "%(TEST_VAR)s" > %(package_base)s/test.log' >> zkg.meta
 git commit -am 'new stuff'
