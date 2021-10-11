@@ -475,7 +475,7 @@ class InstallWorker(threading.Thread):
 def cmd_test(manager, args, config, configfile):
     if args.version and len(args.package) > 1:
         print_error(
-            'error: "install --version" may only be used for a single package')
+            'error: "test --version" may only be used for a single package')
         sys.exit(1)
 
     package_infos = []
@@ -736,7 +736,7 @@ def cmd_install(manager, args, config, configfile):
                 print('Loaded "{}"'.format(name))
 
     if not args.nodeps:
-        # Now load runtime dependencies after all depends and suggested
+        # Now load runtime dependencies after all dependencies and suggested
         # packages have been installed and loaded.
         for info, ver, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
             _listing, saved_state = '', manager.loaded_package_states()
