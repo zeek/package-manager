@@ -2310,7 +2310,7 @@ class Manager(object):
 
         return ''
 
-    def test(self, pkg_path, version=''):
+    def test(self, pkg_path, version='', test_dependencies=False):
         """Test a package.
 
         Args:
@@ -2325,6 +2325,11 @@ class Manager(object):
                 "main" or "master" is used).  If given, it may be either a git
                 version tag or a git branch name.
 
+            test_dependencies (bool): if True, any dependencies required for
+                the given package will also get tested. Off by default, meaning
+                such dependencies will get locally built and staged, but not
+                tested.
+
         Returns:
             (str, bool, str): a tuple containing an error message string,
             a boolean indicating whether the tests passed, as well as a path
@@ -2332,7 +2337,8 @@ class Manager(object):
             where tests failed, the directory can be inspected to figure out
             what went wrong.  In the case where the error message string is
             not empty, the error message indicates the reason why tests could
-            not be run.
+            not be run.  Absence of a test_command in the requested package
+            is considered an error.
         """
         pkg_path = canonical_url(pkg_path)
         LOG.debug('testing "%s"', pkg_path)
@@ -2362,11 +2368,6 @@ class Manager(object):
             LOG.warning('%s when running tests for %s', err, package.name)
             return (err, False, stage.state_dir)
 
-        # Interpolate the test command:
-        metadata, invalid_reason = self._interpolate_package_metadata(pkg_info.metadata, stage)
-        if invalid_reason:
-            return (invalid_reason, False, stage.state_dir)
-
         pkgs = []
         pkgs.append((pkg_info, version))
 
@@ -2376,6 +2377,8 @@ class Manager(object):
         # Clone all packages, checkout right version, and build/install to
         # staging area.
         for info, version in reversed(pkgs):
+            LOG.debug('preparing "%s" for testing: version %s',
+                      info.package.name, version)
             clonepath = os.path.join(stage.clone_dir, info.package.name)
 
             # After we prepared the stage, the clonepath might exist (as a
@@ -2406,21 +2409,45 @@ class Manager(object):
                 return (fail_msg, False, self.state_dir)
 
         # Finally, run tests (with correct environment set)
-        test_command = metadata['test_command']
+        if test_dependencies:
+            test_pkgs = pkgs
+        else:
+            test_pkgs = [(pkg_info, version)]
 
-        cwd = os.path.join(stage.clone_dir, package.name)
-        outfile = os.path.join(cwd, 'zkg.test_command.stdout')
-        errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+        for info, version in reversed(test_pkgs):
+            LOG.info('testing "%s"', package)
+            # Interpolate the test command:
+            metadata, invalid_reason = self._interpolate_package_metadata(
+                info.metadata, stage)
+            if invalid_reason:
+                return (invalid_reason, False, stage.state_dir)
 
-        LOG.debug('running test_command for %s with cwd="%s", PATH="%s",'
-                  ' and ZEEKPATH="%s": %s', package.name, cwd,
-                  env['PATH'], env['ZEEKPATH'], test_command)
+            if 'test_command' not in metadata:
+                LOG.info('Skipping unit tests for "%s": no test_command in metadata',
+                         info.package.qualified_name())
+                continue
 
-        with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
-            cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
-                    stdout=test_stdout, stderr=test_stderr)
+            test_command = metadata['test_command']
 
-        return ('', cmd.wait() == 0, stage.state_dir)
+            cwd = os.path.join(stage.clone_dir, info.package.name)
+            outfile = os.path.join(cwd, 'zkg.test_command.stdout')
+            errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+
+            LOG.debug('running test_command for %s with cwd="%s", PATH="%s",'
+                      ' and ZEEKPATH="%s": %s', info.package.name, cwd,
+                      env['PATH'], env['ZEEKPATH'], test_command)
+
+            with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
+                cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
+                                       stdout=test_stdout, stderr=test_stderr)
+
+            rc = cmd.wait()
+
+            if rc != 0:
+                return ('test_command failed with exit code {}'.format(rc),
+                        False, stage.state_dir)
+
+        return ('', True, stage.state_dir)
 
     def _get_executables(self, metadata):
         return metadata.get('executables', '').split()
@@ -2457,6 +2484,7 @@ class Manager(object):
             explaining why it failed.
 
         """
+        LOG.debug('staging "%s": version %s', package, version)
         metadata_file = _pick_metadata_file(clone.working_dir)
         metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(
@@ -2469,9 +2497,7 @@ class Manager(object):
         if invalid_reason:
             return invalid_reason
 
-        LOG.debug('building "%s": version %s', package, version)
         build_command = metadata.get('build_command', '')
-
         if build_command:
             LOG.debug('building "%s": running build_command: %s',
                       package, build_command)
