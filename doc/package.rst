@@ -725,6 +725,19 @@ An example :file:`zkg.meta`::
 The recommended test framework for writing package unit tests is `btest`_.
 See its documentation for further explanation and examples.
 
+.. note::
+
+   :program:`zkg` version 2.12.0 introduced two improvements to `test_command`:
+
+   - :program:`zkg` now honors package dependencies at test time, meaning that
+     if your package depends on another during testing, :program:`zkg` will
+     ensure that the dependency is built and available to your package
+     tests. Only when all testing succeeds does the full set of new packages
+     get installed.
+
+   - The `test_command` now supports value interpolation similarly to the
+     `build_command field`_.
+
 `config_files` field
 ~~~~~~~~~~~~~~~~~~~~
 
