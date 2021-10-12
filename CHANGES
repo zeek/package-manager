@@ -1,3 +1,7 @@
+2.12.0 | 2021-10-12 13:58:09 -0700
+
+  * Release 2.12.0.
+
 2.11.0-18 | 2021-10-12 13:57:17 -0700
 
   * Support testing package dependencies in Manager.test() (Christian Kreibich, Corelight)
