@@ -152,7 +152,7 @@ class Template():
             try:
                 # If we're on a branch, pull in latest updates.
                 # Pulling fails when on a tag/commit. Accessing the
-                # following rases a TypeError when we're not on a
+                # following raises a TypeError when we're not on a
                 # branch.
                 _ = repo.active_branch
                 git_pull(repo)
@@ -330,6 +330,36 @@ class Template():
         using the latest version on the default branch.
         """
         return self._version
+
+    def version_branch(self):
+        """Name of the branch the template is on, if any.
+
+        Returns branch name if this template version is a branch HEAD, None
+        otherwise (i.e. when it's a specific commit or tag, or we have no
+        repository).
+        """
+        try:
+            # The following raises a TypeError when not on a branch
+            if self._repo and self._repo.active_branch:
+                return self._repo.active_branch.name
+        except TypeError:
+            pass # Not on a branch
+
+        return None
+
+    def version_sha(self):
+        """The git commit hash for this template's version.
+
+        Returns None when this template got instantiated without a git repo,
+        otherwise a string with the full hash value in ASCII.
+        """
+        try:
+            if self._repo:
+                return self._repo.head.ref.commit.hexsha
+        except:
+            pass
+
+        return None
 
     def define_param(self, name, val):
         """Defines a parameter of the given name and value."""
@@ -667,7 +697,16 @@ class Package(_Content):
         config.remove_section(section)
         config.add_section(section)
         config.set(section, 'source', tmpl.name())
-        config.set(section, 'version', tmpl.version() or 'unversioned')
+
+        if tmpl.version():
+            if tmpl.version_branch():
+                config.set(section, 'version', tmpl.version_branch())
+                config.set(section, 'commit', tmpl.version_sha()[:8])
+            else:
+                config.set(section, 'version', tmpl.version())
+        else:
+            config.set(section, 'version', tmpl.version() or 'unversioned')
+
         config.set(section, 'zkg_version', __version__)
 
         if self._features:
@@ -702,7 +741,18 @@ class Package(_Content):
                 features_info += ' and ' + names[-1]
 
         ver_info = tmpl.version()
-        ver_info = 'no versioning' if ver_info is None else 'version ' + ver_info
+        ver_sha = tmpl.version_sha()
+
+        if ver_info is None:
+            if ver_sha:
+                ver_info = 'version ' + ver_sha[:8]
+            else:
+                ver_info = 'no versioning'
+        else:
+            ver_info = 'version ' + ver_info
+            if ver_sha:
+                ver_info += ' (' + ver_sha[:8] + ')'
+
         repo.index.commit("""Initial commit.
 
 zkg {} created this package from template "{}"
