@@ -475,7 +475,7 @@ class InstallWorker(threading.Thread):
 def cmd_test(manager, args, config, configfile):
     if args.version and len(args.package) > 1:
         print_error(
-            'error: "install --version" may only be used for a single package')
+            'error: "test --version" may only be used for a single package')
         sys.exit(1)
 
     package_infos = []
@@ -508,7 +508,8 @@ def cmd_test(manager, args, config, configfile):
                              name))
             continue
 
-        error_msg, passed, test_dir = manager.test(name, version)
+        error_msg, passed, test_dir = manager.test(
+            name, version, test_dependencies=True)
 
         if error_msg:
             all_passed = False
@@ -558,7 +559,9 @@ def cmd_install(manager, args, config, configfile):
 
         package_infos.append((package_info, version, False))
 
-    orig_pkgs, new_pkgs = package_infos, []
+    # We modify package_infos below, so copy current state to preserve list of
+    # packages requested by caller:
+    orig_pkgs, new_pkgs = package_infos.copy(), []
 
     if not args.nodeps:
         to_validate = [(info.package.qualified_name(), version)
@@ -630,19 +633,23 @@ def cmd_install(manager, args, config, configfile):
                          [info for info, _, _ in package_infos])
 
     if not args.skiptests:
-        for info, version, _ in package_infos:
+        # Iterate only over the requested packages here, skipping the
+        # dependencies. We ask the manager to include dependencies below.
+        for info, version, _ in orig_pkgs:
             name = info.package.qualified_name()
 
             if 'test_command' not in info.metadata:
-                zeekpkg.LOG.info(
-                    'Skipping unit tests for "%s": no test_command in metadata',
-                    name)
+                zeekpkg.LOG.info('Skipping unit tests for "%s": '
+                                 'no test_command in metadata', name)
                 continue
 
             print('Running unit tests for "{}"'.format(name))
-            error, passed, test_dir = manager.test(name, version)
             error_msg = ''
-
+            # For testing we always process dependencies, since the tests might
+            # well fail without them. If the user wants --nodeps and the tests
+            # fail because of it, they'll also need to say --skiptests.
+            error, passed, test_dir = manager.test(
+                name, version, test_dependencies=True)
             if error:
                 error_msg = str.format(
                     'failed to run tests for {}: {}', name, error)
@@ -667,7 +674,7 @@ def cmd_install(manager, args, config, configfile):
 
     installs_failed = []
 
-    for info, version, _ in sorted(package_infos, key=lambda x: x[0].package.name):
+    for info, version, _ in reversed(package_infos):
         name = info.package.qualified_name()
 
         is_overwriting = False
@@ -736,7 +743,7 @@ def cmd_install(manager, args, config, configfile):
                 print('Loaded "{}"'.format(name))
 
     if not args.nodeps:
-        # Now load runtime dependencies after all depends and suggested
+        # Now load runtime dependencies after all dependencies and suggested
         # packages have been installed and loaded.
         for info, ver, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
             _listing, saved_state = '', manager.loaded_package_states()
@@ -1336,13 +1343,7 @@ def cmd_upgrade(manager, args, config, configfile):
                          [info for info, _, _ in allpkgs])
 
     if not args.skiptests:
-        to_test = [(info, next_version)
-                   for info, next_version, _ in outdated_packages]
-
-        for info, version, _ in new_pkgs:
-            to_test.append((info, version))
-
-        for info, version in to_test:
+        for info, version, _ in outdated_packages:
             name = info.package.qualified_name()
 
             if 'test_command' not in info.metadata:
@@ -1352,8 +1353,12 @@ def cmd_upgrade(manager, args, config, configfile):
                 continue
 
             print('Running unit tests for "{}"'.format(name))
-            error, passed, test_dir = manager.test(name, version)
             error_msg = ''
+            # As in cmd_install, we always process dependencies since the tests
+            # might well fail without them. If the user wants --nodeps and the
+            # tests fail because of it, they'll also need to say --skiptests.
+            error, passed, test_dir = manager.test(
+                name, version, test_dependencies=True)
 
             if error:
                 error_msg = str.format(
@@ -1381,7 +1386,7 @@ def cmd_upgrade(manager, args, config, configfile):
     join_timeout = 0.01
     tick_interval = 1
 
-    for info, version, _ in new_pkgs:
+    for info, version, _ in reversed(new_pkgs):
         name = info.package.qualified_name()
         time_accumulator = 0
         tick_count = 0

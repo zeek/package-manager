@@ -2,7 +2,9 @@
 
 # @TEST-EXEC: zkg install foo
 # @TEST-EXEC: btest-diff state/logs/foo-build.log
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-cwd btest-diff state/testing/foo/clones/test.log
 
 cd packages/foo
-echo 'build_command = cd "%(package_base)s" && ls ' >> zkg.meta
+echo 'build_command = cd "%(package_base)s" && ls' >> zkg.meta
+echo 'test_command = echo "%(package_base)s" > %(package_base)s/test.log' >> zkg.meta
 git commit -am 'new stuff'

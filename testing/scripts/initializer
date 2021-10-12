@@ -1,4 +1,10 @@
 #! /usr/bin/env bash
+#
+# This initializer runs prior to every test. It creates a fresh copy of our
+# test packages and package sources. Individual tests may tweak these further as
+# needed, prior to running tests with them. The initializer also creates a zkg
+# config that all tests automatically run with, via the "zkg" wrapper script in
+# this directory.
 
 cp -R $PACKAGES .
 

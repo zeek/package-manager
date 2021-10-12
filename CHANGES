@@ -1,3 +1,20 @@
+2.11.0-18 | 2021-10-12 13:57:17 -0700
+
+  * Support testing package dependencies in Manager.test() (Christian Kreibich, Corelight)
+
+  * Interpolate test_command (Christian Kreibich, Corelight)
+
+  * Strengthen the installation-staging concept (Christian Kreibich, Corelight)
+
+  * Update baseline of test affected by new package install order (Christian Kreibich, Corelight)
+
+  * Consistently modify the environment during staging and testing (Christian Kreibich, Corelight)
+
+  * Install/upgrade packages in reverse dependency order (Christian Kreibich, Corelight)
+
+  * Ensure breadth-first reporting of new nodes in Manager.validate_dependencies() (Christian Kreibich, Corelight)
+
+  * Install executables during staging (Christian Kreibich, Corelight)
 
 2.11.0-4 | 2021-08-16 14:04:35 -0700
 

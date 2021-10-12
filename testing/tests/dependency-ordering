@@ -1,0 +1,88 @@
+# This test puts in place a dependecy tree, installs the tree's root package,
+# and verifies that package builds and testing honors the dependency ordering:
+# depended-upon packages need to be built and available prior to dependers.
+# The package tree:
+
+# foo  ---> bar ----> grault
+#     \            /
+#      baz -> corge
+#
+# To verify the ordering we use package executables that dependers require both
+# in test_command and build_command. This leverages the fact that executables
+# transparently appear in a bin/ directory in the test staging area. foo's build
+# & test call executables that bar and baz install; baz's build & test call
+# corge's executable, bar and corge call grault's executable.
+
+# @TEST-EXEC: BUILDLOG=$(pwd)/build.log bash %INPUT
+
+# After testing, the packages get installed up the dependency chain, installing
+# their executables into the bin folder at the test's toplevel. That directory
+# isn't automatically in the path, so add it.
+# @TEST-EXEC: PATH=$(pwd)/bin:$PATH zkg install foo
+
+# Verify the order and number of times the packages got built.
+# @TEST-EXEC: btest-diff build.log
+
+add_executable() {
+    echo "echo from $1" >$1
+    chmod +x $1
+    git add $1
+}
+
+(
+    cd packages/foo
+    cat >>zkg.meta <<EOF
+build_command = bar && baz && echo "building foo" >>$BUILDLOG
+test_command = bar && baz
+depends =
+  bar *
+  baz *
+EOF
+    git commit -am 'foo: depend on bar and baz, add commands'
+)
+
+(
+    cd packages/bar
+    cat >>zkg.meta <<EOF
+build_command = grault && echo "building bar" >>$BUILDLOG
+test_command = grault
+executables = bar
+depends = grault *
+EOF
+    add_executable bar
+    git commit -am 'bar: depend on grault, add executable and commands'
+)
+
+(
+    cd packages/baz
+    cat >>zkg.meta <<EOF
+build_command = corge && echo "building baz" >>$BUILDLOG
+test_command = corge
+executables = baz
+depends = corge *
+EOF
+    add_executable baz
+    git commit -am 'baz: depend on corge, add executable and commands'
+)
+
+(
+    cd packages/corge
+    cat >>zkg.meta <<EOF
+build_command = grault && echo "building corge" >>$BUILDLOG
+test_command = grault
+executables = corge
+depends = grault *
+EOF
+    add_executable corge
+    git commit -am 'corge: depend on grault, add executable and commands'
+)
+
+(
+    cd packages/grault
+    cat >>zkg.meta <<EOF
+build_command = echo "building grault" >>$BUILDLOG
+executables = grault
+EOF
+    add_executable grault
+    git commit -am 'grault: add executable and build command'
+)

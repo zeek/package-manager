@@ -9,12 +9,12 @@ Loaded "one/bob/grault"
 ** Unload grault
 Unloaded "one/bob/grault"
 ** Install foo
-Installing "one/alice/bar"
-Installed "one/alice/bar" (1.0.0)
-Loaded "one/alice/bar"
 Installing "one/alice/baz"
 Installed "one/alice/baz" (1.0.0)
 Loaded "one/alice/baz"
+Installing "one/alice/bar"
+Installed "one/alice/bar" (1.0.0)
+Loaded "one/alice/bar"
 Installing "one/alice/foo"
 Installed "one/alice/foo" (main)
 Loaded "one/alice/foo"

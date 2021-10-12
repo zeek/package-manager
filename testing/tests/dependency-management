@@ -1,3 +1,8 @@
+# This test puts in place a dependency chain and then verifies zkg's behavior
+# when the state of individual packages in that chain changes. The chain:
+#
+# foo -> bar (*) -> baz (>=1.0.0) -> grault (==1.0.0) -> corge (==1.0.0)
+
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: echo '** Install grault' >out
@@ -25,21 +30,21 @@
 
 cd packages/foo
 echo 'depends = bar *' >> zkg.meta
-git commit -am 'new stuff'
+git commit -am 'foo now depends on bar'
 
 cd ../bar
 echo 'depends = baz >=1.0.0' >> zkg.meta
-git commit -am 'new stuff'
+git commit -am 'bar now depends on baz >= 1.0.0'
 git tag -a 1.0.0 -m 1.0.0
 
 cd ../baz
 echo 'depends = grault ==1.0.0' >> zkg.meta
-git commit -am 'new stuff'
+git commit -am 'baz now depends on grault 1.0.0'
 git tag -a 1.0.0 -m 1.0.0
 
 cd ../grault
 echo 'depends = corge ==1.0.0' >> zkg.meta
-git commit -am 'new stuff'
+git commit -am 'grault now depends on corge 1.0.0'
 git tag -a 1.0.0 -m 1.0.0
 
 cd ../corge

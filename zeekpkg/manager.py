@@ -70,6 +70,89 @@ from . import (
     LOG,
 )
 
+class Stage(object):
+    def __init__(self, manager, state_dir=None):
+        self.manager = manager
+
+        if state_dir:
+            self.state_dir = state_dir
+            self.clone_dir = os.path.join(self.state_dir, 'clones')
+            self.script_dir = os.path.join(self.state_dir, 'scripts', 'packages')
+            self.plugin_dir = os.path.join(self.state_dir, 'plugins', 'packages')
+            self.bin_dir = os.path.join(self.state_dir, 'bin')
+        else:
+            # Stages not given a test directory are essentially a shortcut to
+            # standard functionality; this doesn't require all directories:
+            self.state_dir = None
+            self.clone_dir = manager.package_clonedir
+            self.script_dir = manager.script_dir
+            self.plugin_dir = manager.plugin_dir
+            self.bin_dir = manager.bin_dir
+
+    def populate(self):
+        # If we're staging to a temporary location, blow anything existing there
+        # away first.
+        if self.state_dir:
+            delete_path(self.state_dir)
+
+        make_dir(self.clone_dir)
+        make_dir(self.script_dir)
+        make_dir(self.plugin_dir)
+        make_dir(self.bin_dir)
+
+        # To preserve %(package_base)s functionality in build/test commands
+        # during staging in testing folders, we need to provide one location
+        # that combines the existing installed packages, plus any under test,
+        # with the latter overriding any already installed ones.  We symlink the
+        # real install folders into the staging one. The subsequent cloning of
+        # the packages under test will remove those links as needed.
+        if self.state_dir:
+            with os.scandir(self.manager.package_clonedir) as it:
+                for entry in it:
+                    if not entry.is_dir():
+                        continue
+                    make_symlink(entry.path, os.path.join(self.clone_dir, entry.name))
+
+    def get_subprocess_env(self):
+        zeekpath = os.environ.get('ZEEKPATH') or os.environ.get('BROPATH')
+        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH') or os.environ.get('BRO_PLUGIN_PATH')
+
+        if not (zeekpath and pluginpath):
+            zeek_config = find_program('zeek-config')
+            path_option = '--zeekpath'
+
+            if not zeek_config:
+                zeek_config = find_program('bro-config')
+                path_option = '--bropath'
+
+            if zeek_config:
+                cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       bufsize=1, universal_newlines=True)
+                line1 = read_zeek_config_line(cmd.stdout)
+                line2 = read_zeek_config_line(cmd.stdout)
+
+                if not zeekpath:
+                    zeekpath = line1
+
+                if not pluginpath:
+                    pluginpath = line2
+            else:
+                return None, 'no "zeek-config" or "bro-config" found in PATH'
+
+        zeekpath = os.path.dirname(self.script_dir) + os.pathsep + zeekpath
+        pluginpath = os.path.dirname(self.plugin_dir) + os.pathsep + pluginpath
+
+        env = os.environ.copy()
+        env['PATH'] = self.bin_dir + os.pathsep + os.environ.get('PATH', '')
+        env['ZEEKPATH'] = zeekpath
+        env['ZEEK_PLUGIN_PATH'] = pluginpath
+        env['BROPATH'] = zeekpath
+        env['BRO_PLUGIN_PATH'] = pluginpath
+
+        return env, ''
+
 
 class Manager(object):
     """A package manager object performs various operations on packages.
@@ -870,9 +953,8 @@ class Manager(object):
         aggregation_issues = []
 
         if aggregate:
-            # Use raw parser so no value interpolation takes place.
-            parser = configparser.RawConfigParser()
-            prev_parser = configparser.RawConfigParser()
+            parser = configparser.ConfigParser(interpolation=None)
+            prev_parser = configparser.ConfigParser(interpolation=None)
             prev_packages = set()
 
             if os.path.isfile(aggregate_file):
@@ -920,8 +1002,7 @@ class Manager(object):
                         continue
 
                     metadata_file = _pick_metadata_file(clone.working_dir)
-                    # Use raw parser so no value interpolation takes place.
-                    metadata_parser = configparser.RawConfigParser()
+                    metadata_parser = configparser.ConfigParser(interpolation=None)
                     invalid_reason = _parse_package_metadata(
                         metadata_parser, metadata_file)
 
@@ -1672,17 +1753,25 @@ class Manager(object):
             the first element of the tuple is an empty string if dependency
             graph was successfully validated, else an error string explaining
             what is invalid.  In the case it was validated, the second element
-            is a list of tuples where the first elements are dependency packages
-            that would need to be installed in order to satisfy the
-            dependencies of the requested packages (it will not include any
-            packages that are already installed or that are in the
-            `requested_packages` argument).
-            The second element of tuples in the list is a version string of
-            the associated package that satisfies dependency requirements.
-            The third element of the tuples in the list is a boolean value
-            indicating whether the package is included in the list because it's
-            merely suggested by another package.
+            is a list of tuples, each representing a package,  where:
 
+            - The first element is a dependency package that would need to be
+              installed in order to satisfy the dependencies of the requested
+              packages.
+
+            - The second element of tuples in the list is a version string of
+              the associated package that satisfies dependency requirements.
+
+            - The third element of the tuples in the list is a boolean value
+              indicating whether the package is included in the list because
+              it's merely suggested by another package.
+
+            The list will not include any packages that are already installed or
+            that are in the `requested_packages` argument. The list is sorted in
+            dependency order: whenever a dependency in turn has dependencies,
+            those are guaranteed to appear in order in the list. This means that
+            reverse iteration of the list guarantees processing of dependencies
+            prior to the depender packages.
         """
         class Node(object):
 
@@ -1691,7 +1780,8 @@ class Manager(object):
                 self.info = None
                 self.requested_version = None  # (tracking method, version)
                 self.installed_version = None  # (tracking method, version)
-                self.dependers = dict()  # name -> version
+                self.dependers = dict()  # name -> version, name needs self at version
+                self.dependees = dict()  # name -> version, self needs name at version
                 self.is_suggestion = False
 
             def __str__(self):
@@ -1700,8 +1790,8 @@ class Manager(object):
                     self.name, self.requested_version, self.installed_version,
                     self.dependers, self.is_suggestion)
 
-        new_pkgs = []
-        graph = dict()
+        graph = dict() # Node.name -> Node, nodes store edges
+        requests = [] # List of Node, just for requested packages
 
         # 1. Try to make nodes for everything in the dependency graph...
 
@@ -1710,17 +1800,17 @@ class Manager(object):
             info = self.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                return ('invalid package "{}": {}'.format(name,
-                                                          info.invalid_reason),
-                        new_pkgs)
+                return ('invalid package "{}": {}'.format(
+                    name, info.invalid_reason), [])
 
             node = Node(info.package.qualified_name())
             node.info = info
             method = node.info.version_type
             node.requested_version = (method, version)
             graph[node.name] = node
+            requests.append(node)
 
-        # Recursively add nodes for all dependencies of requested packages
+        # Recursively add nodes for all dependencies of requested packages,
         to_process = copy.copy(graph)
 
         while to_process:
@@ -1730,14 +1820,14 @@ class Manager(object):
 
             if dd is None:
                 return (str.format('package "{}" has malformed "depends" field',
-                                   node.name), new_pkgs)
+                                   node.name), [])
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
                     return (str.format('package "{}" has malformed "suggests" field',
-                                       node.name), new_pkgs)
+                                       node.name), [])
 
                 all_deps.update(ds)
 
@@ -1757,7 +1847,7 @@ class Manager(object):
                 if info.invalid_reason:
                     return (str.format(
                         'package "{}" has invalid dependency "{}": {}',
-                        node.name, dep_name, info.invalid_reason), new_pkgs)
+                        node.name, dep_name, info.invalid_reason), [])
 
                 dep_name = info.package.qualified_name()
 
@@ -1821,14 +1911,14 @@ class Manager(object):
 
             if dd is None:
                 return (str.format('package "{}" has malformed "depends" field',
-                                   node.name), new_pkgs)
+                                   node.name), [])
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
                     return (str.format('package "{}" has malformed "suggests" field',
-                                       node.name), new_pkgs)
+                                       node.name), [])
 
                 all_deps.update(ds)
 
@@ -1836,9 +1926,11 @@ class Manager(object):
                 if dep_name == 'bro' or dep_name == 'zeek':
                     if 'zeek' in graph:
                         graph['zeek'].dependers[name] = dep_version
+                        node.dependees['zeek'] = dep_version
                 elif dep_name == 'bro-pkg' or dep_name == 'zkg':
                     if 'zkg' in graph:
                         graph['zkg'].dependers[name] = dep_version
+                        node.dependees['zkg'] = dep_version
                 else:
                     for _, dependency_node in graph.items():
                         if dependency_node.name == 'zeek':
@@ -1849,17 +1941,42 @@ class Manager(object):
 
                         if dependency_node.info.package.matches_path(dep_name):
                             dependency_node.dependers[name] = dep_version
+                            node.dependees[dependency_node.name] = dep_version
                             break
 
         # 3. Try to solve for a connected graph with no edge conflicts.
-        for name, node in graph.items():
+
+        # Traverse graph in breadth-first order, starting from artificial root
+        # with all nodes requested by caller as child nodes.
+        nodes_todo = requests
+
+        # The resulting list of packages required to satisfy dependencies,
+        # in depender -> dependent (i.e., root -> leaves in dependency tree)
+        # order.
+        new_pkgs = []
+
+        while nodes_todo:
+            node = nodes_todo.pop(0)
+            for name in node.dependees:
+                nodes_todo.append(graph[name])
+
+            # Avoid cyclic dependencies: ensure we traverse these edges only
+            # once. (The graph may well be a dag, so it's okay to encounter
+            # specific nodes repeatedly.)
+            node.dependees = []
+
             if not node.dependers:
                 if node.installed_version:
+                    # We can ignore packages alreaday installed if nothing else
+                    # depends on them.
                     continue
 
                 if node.requested_version:
+                    # Only the packges requested by the caller have a requested
+                    # version. We skip those too if nothing depends on them.
                     continue
 
+                # A new package nothing depends on -- odd?
                 new_pkgs.append((node.info, node.info.best_version(),
                                  node.is_suggestion))
                 continue
@@ -2057,7 +2174,19 @@ class Manager(object):
 
                 new_pkgs.append((node.info, best_version, node.is_suggestion))
 
-        return ('', new_pkgs)
+        # Remove duplicate new nodes, preserving their latest (i.e. deepest-in-
+        # tree) occurrences. Traversing the resulting list right-to-left guarantees
+        # that we never visit a node before we've visited all of its dependees.
+        seen_nodes = set()
+        res = []
+
+        for it in reversed(new_pkgs):
+            if it[0].package.name in seen_nodes:
+                continue
+            seen_nodes.add(it[0].package.name)
+            res.insert(0, it)
+
+        return ('', res)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
@@ -2181,7 +2310,7 @@ class Manager(object):
 
         return ''
 
-    def test(self, pkg_path, version=''):
+    def test(self, pkg_path, version='', test_dependencies=False):
         """Test a package.
 
         Args:
@@ -2196,6 +2325,11 @@ class Manager(object):
                 "main" or "master" is used).  If given, it may be either a git
                 version tag or a git branch name.
 
+            test_dependencies (bool): if True, any dependencies required for
+                the given package will also get tested. Off by default, meaning
+                such dependencies will get locally built and staged, but not
+                tested.
+
         Returns:
             (str, bool, str): a tuple containing an error message string,
             a boolean indicating whether the tests passed, as well as a path
@@ -2203,7 +2337,8 @@ class Manager(object):
             where tests failed, the directory can be inspected to figure out
             what went wrong.  In the case where the error message string is
             not empty, the error message indicates the reason why tests could
-            not be run.
+            not be run.  Absence of a test_command in the requested package
+            is considered an error.
         """
         pkg_path = canonical_url(pkg_path)
         LOG.debug('testing "%s"', pkg_path)
@@ -2219,20 +2354,19 @@ class Manager(object):
             version = pkg_info.metadata_version
 
         package = pkg_info.package
-        test_dir = os.path.join(self.package_testdir, package.name)
-        clone_dir = os.path.join(test_dir, 'clones')
-        stage_script_dir = os.path.join(test_dir, 'scripts', 'packages')
-        stage_plugin_dir = os.path.join(test_dir, 'plugins', 'packages')
-        delete_path(test_dir)
-        make_dir(clone_dir)
-        make_dir(stage_script_dir)
-        make_dir(stage_plugin_dir)
+        stage = Stage(self, os.path.join(self.package_testdir, package.name))
+        stage.populate()
 
         request = [(package.qualified_name(), version)]
         invalid_deps, new_pkgs = self.validate_dependencies(request, False)
 
         if invalid_deps:
-            return (invalid_deps, False, test_dir)
+            return (invalid_deps, False, stage.state_dir)
+
+        env, err = stage.get_subprocess_env()
+        if env is None:
+            LOG.warning('%s when running tests for %s', err, package.name)
+            return (err, False, stage.state_dir)
 
         pkgs = []
         pkgs.append((pkg_info, version))
@@ -2242,15 +2376,24 @@ class Manager(object):
 
         # Clone all packages, checkout right version, and build/install to
         # staging area.
-        for info, version in pkgs:
-            clonepath = os.path.join(clone_dir, info.package.name)
+        for info, version in reversed(pkgs):
+            LOG.debug('preparing "%s" for testing: version %s',
+                      info.package.name, version)
+            clonepath = os.path.join(stage.clone_dir, info.package.name)
+
+            # After we prepared the stage, the clonepath might exist (as a
+            # symlink to the installed-version package clone) if we're testing
+            # an alternative version of an installed package.  Remove the
+            # symlink.
+            if os.path.islink(clonepath):
+                delete_path(clonepath)
 
             try:
                 clone = _clone_package(info.package, clonepath, version)
             except git.exc.GitCommandError as error:
                 LOG.warning('failed to clone git repo: %s', error)
                 return ('failed to clone {}'.format(info.package.git_url),
-                        False, test_dir)
+                        False, stage.state_dir)
 
             try:
                 git_checkout(clone, version)
@@ -2258,130 +2401,110 @@ class Manager(object):
                 LOG.warning('failed to checkout git repo version: %s', error)
                 return (str.format('failed to checkout {} of {}',
                                    version, info.package.git_url),
-                        False, test_dir)
+                        False, stage.state_dir)
 
-            fail_msg = self._stage(info.package, version,
-                                   clone, stage_script_dir, stage_plugin_dir)
+            fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
-                return (fail_msg, False, test_dir)
+                return (fail_msg, False, self.state_dir)
 
         # Finally, run tests (with correct environment set)
-        test_command = pkg_info.metadata['test_command']
-
-        zeek_config = find_program('zeek-config')
-        path_option = '--zeekpath'
-
-        if not zeek_config:
-            zeek_config = find_program('bro-config')
-            path_option = '--bropath'
-
-        zeekpath = os.environ.get('ZEEKPATH')
-
-        if not zeekpath:
-            zeekpath = os.environ.get('BROPATH')
-
-        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH')
-
-        if not pluginpath:
-            pluginpath = os.environ.get('BRO_PLUGIN_PATH')
-
-        if zeek_config:
-            cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   bufsize=1, universal_newlines=True)
-            line1 = read_zeek_config_line(cmd.stdout)
-            line2 = read_zeek_config_line(cmd.stdout)
-
-            if not zeekpath:
-                zeekpath = line1
-
-            if not pluginpath:
-                pluginpath = line2
+        if test_dependencies:
+            test_pkgs = pkgs
         else:
-            LOG.warning('zeek-config not found when running tests for %s',
-                        package.name)
-            return ('no "zeek-config" or "bro-config" found in PATH', False, test_dir)
+            test_pkgs = [(pkg_info, version)]
 
-        zeekpath = os.path.dirname(stage_script_dir) + ':' + zeekpath
-        pluginpath = os.path.dirname(stage_plugin_dir) + ':' + pluginpath
+        for info, version in reversed(test_pkgs):
+            LOG.info('testing "%s"', package)
+            # Interpolate the test command:
+            metadata, invalid_reason = self._interpolate_package_metadata(
+                info.metadata, stage)
+            if invalid_reason:
+                return (invalid_reason, False, stage.state_dir)
 
-        env = os.environ.copy()
-        env['ZEEKPATH'] = zeekpath
-        env['ZEEK_PLUGIN_PATH'] = pluginpath
-        env['BROPATH'] = zeekpath
-        env['BRO_PLUGIN_PATH'] = pluginpath
-        cwd = os.path.join(clone_dir, package.name)
-        outfile = os.path.join(cwd, 'zkg.test_command.stdout')
-        errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+            if 'test_command' not in metadata:
+                LOG.info('Skipping unit tests for "%s": no test_command in metadata',
+                         info.package.qualified_name())
+                continue
 
-        LOG.debug('running test_command for %s with cwd="%s"'
-                  ' and ZEEKPATH/BROPATH="%s": %s',
-                  package.name, cwd, zeekpath, test_command)
+            test_command = metadata['test_command']
 
-        with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
-            cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
-                    stdout=test_stdout, stderr=test_stderr)
-        return ('', cmd.wait() == 0, test_dir)
+            cwd = os.path.join(stage.clone_dir, info.package.name)
+            outfile = os.path.join(cwd, 'zkg.test_command.stdout')
+            errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+
+            LOG.debug('running test_command for %s with cwd="%s", PATH="%s",'
+                      ' and ZEEKPATH="%s": %s', info.package.name, cwd,
+                      env['PATH'], env['ZEEKPATH'], test_command)
+
+            with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
+                cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
+                                       stdout=test_stdout, stderr=test_stderr)
+
+            rc = cmd.wait()
+
+            if rc != 0:
+                return ('test_command failed with exit code {}'.format(rc),
+                        False, stage.state_dir)
+
+        return ('', True, stage.state_dir)
 
     def _get_executables(self, metadata):
         return metadata.get('executables', '').split()
 
-    def _stage(self, package, version, clone,
-               stage_script_dir, stage_plugin_dir):
+    def _stage(self, package, version, clone, stage, env=None):
+        """Stage a package.
+
+        Staging is the act of getting a package ready for use at a particular
+        location in the file system, called a "stage". The stage may be the
+        actual installation folders for the system's Zeek distribution, or one
+        purely internal to zkg's stage management when testing a package. The
+        steps involved in staging include cloning and checking out the package
+        at the desired version, building it if it features a build_command, and
+        installing script & plugin folders inside the requested stage.
+
+        Args:
+            package (:class:`.package.Package`): the package to stage
+
+            version (str): the git tag, branch name, or commit hash of the
+                package version to stage
+
+            clone (:class:`git.Repo`): the on-disk clone of the package's
+                git repository.
+
+            stage (:class:`Stage`): the staging object describing the disk
+                locations for installation.
+
+            env (dict of str -> str): an optional environment to pass to the
+                child process executing the package's build_command, if any.
+                If None, the current environment is used.
+
+        Returns:
+            str: empty string if staging succeeded, otherwise an error string
+            explaining why it failed.
+
+        """
+        LOG.debug('staging "%s": version %s', package, version)
         metadata_file = _pick_metadata_file(clone.working_dir)
-
-        # First use raw parser so no value interpolation takes place.
-        raw_metadata_parser = configparser.RawConfigParser()
-        invalid_reason = _parse_package_metadata(
-            raw_metadata_parser, metadata_file)
-
-        if invalid_reason:
-            return invalid_reason
-
-        raw_metadata = _get_package_metadata(raw_metadata_parser)
-
-
-        requested_user_vars = UserVar.parse_dict(raw_metadata)
-
-        if requested_user_vars is None:
-            return "package has malformed 'user_vars' metadata field"
-
-        substitutions = {
-            'bro_dist': self.zeek_dist,
-            'zeek_dist': self.zeek_dist,
-            'package_base': self.package_clonedir,
-        }
-        substitutions.update(self.user_vars)
-
-        for uvar in requested_user_vars:
-            val_from_env = os.environ.get(uvar.name())
-
-            if val_from_env:
-                substitutions[uvar.name()] = val_from_env
-
-            if uvar.name() not in substitutions:
-                substitutions[uvar.name()] = uvar.val()
-
-        metadata_parser = configparser.ConfigParser(defaults=substitutions)
+        metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(
             metadata_parser, metadata_file)
-
         if invalid_reason:
             return invalid_reason
 
         metadata = _get_package_metadata(metadata_parser)
-        LOG.debug('building "%s": version %s', package, version)
-        build_command = metadata.get('build_command', '')
+        metadata, invalid_reason = self._interpolate_package_metadata(metadata, stage)
+        if invalid_reason:
+            return invalid_reason
 
+        build_command = metadata.get('build_command', '')
         if build_command:
             LOG.debug('building "%s": running build_command: %s',
                       package, build_command)
             bufsize = 4096
             build = subprocess.Popen(build_command,
                                      shell=True, cwd=clone.working_dir,
-                                     bufsize=bufsize,
+                                     env=env, bufsize=bufsize,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
 
@@ -2425,7 +2548,7 @@ class Manager(object):
 
         pkg_script_dir = metadata.get('script_dir', '')
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
-        script_dir_dst = os.path.join(stage_script_dir, package.name)
+        script_dir_dst = os.path.join(stage.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
             return str.format("package's 'script_dir' does not exist: {}",
@@ -2436,14 +2559,14 @@ class Manager(object):
         # Check if __load__.bro exists for compatibility with older packages
         if os.path.isfile(pkgload + 'zeek') or os.path.isfile(pkgload + 'bro'):
             try:
-                symlink_path = os.path.join(os.path.dirname(stage_script_dir),
+                symlink_path = os.path.join(os.path.dirname(stage.script_dir),
                                             package.name)
                 make_symlink(os.path.join('packages', package.name),
                              symlink_path)
 
                 for alias in aliases(metadata):
                     symlink_path = os.path.join(
-                            os.path.dirname(stage_script_dir), alias)
+                            os.path.dirname(stage.script_dir), alias)
                     make_symlink(os.path.join('packages', package.name),
                                  symlink_path)
 
@@ -2469,7 +2592,7 @@ class Manager(object):
 
         pkg_plugin_dir = metadata.get('plugin_dir', 'build')
         plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
-        plugin_dir_dst = os.path.join(stage_plugin_dir, package.name)
+        plugin_dir_dst = os.path.join(stage.plugin_dir, package.name)
 
         if not os.path.exists(plugin_dir_src):
             LOG.info('installing "%s": package "plugin_dir" does not exist: %s',
@@ -2477,7 +2600,7 @@ class Manager(object):
 
             if pkg_plugin_dir != 'build':
                 # It's common for a package to not have build directory for
-                # for plugins, so don't error out in that case, just log it.
+                # plugins, so don't error out in that case, just log it.
                 return str.format("package's 'plugin_dir' does not exist: {}",
                                   pkg_plugin_dir)
 
@@ -2489,13 +2612,19 @@ class Manager(object):
             return error
 
         # Ensure any listed executables exist as advertised.
-        for p in self._get_executables(raw_metadata):
+        for p in self._get_executables(metadata):
             full_path = os.path.join(clone.working_dir, p)
             if not os.path.isfile(full_path):
                 return str.format("executable '{}' is missing", p)
 
             if not os.access(full_path, os.X_OK):
                 return str.format("file '{}' is not executable", p)
+
+            if stage.bin_dir is not None:
+                make_symlink(full_path, os.path.join(
+                    stage.bin_dir, os.path.basename(p)), force=True)
+
+        return ''
 
     def install(self, pkg_path, version=''):
         """Install a package.
@@ -2624,19 +2753,19 @@ class Manager(object):
             clone, version, status.tracking_method)
 
         metadata_file = _pick_metadata_file(clone.working_dir)
-        # Use raw parser so no value interpolation takes place.
-        raw_metadata_parser = configparser.RawConfigParser()
+        metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(
-            raw_metadata_parser, metadata_file)
+            metadata_parser, metadata_file)
 
         if invalid_reason:
             return invalid_reason
 
-        raw_metadata = _get_package_metadata(raw_metadata_parser)
+        raw_metadata = _get_package_metadata(metadata_parser)
 
-        fail_msg = self._stage(package, version, clone, self.script_dir,
-                               self.plugin_dir)
-
+        # A dummy stage that uses the actual installation folders;
+        # we do not need to populate() it.
+        stage = Stage(self)
+        fail_msg = self._stage(package, version, clone, stage)
         if fail_msg:
             return fail_msg
 
@@ -2656,6 +2785,38 @@ class Manager(object):
         self._refresh_bin_dir(self.bin_dir)
         LOG.debug('installed "%s"', package)
         return ''
+
+    def _interpolate_package_metadata(self, metadata, stage):
+        # This is a bit circular: we need to parse the user variables, if any,
+        # from the metadata before we can substitute them into other package
+        # metadata.
+
+        requested_user_vars = UserVar.parse_dict(metadata)
+        if requested_user_vars is None:
+            return None, "package has malformed 'user_vars' metadata field"
+
+        substitutions = {
+            'bro_dist': self.zeek_dist,
+            'zeek_dist': self.zeek_dist,
+            'package_base': stage.clone_dir,
+        }
+
+        substitutions.update(self.user_vars)
+
+        for uvar in requested_user_vars:
+            val_from_env = os.environ.get(uvar.name())
+
+            if val_from_env:
+                substitutions[uvar.name()] = val_from_env
+
+            if uvar.name() not in substitutions:
+                substitutions[uvar.name()] = uvar.val()
+
+        # Now apply the substitutions via a new config parser:
+        metadata_parser = configparser.ConfigParser(defaults=substitutions)
+        metadata_parser.read_dict({'package': metadata})
+
+        return _get_package_metadata(metadata_parser), None
 
     # Ensure we have links in bin_dir for all executables coming with any of
     # the currently installed packages.
@@ -2858,8 +3019,7 @@ def _info_from_clone(clone, package, status, version):
         version_type = TRACKING_METHOD_BRANCH
 
     metadata_file = _pick_metadata_file(clone.working_dir)
-    # Use raw parser so no value interpolation takes place.
-    metadata_parser = configparser.RawConfigParser()
+    metadata_parser = configparser.ConfigParser(interpolation=None)
     invalid_reason = _parse_package_metadata(
         metadata_parser, metadata_file)
 
