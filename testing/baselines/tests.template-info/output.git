@@ -4,8 +4,8 @@
     "features": [
         "readme"
     ],
-    "has_repo": false,
-    "origin": "not a git repository",
+    "has_repo": true,
+    "origin": "https://example.com/zeek/package-template",
     "provides_package": true,
     "user_vars": {
         "name": {
