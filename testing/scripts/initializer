@@ -34,6 +34,15 @@ done
   git commit -m 'Remove corge' &&
   git checkout ${default_branch} )
 
+cp -R $TEMPLATES .
+
+for t in templates/*; do
+    (
+        cd $t && git init && git add * && git commit -m 'init'
+        git remote add origin https://example.com/zeek/package-template
+    )
+done
+
 echo "\
 [sources]
 one = $(pwd)/sources/one
