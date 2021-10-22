@@ -1,8 +1,10 @@
 # This test verifies template info retrieval via "zkg template info".
 
-# @TEST-EXEC: zkg template info --json $TEMPLATES/foo >output.json
+# @TEST-EXEC: zkg template info --json --jsonpretty 4 $TEMPLATES/foo >output.json
 # @TEST-EXEC: btest-diff output.json
 
 # @TEST-EXEC: zkg template info $TEMPLATES/foo >output.plain
 # @TEST-EXEC: btest-diff output.plain
 
+# @TEST-EXEC: zkg template info --json --jsonpretty 4 templates/foo >output.git
+# @TEST-EXEC: btest-diff output.git
