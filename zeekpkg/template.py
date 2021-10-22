@@ -29,7 +29,7 @@ from ._util import (
     make_dir,
 )
 
-API_VERSION = '1.0.0'
+API_VERSION = '1.1.0'
 
 class Error(Exception):
     """Base class for any template-related errors."""
@@ -331,6 +331,10 @@ class Template():
         """
         return self._version
 
+    def has_repo(self):
+        """Returns True if this template has a git repository, False otherwise."""
+        return self._repo is not None
+
     def version_branch(self):
         """Name of the branch the template is on, if any.
 
@@ -386,15 +390,22 @@ class Template():
             'provides_package': False,
         }
 
+        # XXX we should revisit the reported 'origin' value in
+        # API 2.0.0 -- the the ad-hoc strings are less helpful
+        # than simply providing the key only when there's an
+        # actual origin.
+
         if self._repo is not None:
             try:
                 res['origin'] = list(self._repo.remotes[0].urls)[0]
             except (IndexError, AttributeError):
                 res['origin'] = 'unavailable'
             res['versions'] = git_version_tags(self._repo)
+            res['has_repo'] = True
         else:
             res['origin'] = 'not a git repository'
             res['versions'] = []
+            res['has_repo'] = False
 
         pkg = self.package() # pylint: disable=assignment-from-none
         uvars = self.define_user_vars()
@@ -698,7 +709,14 @@ class Package(_Content):
         config.add_section(section)
         config.set(section, 'source', tmpl.name())
 
+        if tmpl.has_repo():
+            tmplinfo = tmpl.info()
+            if tmplinfo != 'unavailable':
+                config.set(section, 'source', tmplinfo['origin'])
+
         if tmpl.version():
+            # If we're on a branch, disambiguate the version by also mentioning
+            # the exact commit.
             if tmpl.version_branch():
                 config.set(section, 'version', tmpl.version_branch())
                 config.set(section, 'commit', tmpl.version_sha()[:8])
