@@ -1,3 +1,7 @@
+# This test involves package testing, for which zkg internally requires
+# zeek-config. So require a Zeek install:
+# @TEST-REQUIRES: type zeek-config
+
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: LAST_VAR=/home/jon/sandbox zkg install foo

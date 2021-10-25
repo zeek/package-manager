@@ -13,6 +13,10 @@
 # & test call executables that bar and baz install; baz's build & test call
 # corge's executable, bar and corge call grault's executable.
 
+# We trigger package tests in the below, for which zkg internally looks
+# for zeek-config. So require a Zeek install:
+# @TEST-REQUIRES: type zeek-config
+
 # @TEST-EXEC: BUILDLOG=$(pwd)/build.log bash %INPUT
 
 # After testing, the packages get installed up the dependency chain, installing
