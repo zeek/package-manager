@@ -220,6 +220,29 @@ def git_pull(repo):
     repo.git.submodule('update', '--recursive', '--init')
 
 
+def git_remote_urls(repo):
+    """Returns a map of remote name -> URL string for configured remotes.
+
+    You'd normally use repo.remotes[n].urls for this, but with old git versions
+    (<2.7, e.g. on CentOS 7 at the time of writing) this triggers a "git remote
+    show" (without -n) that will query the remotes, which can fail test
+    cases. We use the config subsystem to query the URLs directly -- one of the
+    fallback mechanisms in GitPython's Remote.urls() implementation.
+    """
+    remote_details = repo.git.config('--get-regexp', 'remote\..+\.url')
+    remotes = {}
+
+    for line in remote_details.split('\n'):
+        try:
+            remote, url = line.split(maxsplit=1)
+            remote = remote.split('.')[1]
+            remotes[remote] = url
+        except (ValueError, IndexError):
+            pass
+
+    return remotes
+
+
 def is_sha1(s):
     if not s:
         return False;

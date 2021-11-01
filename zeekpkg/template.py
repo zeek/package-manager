@@ -25,11 +25,12 @@ from ._util import (
     git_default_branch,
     git_pull,
     git_version_tags,
+    git_remote_urls,
     load_source,
     make_dir,
 )
 
-API_VERSION = '1.0.0'
+API_VERSION = '1.1.0'
 
 class Error(Exception):
     """Base class for any template-related errors."""
@@ -152,7 +153,7 @@ class Template():
             try:
                 # If we're on a branch, pull in latest updates.
                 # Pulling fails when on a tag/commit. Accessing the
-                # following rases a TypeError when we're not on a
+                # following raises a TypeError when we're not on a
                 # branch.
                 _ = repo.active_branch
                 git_pull(repo)
@@ -331,6 +332,40 @@ class Template():
         """
         return self._version
 
+    def has_repo(self):
+        """Returns True if this template has a git repository, False otherwise."""
+        return self._repo is not None
+
+    def version_branch(self):
+        """Name of the branch the template is on, if any.
+
+        Returns branch name if this template version is a branch HEAD, None
+        otherwise (i.e. when it's a specific commit or tag, or we have no
+        repository).
+        """
+        try:
+            # The following raises a TypeError when not on a branch
+            if self._repo and self._repo.active_branch:
+                return self._repo.active_branch.name
+        except TypeError:
+            pass # Not on a branch
+
+        return None
+
+    def version_sha(self):
+        """The git commit hash for this template's version.
+
+        Returns None when this template got instantiated without a git repo,
+        otherwise a string with the full hash value in ASCII.
+        """
+        try:
+            if self._repo:
+                return self._repo.head.ref.commit.hexsha
+        except:
+            pass
+
+        return None
+
     def define_param(self, name, val):
         """Defines a parameter of the given name and value."""
         self._params[name] = val
@@ -356,15 +391,23 @@ class Template():
             'provides_package': False,
         }
 
+        # XXX we should revisit the reported 'origin' value in
+        # API 2.0.0 -- the the ad-hoc strings are less helpful
+        # than simply providing the key only when there's an
+        # actual origin.
+
         if self._repo is not None:
             try:
-                res['origin'] = list(self._repo.remotes[0].urls)[0]
-            except (IndexError, AttributeError):
+                remotes = git_remote_urls(self._repo)
+                res['origin'] = remotes['origin']
+            except KeyError:
                 res['origin'] = 'unavailable'
             res['versions'] = git_version_tags(self._repo)
+            res['has_repo'] = True
         else:
             res['origin'] = 'not a git repository'
             res['versions'] = []
+            res['has_repo'] = False
 
         pkg = self.package() # pylint: disable=assignment-from-none
         uvars = self.define_user_vars()
@@ -667,7 +710,23 @@ class Package(_Content):
         config.remove_section(section)
         config.add_section(section)
         config.set(section, 'source', tmpl.name())
-        config.set(section, 'version', tmpl.version() or 'unversioned')
+
+        if tmpl.has_repo():
+            tmplinfo = tmpl.info()
+            if tmplinfo['origin'] != 'unavailable':
+                config.set(section, 'source', tmplinfo['origin'])
+
+        if tmpl.version():
+            # If we're on a branch, disambiguate the version by also mentioning
+            # the exact commit.
+            if tmpl.version_branch():
+                config.set(section, 'version', tmpl.version_branch())
+                config.set(section, 'commit', tmpl.version_sha()[:8])
+            else:
+                config.set(section, 'version', tmpl.version())
+        else:
+            config.set(section, 'version', tmpl.version() or 'unversioned')
+
         config.set(section, 'zkg_version', __version__)
 
         if self._features:
@@ -702,7 +761,18 @@ class Package(_Content):
                 features_info += ' and ' + names[-1]
 
         ver_info = tmpl.version()
-        ver_info = 'no versioning' if ver_info is None else 'version ' + ver_info
+        ver_sha = tmpl.version_sha()
+
+        if ver_info is None:
+            if ver_sha:
+                ver_info = 'version ' + ver_sha[:8]
+            else:
+                ver_info = 'no versioning'
+        else:
+            ver_info = 'version ' + ver_info
+            if ver_sha:
+                ver_info += ' (' + ver_sha[:8] + ')'
+
         repo.index.commit("""Initial commit.
 
 zkg {} created this package from template "{}"

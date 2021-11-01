@@ -1,3 +1,30 @@
+2.12.0-11 | 2021-11-01 11:20:36 -0700
+
+  * Expand initializer to set up repos also for our test templates (Christian Kreibich, Corelight)
+
+  * Improve template source info in fresh zkg.meta (Christian Kreibich, Corelight)
+
+    The zkg.meta of freshly created packages so far just said "source = <name>",
+    where <name> derived from the template's storage location (e.g. just
+    "package-template" for the standard template). We now report the origin URL if
+    the template comes with a git repo.
+
+  * Show precise commit info in template commit when instantiating from branch (Christian Kreibich, Corelight)
+
+    We previously just showed something like "version = master", which won't be
+    helpful over time. We now incude the exact commit when not installing from a
+    specific commit or tag.
+
+  * Remove "zeek-config --zeek_dist" requirement from two tests (Christian Kreibich, Corelight)
+
+  * Modernize cmake requirements in the rot13 plugin-package (Christian Kreibich, Corelight)
+
+  * Re-enable CI for the feature releases and use new Dockerfile (Christian Kreibich, Corelight)
+
+  * Rework Dockerfiles to using our binary packages (Christian Kreibich, Corelight)
+
+  * Add TEST-REQUIRES for zeek-config to three tests that require it (Christian Kreibich, Corelight)
+
 2.12.0 | 2021-10-12 13:58:09 -0700
 
   * Release 2.12.0.

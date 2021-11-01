@@ -22,7 +22,12 @@
 # Verify the zkg.meta content.
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-zkg-version btest-diff out3/zkg.meta
 
-# zkg should now have all three packages installed.
+# Create a package from a git-versioned template repo -- this has different
+# information in zkg.meta:
+# @TEST-EXEC: zkg create --packagedir out4 --template templates/foo --user-var name=test4 >>output
+# @TEST-EXEC: TEST_DIFF_CANONIFIER="$SCRIPTS/diff-remove-zkg-version | $SCRIPTS/diff-remove-zkg-meta-commit" btest-diff out4/zkg.meta
+
+# zkg should now have the first three packages installed.
 # @TEST-EXEC: zkg list >>output
 
 # Fail to provide a user variable when using --force (thus suppressing input). This should fail.
