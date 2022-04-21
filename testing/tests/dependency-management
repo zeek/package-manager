@@ -26,7 +26,7 @@
 # @TEST-EXEC: echo '** Remove grault' >>out
 # @TEST-EXEC: zkg remove grault >>out
 
-# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-install-ticks btest-diff out
+# @TEST-EXEC: btest-diff out
 
 cd packages/foo
 echo 'depends = bar *' >> zkg.meta
