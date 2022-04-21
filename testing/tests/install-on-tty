@@ -1,0 +1,27 @@
+# This test installs a package with a "slow" pseudo build command, once using a
+# pretend TTY, and once normally. It then verifies that we see progress dots
+# only in the TTY. This requires the "script" command for TTY fakery.
+
+# @TEST-REQUIRES: script --version
+# @TEST-EXEC: bash %INPUT
+
+# https://stackoverflow.com/questions/32910661/pretend-to-be-a-tty-in-bash-for-any-command
+faketty () {
+    script -qefc "$(printf "%q " "$@")" /dev/null
+}
+
+# Add a build command to the package that takes at least as long as it takes zkg
+# to produce progress dots.
+(
+    cd $(pwd)/packages/foo
+    echo 'build_command = sleep 2' >>zkg.meta
+    git add zkg.meta
+    git commit -am 'build slowly'
+)
+
+faketty zkg install foo >output.tty
+zkg uninstall --force foo
+zkg install foo >output.notty
+
+grep 'Installing' output.tty | grep -q '\.'
+grep 'Installing' output.notty | grep -v -q '\.'
