@@ -471,6 +471,42 @@ class InstallWorker(threading.Thread):
         self.error = self.manager.install(
             self.package_name, self.package_version)
 
+    def wait(self, msg=None, out=sys.stdout, tty_only=True):
+        """Blocks until this thread ends, optionally writing liveness indicators.
+
+        This never returns until this thread dies (i.e., is_alive() is False).
+        When an output file object is provided, the method also indicates
+        progress by writing a dot character to it once per second. This happens
+        only when the file is a TTY, unless ``tty_only`` is False. When a
+        message is given, it gets written out first, regardless of TTY
+        status. Any output always terminates with a newline.
+
+        Args:
+            msg (str): a message to write first.
+
+            out (file-like object): the destination to write to.
+
+            tty_only (bool): whether to write progress dots also to non-TTYs.
+        """
+        if out is not None and msg:
+            out.write(msg)
+            out.flush()
+
+        is_tty = hasattr(out, 'isatty') and out.isatty()
+
+        while True:
+            self.join(1.0)
+            if not self.is_alive():
+                break
+
+            if out is not None and (is_tty or not tty_only):
+                out.write('.')
+                out.flush()
+
+        if out is not None and (msg or is_tty or not tty_only):
+            out.write('\n')
+            out.flush()
+
 
 def cmd_test(manager, args, config, configfile):
     if args.version and len(args.package) > 1:
@@ -689,19 +725,7 @@ def cmd_install(manager, args, config, configfile):
 
         worker = InstallWorker(manager, name, version)
         worker.start()
-        print('Installing "{}"'.format(name), end='')
-        sys.stdout.flush()
-
-        while True:
-            worker.join(1.0)
-
-            if not worker.is_alive():
-                break
-
-            print('.', end='')
-            sys.stdout.flush()
-
-        print('')
+        worker.wait('Installing "{}"'.format(name))
 
         if worker.error:
             print('Failed installing "{}": {}'.format(name, worker.error))
@@ -1392,23 +1416,7 @@ def cmd_upgrade(manager, args, config, configfile):
         tick_count = 0
         worker = InstallWorker(manager, name, version)
         worker.start()
-
-        while worker.is_alive():
-            worker.join(join_timeout)
-            time_accumulator += join_timeout
-
-            if time_accumulator >= tick_interval:
-                if tick_count == 0:
-                    print('Installing "{}"'.format(name), end='')
-                else:
-                    print('.', end='')
-
-                sys.stdout.flush()
-                tick_count += 1
-                time_accumulator -= tick_interval
-
-        if tick_count != 0:
-            print('')
+        worker.wait('Installing "{}"'.format(name))
 
         if worker.error:
             print('Failed installing "{}": {}'.format(name, worker.error))
