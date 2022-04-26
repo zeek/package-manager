@@ -8,6 +8,7 @@ script_dir = <...>/zeekroot/share/zeek/site
 plugin_dir = <...>/zeekroot/lib/zeek/plugins
 bin_dir = <...>/zeekroot/var/lib/zkg/bin
 zeek_dist = 
+cmake_dir = 
 
 [templates]
 default = https://github.com/zeek/package-template
@@ -30,6 +31,7 @@ script_dir = <...>/home/testuser/.zkg/script_dir
 plugin_dir = <...>/home/testuser/.zkg/plugin_dir
 bin_dir = <...>/home/testuser/.zkg/bin
 zeek_dist = 
+cmake_dir = 
 
 [templates]
 default = https://github.com/zeek/package-template

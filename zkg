@@ -277,11 +277,22 @@ def create_config(args, configfile):
     if not zeek_dist:
         zeek_dist = get_option(config, 'paths', 'bro_dist', '')
 
+    cmake_dir = get_option(config, 'paths', 'cmake_dir', '')
+
+    if cmake_dir:
+        # If a cmake_dir is set, inject it into any CMake invocations created
+        # from this processess via `CMAKE_PREFIX_PATH`. This allows packages to
+        # use Zeek-provided CMake modules. We append to any existing settings
+        # in the caller's environment, so existing setting keep precedence.
+        cmake_prefix_path = os.environ.get('CMAKE_PREFIX_PATH', '')
+        os.environ['CMAKE_PREFIX_PATH'] = ';'.join([cmake_prefix_path, cmake_dir])
+
     config.set('paths', 'state_dir', state_dir)
     config.set('paths', 'script_dir', script_dir)
     config.set('paths', 'plugin_dir', plugin_dir)
     config.set('paths', 'bin_dir', bin_dir)
     config.set('paths', 'zeek_dist', zeek_dist)
+    config.set('paths', 'cmake_dir', cmake_dir)
 
     def expand_config_values(config, section):
         for key, value in config.items(section):
@@ -367,6 +378,7 @@ def create_manager(args, config):
     script_dir = config.get('paths', 'script_dir')
     plugin_dir = config.get('paths', 'plugin_dir')
     bin_dir = config.get('paths', 'bin_dir')
+    cmake_dir = config.get('paths', 'cmake_dir')
     zeek_dist = config.get('paths', 'zeek_dist')
 
     if state_dir == default_state_dir():
@@ -376,7 +388,7 @@ def create_manager(args, config):
     try:
         manager = zeekpkg.Manager(state_dir=state_dir, script_dir=script_dir,
                                  plugin_dir=plugin_dir, bin_dir=bin_dir,
-                                 zeek_dist=zeek_dist)
+                                 cmake_dir=cmake_dir, zeek_dist=zeek_dist)
     except (OSError, IOError) as error:
         if error.errno == errno.EACCES:
             print_error('{}: {}'.format(type(error).__name__, error))
@@ -1956,7 +1968,7 @@ def cmd_autoconfig(manager, args, config, configfile):
     dist_option = '--zeek_dist' if have_zeek_config else '--bro_dist'
 
     cmd = subprocess.Popen([zeek_config,
-                            '--site_dir', '--plugin_dir', '--prefix', dist_option],
+                            '--site_dir', '--plugin_dir', '--prefix', dist_option, '--cmake_dir'],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            bufsize=1, universal_newlines=True)
 
@@ -1964,6 +1976,7 @@ def cmd_autoconfig(manager, args, config, configfile):
     plugin_dir = read_zeek_config_line(cmd.stdout)
     bin_dir = os.path.join(read_zeek_config_line(cmd.stdout), 'bin')
     zeek_dist = read_zeek_config_line(cmd.stdout)
+    cmake_dir = read_zeek_config_line(cmd.stdout)
 
     if configfile:
         config_dir = os.path.dirname(configfile)
@@ -1980,7 +1993,10 @@ def cmd_autoconfig(manager, args, config, configfile):
             config.set(section, option, new_value)
             return
 
-        old_value = config.get(section, option)
+        try:
+            old_value = config.get(section, option)
+        except configparser.NoOptionError:
+            old_value = '<unset>'
 
         if old_value == new_value:
             return
@@ -2001,6 +2017,8 @@ def cmd_autoconfig(manager, args, config, configfile):
                         bin_dir, config_file_exists)
     change_config_value(config, 'paths', 'zeek_dist',
                         zeek_dist, config_file_exists)
+    change_config_value(config, 'paths', 'cmake_dir',
+                        cmake_dir, config_file_exists)
 
     with io.open(configfile, 'w', encoding=std_encoding(sys.stdout)) as f:
         config.write(f)

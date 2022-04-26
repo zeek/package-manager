@@ -231,7 +231,7 @@ class Manager(object):
             load all installed packages that have been marked as loaded.
     """
 
-    def __init__(self, state_dir, script_dir, plugin_dir, zeek_dist='',
+    def __init__(self, state_dir, script_dir, plugin_dir, cmake_dir, zeek_dist='',
                  user_vars=None, bin_dir=''):
         """Creates a package manager instance.
 
@@ -241,6 +241,8 @@ class Manager(object):
             script_dir (str): value to set the `script_dir` attribute to
 
             plugin_dir (str): value to set the `plugin_dir` attribute to
+
+            cmake_dir (str): value to set the `cmake_dir` attribute to
 
             zeek_dist (str): value to set the `zeek_dist` attribute to
 
@@ -261,6 +263,7 @@ class Manager(object):
         # The bro_dist attribute exists just for backward compatibility
         self.bro_dist = zeek_dist
         self.zeek_dist = zeek_dist
+        self.cmake_dir = cmake_dir
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
         self.backup_dir = os.path.join(self.state_dir, 'backups')
