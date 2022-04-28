@@ -3,6 +3,5 @@ GitPython
 semantic_version
 btest
 # Requirements for development (e.g. building docs)
-Sphinx>=2.0
-sphinxcontrib-napoleon
+Sphinx>=3.0
 sphinx_rtd_theme
