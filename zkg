@@ -1,5 +1,8 @@
 #! /usr/bin/env python3
 
+# https://pypi.org/project/argcomplete/#global-completion
+# PYTHON_ARGCOMPLETE_OK
+
 import argparse
 import configparser
 import errno
@@ -32,6 +35,13 @@ except ImportError as error:
           "{}: {}".format(type(error).__name__, error),
           file=sys.stderr)
     sys.exit(1)
+
+try:
+    # Argcomplete provides command-line completion for users of argparse.
+    # We support it if available, but don't complain when it isn't.
+    import argcomplete # pylint: disable=import-error
+except ImportError:
+    pass
 
 # For Zeek-bundled installation, prepend the Python path of the Zeek
 # installation. This ensures we find the matching zeekpkg module
@@ -2721,6 +2731,9 @@ def argparser():
         help='URL of a package template repository, or local path to one.'
         ' When not provided, the configured default template is used.')
     sub_parser.set_defaults(run_cmd=cmd_template_info)
+
+    if 'argcomplete' in sys.modules:
+        argcomplete.autocomplete(top_parser)
 
     return top_parser
 
