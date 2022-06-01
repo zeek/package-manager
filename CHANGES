@@ -1,3 +1,7 @@
+2.12.0-22 | 2022-06-01 01:18:08 -0700
+
+  * Add argcomplete support (Christian Kreibich, Corelight)
+
 2.12.0-20 | 2022-04-28 14:12:23 -0700
 
   * Adjust requirements.txt to use Sphinx 3+, and drop Napoleon (Christian Kreibich, Corelight)
