@@ -40,6 +40,7 @@ from ._util import (
     read_zeek_config_line,
     normalize_version_tag,
     configparser_section_dict,
+    safe_tarfile_extractall,
 )
 from .source import (
     AGGREGATE_DATA_FILE,
@@ -1572,8 +1573,7 @@ class Manager(object):
         infos = []
 
         try:
-            with tarfile.open(bundle_file) as tf:
-                tf.extractall(bundle_dir)
+            safe_tarfile_extractall(bundle_file, bundle_dir)
         except Exception as error:
             return (str(error), infos)
 
@@ -2278,8 +2278,7 @@ class Manager(object):
         make_dir(bundle_dir)
 
         try:
-            with tarfile.open(bundle_file) as tf:
-                tf.extractall(bundle_dir)
+            safe_tarfile_extractall(bundle_file, bundle_dir)
         except Exception as error:
             return str(error)
 
@@ -2908,8 +2907,7 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         make_dir(tmp_dir)
 
         try:
-            with tarfile.open(src) as tf:
-                tf.extractall(tmp_dir)
+            safe_tarfile_extractall(src, tmp_dir)
         except Exception as error:
             return str(error)
 
