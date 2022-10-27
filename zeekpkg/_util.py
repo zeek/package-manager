@@ -276,6 +276,7 @@ def find_program(prog_name):
 
     return ''
 
+
 def std_encoding(stream):
     if stream.encoding:
         return stream.encoding
@@ -286,6 +287,7 @@ def std_encoding(stream):
         return 'utf-8'
 
     return locale.getpreferredencoding()
+
 
 def read_zeek_config_line(stdout):
     return stdout.readline().strip()
@@ -306,6 +308,7 @@ def get_zeek_version():
                            bufsize=1, universal_newlines=True)
 
     return read_zeek_config_line(cmd.stdout)
+
 
 def load_source(filename):
     """Loads given Python script from disk.
@@ -328,6 +331,7 @@ def load_source(filename):
     loader.exec_module(mod)
 
     return mod
+
 
 def configparser_section_dict(parser, section):
     """Returns a dict representing a ConfigParser section.
