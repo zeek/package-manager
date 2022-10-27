@@ -6,6 +6,7 @@ import errno
 import importlib.machinery
 import os
 import shutil
+import tarfile
 import types
 
 import git
@@ -64,6 +65,38 @@ def make_symlink(target_path, link_path, force=True):
             os.symlink(target_path, link_path)
         else:
             raise error
+
+
+def safe_tarfile_extractall(tfile, destdir):
+    """Wrapper to tarfile.extractall(), checking for path traversal.
+
+    This adds the safeguards the Python docs for tarfile.extractall warn about:
+
+    Never extract archives from untrusted sources without prior inspection. It
+    is possible that files are created outside of path, e.g. members that have
+    absolute filenames starting with "/" or filenames with two dots "..".
+
+    Args:
+        tfile (str): the tar file to extract
+
+        destdir (str): the destination directory into which to place contents
+
+    Raises:
+        Exception: if the tarfile would extract outside destdir
+    """
+    def is_within_directory(directory, target):
+        abs_directory = os.path.abspath(directory)
+        abs_target = os.path.abspath(target)
+        prefix = os.path.commonprefix([abs_directory, abs_target])
+        return prefix == abs_directory
+
+    with tarfile.open(tfile) as tar:
+        for member in tar.getmembers():
+            member_path = os.path.join(destdir, member.name)
+            if not is_within_directory(destdir, member_path):
+                raise Exception('attempted path traversal in tarfile')
+
+        tar.extractall(destdir)
 
 
 def find_sentence_end(s):
@@ -276,6 +309,7 @@ def find_program(prog_name):
 
     return ''
 
+
 def std_encoding(stream):
     if stream.encoding:
         return stream.encoding
@@ -286,6 +320,7 @@ def std_encoding(stream):
         return 'utf-8'
 
     return locale.getpreferredencoding()
+
 
 def read_zeek_config_line(stdout):
     return stdout.readline().strip()
@@ -306,6 +341,7 @@ def get_zeek_version():
                            bufsize=1, universal_newlines=True)
 
     return read_zeek_config_line(cmd.stdout)
+
 
 def load_source(filename):
     """Loads given Python script from disk.
@@ -328,6 +364,7 @@ def load_source(filename):
     loader.exec_module(mod)
 
     return mod
+
 
 def configparser_section_dict(parser, section):
     """Returns a dict representing a ConfigParser section.

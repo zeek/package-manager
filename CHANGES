@@ -1,3 +1,9 @@
+2.13.0-3 | 2022-10-27 16:05:46 -0700
+
+  * Add safe wrapper around tarfile.extractall() (Christian Kreibich, Corelight; Charles McFarland, Trellix)
+
+  * Newline whitespace tweaks for consistency, no actual change (Christian Kreibich, Corelight)
+
 2.13.0 | 2022-06-01 01:18:25 -0700
 
   * Release 2.13.0.
