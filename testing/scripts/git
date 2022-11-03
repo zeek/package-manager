@@ -10,6 +10,7 @@ HOME=
 XDG_CONFIG_HOME=
 
 git -c init.defaultBranch=master \
+    -c protocol.file.allow=always \
     -c user.name=zkg \
     -c user.email=zkg@zeek.org \
     "$@"
