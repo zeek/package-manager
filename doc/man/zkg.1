@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "ZKG" "1" "Oct 27, 2022" "2.13.0-3" "Zeek Package Manager"
+.TH "ZKG" "1" "Nov 03, 2022" "2.13.0-5" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .sp
@@ -38,7 +38,9 @@ A command\-line package manager for Zeek.
 .sp
 .nf
 .ft C
-usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL] {test,install,bundle,unbundle,remove,uninstall,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
+usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL]
+           {test,install,bundle,unbundle,remove,uninstall,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template}
+           ...
 .ft P
 .fi
 .UNINDENT
@@ -116,7 +118,9 @@ Installs packages from a configured package source or directly from a git URL.  
 .sp
 .nf
 .ft C
-usage: zkg install [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-version VERSION] [\-\-force] [\-\-user\-var NAME=VAL] package [package ...]
+usage: zkg install [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-version VERSION] [\-\-force]
+                   [\-\-user\-var NAME=VAL]
+                   package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -224,7 +228,8 @@ This command creates a bundle file containing a collection of Zeek packages.  If
 .sp
 .nf
 .ft C
-usage: zkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions] [\-\-manifest MANIFEST [MANIFEST ...] \-\-] filename.bundle
+usage: zkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions] [\-\-manifest MANIFEST [MANIFEST ...] \-\-]
+                  filename.bundle
 .ft P
 .fi
 .UNINDENT
@@ -299,7 +304,8 @@ Retrieve latest package metadata from sources and checks whether any installed p
 .sp
 .nf
 .ft C
-usage: zkg refresh [\-h] [\-\-aggregate] [\-\-fail\-on\-aggregate\-problems] [\-\-push] [\-\-sources SOURCES [SOURCES ...]]
+usage: zkg refresh [\-h] [\-\-aggregate] [\-\-fail\-on\-aggregate\-problems] [\-\-push]
+                   [\-\-sources SOURCES [SOURCES ...]]
 .ft P
 .fi
 .UNINDENT
@@ -331,7 +337,8 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .sp
 .nf
 .ft C
-usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-force] [\-\-user\-var NAME=VAL] [package ...]
+usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-force] [\-\-user\-var NAME=VAL]
+                   [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -537,7 +544,8 @@ Shows detailed information/metadata for given packages. If the package is curren
 .sp
 .nf
 .ft C
-usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json] [\-\-jsonpretty SPACES] [\-\-allvers] package [package ...]
+usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json] [\-\-jsonpretty SPACES] [\-\-allvers]
+                package [package ...]
 .ft P
 .fi
 .UNINDENT
@@ -643,7 +651,8 @@ This command creates a new Zeek package in the directory provided via \-\-packag
 .sp
 .nf
 .ft C
-usage: zkg create [\-h] \-\-packagedir DIR [\-\-version VERSION] [\-\-features FEATURE [FEATURE ...]] [\-\-template URL] [\-\-force] [\-\-user\-var NAME=VAL]
+usage: zkg create [\-h] \-\-packagedir DIR [\-\-version VERSION] [\-\-features FEATURE [FEATURE ...]]
+                  [\-\-template URL] [\-\-force] [\-\-user\-var NAME=VAL]
 .ft P
 .fi
 .UNINDENT
