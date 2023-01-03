@@ -193,7 +193,7 @@ def git_default_branch(repo):
         # Technically possible that remote has no HEAD, so guard against that.
         try:
             head_ref_name = remote.refs.HEAD.ref.name
-        except:
+        except Exception:
             head_ref_name = None
 
         if head_ref_name:

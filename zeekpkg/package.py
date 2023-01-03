@@ -6,6 +6,8 @@ the properties and status of Zeek packages.
 import os
 import re
 
+from functools import total_ordering
+
 from .uservar import UserVar
 from ._util import find_sentence_end
 
@@ -134,6 +136,7 @@ def dependencies(metadata_dict, field='depends'):
     return rval
 
 
+@total_ordering
 class InstalledPackage(object):
     """An installed package and its current status.
 
@@ -142,10 +145,15 @@ class InstalledPackage(object):
 
         status (:class:`PackageStatus`): the status of the installed package
     """
-
     def __init__(self, package, status):
         self.package = package
         self.status = status
+
+    def __hash__(self):
+        return hash(str(self.package))
+
+    def __eq__(self, other):
+        return str(self.package) == str(other.package)
 
     def __lt__(self, other):
         return str(self.package) < str(other.package)
@@ -287,6 +295,7 @@ class PackageInfo(object):
         return self.default_branch
 
 
+@total_ordering
 class Package(object):
     """A Zeek package.
 
@@ -317,7 +326,6 @@ class Package(object):
             aggregation of the source's :file:`aggregate.meta` file (it may not
             be accurate/up-to-date).
     """
-
     def __init__(self, git_url, source='', directory='', metadata=None,
                  name=None, canonical=False):
         self.git_url = git_url
@@ -341,6 +349,12 @@ class Package(object):
 
     def __repr__(self):
         return self.git_url
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return str(self) == str(other)
 
     def __lt__(self, other):
         return str(self) < str(other)
