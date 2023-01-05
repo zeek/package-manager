@@ -526,7 +526,6 @@ class Manager(object):
 
         # Support @ in the path to denote the "version" to checkout
         version = None
-        parse_result = urlparse(git_url)
 
         # Prepend 'ssh://' and replace the first ':' with '/' if git_url
         # looks like a scp-like URL, e.g. git@github.com:user/repo.git.
@@ -2842,7 +2841,7 @@ class Manager(object):
                     try:
                         os.unlink(old)
                         LOG.debug('removed link %s', old)
-                    except:
+                    except Exception:
                         LOG.warn('failed to remove link %s', old)
 
 

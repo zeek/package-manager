@@ -20,7 +20,7 @@ from collections import OrderedDict
 
 try:
     import git
-    import semantic_version as semver # lgtm[py/unused-import]
+    import semantic_version  # noqa  # pylint: disable=unused-import
 except ImportError as error:
     print("error: zkg failed to import one or more dependencies:\n"
           "\n"
@@ -1417,13 +1417,8 @@ def cmd_upgrade(manager, args, config, configfile):
                                            default_to_yes=False):
                     return
 
-    join_timeout = 0.01
-    tick_interval = 1
-
     for info, version, _ in reversed(new_pkgs):
         name = info.package.qualified_name()
-        time_accumulator = 0
-        tick_count = 0
         worker = InstallWorker(manager, name, version)
         worker.start()
         worker.wait('Installing "{}"'.format(name))

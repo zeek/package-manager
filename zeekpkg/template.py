@@ -361,7 +361,7 @@ class Template():
         try:
             if self._repo:
                 return self._repo.head.ref.commit.hexsha
-        except:
+        except Exception:
             pass
 
         return None
