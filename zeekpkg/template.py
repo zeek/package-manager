@@ -30,31 +30,37 @@ from ._util import (
     make_dir,
 )
 
-API_VERSION = '1.1.0'
+API_VERSION = "1.1.0"
+
 
 class Error(Exception):
     """Base class for any template-related errors."""
 
+
 class InputError(Error):
     """Something's amiss in the input arguments for a package."""
+
 
 class OutputError(Error):
     """Something's going wrong while producing template output."""
 
+
 class LoadError(Error):
     """Something's going wrong while retrieving a template."""
+
 
 class GitError(LoadError):
     """There's git trouble while producing template output."""
 
 
-class Template():
+class Template:
     """Base class for any template.
 
     Templates need to derive from this class in their toplevel
     __init__.py. Instances of this class pull together the components
     in a given template and capture their parameterization.
     """
+
     @staticmethod
     def load(config, template, version=None):
         """Template loader.
@@ -106,7 +112,8 @@ class Template():
             # zkg state folder's clone space and support version
             # requests.
             template_clonedir = os.path.join(
-                config.get('paths', 'state_dir'), 'clones', 'template')
+                config.get("paths", "state_dir"), "clones", "template"
+            )
             templatedir = os.path.join(template_clonedir, name_from_path(template))
             make_dir(template_clonedir)
 
@@ -123,7 +130,7 @@ class Template():
                     for remote in repo.remotes:
                         cur_remote_urls |= set(remote.urls)
                     if len(cur_remote_urls) == 1 and template in cur_remote_urls:
-                        repo.git.fetch('-f', '--recurse-submodules=yes', '--tags')
+                        repo.git.fetch("-f", "--recurse-submodules=yes", "--tags")
                     else:
                         delete_path(templatedir)
                         repo = None
@@ -145,8 +152,11 @@ class Template():
             try:
                 git_checkout(repo, version)
             except git.exc.GitCommandError as error:
-                msg = 'failed to checkout branch/version "{}" of template {}: {}'.format(
-                    version, template, error)
+                msg = (
+                    'failed to checkout branch/version "{}" of template {}: {}'.format(
+                        version, template, error
+                    )
+                )
                 LOG.warn(msg)
                 raise GitError(msg) from error
 
@@ -158,23 +168,25 @@ class Template():
                 _ = repo.active_branch
                 git_pull(repo)
             except TypeError:
-                pass # Not on a branch, do nothing
+                pass  # Not on a branch, do nothing
             except git.exc.GitCommandError as error:
                 msg = 'failed to update branch "{}" of template {}: {}'.format(
-                    version, template, error)
+                    version, template, error
+                )
                 LOG.warning(msg)
                 raise GitError(msg) from error
 
         try:
-            mod = load_source(os.path.join(templatedir, '__init__.py'))
+            mod = load_source(os.path.join(templatedir, "__init__.py"))
         except Exception as error:
             msg = 'failed to load template "{}": {}'.format(template, error)
             LOG.exception(msg)
             raise LoadError(msg) from error
 
-        if not hasattr(mod, 'TEMPLATE_API_VERSION'):
-            msg = 'template{} does not indicate its API version'.format(
-                ' version ' + version if version else '')
+        if not hasattr(mod, "TEMPLATE_API_VERSION"):
+            msg = "template{} does not indicate its API version".format(
+                " version " + version if version else ""
+            )
             LOG.error(msg)
             raise LoadError(msg)
 
@@ -186,13 +198,16 @@ class Template():
         try:
             is_compat = Template.is_api_compatible(mod.TEMPLATE_API_VERSION)
         except ValueError:
-            raise LoadError('API version string "{}" is invalid'.format(
-                mod.TEMPLATE_API_VERSION))
+            raise LoadError(
+                'API version string "{}" is invalid'.format(mod.TEMPLATE_API_VERSION)
+            )
 
         if not is_compat:
-            msg = 'template{} API version is incompatible with zkg ({} vs {})'.format(
-                ' version ' + version if version else '',
-                mod.TEMPLATE_API_VERSION, API_VERSION)
+            msg = "template{} API version is incompatible with zkg ({} vs {})".format(
+                " version " + version if version else "",
+                mod.TEMPLATE_API_VERSION,
+                API_VERSION,
+            )
             LOG.error(msg)
             raise LoadError(msg)
 
@@ -255,7 +270,7 @@ class Template():
         self._api_version = api_version
         self._version = version
         self._repo = repo
-        self._params = {} # str -> str, set via self.define_param()
+        self._params = {}  # str -> str, set via self.define_param()
         self._user_vars = []
 
     def define_user_vars(self):
@@ -300,7 +315,7 @@ class Template():
         """
         return None
 
-    def features(self): # pylint: disable=no-self-use
+    def features(self):  # pylint: disable=no-self-use
         """Provides any additional features templates supported.
 
         If the template provides extra features, return each as an
@@ -348,7 +363,7 @@ class Template():
             if self._repo and self._repo.active_branch:
                 return self._repo.active_branch.name
         except TypeError:
-            pass # Not on a branch
+            pass  # Not on a branch
 
         return None
 
@@ -370,7 +385,7 @@ class Template():
         """Defines a parameter of the given name and value."""
         self._params[name] = val
 
-    def lookup_param(self, name, default=''):
+    def lookup_param(self, name, default=""):
         """Looks up a parameter, falling back to the given default."""
         return self._params.get(name, default)
 
@@ -387,8 +402,8 @@ class Template():
         # In the future a template may not provide a full package,
         # only features overlaid in combination with another template.
         res = {
-            'api_version': self._api_version,
-            'provides_package': False,
+            "api_version": self._api_version,
+            "provides_package": False,
         }
 
         # XXX we should revisit the reported 'origin' value in
@@ -399,46 +414,51 @@ class Template():
         if self._repo is not None:
             try:
                 remotes = git_remote_urls(self._repo)
-                res['origin'] = remotes['origin']
+                res["origin"] = remotes["origin"]
             except KeyError:
-                res['origin'] = 'unavailable'
-            res['versions'] = git_version_tags(self._repo)
-            res['has_repo'] = True
+                res["origin"] = "unavailable"
+            res["versions"] = git_version_tags(self._repo)
+            res["has_repo"] = True
         else:
-            res['origin'] = 'not a git repository'
-            res['versions'] = []
-            res['has_repo'] = False
+            res["origin"] = "not a git repository"
+            res["versions"] = []
+            res["has_repo"] = False
 
-        pkg = self.package() # pylint: disable=assignment-from-none
+        pkg = self.package()  # pylint: disable=assignment-from-none
         uvars = self.define_user_vars()
         feature_names = []
-        res['user_vars'] = {}
+        res["user_vars"] = {}
 
         for uvar in uvars:
-            res['user_vars'][uvar.name()] = {
-                'description': uvar.desc(),
-                'default': uvar.default(),
-                'used_by': [],
+            res["user_vars"][uvar.name()] = {
+                "description": uvar.desc(),
+                "default": uvar.default(),
+                "used_by": [],
             }
 
         if pkg is not None:
-            res['provides_package'] = True
+            res["provides_package"] = True
             for uvar_name in pkg.needed_user_vars():
                 try:
-                    res['user_vars'][uvar_name]['used_by'].append('package')
+                    res["user_vars"][uvar_name]["used_by"].append("package")
                 except KeyError:
-                    LOG.warning('Package requires undefined user var "%s", skipping', uvar_name)
+                    LOG.warning(
+                        'Package requires undefined user var "%s", skipping', uvar_name
+                    )
 
         for feature in self.features():
             feature_names.append(feature.name())
             for uvar_name in feature.needed_user_vars():
                 try:
-                    res['user_vars'][uvar_name]['used_by'].append(feature.name())
+                    res["user_vars"][uvar_name]["used_by"].append(feature.name())
                 except KeyError:
-                    LOG.warning('Feature "%s" requires undefined user var "%s"',
-                                feature.name(), uvar_name)
+                    LOG.warning(
+                        'Feature "%s" requires undefined user var "%s"',
+                        feature.name(),
+                        uvar_name,
+                    )
 
-        res['features'] = sorted(feature_names)
+        res["features"] = sorted(feature_names)
         return res
 
     def _set_user_vars(self, user_vars):
@@ -580,7 +600,7 @@ class _Content(metaclass=abc.ABCMeta):
         os.makedirs(out_dir, exist_ok=True)
 
         try:
-            with open(out_file, 'wb') as hdl:
+            with open(out_file, "wb") as hdl:
                 hdl.write(content)
             shutil.copymode(orig_file, out_file)
         except IOError as error:
@@ -618,8 +638,7 @@ class _Content(metaclass=abc.ABCMeta):
             delete_path(out_file)
             os.symlink(target, out_file)
         except OSError as error:
-            LOG.warning('OS error while creating symlink "%s": %s',
-                        out_file, error)
+            LOG.warning('OS error while creating symlink "%s": %s', out_file, error)
 
     def _walk(self, tmpl):
         """Generator for instantiating template content.
@@ -639,7 +658,7 @@ class _Content(metaclass=abc.ABCMeta):
                 in_file = root + os.sep + fname
 
                 # Substitute directory and file names
-                out_path = self._replace(tmpl, root[len(prefix)+1:])
+                out_path = self._replace(tmpl, root[len(prefix) + 1 :])
                 out_file = self._replace(tmpl, fname)
 
                 if os.path.islink(in_file):
@@ -647,15 +666,15 @@ class _Content(metaclass=abc.ABCMeta):
                 else:
                     # Substitute file content.
                     try:
-                        with open(in_file, 'rb') as hdl:
+                        with open(in_file, "rb") as hdl:
                             out_content = self._replace(tmpl, hdl.read())
                     except IOError as error:
-                        LOG.warning('skipping instantiation of %s: %s', in_file, error)
+                        LOG.warning("skipping instantiation of %s: %s", in_file, error)
                         continue
 
                 yield in_file, out_path, out_file, out_content
 
-    def _replace(self, tmpl, content): # pylint: disable=no-self-use
+    def _replace(self, tmpl, content):  # pylint: disable=no-self-use
         """Helper for content substitution.
 
         Args:
@@ -667,10 +686,10 @@ class _Content(metaclass=abc.ABCMeta):
             str or bytes after parameter substitution.
         """
         for name, val in tmpl.params().items():
-            pat = '@' + name + '@'
+            pat = "@" + name + "@"
             if not isinstance(content, str):
-                pat = bytes(pat, 'ascii')
-                val = bytes(val, 'ascii')
+                pat = bytes(pat, "ascii")
+                val = bytes(val, "ascii")
             content = re.sub(pat, val, content, flags=re.IGNORECASE)
 
         return content
@@ -683,6 +702,7 @@ class Package(_Content):
     abstract. At a minimum, your template's Package derivative needs
     to implement contentdir().
     """
+
     def do_instantiate(self, tmpl, packagedir, use_force=False):
         self._prepare_packagedir(packagedir)
         super().do_instantiate(tmpl, packagedir, use_force)
@@ -698,7 +718,7 @@ class Package(_Content):
         This information allows re-running template instantiation with
         identical inputs at a later time.
         """
-        config = configparser.ConfigParser(delimiters='=')
+        config = configparser.ConfigParser(delimiters="=")
         config.optionxform = str
         manifest_file = os.path.join(self._packagedir, METADATA_FILENAME)
 
@@ -706,42 +726,42 @@ class Package(_Content):
         # content, otherwise create with just our metadata.
         config.read(manifest_file)
 
-        section = 'template'
+        section = "template"
         config.remove_section(section)
         config.add_section(section)
-        config.set(section, 'source', tmpl.name())
+        config.set(section, "source", tmpl.name())
 
         if tmpl.has_repo():
             tmplinfo = tmpl.info()
-            if tmplinfo['origin'] != 'unavailable':
-                config.set(section, 'source', tmplinfo['origin'])
+            if tmplinfo["origin"] != "unavailable":
+                config.set(section, "source", tmplinfo["origin"])
 
         if tmpl.version():
             # If we're on a branch, disambiguate the version by also mentioning
             # the exact commit.
             if tmpl.version_branch():
-                config.set(section, 'version', tmpl.version_branch())
-                config.set(section, 'commit', tmpl.version_sha()[:8])
+                config.set(section, "version", tmpl.version_branch())
+                config.set(section, "commit", tmpl.version_sha()[:8])
             else:
-                config.set(section, 'version', tmpl.version())
+                config.set(section, "version", tmpl.version())
         else:
-            config.set(section, 'version', tmpl.version() or 'unversioned')
+            config.set(section, "version", tmpl.version() or "unversioned")
 
-        config.set(section, 'zkg_version', __version__)
+        config.set(section, "zkg_version", __version__)
 
         if self._features:
-            val = ','.join(sorted([f.name() for f in self._features]))
-            config.set(section, 'features', val)
+            val = ",".join(sorted([f.name() for f in self._features]))
+            config.set(section, "features", val)
 
-        section = 'template_vars'
+        section = "template_vars"
         config.remove_section(section)
         config.add_section(section)
 
-        for uvar in tmpl._get_user_vars(): # pylint: disable=protected-access
+        for uvar in tmpl._get_user_vars():  # pylint: disable=protected-access
             if uvar.val() is not None:
                 config.set(section, uvar.name(), uvar.val())
 
-        with open(manifest_file, 'w') as hdl:
+        with open(manifest_file, "w") as hdl:
             config.write(hdl)
 
     def _git_init(self, tmpl):
@@ -750,33 +770,37 @@ class Package(_Content):
         for fname in repo.untracked_files:
             repo.index.add(fname)
 
-        features_info = ''
+        features_info = ""
         if self._features:
             names = sorted(['"' + f.name() + '"' for f in self._features])
             if len(names) == 1:
-                features_info = ', with feature {}'.format(names[0])
+                features_info = ", with feature {}".format(names[0])
             else:
-                features_info = ', with features '
-                features_info += ', '.join(names[:-1])
-                features_info += ' and ' + names[-1]
+                features_info = ", with features "
+                features_info += ", ".join(names[:-1])
+                features_info += " and " + names[-1]
 
         ver_info = tmpl.version()
         ver_sha = tmpl.version_sha()
 
         if ver_info is None:
             if ver_sha:
-                ver_info = 'version ' + ver_sha[:8]
+                ver_info = "version " + ver_sha[:8]
             else:
-                ver_info = 'no versioning'
+                ver_info = "no versioning"
         else:
-            ver_info = 'version ' + ver_info
+            ver_info = "version " + ver_info
             if ver_sha:
-                ver_info += ' (' + ver_sha[:8] + ')'
+                ver_info += " (" + ver_sha[:8] + ")"
 
-        repo.index.commit("""Initial commit.
+        repo.index.commit(
+            """Initial commit.
 
 zkg {} created this package from template "{}"
-using {}{}.""".format(__version__, tmpl.name(), ver_info, features_info))
+using {}{}.""".format(
+                __version__, tmpl.name(), ver_info, features_info
+            )
+        )
 
 
 class Feature(_Content):
@@ -786,6 +810,7 @@ class Feature(_Content):
     abstract. At a minimum, your template's Feature derivative needs
     to implement contentdir().
     """
+
     def name(self):
         """A name for this feature. Defaults to its content directory."""
-        return self.contentdir() or 'unnamed'
+        return self.contentdir() or "unnamed"

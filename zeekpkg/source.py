@@ -12,21 +12,14 @@ import os
 import shutil
 
 from . import LOG
-from .package import (
-    name_from_path,
-    Package
-)
-from ._util import (
-    git_default_branch,
-    git_checkout,
-    git_clone
-)
+from .package import name_from_path, Package
+from ._util import git_default_branch, git_checkout, git_clone
 
 #: The name of package index files.
-INDEX_FILENAME = 'zkg.index'
-LEGACY_INDEX_FILENAME = 'bro-pkg.index'
+INDEX_FILENAME = "zkg.index"
+LEGACY_INDEX_FILENAME = "bro-pkg.index"
 #: The name of the package source file where package metadata gets aggregated.
-AGGREGATE_DATA_FILE = 'aggregate.meta'
+AGGREGATE_DATA_FILE = "aggregate.meta"
 
 
 class Source(object):
@@ -62,19 +55,21 @@ class Source(object):
             LOG.debug('creating source clone of "%s" at %s', name, clone_path)
             self.clone = git_clone(git_url, clone_path, shallow=True)
         except git.exc.InvalidGitRepositoryError:
-            LOG.debug('deleting invalid source clone of "%s" at %s',
-                      name, clone_path)
+            LOG.debug('deleting invalid source clone of "%s" at %s', name, clone_path)
             shutil.rmtree(clone_path)
             self.clone = git_clone(git_url, clone_path, shallow=True)
         else:
             LOG.debug('found source clone of "%s" at %s', name, clone_path)
-            old_url = self.clone.git.config('--local', '--get',
-                                            'remote.origin.url')
+            old_url = self.clone.git.config("--local", "--get", "remote.origin.url")
 
             if git_url != old_url:
                 LOG.debug(
                     'url of source "%s" changed from %s to %s, reclone at %s',
-                    name, old_url, git_url, clone_path)
+                    name,
+                    old_url,
+                    git_url,
+                    clone_path,
+                )
                 shutil.rmtree(clone_path)
                 self.clone = git_clone(git_url, clone_path, shallow=True)
 
@@ -91,8 +86,7 @@ class Source(object):
         rval = []
         visited_dirs = set()
 
-        for root, dirs, files in os.walk(self.clone.working_dir,
-                                         followlinks=True):
+        for root, dirs, files in os.walk(self.clone.working_dir, followlinks=True):
             stat = os.stat(root)
             visited_dirs.add((stat.st_dev, stat.st_ino))
             dirs_to_visit_next = []
@@ -106,7 +100,7 @@ class Source(object):
             dirs[:] = dirs_to_visit_next
 
             try:
-                dirs.remove('.git')
+                dirs.remove(".git")
             except ValueError:
                 pass
 
@@ -121,17 +115,16 @@ class Source(object):
         rval = []
         # Use raw parser so no value interpolation takes place.
         parser = configparser.RawConfigParser()
-        aggregate_file = os.path.join(
-            self.clone.working_dir, AGGREGATE_DATA_FILE)
+        aggregate_file = os.path.join(self.clone.working_dir, AGGREGATE_DATA_FILE)
         parser.read(aggregate_file)
 
         for index_file in self.package_index_files():
-            relative_path = index_file[len(self.clone.working_dir) + 1:]
+            relative_path = index_file[len(self.clone.working_dir) + 1 :]
             directory = os.path.dirname(relative_path)
             lines = []
 
             with open(index_file) as f:
-                lines = [line.rstrip('\n') for line in f]
+                lines = [line.rstrip("\n") for line in f]
 
             for url in lines:
                 pkg_name = name_from_path(url)
@@ -139,11 +132,14 @@ class Source(object):
                 metadata = {}
 
                 if parser.has_section(agg_key):
-                    metadata = {key: value for key,
-                                value in parser.items(agg_key)}
+                    metadata = {key: value for key, value in parser.items(agg_key)}
 
-                package = Package(git_url=url, source=self.name,
-                                  directory=directory, metadata=metadata)
+                package = Package(
+                    git_url=url,
+                    source=self.name,
+                    directory=directory,
+                    metadata=metadata,
+                )
                 rval.append(package)
 
         return rval

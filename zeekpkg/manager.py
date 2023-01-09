@@ -42,10 +42,7 @@ from ._util import (
     configparser_section_dict,
     safe_tarfile_extractall,
 )
-from .source import (
-    AGGREGATE_DATA_FILE,
-    Source
-)
+from .source import AGGREGATE_DATA_FILE, Source
 from .package import (
     METADATA_FILENAME,
     LEGACY_METADATA_FILENAME,
@@ -61,7 +58,7 @@ from .package import (
     Package,
     PackageInfo,
     PackageStatus,
-    InstalledPackage
+    InstalledPackage,
 )
 from .uservar import (
     UserVar,
@@ -71,16 +68,17 @@ from . import (
     LOG,
 )
 
+
 class Stage(object):
     def __init__(self, manager, state_dir=None):
         self.manager = manager
 
         if state_dir:
             self.state_dir = state_dir
-            self.clone_dir = os.path.join(self.state_dir, 'clones')
-            self.script_dir = os.path.join(self.state_dir, 'scripts', 'packages')
-            self.plugin_dir = os.path.join(self.state_dir, 'plugins', 'packages')
-            self.bin_dir = os.path.join(self.state_dir, 'bin')
+            self.clone_dir = os.path.join(self.state_dir, "clones")
+            self.script_dir = os.path.join(self.state_dir, "scripts", "packages")
+            self.plugin_dir = os.path.join(self.state_dir, "plugins", "packages")
+            self.bin_dir = os.path.join(self.state_dir, "bin")
         else:
             # Stages not given a test directory are essentially a shortcut to
             # standard functionality; this doesn't require all directories:
@@ -115,22 +113,27 @@ class Stage(object):
                     make_symlink(entry.path, os.path.join(self.clone_dir, entry.name))
 
     def get_subprocess_env(self):
-        zeekpath = os.environ.get('ZEEKPATH') or os.environ.get('BROPATH')
-        pluginpath = os.environ.get('ZEEK_PLUGIN_PATH') or os.environ.get('BRO_PLUGIN_PATH')
+        zeekpath = os.environ.get("ZEEKPATH") or os.environ.get("BROPATH")
+        pluginpath = os.environ.get("ZEEK_PLUGIN_PATH") or os.environ.get(
+            "BRO_PLUGIN_PATH"
+        )
 
         if not (zeekpath and pluginpath):
-            zeek_config = find_program('zeek-config')
-            path_option = '--zeekpath'
+            zeek_config = find_program("zeek-config")
+            path_option = "--zeekpath"
 
             if not zeek_config:
-                zeek_config = find_program('bro-config')
-                path_option = '--bropath'
+                zeek_config = find_program("bro-config")
+                path_option = "--bropath"
 
             if zeek_config:
-                cmd = subprocess.Popen([zeek_config, path_option, '--plugin_dir'],
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT,
-                                       bufsize=1, universal_newlines=True)
+                cmd = subprocess.Popen(
+                    [zeek_config, path_option, "--plugin_dir"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    bufsize=1,
+                    universal_newlines=True,
+                )
                 line1 = read_zeek_config_line(cmd.stdout)
                 line2 = read_zeek_config_line(cmd.stdout)
 
@@ -146,13 +149,13 @@ class Stage(object):
         pluginpath = os.path.dirname(self.plugin_dir) + os.pathsep + pluginpath
 
         env = os.environ.copy()
-        env['PATH'] = self.bin_dir + os.pathsep + os.environ.get('PATH', '')
-        env['ZEEKPATH'] = zeekpath
-        env['ZEEK_PLUGIN_PATH'] = pluginpath
-        env['BROPATH'] = zeekpath
-        env['BRO_PLUGIN_PATH'] = pluginpath
+        env["PATH"] = self.bin_dir + os.pathsep + os.environ.get("PATH", "")
+        env["ZEEKPATH"] = zeekpath
+        env["ZEEK_PLUGIN_PATH"] = pluginpath
+        env["BROPATH"] = zeekpath
+        env["BRO_PLUGIN_PATH"] = pluginpath
 
-        return env, ''
+        return env, ""
 
 
 class Manager(object):
@@ -232,8 +235,15 @@ class Manager(object):
             load all installed packages that have been marked as loaded.
     """
 
-    def __init__(self, state_dir, script_dir, plugin_dir, zeek_dist='',
-                 user_vars=None, bin_dir=''):
+    def __init__(
+        self,
+        state_dir,
+        script_dir,
+        plugin_dir,
+        zeek_dist="",
+        user_vars=None,
+        bin_dir="",
+    ):
         """Creates a package manager instance.
 
         Args:
@@ -256,7 +266,7 @@ class Manager(object):
             OSError: when a package manager state directory can't be created
             IOError: when a package manager state file can't be created
         """
-        LOG.debug('init Manager version %s', __version__)
+        LOG.debug("init Manager version %s", __version__)
         self.sources = {}
         self.installed_pkgs = {}
         # The bro_dist attribute exists just for backward compatibility
@@ -264,21 +274,20 @@ class Manager(object):
         self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
-        self.backup_dir = os.path.join(self.state_dir, 'backups')
-        self.log_dir = os.path.join(self.state_dir, 'logs')
-        self.scratch_dir = os.path.join(self.state_dir, 'scratch')
+        self.backup_dir = os.path.join(self.state_dir, "backups")
+        self.log_dir = os.path.join(self.state_dir, "logs")
+        self.scratch_dir = os.path.join(self.state_dir, "scratch")
         self._script_dir = script_dir
-        self.script_dir = os.path.join(script_dir, 'packages')
+        self.script_dir = os.path.join(script_dir, "packages")
         self._plugin_dir = plugin_dir
-        self.plugin_dir = os.path.join(plugin_dir, 'packages')
-        self.bin_dir = bin_dir or os.path.join(self.state_dir, 'bin')
-        self.source_clonedir = os.path.join(self.state_dir, 'clones', 'source')
-        self.package_clonedir = os.path.join(
-            self.state_dir, 'clones', 'package')
-        self.package_testdir = os.path.join(self.state_dir, 'testing')
-        self.manifest = os.path.join(self.state_dir, 'manifest.json')
-        self.autoload_script = os.path.join(self.script_dir, 'packages.zeek')
-        self.autoload_package = os.path.join(self.script_dir, '__load__.zeek')
+        self.plugin_dir = os.path.join(plugin_dir, "packages")
+        self.bin_dir = bin_dir or os.path.join(self.state_dir, "bin")
+        self.source_clonedir = os.path.join(self.state_dir, "clones", "source")
+        self.package_clonedir = os.path.join(self.state_dir, "clones", "package")
+        self.package_testdir = os.path.join(self.state_dir, "testing")
+        self.manifest = os.path.join(self.state_dir, "manifest.json")
+        self.autoload_script = os.path.join(self.script_dir, "packages.zeek")
+        self.autoload_package = os.path.join(self.script_dir, "__load__.zeek")
         make_dir(self.state_dir)
         make_dir(self.log_dir)
         make_dir(self.scratch_dir)
@@ -287,21 +296,20 @@ class Manager(object):
         make_dir(self.script_dir)
         make_dir(self.plugin_dir)
         make_dir(self.bin_dir)
-        _create_readme(os.path.join(self.script_dir, 'README'))
-        _create_readme(os.path.join(self.plugin_dir, 'README'))
+        _create_readme(os.path.join(self.script_dir, "README"))
+        _create_readme(os.path.join(self.plugin_dir, "README"))
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
 
         prev_script_dir, prev_plugin_dir, prev_bin_dir = self._read_manifest()
 
-        refresh_bin_dir = False # whether we need to updates link in bin_dir
-        relocating_bin_dir = False # whether bin_dir has relocated
+        refresh_bin_dir = False  # whether we need to updates link in bin_dir
+        relocating_bin_dir = False  # whether bin_dir has relocated
         need_manifest_update = False
 
         if os.path.realpath(prev_script_dir) != os.path.realpath(self.script_dir):
-            LOG.info('relocating script_dir %s -> %s', prev_script_dir,
-                     self.script_dir)
+            LOG.info("relocating script_dir %s -> %s", prev_script_dir, self.script_dir)
 
             if os.path.exists(prev_script_dir):
                 delete_path(self.script_dir)
@@ -314,19 +322,16 @@ class Manager(object):
                 new_link = os.path.join(self.zeekpath(), pkg_name)
 
                 if os.path.lexists(old_link):
-                    LOG.info('moving package link %s -> %s',
-                             old_link, new_link)
+                    LOG.info("moving package link %s -> %s", old_link, new_link)
                     shutil.move(old_link, new_link)
                 else:
-                    LOG.info('skip moving package link %s -> %s',
-                             old_link, new_link)
+                    LOG.info("skip moving package link %s -> %s", old_link, new_link)
 
             need_manifest_update = True
             refresh_bin_dir = True
 
         if os.path.realpath(prev_plugin_dir) != os.path.realpath(self.plugin_dir):
-            LOG.info('relocating plugin_dir %s -> %s', prev_plugin_dir,
-                     self.plugin_dir)
+            LOG.info("relocating plugin_dir %s -> %s", prev_plugin_dir, self.plugin_dir)
 
             if os.path.exists(prev_plugin_dir):
                 delete_path(self.plugin_dir)
@@ -335,8 +340,10 @@ class Manager(object):
             need_manifest_update = True
             refresh_bin_dir = True
 
-        if prev_bin_dir and os.path.realpath(prev_bin_dir) != os.path.realpath(self.bin_dir):
-            LOG.info('relocating bin_dir %s -> %s', prev_bin_dir, self.bin_dir)
+        if prev_bin_dir and os.path.realpath(prev_bin_dir) != os.path.realpath(
+            self.bin_dir
+        ):
+            LOG.info("relocating bin_dir %s -> %s", prev_bin_dir, self.bin_dir)
             need_manifest_update = True
             refresh_bin_dir = True
             relocating_bin_dir = True
@@ -357,15 +364,15 @@ class Manager(object):
             self._write_manifest()
 
         self._write_autoloader()
-        make_symlink('packages.zeek', self.autoload_package)
+        make_symlink("packages.zeek", self.autoload_package)
 
         # Backward compatibility (Pre-Zeek 3.0 does not handle .zeek files)
-        autoload_script_fallback = os.path.join(self.script_dir, 'packages.bro')
-        autoload_package_fallback = os.path.join(self.script_dir, '__load__.bro')
+        autoload_script_fallback = os.path.join(self.script_dir, "packages.bro")
+        autoload_package_fallback = os.path.join(self.script_dir, "__load__.bro")
         delete_path(autoload_script_fallback)
         delete_path(autoload_package_fallback)
-        make_symlink('packages.zeek', autoload_script_fallback)
-        make_symlink('packages.zeek', autoload_package_fallback)
+        make_symlink("packages.zeek", autoload_script_fallback)
+        make_symlink("packages.zeek", autoload_package_fallback)
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -373,13 +380,15 @@ class Manager(object):
         Raises:
             IOError: if :file:`packages.zeek` loader script cannot be written
         """
-        with open(self.autoload_script, 'w') as f:
-            content = ('# WARNING: This file is managed by zkg.\n'
-                       '# Do not make direct modifications here.\n')
+        with open(self.autoload_script, "w") as f:
+            content = (
+                "# WARNING: This file is managed by zkg.\n"
+                "# Do not make direct modifications here.\n"
+            )
 
             for ipkg in self.loaded_packages():
                 if self.has_scripts(ipkg):
-                    content += '@load ./{}\n'.format(ipkg.package.name)
+                    content += "@load ./{}\n".format(ipkg.package.name)
 
             f.write(content)
 
@@ -399,25 +408,31 @@ class Manager(object):
         directory already contains a correctly named magic file, this
         function does nothing.
         """
-        magic_path = os.path.join(
-            self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE)
+        magic_path = os.path.join(self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE)
         magic_path_disabled = os.path.join(
-            self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE_DISABLED)
+            self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE_DISABLED
+        )
 
         if ipkg.status.is_loaded:
             if os.path.exists(magic_path_disabled):
                 try:
                     os.rename(magic_path_disabled, magic_path)
                 except OSError as exception:
-                    LOG.warning('could not enable plugin: %s: %s'.format(
-                        type(exception).__name__, exception))
+                    LOG.warning(
+                        "could not enable plugin: %s: %s".format(
+                            type(exception).__name__, exception
+                        )
+                    )
         else:
             if os.path.exists(magic_path):
                 try:
                     os.rename(magic_path, magic_path_disabled)
                 except OSError as exception:
-                    LOG.warning('could not disable plugin: %s: %s'.format(
-                        type(exception).__name__, exception))
+                    LOG.warning(
+                        "could not disable plugin: %s: %s".format(
+                            type(exception).__name__, exception
+                        )
+                    )
 
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
@@ -428,26 +443,26 @@ class Manager(object):
         Raises:
             IOError: when the manifest file can't be read
         """
-        with open(self.manifest, 'r') as f:
+        with open(self.manifest, "r") as f:
             data = json.load(f)
-            version = data['manifest_version']
-            pkg_list = data['installed_packages']
+            version = data["manifest_version"]
+            pkg_list = data["installed_packages"]
             self.installed_pkgs = {}
 
             for dicts in pkg_list:
-                pkg_dict = dicts['package_dict']
-                status_dict = dicts['status_dict']
-                pkg_name = pkg_dict['name']
+                pkg_dict = dicts["package_dict"]
+                status_dict = dicts["status_dict"]
+                pkg_name = pkg_dict["name"]
 
-                if version == 0 and 'index_data' in pkg_dict:
-                    del pkg_dict['index_data']
+                if version == 0 and "index_data" in pkg_dict:
+                    del pkg_dict["index_data"]
 
-                pkg_dict['canonical'] = True;
+                pkg_dict["canonical"] = True
                 pkg = Package(**pkg_dict)
                 status = PackageStatus(**status_dict)
                 self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
-            return data['script_dir'], data['plugin_dir'], data.get('bin_dir', None)
+            return data["script_dir"], data["plugin_dir"], data.get("bin_dir", None)
 
     def _write_manifest(self):
         """Writes the manifest file containing the list of installed packages.
@@ -458,14 +473,22 @@ class Manager(object):
         pkg_list = []
 
         for _, installed_pkg in self.installed_pkgs.items():
-            pkg_list.append({'package_dict': installed_pkg.package.__dict__,
-                             'status_dict': installed_pkg.status.__dict__})
+            pkg_list.append(
+                {
+                    "package_dict": installed_pkg.package.__dict__,
+                    "status_dict": installed_pkg.status.__dict__,
+                }
+            )
 
-        data = {'manifest_version': 1, 'script_dir': self.script_dir,
-                'plugin_dir': self.plugin_dir, 'bin_dir': self.bin_dir,
-                'installed_packages': pkg_list}
+        data = {
+            "manifest_version": 1,
+            "script_dir": self.script_dir,
+            "plugin_dir": self.plugin_dir,
+            "bin_dir": self.bin_dir,
+            "installed_packages": pkg_list,
+        }
 
-        with open(self.manifest, 'w') as f:
+        with open(self.manifest, "w") as f:
             json.dump(data, f, indent=2, sort_keys=True)
 
     def zeekpath(self):
@@ -519,8 +542,9 @@ class Manager(object):
                 LOG.debug('duplicate source "%s"', name)
                 return True
 
-            return 'source already exists with different URL: {}'.format(
-                existing_source.git_url)
+            return "source already exists with different URL: {}".format(
+                existing_source.git_url
+            )
 
         clone_path = os.path.join(self.source_clonedir, name)
 
@@ -533,15 +557,19 @@ class Manager(object):
         # is confusing the versioning logic. Note that per the git-clone
         # docs git recognizes scp-style URLs only when there are no slashes
         # before the first colon.
-        colonidx, slashidx = git_url.find(':'), git_url.find('/')
+        colonidx, slashidx = git_url.find(":"), git_url.find("/")
 
-        if '://' not in git_url and colonidx > 0 and (slashidx == -1 or slashidx > colonidx):
-            parse_result = urlparse('ssh://' + git_url.replace(':', '/', 1))
+        if (
+            "://" not in git_url
+            and colonidx > 0
+            and (slashidx == -1 or slashidx > colonidx)
+        ):
+            parse_result = urlparse("ssh://" + git_url.replace(":", "/", 1))
         else:
             parse_result = urlparse(git_url)
 
-        if parse_result.path and '@' in parse_result.path:
-            git_url, version = git_url.rsplit('@', 1)
+        if parse_result.path and "@" in parse_result.path:
+            git_url, version = git_url.rsplit("@", 1)
 
         try:
             source = Source(
@@ -551,12 +579,12 @@ class Manager(object):
                 version=version,
             )
         except git.exc.GitCommandError as error:
-            LOG.warning('failed to clone git repo: %s', error)
-            return 'failed to clone git repo'
+            LOG.warning("failed to clone git repo: %s", error)
+            return "failed to clone git repo"
         else:
             self.sources[name] = source
 
-        return ''
+        return ""
 
     def source_packages(self):
         """Return a list of :class:`.package.Package` within all sources."""
@@ -577,8 +605,10 @@ class Manager(object):
         Package-name / dependency-name / and version-requirement values are
         all strings.
         """
-        return {name: ipkg.package.dependencies()
-                for name, ipkg in self.installed_pkgs.items()}
+        return {
+            name: ipkg.package.dependencies()
+            for name, ipkg in self.installed_pkgs.items()
+        }
 
     def loaded_packages(self):
         """Return list of loaded :class:`.package.InstalledPackage`."""
@@ -601,7 +631,7 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
         """
         name = name_from_path(pkg_path)
-        return os.path.join(self.log_dir, '{}-build.log'.format(name))
+        return os.path.join(self.log_dir, "{}-build.log".format(name))
 
     def match_source_packages(self, pkg_path):
         """Return a list of :class:`.package.Package` that match a given path.
@@ -663,8 +693,7 @@ class Manager(object):
         Returns:
             bool: True if the package has installed Zeek scripts.
         """
-        return os.path.exists(os.path.join(self.script_dir,
-                                           installed_pkg.package.name))
+        return os.path.exists(os.path.join(self.script_dir, installed_pkg.package.name))
 
     def has_plugin(self, installed_pkg):
         """Return whether a :class:`.package.InstalledPackage` installed a plugin.
@@ -676,8 +705,7 @@ class Manager(object):
         Returns:
             bool: True if the package has installed a Zeek plugin.
         """
-        return os.path.exists(os.path.join(self.plugin_dir,
-                                           installed_pkg.package.name))
+        return os.path.exists(os.path.join(self.plugin_dir, installed_pkg.package.name))
 
     def save_temporary_config_files(self, installed_pkg):
         """Return a list of temporary package config file backups.
@@ -695,8 +723,9 @@ class Manager(object):
             so make use of it before doing any further operations on packages.
         """
         import re
+
         metadata = installed_pkg.package.metadata
-        config_files = re.split(',\s*', metadata.get('config_files', ''))
+        config_files = re.split(",\s*", metadata.get("config_files", ""))
 
         if not config_files:
             return []
@@ -709,11 +738,14 @@ class Manager(object):
             config_file_path = os.path.join(clone_dir, config_file)
 
             if not os.path.isfile(config_file_path):
-                LOG.info("package '%s' claims config file at '%s',"
-                         " but it does not exist", pkg_name, config_file)
+                LOG.info(
+                    "package '%s' claims config file at '%s'," " but it does not exist",
+                    pkg_name,
+                    config_file,
+                )
                 continue
 
-            backup_file = os.path.join(self.scratch_dir, 'tmpcfg', config_file)
+            backup_file = os.path.join(self.scratch_dir, "tmpcfg", config_file)
             make_dir(os.path.dirname(backup_file))
             shutil.copy2(config_file_path, backup_file)
             rval.append((config_file, backup_file))
@@ -735,8 +767,9 @@ class Manager(object):
             config file is currently installed.
         """
         import re
+
         metadata = installed_pkg.package.metadata
-        config_files = re.split(',\s*', metadata.get('config_files', ''))
+        config_files = re.split(",\s*", metadata.get("config_files", ""))
 
         if not config_files:
             return []
@@ -745,41 +778,56 @@ class Manager(object):
         script_install_dir = os.path.join(self.script_dir, pkg_name)
         plugin_install_dir = os.path.join(self.plugin_dir, pkg_name)
         clone_dir = os.path.join(self.package_clonedir, pkg_name)
-        script_dir = metadata.get('script_dir', '')
-        plugin_dir = metadata.get('plugin_dir', 'build')
+        script_dir = metadata.get("script_dir", "")
+        plugin_dir = metadata.get("plugin_dir", "build")
         rval = []
 
         for config_file in config_files:
             their_config_file_path = os.path.join(clone_dir, config_file)
 
             if not os.path.isfile(their_config_file_path):
-                LOG.info("package '%s' claims config file at '%s',"
-                         " but it does not exist", pkg_name, config_file)
+                LOG.info(
+                    "package '%s' claims config file at '%s'," " but it does not exist",
+                    pkg_name,
+                    config_file,
+                )
                 continue
 
             if config_file.startswith(plugin_dir):
                 our_config_file_path = os.path.join(
-                    plugin_install_dir, config_file[len(plugin_dir):])
+                    plugin_install_dir, config_file[len(plugin_dir) :]
+                )
 
                 if not os.path.isfile(our_config_file_path):
-                    LOG.info("package '%s' config file '%s' not found"
-                             " in plugin_dir: %s", pkg_name, config_file,
-                             our_config_file_path)
+                    LOG.info(
+                        "package '%s' config file '%s' not found" " in plugin_dir: %s",
+                        pkg_name,
+                        config_file,
+                        our_config_file_path,
+                    )
                     continue
             elif config_file.startswith(script_dir):
                 our_config_file_path = os.path.join(
-                    script_install_dir, config_file[len(script_dir):])
+                    script_install_dir, config_file[len(script_dir) :]
+                )
 
                 if not os.path.isfile(our_config_file_path):
-                    LOG.info("package '%s' config file '%s' not found"
-                             " in script_dir: %s", pkg_name, config_file,
-                             our_config_file_path)
+                    LOG.info(
+                        "package '%s' config file '%s' not found" " in script_dir: %s",
+                        pkg_name,
+                        config_file,
+                        our_config_file_path,
+                    )
                     continue
             else:
                 # Their config file is outside script/plugin install dirs,
                 # so no way user has it even installed, much less modified.
-                LOG.warning("package '%s' config file '%s' not within"
-                            " plugin_dir or script_dir", pkg_name, config_file)
+                LOG.warning(
+                    "package '%s' config file '%s' not within"
+                    " plugin_dir or script_dir",
+                    pkg_name,
+                    config_file,
+                )
                 continue
 
             if not filecmp.cmp(our_config_file_path, their_config_file_path):
@@ -802,6 +850,7 @@ class Manager(object):
             `modified_files`.
         """
         import time
+
         rval = []
 
         for modified_file in modified_files:
@@ -809,9 +858,8 @@ class Manager(object):
             config_file_dir = os.path.dirname(config_file)
             install_path = modified_file[1]
             filename = os.path.basename(install_path)
-            backup_dir = os.path.join(
-                self.backup_dir, backup_subdir, config_file_dir)
-            timestamp = time.strftime('.%Y-%m-%d-%H:%M:%S')
+            backup_dir = os.path.join(self.backup_dir, backup_subdir, config_file_dir)
+            timestamp = time.strftime(".%Y-%m-%d-%H:%M:%S")
             backup_path = os.path.join(backup_dir, filename + timestamp)
             make_dir(backup_dir)
             shutil.copy2(install_path, backup_path)
@@ -834,7 +882,7 @@ class Manager(object):
                 the failure.
         """
 
-        def __init__(self, refresh_error='', package_issues=[]):
+        def __init__(self, refresh_error="", package_issues=[]):
             self.refresh_error = refresh_error
             self.package_issues = package_issues
 
@@ -896,16 +944,15 @@ class Manager(object):
     def _refresh_source(self, name, aggregate=False, push=False):
         """Used by :meth:`refresh_source()` and :meth:`aggregate_source()`."""
         if name not in self.sources:
-            return self.SourceAggregationResults('source name does not exist')
+            return self.SourceAggregationResults("source name does not exist")
 
         source = self.sources[name]
         LOG.debug('refresh "%s": pulling %s', name, source.git_url)
-        aggregate_file = os.path.join(source.clone.working_dir,
-                                      AGGREGATE_DATA_FILE)
-        agg_file_ours = os.path.join(
-            self.scratch_dir, AGGREGATE_DATA_FILE)
-        agg_file_their_orig = os.path.join(self.scratch_dir,
-                                           AGGREGATE_DATA_FILE + '.orig')
+        aggregate_file = os.path.join(source.clone.working_dir, AGGREGATE_DATA_FILE)
+        agg_file_ours = os.path.join(self.scratch_dir, AGGREGATE_DATA_FILE)
+        agg_file_their_orig = os.path.join(
+            self.scratch_dir, AGGREGATE_DATA_FILE + ".orig"
+        )
 
         delete_path(agg_file_ours)
         delete_path(agg_file_their_orig)
@@ -914,18 +961,19 @@ class Manager(object):
             shutil.copy2(aggregate_file, agg_file_ours)
 
         source.clone.git.reset(hard=True)
-        source.clone.git.clean('-f', '-x', '-d')
+        source.clone.git.clean("-f", "-x", "-d")
 
         if os.path.isfile(aggregate_file):
             shutil.copy2(aggregate_file, agg_file_their_orig)
 
         try:
-            source.clone.git.fetch('--recurse-submodules=yes')
+            source.clone.git.fetch("--recurse-submodules=yes")
             git_pull(source.clone)
         except git.exc.GitCommandError as error:
-            LOG.error('failed to pull source %s: %s', name, error)
+            LOG.error("failed to pull source %s: %s", name, error)
             return self.SourceAggregationResults(
-                    'failed to pull from remote source: {}'.format(error))
+                "failed to pull from remote source: {}".format(error)
+            )
 
         if os.path.isfile(agg_file_ours):
             if os.path.isfile(aggregate_file):
@@ -936,11 +984,11 @@ class Manager(object):
                         # Their file hasn't changed, use ours.
                         shutil.copy2(agg_file_ours, aggregate_file)
                         LOG.debug(
-                            "aggegrate file in source unchanged, restore local one")
+                            "aggegrate file in source unchanged, restore local one"
+                        )
                     else:
                         # Their file changed, use theirs.
-                        LOG.debug(
-                            "aggegrate file in source changed, discard local one")
+                        LOG.debug("aggegrate file in source changed, discard local one")
                 else:
                     # File was untracked before pull and tracked after,
                     # use their version.
@@ -969,7 +1017,7 @@ class Manager(object):
                 urls = []
 
                 with open(index_file) as f:
-                    urls = [line.rstrip('\n') for line in f]
+                    urls = [line.rstrip("\n") for line in f]
 
                 for url in urls:
                     pkg_name = name_from_path(url)
@@ -979,8 +1027,9 @@ class Manager(object):
                     try:
                         clone = git_clone(url, clonepath, shallow=True)
                     except git.exc.GitCommandError as error:
-                        LOG.warn('failed to clone %s, skipping aggregation: %s',
-                                 url, error)
+                        LOG.warn(
+                            "failed to clone %s, skipping aggregation: %s", url, error
+                        )
                         aggregation_issues.append((url, repr(error)))
                         continue
 
@@ -994,27 +1043,38 @@ class Manager(object):
                     try:
                         git_checkout(clone, version)
                     except git.exc.GitCommandError as error:
-                        LOG.warn('failed to checkout branch/version "%s" of %s, '
-                                 'skipping aggregation: %s', version, url, error)
+                        LOG.warn(
+                            'failed to checkout branch/version "%s" of %s, '
+                            "skipping aggregation: %s",
+                            version,
+                            url,
+                            error,
+                        )
                         msg = 'failed to checkout branch/version "{}": {}'.format(
-                                version, repr(error))
+                            version, repr(error)
+                        )
                         aggregation_issues.append((url, msg))
                         continue
 
                     metadata_file = _pick_metadata_file(clone.working_dir)
                     metadata_parser = configparser.ConfigParser(interpolation=None)
                     invalid_reason = _parse_package_metadata(
-                        metadata_parser, metadata_file)
+                        metadata_parser, metadata_file
+                    )
 
                     if invalid_reason:
-                        LOG.warn('skipping aggregation of %s: bad metadata: %s',
-                                 url, invalid_reason)
+                        LOG.warn(
+                            "skipping aggregation of %s: bad metadata: %s",
+                            url,
+                            invalid_reason,
+                        )
                         aggregation_issues.append((url, invalid_reason))
                         continue
 
                     metadata = _get_package_metadata(metadata_parser)
-                    index_dir = os.path.dirname(index_file)[len(
-                        self.source_clonedir) + len(name) + 2:]
+                    index_dir = os.path.dirname(index_file)[
+                        len(self.source_clonedir) + len(name) + 2 :
+                    ]
                     qualified_name = os.path.join(index_dir, pkg_name)
 
                     parser.add_section(qualified_name)
@@ -1022,35 +1082,42 @@ class Manager(object):
                     for key, value in sorted(metadata.items()):
                         parser.set(qualified_name, key, value)
 
-                    parser.set(qualified_name, 'url', url)
-                    parser.set(qualified_name, 'version', version)
+                    parser.set(qualified_name, "url", url)
+                    parser.set(qualified_name, "version", version)
 
                     if qualified_name not in prev_packages:
                         agg_adds.append(qualified_name)
                     else:
-                        prev_meta = configparser_section_dict(prev_parser, qualified_name)
+                        prev_meta = configparser_section_dict(
+                            prev_parser, qualified_name
+                        )
                         new_meta = configparser_section_dict(parser, qualified_name)
                         if prev_meta != new_meta:
                             agg_mods.append(qualified_name)
 
-            with open(aggregate_file, 'w') as f:
+            with open(aggregate_file, "w") as f:
                 parser.write(f)
 
             agg_dels = list(prev_packages.difference(set(parser.sections())))
 
-            adds_str = ' (' + ', '.join(sorted(agg_adds)) + ')' if agg_adds else ''
-            mods_str = ' (' + ', '.join(sorted(agg_mods)) + ')' if agg_mods else ''
-            dels_str = ' (' + ', '.join(sorted(agg_dels)) + ')' if agg_dels else ''
+            adds_str = " (" + ", ".join(sorted(agg_adds)) + ")" if agg_adds else ""
+            mods_str = " (" + ", ".join(sorted(agg_mods)) + ")" if agg_mods else ""
+            dels_str = " (" + ", ".join(sorted(agg_dels)) + ")" if agg_dels else ""
 
-            LOG.debug('metadata refresh: %d additions%s, %d changes%s, %d removals%s',
-                      len(agg_adds), adds_str,
-                      len(agg_mods), mods_str,
-                      len(agg_dels), dels_str)
-
+            LOG.debug(
+                "metadata refresh: %d additions%s, %d changes%s, %d removals%s",
+                len(agg_adds),
+                adds_str,
+                len(agg_mods),
+                mods_str,
+                len(agg_dels),
+                dels_str,
+            )
 
         if push:
-            if os.path.isfile(os.path.join(source.clone.working_dir,
-                                           AGGREGATE_DATA_FILE)):
+            if os.path.isfile(
+                os.path.join(source.clone.working_dir, AGGREGATE_DATA_FILE)
+            ):
                 source.clone.git.add(AGGREGATE_DATA_FILE)
 
             if source.clone.is_dirty():
@@ -1061,12 +1128,13 @@ class Manager(object):
                 # why one would use zkg for this as opposed to git
                 # itself.
                 source.clone.git.commit(
-                    '--no-verify', '--message', 'Update aggregated metadata.')
+                    "--no-verify", "--message", "Update aggregated metadata."
+                )
                 LOG.info('committed package source "%s" metadata update', name)
 
-            source.clone.git.push('--no-verify')
+            source.clone.git.push("--no-verify")
 
-        return self.SourceAggregationResults('', aggregation_issues)
+        return self.SourceAggregationResults("", aggregation_issues)
 
     def refresh_installed_packages(self):
         """Fetch latest git information for installed packages.
@@ -1080,16 +1148,20 @@ class Manager(object):
         for ipkg in self.installed_packages():
             clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
             clone = git.Repo(clonepath)
-            LOG.debug('fetch package %s', ipkg.package.qualified_name())
+            LOG.debug("fetch package %s", ipkg.package.qualified_name())
 
             try:
-                clone.git.fetch('--recurse-submodules=yes')
+                clone.git.fetch("--recurse-submodules=yes")
             except git.exc.GitCommandError as error:
-                LOG.warn('failed to fetch package %s: %s',
-                         ipkg.package.qualified_name(), error)
+                LOG.warn(
+                    "failed to fetch package %s: %s",
+                    ipkg.package.qualified_name(),
+                    error,
+                )
 
             ipkg.status.is_outdated = _is_clone_outdated(
-                clone, ipkg.status.current_version, ipkg.status.tracking_method)
+                clone, ipkg.status.current_version, ipkg.status.tracking_method
+            )
 
         self._write_manifest()
 
@@ -1183,10 +1255,10 @@ class Manager(object):
             link = os.path.join(self.bin_dir, os.path.basename(exec))
             if os.path.islink(link):
                 try:
-                    LOG.debug('removing link %s', link)
+                    LOG.debug("removing link %s", link)
                     os.unlink(link)
                 except os.error as excpt:
-                    LOG.warn('cannot remove link for %s', exec)
+                    LOG.warn("cannot remove link for %s", exec)
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
@@ -1290,31 +1362,38 @@ class Manager(object):
 
         if not ipkg:
             LOG.info('loading "%s": no matching package', pkg_path)
-            return 'no such package'
+            return "no such package"
 
         if ipkg.status.is_loaded:
             LOG.debug('loading "%s": already loaded', pkg_path)
-            return ''
+            return ""
 
-        pkg_load_script = os.path.join(self.script_dir, ipkg.package.name,
-                                       '__load__.zeek')
+        pkg_load_script = os.path.join(
+            self.script_dir, ipkg.package.name, "__load__.zeek"
+        )
         # Check if __load__.bro exists for compatibility with older packages
-        pkg_load_fallback = os.path.join(self.script_dir, ipkg.package.name,
-                                       '__load__.bro')
+        pkg_load_fallback = os.path.join(
+            self.script_dir, ipkg.package.name, "__load__.bro"
+        )
 
-        if (not os.path.exists(pkg_load_script) and
-            not os.path.exists(pkg_load_fallback) and
-            not self.has_plugin(ipkg)):
-            LOG.debug('loading "%s": %s not found and package has no plugin',
-                      pkg_path, pkg_load_script)
-            return 'no __load__.zeek within package script_dir and no plugin included'
+        if (
+            not os.path.exists(pkg_load_script)
+            and not os.path.exists(pkg_load_fallback)
+            and not self.has_plugin(ipkg)
+        ):
+            LOG.debug(
+                'loading "%s": %s not found and package has no plugin',
+                pkg_path,
+                pkg_load_script,
+            )
+            return "no __load__.zeek within package script_dir and no plugin included"
 
         ipkg.status.is_loaded = True
         self._write_autoloader()
         self._write_manifest()
         self._write_plugin_magic(ipkg)
         LOG.debug('loaded "%s"', pkg_path)
-        return ''
+        return ""
 
     def loaded_package_states(self):
         """Save "loaded" state for all installed packages.
@@ -1322,7 +1401,9 @@ class Manager(object):
         Returns:
             dict: dictionary of "loaded" status for installed packages
         """
-        return {name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()}
+        return {
+            name: ipkg.status.is_loaded for name, ipkg in self.installed_pkgs.items()
+        }
 
     def restore_loaded_package_states(self, saved_state):
         """Restores state for installed packages.
@@ -1359,7 +1440,7 @@ class Manager(object):
 
         # skip loading a package if it is not installed.
         if not ipkg:
-            return [(pkg_name, 'Loading dependency failed. Package not installed.')]
+            return [(pkg_name, "Loading dependency failed. Package not installed.")]
 
         load_error = self.load(pkg_name)
 
@@ -1440,6 +1521,7 @@ class Manager(object):
         Raises:
             IOError: if the loader script or manifest can't be written
         """
+
         def _has_all_dependers_unloaded(item, dependers):
             for depender in dependers:
                 ipkg = self.find_installed_package(depender)
@@ -1462,7 +1544,7 @@ class Manager(object):
                 # it is possible that this dependency has been removed via zkg
 
                 if not ipkg:
-                    errors.append((pkg, 'Package not installed.'))
+                    errors.append((pkg, "Package not installed."))
                     return errors
 
                 if ipkg.status.is_loaded:
@@ -1472,7 +1554,7 @@ class Manager(object):
 
             # it is possible that this package has been removed via zkg
             if not ipkg:
-                errors.append((item, 'Package not installed.'))
+                errors.append((item, "Package not installed."))
                 return errors
 
             if ipkg.status.is_loaded:
@@ -1486,27 +1568,34 @@ class Manager(object):
 
                             if ipkg and ipkg.status.is_loaded:
                                 self.unload(dep)
-                                errors.append((dep, ''))
+                                errors.append((dep, ""))
 
                     self.unload(item)
-                    errors.append((item, ''))
+                    errors.append((item, ""))
                     continue
 
                 # check if all dependers are unloaded
                 elif _has_all_dependers_unloaded(item, dep_packages):
                     self.unload(item)
-                    errors.append((item, ''))
+                    errors.append((item, ""))
                     continue
 
                 # package is in use
                 else:
                     dep_packages = self.list_depender_pkgs(pkg_name)
-                    dep_listing = ''
+                    dep_listing = ""
 
                     for _name in dep_packages:
                         dep_listing += '"{}", '.format(_name)
 
-                    errors.append((item, 'Package is in use by other packages --- {}.'.format(dep_listing[:-2])))
+                    errors.append(
+                        (
+                            item,
+                            "Package is in use by other packages --- {}.".format(
+                                dep_listing[:-2]
+                            ),
+                        )
+                    )
                     return errors
 
         return errors
@@ -1566,7 +1655,7 @@ class Manager(object):
             contained in the bundle.
         """
         LOG.debug('getting bundle info for file "%s"', bundle_file)
-        bundle_dir = os.path.join(self.scratch_dir, 'bundle')
+        bundle_dir = os.path.join(self.scratch_dir, "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         infos = []
@@ -1576,31 +1665,30 @@ class Manager(object):
         except Exception as error:
             return (str(error), infos)
 
-        manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = configparser.ConfigParser(delimiters='=')
+        manifest_file = os.path.join(bundle_dir, "manifest.txt")
+        config = configparser.ConfigParser(delimiters="=")
         config.optionxform = str
 
         if not config.read(manifest_file):
-            return ('invalid bundle: no manifest file', infos)
+            return ("invalid bundle: no manifest file", infos)
 
-        if not config.has_section('bundle'):
-            return ('invalid bundle: no [bundle] section in manifest file',
-                    infos)
+        if not config.has_section("bundle"):
+            return ("invalid bundle: no [bundle] section in manifest file", infos)
 
-        manifest = config.items('bundle')
+        manifest = config.items("bundle")
 
         for git_url, version in manifest:
-            package = Package(git_url=git_url, name=git_url.split('/')[-1],
-                              canonical=True)
+            package = Package(
+                git_url=git_url, name=git_url.split("/")[-1], canonical=True
+            )
             pkg_path = os.path.join(bundle_dir, package.name)
             LOG.debug('getting info for bundled package "%s"', package.name)
-            pkg_info = self.info(pkg_path, version=version,
-                                 prefer_installed=False)
+            pkg_info = self.info(pkg_path, version=version, prefer_installed=False)
             infos.append((git_url, version, pkg_info))
 
-        return ('', infos)
+        return ("", infos)
 
-    def info(self, pkg_path, version='', prefer_installed=True):
+    def info(self, pkg_path, version="", prefer_installed=True):
         """Retrieves information about a package.
 
         Args:
@@ -1628,7 +1716,7 @@ class Manager(object):
         name = name_from_path(pkg_path)
 
         if not is_valid_package_name(name):
-            reason = 'Package name {!r} is not valid.'.format(name)
+            reason = "Package name {!r} is not valid.".format(name)
             return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
 
         LOG.debug('getting info on "%s"', pkg_path)
@@ -1639,8 +1727,7 @@ class Manager(object):
             pkg_name = ipkg.package.name
             clonepath = os.path.join(self.package_clonedir, pkg_name)
             clone = git.Repo(clonepath)
-            return _info_from_clone(clone, ipkg.package, status,
-                                    status.current_version)
+            return _info_from_clone(clone, ipkg.package, status, status.current_version)
         else:
             status = None
             matches = self.match_source_packages(pkg_path)
@@ -1651,24 +1738,30 @@ class Manager(object):
             try:
                 return self._info(package, status, version)
             except git.exc.GitCommandError as error:
-                LOG.info('getting info on "%s": invalid git repo path: %s',
-                         pkg_path, error)
+                LOG.info(
+                    'getting info on "%s": invalid git repo path: %s', pkg_path, error
+                )
 
-            LOG.info('getting info on "%s": matched no source package',
-                     pkg_path)
-            reason = ('package name not found in sources and also'
-                      ' not a usable git URL (invalid or inaccessible,'
-                      ' use -vvv for details)')
-            return PackageInfo(package=package, invalid_reason=reason,
-                               status=status)
+            LOG.info('getting info on "%s": matched no source package', pkg_path)
+            reason = (
+                "package name not found in sources and also"
+                " not a usable git URL (invalid or inaccessible,"
+                " use -vvv for details)"
+            )
+            return PackageInfo(package=package, invalid_reason=reason, status=status)
 
         if len(matches) > 1:
             matches_string = [match.qualified_name() for match in matches]
-            LOG.info('getting info on "%s": matched multiple packages: %s',
-                     pkg_path, matches_string)
-            reason = str.format('"{}" matches multiple packages, try a more'
-                                ' specific name from: {}',
-                                pkg_path, matches_string)
+            LOG.info(
+                'getting info on "%s": matched multiple packages: %s',
+                pkg_path,
+                matches_string,
+            )
+            reason = str.format(
+                '"{}" matches multiple packages, try a more' " specific name from: {}",
+                pkg_path,
+                matches_string,
+            )
             return PackageInfo(invalid_reason=reason, status=status)
 
         package = matches[0]
@@ -1676,11 +1769,9 @@ class Manager(object):
         try:
             return self._info(package, status, version)
         except git.exc.GitCommandError as error:
-            LOG.info('getting info on "%s": invalid git repo path: %s',
-                     pkg_path, error)
-            reason = 'git repository is either invalid or unreachable'
-            return PackageInfo(package=package, invalid_reason=reason,
-                               status=status)
+            LOG.info('getting info on "%s": invalid git repo path: %s', pkg_path, error)
+            reason = "git repository is either invalid or unreachable"
+            return PackageInfo(package=package, invalid_reason=reason, status=status)
 
     def _info(self, package, status, version):
         """Retrieves information about a package.
@@ -1696,7 +1787,6 @@ class Manager(object):
         versions = git_version_tags(clone)
 
         if not version:
-
             if len(versions):
                 version = versions[-1]
             else:
@@ -1705,10 +1795,8 @@ class Manager(object):
         try:
             git_checkout(clone, version)
         except git.exc.GitCommandError:
-            reason = 'no such commit, branch, or version tag: "{}"'.format(
-                version)
-            return PackageInfo(package=package, status=status,
-                               invalid_reason=reason)
+            reason = 'no such commit, branch, or version tag: "{}"'.format(version)
+            return PackageInfo(package=package, status=status, invalid_reason=reason)
 
         LOG.debug('checked out "%s", branch/version "%s"', package, version)
         return _info_from_clone(clone, package, status, version)
@@ -1728,9 +1816,12 @@ class Manager(object):
         clone = git.Repo(clonepath)
         return git_version_tags(clone)
 
-    def validate_dependencies(self, requested_packages,
-                              ignore_installed_packages=False,
-                              ignore_suggestions=False):
+    def validate_dependencies(
+        self,
+        requested_packages,
+        ignore_installed_packages=False,
+        ignore_suggestions=False,
+    ):
         """Validates package dependencies.
 
         Args:
@@ -1772,8 +1863,8 @@ class Manager(object):
             reverse iteration of the list guarantees processing of dependencies
             prior to the depender packages.
         """
-        class Node(object):
 
+        class Node(object):
             def __init__(self, name):
                 self.name = name
                 self.info = None
@@ -1785,12 +1876,16 @@ class Manager(object):
 
             def __str__(self):
                 return str.format(
-                    '{}\n\trequested: {}\n\tinstalled: {}\n\tdependers: {}\n\tsuggestion: {}',
-                    self.name, self.requested_version, self.installed_version,
-                    self.dependers, self.is_suggestion)
+                    "{}\n\trequested: {}\n\tinstalled: {}\n\tdependers: {}\n\tsuggestion: {}",
+                    self.name,
+                    self.requested_version,
+                    self.installed_version,
+                    self.dependers,
+                    self.is_suggestion,
+                )
 
-        graph = dict() # Node.name -> Node, nodes store edges
-        requests = [] # List of Node, just for requested packages
+        graph = dict()  # Node.name -> Node, nodes store edges
+        requests = []  # List of Node, just for requested packages
 
         # 1. Try to make nodes for everything in the dependency graph...
 
@@ -1799,8 +1894,10 @@ class Manager(object):
             info = self.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                return ('invalid package "{}": {}'.format(
-                    name, info.invalid_reason), [])
+                return (
+                    'invalid package "{}": {}'.format(name, info.invalid_reason),
+                    [],
+                )
 
             node = Node(info.package.qualified_name())
             node.info = info
@@ -1814,39 +1911,53 @@ class Manager(object):
 
         while to_process:
             (_, node) = to_process.popitem()
-            dd = node.info.dependencies(field='depends')
-            ds = node.info.dependencies(field='suggests')
+            dd = node.info.dependencies(field="depends")
+            ds = node.info.dependencies(field="suggests")
 
             if dd is None:
-                return (str.format('package "{}" has malformed "depends" field',
-                                   node.name), [])
+                return (
+                    str.format('package "{}" has malformed "depends" field', node.name),
+                    [],
+                )
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
-                    return (str.format('package "{}" has malformed "suggests" field',
-                                       node.name), [])
+                    return (
+                        str.format(
+                            'package "{}" has malformed "suggests" field', node.name
+                        ),
+                        [],
+                    )
 
                 all_deps.update(ds)
 
             for dep_name, _ in all_deps.items():
-                if dep_name == 'bro' or dep_name == 'zeek':
+                if dep_name == "bro" or dep_name == "zeek":
                     # A zeek node will get added later.
                     continue
 
-                if dep_name == 'bro-pkg' or dep_name == 'zkg':
+                if dep_name == "bro-pkg" or dep_name == "zkg":
                     # A zkg node will get added later.
                     continue
 
                 # Suggestion status propagates to 'depends' field of suggested packages.
-                is_suggestion = node.is_suggestion or dep_name in ds and dep_name not in dd
+                is_suggestion = (
+                    node.is_suggestion or dep_name in ds and dep_name not in dd
+                )
                 info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
-                    return (str.format(
-                        'package "{}" has invalid dependency "{}": {}',
-                        node.name, dep_name, info.invalid_reason), [])
+                    return (
+                        str.format(
+                            'package "{}" has invalid dependency "{}": {}',
+                            node.name,
+                            dep_name,
+                            info.invalid_reason,
+                        ),
+                        [],
+                    )
 
                 dep_name = info.package.qualified_name()
 
@@ -1873,16 +1984,17 @@ class Manager(object):
             zeek_version = get_zeek_version()
 
             if zeek_version:
-                node = Node('zeek')
+                node = Node("zeek")
                 node.installed_version = (TRACKING_METHOD_VERSION, zeek_version)
-                graph['zeek'] = node
+                graph["zeek"] = node
             else:
                 LOG.warning(
-                    'could not get zeek version: no "zeek-config" or "bro-config" in PATH ?')
+                    'could not get zeek version: no "zeek-config" or "bro-config" in PATH ?'
+                )
 
-            node = Node('zkg')
+            node = Node("zkg")
             node.installed_version = (TRACKING_METHOD_VERSION, __version__)
-            graph['zkg'] = node
+            graph["zkg"] = node
 
             for ipkg in self.installed_packages():
                 name = ipkg.package.qualified_name()
@@ -1895,47 +2007,55 @@ class Manager(object):
                     graph[node.name] = node
 
                 graph[name].installed_version = (
-                    status.tracking_method, status.current_version)
+                    status.tracking_method,
+                    status.current_version,
+                )
 
         # 2. Fill in the edges of the graph with dependency information.
         for name, node in graph.items():
-            if name == 'zeek':
+            if name == "zeek":
                 continue
 
-            if name == 'zkg':
+            if name == "zkg":
                 continue
 
-            dd = node.info.dependencies(field='depends')
-            ds = node.info.dependencies(field='suggests')
+            dd = node.info.dependencies(field="depends")
+            ds = node.info.dependencies(field="suggests")
 
             if dd is None:
-                return (str.format('package "{}" has malformed "depends" field',
-                                   node.name), [])
+                return (
+                    str.format('package "{}" has malformed "depends" field', node.name),
+                    [],
+                )
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
-                    return (str.format('package "{}" has malformed "suggests" field',
-                                       node.name), [])
+                    return (
+                        str.format(
+                            'package "{}" has malformed "suggests" field', node.name
+                        ),
+                        [],
+                    )
 
                 all_deps.update(ds)
 
             for dep_name, dep_version in all_deps.items():
-                if dep_name == 'bro' or dep_name == 'zeek':
-                    if 'zeek' in graph:
-                        graph['zeek'].dependers[name] = dep_version
-                        node.dependees['zeek'] = dep_version
-                elif dep_name == 'bro-pkg' or dep_name == 'zkg':
-                    if 'zkg' in graph:
-                        graph['zkg'].dependers[name] = dep_version
-                        node.dependees['zkg'] = dep_version
+                if dep_name == "bro" or dep_name == "zeek":
+                    if "zeek" in graph:
+                        graph["zeek"].dependers[name] = dep_version
+                        node.dependees["zeek"] = dep_version
+                elif dep_name == "bro-pkg" or dep_name == "zkg":
+                    if "zkg" in graph:
+                        graph["zkg"].dependers[name] = dep_version
+                        node.dependees["zkg"] = dep_version
                 else:
                     for _, dependency_node in graph.items():
-                        if dependency_node.name == 'zeek':
+                        if dependency_node.name == "zeek":
                             continue
 
-                        if dependency_node.name == 'zkg':
+                        if dependency_node.name == "zkg":
                             continue
 
                         if dependency_node.info.package.matches_path(dep_name):
@@ -1976,8 +2096,9 @@ class Manager(object):
                     continue
 
                 # A new package nothing depends on -- odd?
-                new_pkgs.append((node.info, node.info.best_version(),
-                                 node.is_suggestion))
+                new_pkgs.append(
+                    (node.info, node.info.best_version(), node.is_suggestion)
+                )
                 continue
 
             if node.requested_version:
@@ -1986,118 +2107,176 @@ class Manager(object):
 
                 if track_method == TRACKING_METHOD_BRANCH:
                     for depender_name, version_spec in node.dependers.items():
-                        if version_spec == '*':
+                        if version_spec == "*":
                             continue
 
-                        if version_spec.startswith('branch='):
-                            version_spec = version_spec[len('branch='):]
+                        if version_spec.startswith("branch="):
+                            version_spec = version_spec[len("branch=") :]
 
                         if version_spec == required_version:
                             continue
 
-                        return (str.format(
-                            'unsatisfiable dependency: requested "{}" ({}),'
-                            ' but "{}" requires {}', node.name,
-                            required_version, depender_name, version_spec),
-                            new_pkgs)
+                        return (
+                            str.format(
+                                'unsatisfiable dependency: requested "{}" ({}),'
+                                ' but "{}" requires {}',
+                                node.name,
+                                required_version,
+                                depender_name,
+                                version_spec,
+                            ),
+                            new_pkgs,
+                        )
                 elif track_method == TRACKING_METHOD_COMMIT:
                     for depender_name, version_spec in node.dependers.items():
-                        if version_spec == '*':
+                        if version_spec == "*":
                             continue
 
                         # Could allow commit= version specification like what
                         # is done with branches, but unsure there's a common
                         # use-case for it.
 
-                        return (str.format(
-                            'unsatisfiable dependency: requested "{}" ({}),'
-                            ' but "{}" requires {}', node.name,
-                            required_version, depender_name, version_spec),
-                            new_pkgs)
+                        return (
+                            str.format(
+                                'unsatisfiable dependency: requested "{}" ({}),'
+                                ' but "{}" requires {}',
+                                node.name,
+                                required_version,
+                                depender_name,
+                                version_spec,
+                            ),
+                            new_pkgs,
+                        )
                 else:
                     normal_version = normalize_version_tag(required_version)
                     req_semver = semver.Version.coerce(normal_version)
 
                     for depender_name, version_spec in node.dependers.items():
-                        if version_spec.startswith('branch='):
-                            version_spec = version_spec[len('branch='):]
-                            return (str.format(
-                                'unsatisfiable dependency: requested "{}" ({}),'
-                                ' but "{}" requires {}', node.name,
-                                required_version, depender_name, version_spec),
-                                new_pkgs)
+                        if version_spec.startswith("branch="):
+                            version_spec = version_spec[len("branch=") :]
+                            return (
+                                str.format(
+                                    'unsatisfiable dependency: requested "{}" ({}),'
+                                    ' but "{}" requires {}',
+                                    node.name,
+                                    required_version,
+                                    depender_name,
+                                    version_spec,
+                                ),
+                                new_pkgs,
+                            )
                         else:
                             try:
                                 semver_spec = semver.Spec(version_spec)
                             except ValueError:
-                                return (str.format(
-                                    'package "{}" has invalid semver spec: {}',
-                                    depender_name, version_spec), new_pkgs)
+                                return (
+                                    str.format(
+                                        'package "{}" has invalid semver spec: {}',
+                                        depender_name,
+                                        version_spec,
+                                    ),
+                                    new_pkgs,
+                                )
 
                             if req_semver not in semver_spec:
-                                return (str.format(
-                                    'unsatisfiable dependency: requested "{}" ({}),'
-                                    ' but "{}" requires {}', node.name,
-                                    required_version, depender_name, version_spec),
-                                    new_pkgs)
+                                return (
+                                    str.format(
+                                        'unsatisfiable dependency: requested "{}" ({}),'
+                                        ' but "{}" requires {}',
+                                        node.name,
+                                        required_version,
+                                        depender_name,
+                                        version_spec,
+                                    ),
+                                    new_pkgs,
+                                )
             elif node.installed_version:
                 # Check that installed version doesn't conflict with dependers.
                 track_method, required_version = node.installed_version
 
                 for depender_name, version_spec in node.dependers.items():
                     if track_method == TRACKING_METHOD_BRANCH:
-                        if version_spec == '*':
+                        if version_spec == "*":
                             continue
 
-                        if version_spec.startswith('branch='):
-                            version_spec = version_spec[len('branch='):]
+                        if version_spec.startswith("branch="):
+                            version_spec = version_spec[len("branch=") :]
 
                         if version_spec == required_version:
                             continue
 
-                        return (str.format(
-                            'unsatisfiable dependency: "{}" ({}) is installed,'
-                            ' but "{}" requires {}', node.name,
-                            required_version, depender_name, version_spec),
-                            new_pkgs)
+                        return (
+                            str.format(
+                                'unsatisfiable dependency: "{}" ({}) is installed,'
+                                ' but "{}" requires {}',
+                                node.name,
+                                required_version,
+                                depender_name,
+                                version_spec,
+                            ),
+                            new_pkgs,
+                        )
                     elif track_method == TRACKING_METHOD_COMMIT:
-                        if version_spec == '*':
+                        if version_spec == "*":
                             continue
 
                         # Could allow commit= version specification like what
                         # is done with branches, but unsure there's a common
                         # use-case for it.
 
-                        return (str.format(
-                            'unsatisfiable dependency: "{}" ({}) is installed,'
-                            ' but "{}" requires {}', node.name,
-                            required_version, depender_name, version_spec),
-                            new_pkgs)
+                        return (
+                            str.format(
+                                'unsatisfiable dependency: "{}" ({}) is installed,'
+                                ' but "{}" requires {}',
+                                node.name,
+                                required_version,
+                                depender_name,
+                                version_spec,
+                            ),
+                            new_pkgs,
+                        )
                     else:
                         normal_version = normalize_version_tag(required_version)
                         req_semver = semver.Version.coerce(normal_version)
 
-                        if version_spec.startswith('branch='):
-                            version_spec = version_spec[len('branch='):]
-                            return (str.format(
-                                'unsatisfiable dependency: "{}" ({}) is installed,'
-                                ' but "{}" requires {}', node.name,
-                                required_version, depender_name, version_spec),
-                                new_pkgs)
+                        if version_spec.startswith("branch="):
+                            version_spec = version_spec[len("branch=") :]
+                            return (
+                                str.format(
+                                    'unsatisfiable dependency: "{}" ({}) is installed,'
+                                    ' but "{}" requires {}',
+                                    node.name,
+                                    required_version,
+                                    depender_name,
+                                    version_spec,
+                                ),
+                                new_pkgs,
+                            )
                         else:
                             try:
                                 semver_spec = semver.Spec(version_spec)
                             except ValueError:
-                                return (str.format(
-                                    'package "{}" has invalid semver spec: {}',
-                                    depender_name, version_spec), new_pkgs)
+                                return (
+                                    str.format(
+                                        'package "{}" has invalid semver spec: {}',
+                                        depender_name,
+                                        version_spec,
+                                    ),
+                                    new_pkgs,
+                                )
 
                             if req_semver not in semver_spec:
-                                return (str.format(
-                                    'unsatisfiable dependency: "{}" ({}) is installed,'
-                                    ' but "{}" requires {}', node.name,
-                                    required_version, depender_name, version_spec),
-                                    new_pkgs)
+                                return (
+                                    str.format(
+                                        'unsatisfiable dependency: "{}" ({}) is installed,'
+                                        ' but "{}" requires {}',
+                                        node.name,
+                                        required_version,
+                                        depender_name,
+                                        version_spec,
+                                    ),
+                                    new_pkgs,
+                                )
             else:
                 # Choose best version that satisfies constraints
                 best_version = None
@@ -2106,19 +2285,20 @@ class Manager(object):
 
                 def no_best_version_string(node):
                     rval = str.format(
-                        '"{}" has no version satisfying dependencies:\n',
-                        node.name)
+                        '"{}" has no version satisfying dependencies:\n', node.name
+                    )
 
                     for depender_name, version_spec in node.dependers.items():
-                        rval += str.format('\t"{}" requires: "{}"\n',
-                                           depender_name, version_spec)
+                        rval += str.format(
+                            '\t"{}" requires: "{}"\n', depender_name, version_spec
+                        )
 
                     return rval
 
                 for _, version_spec in node.dependers.items():
-                    if version_spec.startswith('branch='):
+                    if version_spec.startswith("branch="):
                         need_branch = True
-                    elif version_spec != '*':
+                    elif version_spec != "*":
                         need_version = True
 
                 if need_branch and need_version:
@@ -2128,14 +2308,14 @@ class Manager(object):
                     branch_name = None
 
                     for depender_name, version_spec in node.dependers.items():
-                        if version_spec == '*':
+                        if version_spec == "*":
                             continue
 
                         if not branch_name:
-                            branch_name = version_spec[len('branch='):]
+                            branch_name = version_spec[len("branch=") :]
                             continue
 
-                        if branch_name != version_spec[len('branch='):]:
+                        if branch_name != version_spec[len("branch=") :]:
                             return (no_best_version_string(node), new_pkgs)
 
                     if branch_name:
@@ -2153,9 +2333,14 @@ class Manager(object):
                             try:
                                 semver_spec = semver.Spec(version_spec)
                             except ValueError:
-                                return (str.format(
-                                    'package "{}" has invalid semver spec: {}',
-                                    depender_name, version_spec), new_pkgs)
+                                return (
+                                    str.format(
+                                        'package "{}" has invalid semver spec: {}',
+                                        depender_name,
+                                        version_spec,
+                                    ),
+                                    new_pkgs,
+                                )
 
                             if req_semver not in semver_spec:
                                 satisfied = False
@@ -2185,7 +2370,7 @@ class Manager(object):
             seen_nodes.add(it[0].package.name)
             res.insert(0, it)
 
-        return ('', res)
+        return ("", res)
 
     def bundle(self, bundle_file, package_list, prefer_existing_clones=False):
         """Creates a package bundle.
@@ -2206,13 +2391,13 @@ class Manager(object):
             str: empty string if the bundle is successfully created,
             else an error string explaining what failed.
         """
-        bundle_dir = os.path.join(self.scratch_dir, 'bundle')
+        bundle_dir = os.path.join(self.scratch_dir, "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
-        manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = configparser.ConfigParser(delimiters='=')
+        manifest_file = os.path.join(bundle_dir, "manifest.txt")
+        config = configparser.ConfigParser(delimiters="=")
         config.optionxform = str
-        config.add_section('bundle')
+        config.add_section("bundle")
 
         def match_package_url_and_version(git_url, version):
             for ipkg in self.installed_packages():
@@ -2229,18 +2414,17 @@ class Manager(object):
         for git_url, version in package_list:
             name = name_from_path(git_url)
             clonepath = os.path.join(bundle_dir, name)
-            config.set('bundle', git_url, version)
+            config.set("bundle", git_url, version)
 
             if prefer_existing_clones:
                 ipkg = match_package_url_and_version(git_url, version)
 
                 if ipkg:
-                    src = os.path.join(
-                        self.package_clonedir, ipkg.package.name)
+                    src = os.path.join(self.package_clonedir, ipkg.package.name)
                     shutil.copytree(src, clonepath, symlinks=True)
                     clone = git.Repo(clonepath)
                     clone.git.reset(hard=True)
-                    clone.git.clean('-f', '-x', '-d')
+                    clone.git.clean("-f", "-x", "-d")
 
                     for modified_config in self.modified_config_files(ipkg):
                         dst = os.path.join(clonepath, modified_config[0])
@@ -2251,15 +2435,15 @@ class Manager(object):
             try:
                 git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
             except git.exc.GitCommandError as error:
-                return 'failed to clone {}: {}'.format(git_url, error)
+                return "failed to clone {}: {}".format(git_url, error)
 
-        with open(manifest_file, 'w') as f:
+        with open(manifest_file, "w") as f:
             config.write(f)
 
-        archive = shutil.make_archive(bundle_dir, 'gztar', bundle_dir)
+        archive = shutil.make_archive(bundle_dir, "gztar", bundle_dir)
         delete_path(bundle_file)
         shutil.move(archive, bundle_file)
-        return ''
+        return ""
 
     def unbundle(self, bundle_file):
         """Installs all packages contained within a bundle.
@@ -2272,7 +2456,7 @@ class Manager(object):
             message indicated what went wrong.
         """
         LOG.debug('unbundle "%s"', bundle_file)
-        bundle_dir = os.path.join(self.scratch_dir, 'bundle')
+        bundle_dir = os.path.join(self.scratch_dir, "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
 
@@ -2281,21 +2465,22 @@ class Manager(object):
         except Exception as error:
             return str(error)
 
-        manifest_file = os.path.join(bundle_dir, 'manifest.txt')
-        config = configparser.ConfigParser(delimiters='=')
+        manifest_file = os.path.join(bundle_dir, "manifest.txt")
+        config = configparser.ConfigParser(delimiters="=")
         config.optionxform = str
 
         if not config.read(manifest_file):
-            return 'invalid bundle: no manifest file'
+            return "invalid bundle: no manifest file"
 
-        if not config.has_section('bundle'):
-            return 'invalid bundle: no [bundle] section in manifest file'
+        if not config.has_section("bundle"):
+            return "invalid bundle: no [bundle] section in manifest file"
 
-        manifest = config.items('bundle')
+        manifest = config.items("bundle")
 
         for git_url, version in manifest:
-            package = Package(git_url=git_url, name=git_url.split('/')[-1],
-                              canonical=True)
+            package = Package(
+                git_url=git_url, name=git_url.split("/")[-1], canonical=True
+            )
             clonepath = os.path.join(self.package_clonedir, package.name)
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)
@@ -2306,9 +2491,9 @@ class Manager(object):
             if error:
                 return error
 
-        return ''
+        return ""
 
-    def test(self, pkg_path, version='', test_dependencies=False):
+    def test(self, pkg_path, version="", test_dependencies=False):
         """Test a package.
 
         Args:
@@ -2343,10 +2528,10 @@ class Manager(object):
         pkg_info = self.info(pkg_path, version=version, prefer_installed=False)
 
         if pkg_info.invalid_reason:
-            return (pkg_info.invalid_reason, 'False', '')
+            return (pkg_info.invalid_reason, "False", "")
 
-        if 'test_command' not in pkg_info.metadata:
-            return ('Package does not specify a test_command', False, '')
+        if "test_command" not in pkg_info.metadata:
+            return ("Package does not specify a test_command", False, "")
 
         if not version:
             version = pkg_info.metadata_version
@@ -2363,7 +2548,7 @@ class Manager(object):
 
         env, err = stage.get_subprocess_env()
         if env is None:
-            LOG.warning('%s when running tests for %s', err, package.name)
+            LOG.warning("%s when running tests for %s", err, package.name)
             return (err, False, stage.state_dir)
 
         pkgs = []
@@ -2375,8 +2560,9 @@ class Manager(object):
         # Clone all packages, checkout right version, and build/install to
         # staging area.
         for info, version in reversed(pkgs):
-            LOG.debug('preparing "%s" for testing: version %s',
-                      info.package.name, version)
+            LOG.debug(
+                'preparing "%s" for testing: version %s', info.package.name, version
+            )
             clonepath = os.path.join(stage.clone_dir, info.package.name)
 
             # After we prepared the stage, the clonepath might exist (as a
@@ -2389,17 +2575,24 @@ class Manager(object):
             try:
                 clone = _clone_package(info.package, clonepath, version)
             except git.exc.GitCommandError as error:
-                LOG.warning('failed to clone git repo: %s', error)
-                return ('failed to clone {}'.format(info.package.git_url),
-                        False, stage.state_dir)
+                LOG.warning("failed to clone git repo: %s", error)
+                return (
+                    "failed to clone {}".format(info.package.git_url),
+                    False,
+                    stage.state_dir,
+                )
 
             try:
                 git_checkout(clone, version)
             except git.exc.GitCommandError as error:
-                LOG.warning('failed to checkout git repo version: %s', error)
-                return (str.format('failed to checkout {} of {}',
-                                   version, info.package.git_url),
-                        False, stage.state_dir)
+                LOG.warning("failed to checkout git repo version: %s", error)
+                return (
+                    str.format(
+                        "failed to checkout {} of {}", version, info.package.git_url
+                    ),
+                    False,
+                    stage.state_dir,
+                )
 
             fail_msg = self._stage(info.package, version, clone, stage, env)
 
@@ -2416,39 +2609,57 @@ class Manager(object):
             LOG.info('testing "%s"', package)
             # Interpolate the test command:
             metadata, invalid_reason = self._interpolate_package_metadata(
-                info.metadata, stage)
+                info.metadata, stage
+            )
             if invalid_reason:
                 return (invalid_reason, False, stage.state_dir)
 
-            if 'test_command' not in metadata:
-                LOG.info('Skipping unit tests for "%s": no test_command in metadata',
-                         info.package.qualified_name())
+            if "test_command" not in metadata:
+                LOG.info(
+                    'Skipping unit tests for "%s": no test_command in metadata',
+                    info.package.qualified_name(),
+                )
                 continue
 
-            test_command = metadata['test_command']
+            test_command = metadata["test_command"]
 
             cwd = os.path.join(stage.clone_dir, info.package.name)
-            outfile = os.path.join(cwd, 'zkg.test_command.stdout')
-            errfile = os.path.join(cwd, 'zkg.test_command.stderr')
+            outfile = os.path.join(cwd, "zkg.test_command.stdout")
+            errfile = os.path.join(cwd, "zkg.test_command.stderr")
 
-            LOG.debug('running test_command for %s with cwd="%s", PATH="%s",'
-                      ' and ZEEKPATH="%s": %s', info.package.name, cwd,
-                      env['PATH'], env['ZEEKPATH'], test_command)
+            LOG.debug(
+                'running test_command for %s with cwd="%s", PATH="%s",'
+                ' and ZEEKPATH="%s": %s',
+                info.package.name,
+                cwd,
+                env["PATH"],
+                env["ZEEKPATH"],
+                test_command,
+            )
 
-            with open(outfile, 'w') as test_stdout, open(errfile, 'w') as test_stderr:
-                cmd = subprocess.Popen(test_command, shell=True, cwd=cwd, env=env,
-                                       stdout=test_stdout, stderr=test_stderr)
+            with open(outfile, "w") as test_stdout, open(errfile, "w") as test_stderr:
+                cmd = subprocess.Popen(
+                    test_command,
+                    shell=True,
+                    cwd=cwd,
+                    env=env,
+                    stdout=test_stdout,
+                    stderr=test_stderr,
+                )
 
             rc = cmd.wait()
 
             if rc != 0:
-                return ('test_command failed with exit code {}'.format(rc),
-                        False, stage.state_dir)
+                return (
+                    "test_command failed with exit code {}".format(rc),
+                    False,
+                    stage.state_dir,
+                )
 
-        return ('', True, stage.state_dir)
+        return ("", True, stage.state_dir)
 
     def _get_executables(self, metadata):
-        return metadata.get('executables', '').split()
+        return metadata.get("executables", "").split()
 
     def _stage(self, package, version, clone, stage, env=None):
         """Stage a package.
@@ -2485,8 +2696,7 @@ class Manager(object):
         LOG.debug('staging "%s": version %s', package, version)
         metadata_file = _pick_metadata_file(clone.working_dir)
         metadata_parser = configparser.ConfigParser(interpolation=None)
-        invalid_reason = _parse_package_metadata(
-            metadata_parser, metadata_file)
+        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
         if invalid_reason:
             return invalid_reason
 
@@ -2495,25 +2705,31 @@ class Manager(object):
         if invalid_reason:
             return invalid_reason
 
-        build_command = metadata.get('build_command', '')
+        build_command = metadata.get("build_command", "")
         if build_command:
-            LOG.debug('building "%s": running build_command: %s',
-                      package, build_command)
+            LOG.debug(
+                'building "%s": running build_command: %s', package, build_command
+            )
             bufsize = 4096
-            build = subprocess.Popen(build_command,
-                                     shell=True, cwd=clone.working_dir,
-                                     env=env, bufsize=bufsize,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
+            build = subprocess.Popen(
+                build_command,
+                shell=True,
+                cwd=clone.working_dir,
+                env=env,
+                bufsize=bufsize,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
             try:
                 buildlog = self.package_build_log(clone.working_dir)
 
-                with open(buildlog, 'wb') as f:
-                    LOG.info('installing "%s": writing build log: %s',
-                             package, buildlog)
+                with open(buildlog, "wb") as f:
+                    LOG.info(
+                        'installing "%s": writing build log: %s', package, buildlog
+                    )
 
-                    f.write(u'=== STDERR ===\n'.encode(std_encoding(sys.stderr)))
+                    f.write("=== STDERR ===\n".encode(std_encoding(sys.stderr)))
 
                     while True:
                         data = build.stderr.read(bufsize)
@@ -2523,7 +2739,7 @@ class Manager(object):
                         else:
                             break
 
-                    f.write(u'=== STDOUT ===\n'.encode(std_encoding(sys.stdout)))
+                    f.write("=== STDOUT ===\n".encode(std_encoding(sys.stdout)))
 
                     while True:
                         data = build.stdout.read(bufsize)
@@ -2536,75 +2752,87 @@ class Manager(object):
             except EnvironmentError as error:
                 LOG.warning(
                     'installing "%s": failed to write build log %s %s: %s',
-                    package, buildlog, error.errno, error.strerror)
+                    package,
+                    buildlog,
+                    error.errno,
+                    error.strerror,
+                )
 
             returncode = build.wait()
 
             if returncode != 0:
-                return 'package build_command failed, see log in {}'.format(
-                    buildlog)
+                return "package build_command failed, see log in {}".format(buildlog)
 
-        pkg_script_dir = metadata.get('script_dir', '')
+        pkg_script_dir = metadata.get("script_dir", "")
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
         script_dir_dst = os.path.join(stage.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
-            return str.format("package's 'script_dir' does not exist: {}",
-                              pkg_script_dir)
+            return str.format(
+                "package's 'script_dir' does not exist: {}", pkg_script_dir
+            )
 
-        pkgload = os.path.join(script_dir_src, '__load__.')
+        pkgload = os.path.join(script_dir_src, "__load__.")
 
         # Check if __load__.bro exists for compatibility with older packages
-        if os.path.isfile(pkgload + 'zeek') or os.path.isfile(pkgload + 'bro'):
+        if os.path.isfile(pkgload + "zeek") or os.path.isfile(pkgload + "bro"):
             try:
-                symlink_path = os.path.join(os.path.dirname(stage.script_dir),
-                                            package.name)
-                make_symlink(os.path.join('packages', package.name),
-                             symlink_path)
+                symlink_path = os.path.join(
+                    os.path.dirname(stage.script_dir), package.name
+                )
+                make_symlink(os.path.join("packages", package.name), symlink_path)
 
                 for alias in aliases(metadata):
                     symlink_path = os.path.join(
-                            os.path.dirname(stage.script_dir), alias)
-                    make_symlink(os.path.join('packages', package.name),
-                                 symlink_path)
+                        os.path.dirname(stage.script_dir), alias
+                    )
+                    make_symlink(os.path.join("packages", package.name), symlink_path)
 
             except OSError as exception:
-                error = 'could not create symlink at {}'.format(symlink_path)
-                error += ': {}: {}'.format(type(exception).__name__, exception)
+                error = "could not create symlink at {}".format(symlink_path)
+                error += ": {}: {}".format(type(exception).__name__, exception)
                 return error
 
-            error = _copy_package_dir(package, 'script_dir',
-                                      script_dir_src, script_dir_dst,
-                                      self.scratch_dir)
+            error = _copy_package_dir(
+                package, "script_dir", script_dir_src, script_dir_dst, self.scratch_dir
+            )
 
             if error:
                 return error
         else:
-            if 'script_dir' in metadata:
-                return str.format("no __load__.zeek file found"
-                                  " in package's 'script_dir' : {}",
-                                  pkg_script_dir)
+            if "script_dir" in metadata:
+                return str.format(
+                    "no __load__.zeek file found" " in package's 'script_dir' : {}",
+                    pkg_script_dir,
+                )
             else:
-                LOG.warning('installing "%s": no __load__.zeek in implicit'
-                            ' script_dir, skipped installing scripts', package)
+                LOG.warning(
+                    'installing "%s": no __load__.zeek in implicit'
+                    " script_dir, skipped installing scripts",
+                    package,
+                )
 
-        pkg_plugin_dir = metadata.get('plugin_dir', 'build')
+        pkg_plugin_dir = metadata.get("plugin_dir", "build")
         plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
         plugin_dir_dst = os.path.join(stage.plugin_dir, package.name)
 
         if not os.path.exists(plugin_dir_src):
-            LOG.info('installing "%s": package "plugin_dir" does not exist: %s',
-                     package, pkg_plugin_dir)
+            LOG.info(
+                'installing "%s": package "plugin_dir" does not exist: %s',
+                package,
+                pkg_plugin_dir,
+            )
 
-            if pkg_plugin_dir != 'build':
+            if pkg_plugin_dir != "build":
                 # It's common for a package to not have build directory for
                 # plugins, so don't error out in that case, just log it.
-                return str.format("package's 'plugin_dir' does not exist: {}",
-                                  pkg_plugin_dir)
+                return str.format(
+                    "package's 'plugin_dir' does not exist: {}", pkg_plugin_dir
+                )
 
-        error = _copy_package_dir(package, 'plugin_dir',
-                                  plugin_dir_src, plugin_dir_dst,
-                                  self.scratch_dir)
+        error = _copy_package_dir(
+            package, "plugin_dir", plugin_dir_src, plugin_dir_dst, self.scratch_dir
+        )
 
         if error:
             return error
@@ -2619,12 +2847,15 @@ class Manager(object):
                 return str.format("file '{}' is not executable", p)
 
             if stage.bin_dir is not None:
-                make_symlink(full_path, os.path.join(
-                    stage.bin_dir, os.path.basename(p)), force=True)
+                make_symlink(
+                    full_path,
+                    os.path.join(stage.bin_dir, os.path.basename(p)),
+                    force=True,
+                )
 
-        return ''
+        return ""
 
-    def install(self, pkg_path, version=''):
+    def install(self, pkg_path, version=""):
         """Install a package.
 
         Args:
@@ -2654,18 +2885,21 @@ class Manager(object):
             conflict = ipkg.package
 
             if conflict.qualified_name().endswith(pkg_path):
-                LOG.debug('installing "%s": re-install: %s',
-                          pkg_path, conflict)
+                LOG.debug('installing "%s": re-install: %s', pkg_path, conflict)
                 clonepath = os.path.join(self.package_clonedir, conflict.name)
                 _clone_package(conflict, clonepath, version)
                 return self._install(conflict, version)
             else:
                 LOG.info(
                     'installing "%s": matched already installed package: %s',
-                    pkg_path, conflict)
+                    pkg_path,
+                    conflict,
+                )
                 return str.format(
                     'package with name "{}" ({}) is already installed',
-                    conflict.name, conflict)
+                    conflict.name,
+                    conflict,
+                )
 
         matches = self.match_source_packages(pkg_path)
 
@@ -2674,25 +2908,28 @@ class Manager(object):
                 package = Package(git_url=pkg_path)
                 return self._install(package, version)
             except git.exc.GitCommandError as error:
-                LOG.info('installing "%s": invalid git repo path: %s', pkg_path,
-                         error)
+                LOG.info('installing "%s": invalid git repo path: %s', pkg_path, error)
 
             LOG.info('installing "%s": matched no source package', pkg_path)
-            return 'package not found in sources and also not a valid git URL'
+            return "package not found in sources and also not a valid git URL"
 
         if len(matches) > 1:
             matches_string = [match.qualified_name() for match in matches]
-            LOG.info('installing "%s": matched multiple packages: %s',
-                     pkg_path, matches_string)
-            return str.format('"{}" matches multiple packages, try a more'
-                              ' specific name from: {}',
-                              pkg_path, matches_string)
+            LOG.info(
+                'installing "%s": matched multiple packages: %s',
+                pkg_path,
+                matches_string,
+            )
+            return str.format(
+                '"{}" matches multiple packages, try a more' " specific name from: {}",
+                pkg_path,
+                matches_string,
+            )
 
         try:
             return self._install(matches[0], version)
         except git.exc.GitCommandError as error:
-            LOG.warning('installing "%s": source package git repo is invalid',
-                        pkg_path)
+            LOG.warning('installing "%s": source package git repo is invalid', pkg_path)
             return 'failed to clone package "{}": {}'.format(pkg_path, error)
 
     def _install(self, package, version, use_existing_clone=False):
@@ -2732,8 +2969,8 @@ class Manager(object):
                     status.tracking_method = TRACKING_METHOD_BRANCH
                 else:
                     LOG.info(
-                        'branch "%s" not in available branches: %s', version,
-                        branches)
+                        'branch "%s" not in available branches: %s', version, branches
+                    )
                     return 'no such branch or version tag: "{}"'.format(version)
 
         else:
@@ -2747,13 +2984,11 @@ class Manager(object):
         status.current_version = version
         git_checkout(clone, version)
         status.current_hash = clone.head.object.hexsha
-        status.is_outdated = _is_clone_outdated(
-            clone, version, status.tracking_method)
+        status.is_outdated = _is_clone_outdated(clone, version, status.tracking_method)
 
         metadata_file = _pick_metadata_file(clone.working_dir)
         metadata_parser = configparser.ConfigParser(interpolation=None)
-        invalid_reason = _parse_package_metadata(
-            metadata_parser, metadata_file)
+        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
         if invalid_reason:
             return invalid_reason
@@ -2782,7 +3017,7 @@ class Manager(object):
         self._write_manifest()
         self._refresh_bin_dir(self.bin_dir)
         LOG.debug('installed "%s"', package)
-        return ''
+        return ""
 
     def _interpolate_package_metadata(self, metadata, stage):
         # This is a bit circular: we need to parse the user variables, if any,
@@ -2794,9 +3029,9 @@ class Manager(object):
             return None, "package has malformed 'user_vars' metadata field"
 
         substitutions = {
-            'bro_dist': self.zeek_dist,
-            'zeek_dist': self.zeek_dist,
-            'package_base': stage.clone_dir,
+            "bro_dist": self.zeek_dist,
+            "zeek_dist": self.zeek_dist,
+            "package_base": stage.clone_dir,
         }
 
         substitutions.update(self.user_vars)
@@ -2812,7 +3047,7 @@ class Manager(object):
 
         # Now apply the substitutions via a new config parser:
         metadata_parser = configparser.ConfigParser(defaults=substitutions)
-        metadata_parser.read_dict({'package': metadata})
+        metadata_parser.read_dict({"package": metadata})
 
         return _get_package_metadata(metadata_parser), None
 
@@ -2825,11 +3060,15 @@ class Manager(object):
                 src = os.path.join(self.package_clonedir, ipkg.package.name, exec)
                 dst = os.path.join(bin_dir, os.path.basename(exec))
 
-                if not os.path.exists(dst) or not os.path.islink(dst) or os.path.realpath(src) != os.path.realpath(dst):
-                    LOG.debug('creating link %s -> %s', src, dst)
+                if (
+                    not os.path.exists(dst)
+                    or not os.path.islink(dst)
+                    or os.path.realpath(src) != os.path.realpath(dst)
+                ):
+                    LOG.debug("creating link %s -> %s", src, dst)
                     make_symlink(src, dst, force=True)
                 else:
-                    LOG.debug('link %s is up to date', dst)
+                    LOG.debug("link %s is up to date", dst)
 
     # Remove all links in bin_dir that are associated with executables
     # coming with any of the currently installed package.
@@ -2840,9 +3079,9 @@ class Manager(object):
                 if os.path.islink(old):
                     try:
                         os.unlink(old)
-                        LOG.debug('removed link %s', old)
+                        LOG.debug("removed link %s", old)
                     except Exception:
-                        LOG.warn('failed to remove link %s', old)
+                        LOG.warn("failed to remove link %s", old)
 
 
 def _get_branch_names(clone):
@@ -2851,10 +3090,10 @@ def _get_branch_names(clone):
     for ref in clone.references:
         branch_name = str(ref.name)
 
-        if not branch_name.startswith('origin/'):
+        if not branch_name.startswith("origin/"):
             continue
 
-        rval.append(branch_name.split('origin/')[1])
+        rval.append(branch_name.split("origin/")[1])
 
     return rval
 
@@ -2866,7 +3105,7 @@ def _is_version_outdated(clone, version):
 
 
 def _is_branch_outdated(clone, branch):
-    it = clone.iter_commits('{0}..origin/{0}'.format(branch))
+    it = clone.iter_commits("{0}..origin/{0}".format(branch))
     num_commits_behind = sum(1 for c in it)
     return num_commits_behind > 0
 
@@ -2898,10 +3137,10 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         explaining why it failed.
     """
     if not os.path.exists(src):
-        return ''
+        return ""
 
     if os.path.isfile(src) and tarfile.is_tarfile(src):
-        tmp_dir = os.path.join(scratch_dir, 'untar')
+        tmp_dir = os.path.join(scratch_dir, "untar")
         delete_path(tmp_dir)
         make_dir(tmp_dir)
 
@@ -2913,18 +3152,18 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         ld = os.listdir(tmp_dir)
 
         if len(ld) != 1:
-            return 'failed to copy package {}: invalid tarfile'.format(dirname)
+            return "failed to copy package {}: invalid tarfile".format(dirname)
 
         src = os.path.join(tmp_dir, ld[0])
 
     if not os.path.isdir(src):
-        return 'failed to copy package {}: not a dir or tarfile'.format(dirname)
+        return "failed to copy package {}: not a dir or tarfile".format(dirname)
 
     def ignore(_, files):
         rval = []
 
         for f in files:
-            if f in {'.git', 'bro-pkg.meta', 'zkg.meta'}:
+            if f in {".git", "bro-pkg.meta", "zkg.meta"}:
                 rval.append(f)
 
         return rval
@@ -2937,22 +3176,21 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
 
         for err in errors:
             src, dst, msg = err
-            reason = 'failed to copy {}: {} -> {}: {}'.format(
-                dirname, src, dst, msg)
-            reasons += '\n' + reason
+            reason = "failed to copy {}: {} -> {}: {}".format(dirname, src, dst, msg)
+            reasons += "\n" + reason
             LOG.warning('installing "%s": %s', package, reason)
 
-        return 'failed to copy package {}: {}'.format(dirname, reasons)
+        return "failed to copy package {}: {}".format(dirname, reasons)
 
-    return ''
+    return ""
 
 
 def _create_readme(file_path):
     if os.path.exists(file_path):
         return
 
-    with open(file_path, 'w') as f:
-        f.write('WARNING: This directory is managed by zkg.\n')
+    with open(file_path, "w") as f:
+        f.write("WARNING: This directory is managed by zkg.\n")
         f.write("Don't make direct modifications to anything within it.\n")
 
 
@@ -2971,7 +3209,7 @@ def _clone_package(package, clonepath, version):
 
 
 def _get_package_metadata(parser):
-    metadata = {item[0]: item[1] for item in parser.items('package')}
+    metadata = {item[0]: item[1] for item in parser.items("package")}
     return metadata
 
 
@@ -2985,18 +3223,18 @@ def _pick_metadata_file(directory):
 
 
 def _parse_package_metadata(parser, metadata_file):
-    """Return string explaining why metadata is invalid, or '' if valid. """
+    """Return string explaining why metadata is invalid, or '' if valid."""
     if not parser.read(metadata_file):
-        LOG.warning('%s: missing metadata file', metadata_file)
-        return 'missing {} (or {}) metadata file'.format(
-                METADATA_FILENAME, LEGACY_METADATA_FILENAME)
+        LOG.warning("%s: missing metadata file", metadata_file)
+        return "missing {} (or {}) metadata file".format(
+            METADATA_FILENAME, LEGACY_METADATA_FILENAME
+        )
 
-    if not parser.has_section('package'):
-        LOG.warning('%s: metadata missing [package]', metadata_file)
-        return '{} is missing [package] section'.format(
-                os.path.basename(metadata_file))
+    if not parser.has_section("package"):
+        LOG.warning("%s: metadata missing [package]", metadata_file)
+        return "{} is missing [package] section".format(os.path.basename(metadata_file))
 
-    return ''
+    return ""
 
 
 def _info_from_clone(clone, package, status, version):
@@ -3017,24 +3255,34 @@ def _info_from_clone(clone, package, status, version):
 
     metadata_file = _pick_metadata_file(clone.working_dir)
     metadata_parser = configparser.ConfigParser(interpolation=None)
-    invalid_reason = _parse_package_metadata(
-        metadata_parser, metadata_file)
+    invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
     if invalid_reason:
-        return PackageInfo(package=package, invalid_reason=invalid_reason,
-                           status=status, versions=versions,
-                           metadata_version=version, version_type=version_type,
-                           metadata_file=metadata_file,
-                           default_branch=default_branch)
+        return PackageInfo(
+            package=package,
+            invalid_reason=invalid_reason,
+            status=status,
+            versions=versions,
+            metadata_version=version,
+            version_type=version_type,
+            metadata_file=metadata_file,
+            default_branch=default_branch,
+        )
 
     metadata = _get_package_metadata(metadata_parser)
 
-    return PackageInfo(package=package, invalid_reason=invalid_reason,
-                       status=status, metadata=metadata, versions=versions,
-                       metadata_version=version, version_type=version_type,
-                       metadata_file=metadata_file,
-                       default_branch=default_branch)
+    return PackageInfo(
+        package=package,
+        invalid_reason=invalid_reason,
+        status=status,
+        metadata=metadata,
+        versions=versions,
+        metadata_version=version,
+        version_type=version_type,
+        metadata_file=metadata_file,
+        default_branch=default_branch,
+    )
 
 
 def _is_reserved_pkg_name(name):
-    return name == 'bro' or name == 'zeek' or name == 'zkg'
+    return name == "bro" or name == "zeek" or name == "zkg"
