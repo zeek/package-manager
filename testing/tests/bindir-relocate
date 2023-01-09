@@ -4,7 +4,7 @@
 # @TEST-EXEC: test -L bin/exec1 && test -L bin/exec2
 #
 # @TEST-EXEC: sed -i.bak 's/\(^bin_dir.*\)/\1-new/g' config
-# @TEST-EXEC: zkg list 
+# @TEST-EXEC: zkg list
 # @TEST-EXEC: test -L bin-new/exec1 && test -L bin-new/exec2
 # @TEST-EXEC: ./bin-new/exec1 >>output
 # @TEST-EXEC: ./bin-new/exec2 >>output
@@ -24,4 +24,3 @@ chmod +x x/exec1 x/exec2
 
 git add *
 git commit -m 'new stuff'
-

@@ -26,4 +26,4 @@ git commit -am 'new stuff'
 cd packages/rot13
 echo 'hello' > testing/Baseline/tests.rot13/output
 git commit -am 'new stuff'
-@TEST-END-FILE 
+@TEST-END-FILE

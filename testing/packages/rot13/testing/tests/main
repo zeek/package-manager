@@ -1,3 +1,2 @@
 # @TEST-EXEC: zeek rot13 > output
 # @TEST-EXEC: TEST_DIFF_CANONIFIER="sort -s" btest-diff output
-

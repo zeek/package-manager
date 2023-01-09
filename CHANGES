@@ -1392,7 +1392,7 @@
 
 1.0.4-5 | 2017-09-14 18:56:16 -0500
 
-  * Require extra configparser package only for Python < 3.5 
+  * Require extra configparser package only for Python < 3.5
     where it is not included (Hilko Bengen)
 
   * Fix imports for python3 (Robert Haist)
