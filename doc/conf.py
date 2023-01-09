@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Zeek Package Manager documentation build configuration file, created by
 # sphinx-quickstart on Fri Jul 15 13:46:04 2016.
@@ -59,7 +58,7 @@ author = "The Zeek Project"
 # built documents.
 #
 # The short X.Y version.
-with open("../VERSION", "r") as f:
+with open("../VERSION") as f:
     version = f.readline().strip()
 
 # The full version, including alpha/beta/rc tags.

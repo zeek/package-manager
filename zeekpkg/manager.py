@@ -69,7 +69,7 @@ from . import (
 )
 
 
-class Stage(object):
+class Stage:
     def __init__(self, manager, state_dir=None):
         self.manager = manager
 
@@ -158,7 +158,7 @@ class Stage(object):
         return env, ""
 
 
-class Manager(object):
+class Manager:
     """A package manager object performs various operations on packages.
 
     It uses a state directory and a manifest file within it to keep
@@ -388,7 +388,7 @@ class Manager(object):
 
             for ipkg in self.loaded_packages():
                 if self.has_scripts(ipkg):
-                    content += "@load ./{}\n".format(ipkg.package.name)
+                    content += f"@load ./{ipkg.package.name}\n"
 
             f.write(content)
 
@@ -443,7 +443,7 @@ class Manager(object):
         Raises:
             IOError: when the manifest file can't be read
         """
-        with open(self.manifest, "r") as f:
+        with open(self.manifest) as f:
             data = json.load(f)
             version = data["manifest_version"]
             pkg_list = data["installed_packages"]
@@ -631,7 +631,7 @@ class Manager(object):
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
         """
         name = name_from_path(pkg_path)
-        return os.path.join(self.log_dir, "{}-build.log".format(name))
+        return os.path.join(self.log_dir, f"{name}-build.log")
 
     def match_source_packages(self, pkg_path):
         """Return a list of :class:`.package.Package` that match a given path.
@@ -725,7 +725,7 @@ class Manager(object):
         import re
 
         metadata = installed_pkg.package.metadata
-        config_files = re.split(",\s*", metadata.get("config_files", ""))
+        config_files = re.split(r",\s*", metadata.get("config_files", ""))
 
         if not config_files:
             return []
@@ -769,7 +769,7 @@ class Manager(object):
         import re
 
         metadata = installed_pkg.package.metadata
-        config_files = re.split(",\s*", metadata.get("config_files", ""))
+        config_files = re.split(r",\s*", metadata.get("config_files", ""))
 
         if not config_files:
             return []
@@ -867,7 +867,7 @@ class Manager(object):
 
         return rval
 
-    class SourceAggregationResults(object):
+    class SourceAggregationResults:
         """The return value of a call to :meth:`.Manager.aggregate_source()`.
 
         Attributes:
@@ -972,7 +972,7 @@ class Manager(object):
         except git.exc.GitCommandError as error:
             LOG.error("failed to pull source %s: %s", name, error)
             return self.SourceAggregationResults(
-                "failed to pull from remote source: {}".format(error)
+                f"failed to pull from remote source: {error}"
             )
 
         if os.path.isfile(agg_file_ours):
@@ -1495,7 +1495,7 @@ class Manager(object):
             item = queue.popleft()
 
             for _pkg_name in pkg_dependencies:
-                pkg_dependees = set([_pkg for _pkg in pkg_dependencies.get(_pkg_name)])
+                pkg_dependees = {_pkg for _pkg in pkg_dependencies.get(_pkg_name)}
 
                 if item in pkg_dependees:
                     # check if there is a cyclic dependency
@@ -1586,7 +1586,7 @@ class Manager(object):
                     dep_listing = ""
 
                     for _name in dep_packages:
-                        dep_listing += '"{}", '.format(_name)
+                        dep_listing += f'"{_name}", '
 
                     errors.append(
                         (
@@ -1716,7 +1716,7 @@ class Manager(object):
         name = name_from_path(pkg_path)
 
         if not is_valid_package_name(name):
-            reason = "Package name {!r} is not valid.".format(name)
+            reason = f"Package name {name!r} is not valid."
             return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
 
         LOG.debug('getting info on "%s"', pkg_path)
@@ -1795,7 +1795,7 @@ class Manager(object):
         try:
             git_checkout(clone, version)
         except git.exc.GitCommandError:
-            reason = 'no such commit, branch, or version tag: "{}"'.format(version)
+            reason = f'no such commit, branch, or version tag: "{version}"'
             return PackageInfo(package=package, status=status, invalid_reason=reason)
 
         LOG.debug('checked out "%s", branch/version "%s"', package, version)
@@ -1864,7 +1864,7 @@ class Manager(object):
             prior to the depender packages.
         """
 
-        class Node(object):
+        class Node:
             def __init__(self, name):
                 self.name = name
                 self.info = None
@@ -1895,7 +1895,7 @@ class Manager(object):
 
             if info.invalid_reason:
                 return (
-                    'invalid package "{}": {}'.format(name, info.invalid_reason),
+                    f'invalid package "{name}": {info.invalid_reason}',
                     [],
                 )
 
@@ -2435,7 +2435,7 @@ class Manager(object):
             try:
                 git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
             except git.exc.GitCommandError as error:
-                return "failed to clone {}: {}".format(git_url, error)
+                return f"failed to clone {git_url}: {error}"
 
         with open(manifest_file, "w") as f:
             config.write(f)
@@ -2577,7 +2577,7 @@ class Manager(object):
             except git.exc.GitCommandError as error:
                 LOG.warning("failed to clone git repo: %s", error)
                 return (
-                    "failed to clone {}".format(info.package.git_url),
+                    f"failed to clone {info.package.git_url}",
                     False,
                     stage.state_dir,
                 )
@@ -2651,7 +2651,7 @@ class Manager(object):
 
             if rc != 0:
                 return (
-                    "test_command failed with exit code {}".format(rc),
+                    f"test_command failed with exit code {rc}",
                     False,
                     stage.state_dir,
                 )
@@ -2749,7 +2749,7 @@ class Manager(object):
                         else:
                             break
 
-            except EnvironmentError as error:
+            except OSError as error:
                 LOG.warning(
                     'installing "%s": failed to write build log %s %s: %s',
                     package,
@@ -2761,7 +2761,7 @@ class Manager(object):
             returncode = build.wait()
 
             if returncode != 0:
-                return "package build_command failed, see log in {}".format(buildlog)
+                return f"package build_command failed, see log in {buildlog}"
 
         pkg_script_dir = metadata.get("script_dir", "")
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
@@ -2789,8 +2789,8 @@ class Manager(object):
                     make_symlink(os.path.join("packages", package.name), symlink_path)
 
             except OSError as exception:
-                error = "could not create symlink at {}".format(symlink_path)
-                error += ": {}: {}".format(type(exception).__name__, exception)
+                error = f"could not create symlink at {symlink_path}"
+                error += f": {type(exception).__name__}: {exception}"
                 return error
 
             error = _copy_package_dir(
@@ -2930,7 +2930,7 @@ class Manager(object):
             return self._install(matches[0], version)
         except git.exc.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid', pkg_path)
-            return 'failed to clone package "{}": {}'.format(pkg_path, error)
+            return f'failed to clone package "{pkg_path}": {error}'
 
     def _install(self, package, version, use_existing_clone=False):
         """Install a :class:`.package.Package`.
@@ -2971,7 +2971,7 @@ class Manager(object):
                     LOG.info(
                         'branch "%s" not in available branches: %s', version, branches
                     )
-                    return 'no such branch or version tag: "{}"'.format(version)
+                    return f'no such branch or version tag: "{version}"'
 
         else:
             if len(version_tags):
@@ -3152,12 +3152,12 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         ld = os.listdir(tmp_dir)
 
         if len(ld) != 1:
-            return "failed to copy package {}: invalid tarfile".format(dirname)
+            return f"failed to copy package {dirname}: invalid tarfile"
 
         src = os.path.join(tmp_dir, ld[0])
 
     if not os.path.isdir(src):
-        return "failed to copy package {}: not a dir or tarfile".format(dirname)
+        return f"failed to copy package {dirname}: not a dir or tarfile"
 
     def ignore(_, files):
         rval = []
@@ -3176,11 +3176,11 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
 
         for err in errors:
             src, dst, msg = err
-            reason = "failed to copy {}: {} -> {}: {}".format(dirname, src, dst, msg)
+            reason = f"failed to copy {dirname}: {src} -> {dst}: {msg}"
             reasons += "\n" + reason
             LOG.warning('installing "%s": %s', package, reason)
 
-        return "failed to copy package {}: {}".format(dirname, reasons)
+        return f"failed to copy package {dirname}: {reasons}"
 
     return ""
 
@@ -3232,7 +3232,7 @@ def _parse_package_metadata(parser, metadata_file):
 
     if not parser.has_section("package"):
         LOG.warning("%s: metadata missing [package]", metadata_file)
-        return "{} is missing [package] section".format(os.path.basename(metadata_file))
+        return f"{os.path.basename(metadata_file)} is missing [package] section"
 
     return ""
 

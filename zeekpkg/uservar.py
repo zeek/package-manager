@@ -123,7 +123,7 @@ class UserVar:
             return val
 
         desc = " (" + self._desc + ")" if self._desc else ""
-        print('"{}" requires a "{}" value{}: '.format(name, self._name, desc))
+        print(f'"{name}" requires a "{self._name}" value{desc}: ')
         self._val = _rlinput(self._name + ": ", val)
 
         return self._val
@@ -136,7 +136,7 @@ class UserVar:
             return UserVar(name, val=val)
         except ValueError as error:
             raise ValueError(
-                'invalid user var argument "{}", must be NAME=VAR'.format(arg)
+                f'invalid user var argument "{arg}", must be NAME=VAR'
             ) from error
 
     @staticmethod

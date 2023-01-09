@@ -266,7 +266,7 @@ def git_remote_urls(repo):
     cases. We use the config subsystem to query the URLs directly -- one of the
     fallback mechanisms in GitPython's Remote.urls() implementation.
     """
-    remote_details = repo.git.config("--get-regexp", "remote\..+\.url")
+    remote_details = repo.git.config("--get-regexp", r"remote\..+\.url")
     remotes = {}
 
     for line in remote_details.split("\n"):

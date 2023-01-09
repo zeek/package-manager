@@ -137,7 +137,7 @@ class Template:
                 if repo is None:
                     repo = git_clone(template, templatedir)
             except git.exc.GitCommandError as error:
-                msg = 'failed to update template "{}": {}'.format(template, error)
+                msg = f'failed to update template "{template}": {error}'
                 LOG.error(msg)
                 raise GitError(msg) from error
 
@@ -179,7 +179,7 @@ class Template:
         try:
             mod = load_source(os.path.join(templatedir, "__init__.py"))
         except Exception as error:
-            msg = 'failed to load template "{}": {}'.format(template, error)
+            msg = f'failed to load template "{template}": {error}'
             LOG.exception(msg)
             raise LoadError(msg) from error
 
@@ -199,7 +199,7 @@ class Template:
             is_compat = Template.is_api_compatible(mod.TEMPLATE_API_VERSION)
         except ValueError:
             raise LoadError(
-                'API version string "{}" is invalid'.format(mod.TEMPLATE_API_VERSION)
+                f'API version string "{mod.TEMPLATE_API_VERSION}" is invalid'
             )
 
         if not is_compat:
@@ -603,7 +603,7 @@ class _Content(metaclass=abc.ABCMeta):
             with open(out_file, "wb") as hdl:
                 hdl.write(content)
             shutil.copymode(orig_file, out_file)
-        except IOError as error:
+        except OSError as error:
             LOG.warning('I/O error while instantiating "%s": %s', out_file, error)
 
     def instantiate_symlink(self, tmpl, orig_file, path_name, file_name, target):
@@ -668,7 +668,7 @@ class _Content(metaclass=abc.ABCMeta):
                     try:
                         with open(in_file, "rb") as hdl:
                             out_content = self._replace(tmpl, hdl.read())
-                    except IOError as error:
+                    except OSError as error:
                         LOG.warning("skipping instantiation of %s: %s", in_file, error)
                         continue
 
@@ -774,7 +774,7 @@ class Package(_Content):
         if self._features:
             names = sorted(['"' + f.name() + '"' for f in self._features])
             if len(names) == 1:
-                features_info = ", with feature {}".format(names[0])
+                features_info = f", with feature {names[0]}"
             else:
                 features_info = ", with features "
                 features_info += ", ".join(names[:-1])

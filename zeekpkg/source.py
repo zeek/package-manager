@@ -22,7 +22,7 @@ LEGACY_INDEX_FILENAME = "bro-pkg.index"
 AGGREGATE_DATA_FILE = "aggregate.meta"
 
 
-class Source(object):
+class Source:
     """A Zeek package source.
 
     This class contains properties of a package source like its name, remote git

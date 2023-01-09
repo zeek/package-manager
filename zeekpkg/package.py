@@ -55,7 +55,7 @@ def aliases(metadata_dict):
     if "aliases" not in metadata_dict:
         return []
 
-    return re.split(",\s*|\s+", metadata_dict["aliases"])
+    return re.split(r",\s*|\s+", metadata_dict["aliases"])
 
 
 def tags(metadata_dict):
@@ -63,7 +63,7 @@ def tags(metadata_dict):
     if "tags" not in metadata_dict:
         return []
 
-    return re.split(",\s*", metadata_dict["tags"])
+    return re.split(r",\s*", metadata_dict["tags"])
 
 
 def short_description(metadata_dict):
@@ -138,7 +138,7 @@ def dependencies(metadata_dict, field="depends"):
 
 
 @total_ordering
-class InstalledPackage(object):
+class InstalledPackage:
     """An installed package and its current status.
 
     Attributes:
@@ -161,7 +161,7 @@ class InstalledPackage(object):
         return str(self.package) < str(other.package)
 
 
-class PackageStatus(object):
+class PackageStatus:
     """The status of an installed package.
 
     This class contains properties of a package related to how the package
@@ -203,7 +203,7 @@ class PackageStatus(object):
         self.current_hash = current_hash
 
 
-class PackageInfo(object):
+class PackageInfo:
     """Contains information on an arbitrary package.
 
     If the package is installed, then its status is also available.
@@ -314,7 +314,7 @@ class PackageInfo(object):
 
 
 @total_ordering
-class Package(object):
+class Package:
     """A Zeek package.
 
     This class contains properties of a package that are defined by the package
@@ -442,7 +442,7 @@ class Package(object):
         just the package name is returned.
         """
         if self.directory:
-            return "{}/{}".format(self.directory, self.name)
+            return f"{self.directory}/{self.name}"
 
         return self.name
 
@@ -454,7 +454,7 @@ class Package(object):
         git URL is returned.
         """
         if self.source:
-            return "{}/{}".format(self.source, self.name_with_source_directory())
+            return f"{self.source}/{self.name_with_source_directory()}"
 
         return self.git_url
 

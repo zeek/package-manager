@@ -165,10 +165,10 @@ def prompt_for_user_vars(manager, config, configfile, args, pkg_infos):
             config.set("user_vars", key, value)
 
         if configfile:
-            with io.open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
+            with open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
                 config.write(f)
 
-            print("Saved answers to config file: {}".format(configfile))
+            print(f"Saved answers to config file: {configfile}")
 
     manager.user_vars = answers
 
@@ -244,7 +244,7 @@ def create_config(args, configfile):
 
     if configfile:
         if not os.path.isfile(configfile):
-            print_error('error: invalid config file "{}"'.format(configfile))
+            print_error(f'error: invalid config file "{configfile}"')
             sys.exit(1)
 
         config.read(configfile)
@@ -377,10 +377,10 @@ def is_local_git_repo_dirty(git_url):
 def check_local_git_repo(git_url):
     if is_local_git_repo_url(git_url):
         if not is_local_git_repo(git_url):
-            print_error("error: path {} is not a git repository".format(git_url))
+            print_error(f"error: path {git_url} is not a git repository")
             return False
         if is_local_git_repo_dirty(git_url):
-            print_error("error: local git clone at {} is dirty".format(git_url))
+            print_error(f"error: local git clone at {git_url} is dirty")
             return False
 
     return True
@@ -405,15 +405,15 @@ def create_manager(args, config):
             bin_dir=bin_dir,
             zeek_dist=zeek_dist,
         )
-    except (OSError, IOError) as error:
+    except OSError as error:
         if error.errno == errno.EACCES:
-            print_error("{}: {}".format(type(error).__name__, error))
+            print_error(f"{type(error).__name__}: {error}")
 
             def check_permission(d):
                 if os.access(d, os.W_OK):
                     return True
 
-                print_error("error: user does not have write access in {}".format(d))
+                print_error(f"error: user does not have write access in {d}")
                 return False
 
             permissions_trouble = not all(
@@ -439,13 +439,13 @@ def create_manager(args, config):
 
     for key_value in args.extra_source or []:
         if "=" not in key_value:
-            print_error('warning: invalid extra source: "{}"'.format(key_value))
+            print_error(f'warning: invalid extra source: "{key_value}"')
             continue
 
         key, value = key_value.split("=", 1)
 
         if not key or not value:
-            print_error('warning: invalid extra source: "{}"'.format(key_value))
+            print_error(f'warning: invalid extra source: "{key_value}"')
             continue
 
         extra_sources.append((key, value))
@@ -488,14 +488,14 @@ def get_changed_state(manager, saved_state, pkg_lst):
         if not _ipkg or _ipkg.status.is_loaded == saved_state[_pkg_name]:
             continue
 
-        dep_listing += "  {}\n".format(_pkg_name)
+        dep_listing += f"  {_pkg_name}\n"
 
     return dep_listing
 
 
 class InstallWorker(threading.Thread):
     def __init__(self, manager, package_name, package_version):
-        super(InstallWorker, self).__init__()
+        super().__init__()
         self.manager = manager
         self.package_name = package_name
         self.package_version = package_version
@@ -660,7 +660,7 @@ def cmd_install(manager, args, config, configfile):
 
         for info, version, _ in sorted(package_infos, key=lambda x: x[0].package.name):
             name = info.package.qualified_name()
-            package_listing += "  {} ({})\n".format(name, version)
+            package_listing += f"  {name} ({version})\n"
 
         print("The following packages will be INSTALLED:")
         print(package_listing)
@@ -672,7 +672,7 @@ def cmd_install(manager, args, config, configfile):
                 new_pkgs, key=lambda x: x[0].package.name
             ):
                 name = info.package.qualified_name()
-                dependency_listing += "  {} ({})".format(name, version)
+                dependency_listing += f"  {name} ({version})"
 
                 if suggested:
                     dependency_listing += " (suggested)"
@@ -696,10 +696,10 @@ def cmd_install(manager, args, config, configfile):
                 continue
 
             if extdeps:
-                extdep_listing += "  from {} ({}):\n".format(name, version)
+                extdep_listing += f"  from {name} ({version}):\n"
 
                 for extdep, semver in sorted(extdeps.items()):
-                    extdep_listing += "    {} {}\n".format(extdep, semver)
+                    extdep_listing += f"    {extdep} {semver}\n"
 
         if extdep_listing:
             print(
@@ -730,7 +730,7 @@ def cmd_install(manager, args, config, configfile):
                 )
                 continue
 
-            print('Running unit tests for "{}"'.format(name))
+            print(f'Running unit tests for "{name}"')
             error_msg = ""
             # For testing we always process dependencies, since the tests might
             # well fail without them. If the user wants --nodeps and the tests
@@ -755,7 +755,7 @@ def cmd_install(manager, args, config, configfile):
                 )
 
             if error_msg:
-                print_error("error: {}".format(error_msg))
+                print_error(f"error: {error_msg}")
 
                 if args.force:
                     continue
@@ -781,15 +781,15 @@ def cmd_install(manager, args, config, configfile):
 
         worker = InstallWorker(manager, name, version)
         worker.start()
-        worker.wait('Installing "{}"'.format(name))
+        worker.wait(f'Installing "{name}"')
 
         if worker.error:
-            print('Failed installing "{}": {}'.format(name, worker.error))
+            print(f'Failed installing "{name}": {worker.error}')
             installs_failed.append((name, version))
             continue
 
         ipkg = manager.find_installed_package(name)
-        print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+        print(f'Installed "{name}" ({ipkg.status.current_version})')
 
         if is_overwriting:
             for i, mf in enumerate(modifications):
@@ -818,9 +818,9 @@ def cmd_install(manager, args, config, configfile):
             load_error = manager.load(name)
 
             if load_error:
-                print('Failed loading "{}": {}'.format(name, load_error))
+                print(f'Failed loading "{name}": {load_error}')
             else:
-                print('Loaded "{}"'.format(name))
+                print(f'Loaded "{name}"')
 
     if not args.nodeps:
         # Now load runtime dependencies after all dependencies and suggested
@@ -835,7 +835,7 @@ def cmd_install(manager, args, config, configfile):
 
             for _name, _error in load_error:
                 if not _error:
-                    _listing += "  {}\n".format(_name)
+                    _listing += f"  {_name}\n"
 
             if not _listing:
                 dep_listing = get_changed_state(manager, saved_state, [name])
@@ -862,7 +862,7 @@ def cmd_install(manager, args, config, configfile):
         )
 
         for n, v in installs_failed:
-            print_error("  {} ({})".format(n, v))
+            print_error(f"  {n} ({v})")
 
         sys.exit(1)
 
@@ -879,9 +879,7 @@ def cmd_bundle(manager, args, config, configfile):
             if config.read(args.manifest[0]) and config.has_section("bundle"):
                 packages = config.items("bundle")
             else:
-                print_error(
-                    'error: "{}" is not a valid manifest file'.format(args.manifest[0])
-                )
+                print_error(f'error: "{args.manifest[0]}" is not a valid manifest file')
                 sys.exit(1)
 
         else:
@@ -962,7 +960,7 @@ def cmd_bundle(manager, args, config, configfile):
         package_listing = ""
 
         for name, _, version, is_dependency, is_suggestion in packages_to_bundle:
-            package_listing += "  {} ({})".format(name, version)
+            package_listing += f"  {name} ({version})"
 
             if is_suggestion:
                 package_listing += " (suggested)"
@@ -987,10 +985,10 @@ def cmd_bundle(manager, args, config, configfile):
     )
 
     if error:
-        print_error("error: failed to create bundle: {}".format(error))
+        print_error(f"error: failed to create bundle: {error}")
         sys.exit(1)
 
-    print("Bundle successfully written: {}".format(args.bundle_filename))
+    print(f"Bundle successfully written: {args.bundle_filename}")
 
 
 def cmd_unbundle(manager, args, config, configfile):
@@ -1005,9 +1003,7 @@ def cmd_unbundle(manager, args, config, configfile):
     error, bundle_info = manager.bundle_info(args.bundle_filename)
 
     if error:
-        print_error(
-            "error: failed to unbundle {}: {}".format(args.bundle_filename, error)
-        )
+        print_error(f"error: failed to unbundle {args.bundle_filename}: {error}")
         sys.exit(1)
 
     for git_url, version, pkg_info in bundle_info:
@@ -1035,7 +1031,7 @@ def cmd_unbundle(manager, args, config, configfile):
                     name = pkg.qualified_name()
                     break
 
-            package_listing += "  {} ({})\n".format(name, version)
+            package_listing += f"  {name} ({version})\n"
 
         print("The following packages will be INSTALLED:")
         print(package_listing)
@@ -1059,10 +1055,10 @@ def cmd_unbundle(manager, args, config, configfile):
                 continue
 
             if extdeps:
-                extdep_listing += "  from {} ({}):\n".format(name, version)
+                extdep_listing += f"  from {name} ({version}):\n"
 
                 for extdep, semver in sorted(extdeps.items()):
-                    extdep_listing += "    {} {}\n".format(extdep, semver)
+                    extdep_listing += f"    {extdep} {semver}\n"
 
         if extdep_listing:
             print(
@@ -1082,9 +1078,7 @@ def cmd_unbundle(manager, args, config, configfile):
     error = manager.unbundle(args.bundle_filename)
 
     if error:
-        print_error(
-            "error: failed to unbundle {}: {}".format(args.bundle_filename, error)
-        )
+        print_error(f"error: failed to unbundle {args.bundle_filename}: {error}")
         sys.exit(1)
 
     for git_url, _, _ in bundle_info:
@@ -1096,21 +1090,21 @@ def cmd_unbundle(manager, args, config, configfile):
         ipkg = manager.find_installed_package(git_url)
 
         if not ipkg:
-            print('Skipped loading "{}": failed to install'.format(git_url))
+            print(f'Skipped loading "{git_url}": failed to install')
             continue
 
         name = ipkg.package.qualified_name()
 
         if not need_load:
-            print('Skipped loading "{}"'.format(name))
+            print(f'Skipped loading "{name}"')
             continue
 
         load_error = manager.load(name)
 
         if load_error:
-            print('Failed loading "{}": {}'.format(name, load_error))
+            print(f'Failed loading "{name}": {load_error}')
         else:
-            print('Loaded "{}"'.format(name))
+            print(f'Loaded "{name}"')
 
     print("Unbundling complete.")
 
@@ -1129,7 +1123,7 @@ def cmd_remove(manager, args, config, configfile):
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
-            print_error('error: package "{}" is not installed'.format(name))
+            print_error(f'error: package "{name}" is not installed')
             sys.exit(1)
 
         packages_to_remove.append(ipkg)
@@ -1149,7 +1143,7 @@ def cmd_remove(manager, args, config, configfile):
         print("The following packages will be REMOVED:")
 
         for ipkg in packages_to_remove:
-            print("  {}".format(ipkg.package.qualified_name()))
+            print(f"  {ipkg.package.qualified_name()}")
 
         print()
 
@@ -1158,7 +1152,7 @@ def cmd_remove(manager, args, config, configfile):
 
             for pkg_name in sorted(dependers_to_unload):
                 ipkg = manager.find_installed_package(pkg_name)
-                print("  {}".format(ipkg.package.qualified_name()))
+                print(f"  {ipkg.package.qualified_name()}")
 
             print()
 
@@ -1170,12 +1164,12 @@ def cmd_remove(manager, args, config, configfile):
         name = ipkg.package.qualified_name()
 
         if manager.unload(name):
-            print('Unloaded "{}"'.format(name))
+            print(f'Unloaded "{name}"')
         else:
             # Weird that it failed, but if it's not installed and there's
             # nothing to unload, not worth using a non-zero exit-code to
             # reflect an overall failure of the package removal operation
-            print('Failed unloading "{}": no such package installed'.format(name))
+            print(f'Failed unloading "{name}": no such package installed')
 
     had_failure = False
 
@@ -1185,7 +1179,7 @@ def cmd_remove(manager, args, config, configfile):
         backup_files = manager.backup_modified_files(name, modifications)
 
         if manager.remove(name):
-            print('Removed "{}"'.format(name))
+            print(f'Removed "{name}"')
 
             if backup_files:
                 print("\tCreated backups of locally modified config files:")
@@ -1194,7 +1188,7 @@ def cmd_remove(manager, args, config, configfile):
                     print("\t" + backup_file)
 
         else:
-            print('Failed removing "{}": no such package installed'.format(name))
+            print(f'Failed removing "{name}": no such package installed')
             had_failure = True
 
     if had_failure:
@@ -1213,7 +1207,7 @@ def cmd_purge(manager, args, config, configfile):
         names_to_remove = [ipkg.package.qualified_name() for ipkg in packages_to_remove]
 
         for name in names_to_remove:
-            package_listing += "  {}\n".format(name)
+            package_listing += f"  {name}\n"
 
         print("The following packages will be REMOVED:")
         print(package_listing)
@@ -1229,7 +1223,7 @@ def cmd_purge(manager, args, config, configfile):
         backup_files = manager.backup_modified_files(name, modifications)
 
         if manager.remove(name):
-            print('Removed "{}"'.format(name))
+            print(f'Removed "{name}"')
 
             if backup_files:
                 print("\tCreated backups of locally modified config files:")
@@ -1238,7 +1232,7 @@ def cmd_purge(manager, args, config, configfile):
                     print("\t" + backup_file)
 
         else:
-            print('Unknown error removing "{}"'.format(name))
+            print(f'Unknown error removing "{name}"')
             had_failure = True
 
     if had_failure:
@@ -1267,7 +1261,7 @@ def cmd_refresh(manager, args, config, configfile):
     had_aggregation_failure = False
 
     for source in args.sources:
-        print("Refresh package source: {}".format(source))
+        print(f"Refresh package source: {source}")
 
         src_pkgs_before = {i.qualified_name() for i in manager.source_packages()}
 
@@ -1283,7 +1277,7 @@ def cmd_refresh(manager, args, config, configfile):
 
         if error:
             had_failure = True
-            print_error('error: failed to refresh "{}": {}'.format(source, error))
+            print_error(f'error: failed to refresh "{source}": {error}')
             continue
 
         src_pkgs_after = {i.qualified_name() for i in manager.source_packages()}
@@ -1296,7 +1290,7 @@ def cmd_refresh(manager, args, config, configfile):
 
             for name in diff:
                 change = "Added" if name in src_pkgs_after else "Removed"
-                print("\t\t{} {}".format(change, name))
+                print(f"\t\t{change} {name}")
 
         if args.aggregate:
             if aggregation_issues:
@@ -1306,7 +1300,7 @@ def cmd_refresh(manager, args, config, configfile):
                 )
 
                 for url, issue in aggregation_issues:
-                    print("\t\t{}: {}".format(url, issue))
+                    print(f"\t\t{url}: {issue}")
                 if args.fail_on_aggregate_problems:
                     had_aggregation_failure = True
             else:
@@ -1329,7 +1323,7 @@ def cmd_refresh(manager, args, config, configfile):
         for name in diff:
             ipkg = manager.find_installed_package(name)
             version_change = version_change_string(manager, ipkg)
-            print("\t\t{} {}".format(name, version_change))
+            print(f"\t\t{name} {version_change}")
 
     if had_failure:
         sys.exit(1)
@@ -1348,9 +1342,9 @@ def version_change_string(manager, installed_package):
         if len(versions):
             new_version = versions[-1]
 
-        version_change = "({} -> {})".format(old_version, new_version)
+        version_change = f"({old_version} -> {new_version})"
     else:
-        version_change = "({})".format(new_version)
+        version_change = f"({new_version})"
 
     return version_change
 
@@ -1368,7 +1362,7 @@ def cmd_upgrade(manager, args, config, configfile):
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
-            print_error('error: package "{}" is not installed'.format(name))
+            print_error(f'error: package "{name}" is not installed')
             sys.exit(1)
 
         name = ipkg.package.qualified_name()
@@ -1396,7 +1390,7 @@ def cmd_upgrade(manager, args, config, configfile):
 
         outdated_packages.append((info, next_version, False))
         version_change = version_change_string(manager, ipkg)
-        package_listing += "  {} {}\n".format(name, version_change)
+        package_listing += f"  {name} {version_change}\n"
 
     if not outdated_packages:
         print("All packages already up-to-date.")
@@ -1428,7 +1422,7 @@ def cmd_upgrade(manager, args, config, configfile):
 
             for info, version, suggestion in new_pkgs:
                 name = info.package.qualified_name()
-                dependency_listing += "  {} ({})".format(name, version)
+                dependency_listing += f"  {name} ({version})"
 
                 if suggestion:
                     dependency_listing += " (suggested)"
@@ -1451,10 +1445,10 @@ def cmd_upgrade(manager, args, config, configfile):
                 continue
 
             if extdeps:
-                extdep_listing += "  from {} ({}):\n".format(name, version)
+                extdep_listing += f"  from {name} ({version}):\n"
 
                 for extdep, semver in sorted(extdeps.items()):
-                    extdep_listing += "    {} {}\n".format(extdep, semver)
+                    extdep_listing += f"    {extdep} {semver}\n"
 
         if extdep_listing:
             print(
@@ -1481,7 +1475,7 @@ def cmd_upgrade(manager, args, config, configfile):
                 )
                 continue
 
-            print('Running unit tests for "{}"'.format(name))
+            print(f'Running unit tests for "{name}"')
             error_msg = ""
             # As in cmd_install, we always process dependencies since the tests
             # might well fail without them. If the user wants --nodeps and the
@@ -1507,7 +1501,7 @@ def cmd_upgrade(manager, args, config, configfile):
                 )
 
             if error_msg:
-                print_error("error: {}".format(error_msg))
+                print_error(f"error: {error_msg}")
 
                 if args.force:
                     continue
@@ -1521,22 +1515,22 @@ def cmd_upgrade(manager, args, config, configfile):
         name = info.package.qualified_name()
         worker = InstallWorker(manager, name, version)
         worker.start()
-        worker.wait('Installing "{}"'.format(name))
+        worker.wait(f'Installing "{name}"')
 
         if worker.error:
-            print('Failed installing "{}": {}'.format(name, worker.error))
+            print(f'Failed installing "{name}": {worker.error}')
             continue
 
         ipkg = manager.find_installed_package(name)
-        print('Installed "{}" ({})'.format(name, ipkg.status.current_version))
+        print(f'Installed "{name}" ({ipkg.status.current_version})')
 
         if manager.has_scripts(ipkg):
             load_error = manager.load(name)
 
             if load_error:
-                print('Failed loading "{}": {}'.format(name, load_error))
+                print(f'Failed loading "{name}": {load_error}')
             else:
-                print('Loaded "{}"'.format(name))
+                print(f'Loaded "{name}"')
 
     had_failure = False
 
@@ -1556,11 +1550,11 @@ def cmd_upgrade(manager, args, config, configfile):
         res = manager.upgrade(name)
 
         if res:
-            print('Failed upgrading "{}": {}'.format(name, res))
+            print(f'Failed upgrading "{name}": {res}')
             had_failure = True
         else:
             ipkg = manager.find_installed_package(name)
-            print('Upgraded "{}" ({})'.format(name, ipkg.status.current_version))
+            print(f'Upgraded "{name}" ({ipkg.status.current_version})')
 
         for i, mf in enumerate(modifications):
             next_upstream_config_file = mf[1]
@@ -1598,11 +1592,11 @@ def cmd_load(manager, args, config, configfile):
 
         if not ipkg:
             had_failure = True
-            print('Failed to load "{}": no such package installed'.format(name))
+            print(f'Failed to load "{name}": no such package installed')
             continue
 
         if not manager.has_scripts(ipkg):
-            print('The package "{}" does not contain scripts to load.'.format(name))
+            print(f'The package "{name}" does not contain scripts to load.')
             continue
 
         name = ipkg.package.qualified_name()
@@ -1620,7 +1614,7 @@ def cmd_load(manager, args, config, configfile):
             for _name, _error in loaded_dep_list:
                 if _error:
                     load_error = True
-                    dep_error_listing += "  {}: {}\n".format(_name, _error)
+                    dep_error_listing += f"  {_name}: {_error}\n"
 
             if not load_error:
                 dep_listing = get_changed_state(manager, saved_state, [name])
@@ -1645,9 +1639,9 @@ def cmd_load(manager, args, config, configfile):
                     print(dep_error_listing)
                     manager.restore_loaded_package_states(saved_state)
 
-            print('Failed to load "{}": {}'.format(name, load_error))
+            print(f'Failed to load "{name}": {load_error}')
         else:
-            print('Loaded "{}"'.format(name))
+            print(f'Loaded "{name}"')
 
     if had_failure:
         sys.exit(1)
@@ -1670,7 +1664,7 @@ def cmd_unload(manager, args, config, configfile):
 
         if not ipkg:
             had_failure = True
-            print('Failed to unload "{}": no such package installed'.format(name))
+            print(f'Failed to unload "{name}": no such package installed')
             continue
 
         if not ipkg.status.is_loaded:
@@ -1691,7 +1685,7 @@ def cmd_unload(manager, args, config, configfile):
         print("The following packages will be UNLOADED:")
 
         for ipkg in packages_to_unload:
-            print("  {}".format(ipkg.package.qualified_name()))
+            print(f"  {ipkg.package.qualified_name()}")
 
         print()
 
@@ -1700,7 +1694,7 @@ def cmd_unload(manager, args, config, configfile):
 
             for pkg_name in sorted(dependers_to_unload):
                 ipkg = manager.find_installed_package(pkg_name)
-                print("  {}".format(ipkg.package.qualified_name()))
+                print(f"  {ipkg.package.qualified_name()}")
 
             print()
 
@@ -1717,10 +1711,10 @@ def cmd_unload(manager, args, config, configfile):
         name = ipkg.package.qualified_name()
 
         if manager.unload(name):
-            print('Unloaded "{}"'.format(name))
+            print(f'Unloaded "{name}"')
         else:
             had_failure = True
-            print('Failed unloading "{}": no such package installed'.format(name))
+            print(f'Failed unloading "{name}": no such package installed')
 
     if had_failure:
         sys.exit(1)
@@ -1734,7 +1728,7 @@ def cmd_pin(manager, args, config, configfile):
 
         if not ipkg:
             had_failure = True
-            print('Failed to pin "{}": no such package installed'.format(name))
+            print(f'Failed to pin "{name}": no such package installed')
             continue
 
         name = ipkg.package.qualified_name()
@@ -1748,7 +1742,7 @@ def cmd_pin(manager, args, config, configfile):
             )
         else:
             had_failure = True
-            print('Failed pinning "{}": no such package installed'.format(name))
+            print(f'Failed pinning "{name}": no such package installed')
 
     if had_failure:
         sys.exit(1)
@@ -1762,7 +1756,7 @@ def cmd_unpin(manager, args, config, configfile):
 
         if not ipkg:
             had_failure = True
-            print('Failed to unpin "{}": no such package installed'.format(name))
+            print(f'Failed to unpin "{name}": no such package installed')
             continue
 
         name = ipkg.package.qualified_name()
@@ -1776,7 +1770,7 @@ def cmd_unpin(manager, args, config, configfile):
             )
         else:
             had_failure = True
-            print('Failed unpinning "{}": no such package installed'.format(name))
+            print(f'Failed unpinning "{name}": no such package installed')
 
     if had_failure:
         sys.exit(1)
@@ -1839,7 +1833,7 @@ def cmd_list(manager, args, config, configfile):
     for pkg_name, val in sorted(filtered_pkgs.items()):
         if isinstance(val, zeekpkg.InstalledPackage):
             pkg = val.package
-            out = "{} (installed: {})".format(pkg_name, val.status.current_version)
+            out = f"{pkg_name} (installed: {val.status.current_version})"
         else:
             pkg = val
             out = pkg_name
@@ -1864,7 +1858,7 @@ def cmd_search(manager, args, config, configfile):
             try:
                 regex = re.compile(search_text[1:-1])
             except re.error as error:
-                print("invalid regex: {}".format(error))
+                print(f"invalid regex: {error}")
                 sys.exit(1)
             else:
                 for pkg in src_pkgs:
@@ -1891,7 +1885,7 @@ def cmd_search(manager, args, config, configfile):
             ipkg = manager.find_installed_package(match.qualified_name())
 
             if ipkg:
-                out += " (installed: {})".format(ipkg.status.current_version)
+                out += f" (installed: {ipkg.status.current_version})"
 
             desc = match.short_description()
 
@@ -1934,13 +1928,13 @@ def cmd_info(manager, args, config, configfile):
             pkginfo[name] = dict()
             pkginfo[name]["metadata"] = dict()
         else:
-            print('"{}" info:'.format(name))
+            print(f'"{name}" info:')
 
         if info.invalid_reason:
             if args.json:
                 pkginfo[name]["invalid"] = info.invalid_reason
             else:
-                print("\tinvalid package: {}\n".format(info.invalid_reason))
+                print(f"\tinvalid package: {info.invalid_reason}\n")
 
             had_invalid_package = True
             continue
@@ -1949,8 +1943,8 @@ def cmd_info(manager, args, config, configfile):
             pkginfo[name]["url"] = info.package.git_url
             pkginfo[name]["versions"] = info.versions
         else:
-            print("\turl: {}".format(info.package.git_url))
-            print("\tversions: {}".format(info.versions))
+            print(f"\turl: {info.package.git_url}")
+            print(f"\tversions: {info.versions}")
 
         if info.status:
             if args.json:
@@ -1962,7 +1956,7 @@ def cmd_info(manager, args, config, configfile):
                 print("\tinstall status:")
 
                 for key, value in sorted(info.status.__dict__.items()):
-                    print("\t\t{} = {}".format(key, value))
+                    print(f"\t\t{key} = {value}")
 
         if args.json:
             if info.metadata_file:
@@ -1970,8 +1964,8 @@ def cmd_info(manager, args, config, configfile):
             pkginfo[name]["metadata"][info.metadata_version] = dict()
         else:
             if info.metadata_file:
-                print("\tmetadata file: {}".format(info.metadata_file))
-            print('\tmetadata (from version "{}"):'.format(info.metadata_version))
+                print(f"\tmetadata file: {info.metadata_file}")
+            print(f'\tmetadata (from version "{info.metadata_version}"):')
 
         if len(info.metadata) == 0:
             if args.json != True:
@@ -1984,7 +1978,7 @@ def cmd_info(manager, args, config, configfile):
             else:
                 for key, value in sorted(info.metadata.items()):
                     value = value.replace("\n", "\n\t\t\t")
-                    print("\t\t{} = {}".format(key, value))
+                    print(f"\t\t{key} = {value}")
 
         # If --json and --allvers given, check for multiple versions and
         # add the metadata for each version to the pkginfo.
@@ -2049,11 +2043,11 @@ def cmd_config(manager, args, config, configfile):
         out.close()
     elif args.config_param == "sources":
         for key, value in config_items(config, "sources"):
-            print("{} = {}".format(key, value))
+            print(f"{key} = {value}")
     elif args.config_param == "user_vars":
         if config.has_section("user_vars"):
             for key, value in config_items(config, "user_vars"):
-                print("{} = {}".format(key, value))
+                print(f"{key} = {value}")
     else:
         print(config.get("paths", args.config_param))
 
@@ -2061,9 +2055,9 @@ def cmd_config(manager, args, config, configfile):
 def cmd_autoconfig(manager, args, config, configfile):
     if args.user:
         configfile = os.path.join(home_config_dir(), "config")
-        with io.open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
+        with open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
             config.write(f)
-        print("Successfully wrote config file to {}".format(configfile))
+        print(f"Successfully wrote config file to {configfile}")
         return
 
     zeek_config = find_program("zeek-config")
@@ -2113,10 +2107,10 @@ def cmd_autoconfig(manager, args, config, configfile):
         if old_value == new_value:
             return
 
-        prompt = 'Set "{}" config option to: {} ?'.format(option, new_value)
+        prompt = f'Set "{option}" config option to: {new_value} ?'
 
         if old_value:
-            prompt += "\n(previous value: {})".format(old_value)
+            prompt += f"\n(previous value: {old_value})"
 
         if args.force or confirmation_prompt(prompt):
             config.set(section, option, new_value)
@@ -2126,10 +2120,10 @@ def cmd_autoconfig(manager, args, config, configfile):
     change_config_value(config, "paths", "bin_dir", bin_dir, config_file_exists)
     change_config_value(config, "paths", "zeek_dist", zeek_dist, config_file_exists)
 
-    with io.open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
+    with open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
         config.write(f)
 
-    print("Successfully wrote config file to {}".format(configfile))
+    print(f"Successfully wrote config file to {configfile}")
 
 
 def cmd_env(manager, args, config, configfile):
@@ -2184,13 +2178,13 @@ def cmd_env(manager, args, config, configfile):
         print("setenv BRO_PLUGIN_PATH {}".format(":".join(pluginpaths)))
         print("setenv ZEEKPATH {}".format(":".join(zeekpaths)))
         print("setenv ZEEK_PLUGIN_PATH {}".format(":".join(pluginpaths)))
-        print("setenv PATH {}:$PATH".format(manager.bin_dir))
+        print(f"setenv PATH {manager.bin_dir}:$PATH")
     else:
         print("export BROPATH={}".format(":".join(zeekpaths)))
         print("export BRO_PLUGIN_PATH={}".format(":".join(pluginpaths)))
         print("export ZEEKPATH={}".format(":".join(zeekpaths)))
         print("export ZEEK_PLUGIN_PATH={}".format(":".join(pluginpaths)))
-        print("export PATH={}:$PATH".format(manager.bin_dir))
+        print(f"export PATH={manager.bin_dir}:$PATH")
 
 
 def cmd_create(manager, args, config, configfile):
@@ -2202,7 +2196,7 @@ def cmd_create(manager, args, config, configfile):
     try:
         tmpl = Template.load(config, tmplname, args.version)
     except LoadError as error:
-        msg = "problem while loading template {}: {}".format(tmplname, error)
+        msg = f"problem while loading template {tmplname}: {error}"
         zeekpkg.LOG.exception(msg)
         print_error("error: " + msg)
         sys.exit(1)
@@ -2219,7 +2213,7 @@ def cmd_create(manager, args, config, configfile):
             # filter any duplicates.
             fnames = set()
             for feat in args.features:
-                fnames |= set([f.strip() for f in feat.split(",") if f])
+                fnames |= {f.strip() for f in feat.split(",") if f}
             features = tmpl.features()
             for feature in features:
                 if feature.name() in fnames:
@@ -2270,9 +2264,7 @@ def cmd_create(manager, args, config, configfile):
         try:
             if os.path.isdir(args.packagedir):
                 if not args.force:
-                    print(
-                        "Package directory {} already exists.".format(args.packagedir)
-                    )
+                    print(f"Package directory {args.packagedir} already exists.")
                     if not confirmation_prompt("Delete?"):
                         sys.exit(1)
                 try:
@@ -2293,7 +2285,7 @@ def cmd_create(manager, args, config, configfile):
             print_error("error: template instantiation failed, " + str(error))
             sys.exit(1)
     except Exception as error:
-        msg = "problem during template instantiation: {}".format(error)
+        msg = f"problem during template instantiation: {error}"
         zeekpkg.LOG.exception(msg)
         print_error("error: " + msg)
         sys.exit(1)
@@ -2309,7 +2301,7 @@ def cmd_template_info(manager, args, config, configfile):
     try:
         tmpl = Template.load(config, tmplname, args.version)
     except LoadError as error:
-        msg = "problem while loading template {}: {}".format(tmplname, error)
+        msg = f"problem while loading template {tmplname}: {error}"
         zeekpkg.LOG.exception(msg)
         print_error("error: " + msg)
         sys.exit(1)
@@ -2339,7 +2331,7 @@ def cmd_template_info(manager, args, config, configfile):
 class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     # Workaround for underlying argparse bug: https://bugs.python.org/issue9338
     def _format_args(self, action, default_metavar):
-        rval = super(BundleHelpFormatter, self)._format_args(action, default_metavar)
+        rval = super()._format_args(action, default_metavar)
 
         if action.nargs == argparse.ZERO_OR_MORE:
             rval += " --"
