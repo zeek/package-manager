@@ -6,11 +6,13 @@ import errno
 import importlib.machinery
 import os
 import shutil
+import string
 import tarfile
 import types
 
 import git
 import semantic_version as semver
+
 
 def make_dir(path):
     """Create a directory or do nothing if it already exists.
@@ -31,7 +33,7 @@ def normalize_version_tag(tag):
     """Given version string "vX.Y.Z", returns "X.Y.Z".
     Returns other input strings unchanged.
     """
-    if len(tag) > 1 and tag[0] == 'v' and tag[1].isdigit():
+    if len(tag) > 1 and tag[0] == "v" and tag[1].isdigit():
         return tag[1:]
 
     return tag
@@ -84,6 +86,7 @@ def safe_tarfile_extractall(tfile, destdir):
     Raises:
         Exception: if the tarfile would extract outside destdir
     """
+
     def is_within_directory(directory, target):
         abs_directory = os.path.abspath(directory)
         abs_target = os.path.abspath(target)
@@ -94,7 +97,7 @@ def safe_tarfile_extractall(tfile, destdir):
         for member in tar.getmembers():
             member_path = os.path.join(destdir, member.name)
             if not is_within_directory(destdir, member_path):
-                raise Exception('attempted path traversal in tarfile')
+                raise Exception("attempted path traversal in tarfile")
 
         tar.extractall(destdir)
 
@@ -103,7 +106,7 @@ def find_sentence_end(s):
     beg = 0
 
     while True:
-        period_idx = s.find('.', beg)
+        period_idx = s.find(".", beg)
 
         if period_idx == -1:
             return -1
@@ -122,21 +125,23 @@ def find_sentence_end(s):
 def git_clone(git_url, dst_path, shallow=False):
     if shallow:
         try:
-            git.Git().clone(git_url, dst_path, '--no-single-branch', recursive=True, depth=1)
+            git.Git().clone(
+                git_url, dst_path, "--no-single-branch", recursive=True, depth=1
+            )
         except git.exc.GitCommandError:
-            if not git_url.startswith('.') and not git_url.startswith('/'):
+            if not git_url.startswith(".") and not git_url.startswith("/"):
                 # Not a local repo
                 raise
 
-            if not os.path.exists(os.path.join(git_url, '.git', 'shallow')):
+            if not os.path.exists(os.path.join(git_url, ".git", "shallow")):
                 raise
 
             # Some git versions cannot clone from a shallow-clone, so copy
             # and reset/clean it to a pristine condition.
             copy_over_path(git_url, dst_path)
             rval = git.Repo(dst_path)
-            rval.git.reset('--hard')
-            rval.git.clean('-ffdx')
+            rval.git.reset("--hard")
+            rval.git.clean("-ffdx")
     else:
         git.Git().clone(git_url, dst_path, recursive=True)
 
@@ -149,7 +154,7 @@ def git_clone(git_url, dst_path, shallow=False):
     # fetching from a remote location (e.g.  when unbundling).  This
     # unintended inheritence of "origin" seems to only happen when cloning a
     # local git repo that has submodules ?
-    rval.git.remote('set-url', 'origin', git_url)
+    rval.git.remote("set-url", "origin", git_url)
     return rval
 
 
@@ -165,8 +170,8 @@ def git_checkout(clone, version):
         git.exc.GitCommandError: if the git repo is invalid
     """
     clone.git.checkout(version)
-    clone.git.submodule('sync', '--recursive')
-    clone.git.submodule('update', '--recursive', '--init')
+    clone.git.submodule("sync", "--recursive")
+    clone.git.submodule("update", "--recursive", "--init")
 
 
 def git_default_branch(repo):
@@ -185,7 +190,7 @@ def git_default_branch(repo):
     """
 
     try:
-        remote = repo.remote('origin')
+        remote = repo.remote("origin")
     except ValueError:
         remote = None
 
@@ -197,20 +202,20 @@ def git_default_branch(repo):
             head_ref_name = None
 
         if head_ref_name:
-            remote_prefix = 'origin/'
+            remote_prefix = "origin/"
 
             if head_ref_name.startswith(remote_prefix):
-                return head_ref_name[len(remote_prefix):]
+                return head_ref_name[len(remote_prefix) :]
 
             return head_ref_name
 
     ref_names = [ref.name for ref in repo.refs]
 
-    if 'main' in ref_names:
-        return 'main'
+    if "main" in ref_names:
+        return "main"
 
-    if 'master' in ref_names:
-        return 'master'
+    if "master" in ref_names:
+        return "master"
 
     try:
         # See if there's a branch currently checked out
@@ -249,8 +254,8 @@ def git_pull(repo):
         git.exc.GitCommandError: in case of git trouble
     """
     repo.git.pull()
-    repo.git.submodule('sync', '--recursive')
-    repo.git.submodule('update', '--recursive', '--init')
+    repo.git.submodule("sync", "--recursive")
+    repo.git.submodule("update", "--recursive", "--init")
 
 
 def git_remote_urls(repo):
@@ -262,13 +267,13 @@ def git_remote_urls(repo):
     cases. We use the config subsystem to query the URLs directly -- one of the
     fallback mechanisms in GitPython's Remote.urls() implementation.
     """
-    remote_details = repo.git.config('--get-regexp', 'remote\..+\.url')
+    remote_details = repo.git.config("--get-regexp", r"remote\..+\.url")
     remotes = {}
 
-    for line in remote_details.split('\n'):
+    for line in remote_details.split("\n"):
         try:
             remote, url = line.split(maxsplit=1)
-            remote = remote.split('.')[1]
+            remote = remote.split(".")[1]
             remotes[remote] = url
         except (ValueError, IndexError):
             pass
@@ -278,17 +283,13 @@ def git_remote_urls(repo):
 
 def is_sha1(s):
     if not s:
-        return False;
+        return False
 
     if len(s) != 40:
         return False
 
-    for c in s:
-        if c not in {'a', 'b', 'c', 'd', 'e', 'f',
-                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}:
-            return False
-
-    return True
+    hexdigits = set(string.hexdigits.lower())
+    return all(c in hexdigits for c in s)
 
 
 def is_exe(path):
@@ -299,7 +300,7 @@ def find_program(prog_name):
     path, _ = os.path.split(prog_name)
 
     if path:
-        return prog_name if is_exe(prog_name) else ''
+        return prog_name if is_exe(prog_name) else ""
 
     for path in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(path.strip('"'), prog_name)
@@ -307,7 +308,7 @@ def find_program(prog_name):
         if is_exe(path):
             return path
 
-    return ''
+    return ""
 
 
 def std_encoding(stream):
@@ -317,7 +318,7 @@ def std_encoding(stream):
     import locale
 
     if locale.getdefaultlocale()[1] is None:
-        return 'utf-8'
+        return "utf-8"
 
     return locale.getpreferredencoding()
 
@@ -327,18 +328,23 @@ def read_zeek_config_line(stdout):
 
 
 def get_zeek_version():
-    zeek_config = find_program('zeek-config')
+    zeek_config = find_program("zeek-config")
 
     if not zeek_config:
-        zeek_config = find_program('bro-config')
+        zeek_config = find_program("bro-config")
 
     if not zeek_config:
-        return ''
+        return ""
 
     import subprocess
-    cmd = subprocess.Popen([zeek_config, '--version'],
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           bufsize=1, universal_newlines=True)
+
+    cmd = subprocess.Popen(
+        [zeek_config, "--version"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+    )
 
     return read_zeek_config_line(cmd.stdout)
 
@@ -359,7 +365,7 @@ def load_source(filename):
 
     # Naming here is unimportant, since we access members of the new
     # module via the returned instance.
-    loader = importlib.machinery.SourceFileLoader('template_' + dirname, absname)
+    loader = importlib.machinery.SourceFileLoader("template_" + dirname, absname)
     mod = types.ModuleType(loader.name)
     loader.exec_module(mod)
 

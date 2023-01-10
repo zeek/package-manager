@@ -12,26 +12,27 @@ from .uservar import UserVar
 from ._util import find_sentence_end
 
 #: The name of files used by packages to store their metadata.
-METADATA_FILENAME = 'zkg.meta'
-LEGACY_METADATA_FILENAME = 'bro-pkg.meta'
+METADATA_FILENAME = "zkg.meta"
+LEGACY_METADATA_FILENAME = "bro-pkg.meta"
 
-TRACKING_METHOD_VERSION = 'version'
-TRACKING_METHOD_BRANCH = 'branch'
-TRACKING_METHOD_COMMIT = 'commit'
+TRACKING_METHOD_VERSION = "version"
+TRACKING_METHOD_BRANCH = "branch"
+TRACKING_METHOD_COMMIT = "commit"
 
-PLUGIN_MAGIC_FILE = '__bro_plugin__'
-PLUGIN_MAGIC_FILE_DISABLED = '__bro_plugin__.disabled'
+PLUGIN_MAGIC_FILE = "__bro_plugin__"
+PLUGIN_MAGIC_FILE_DISABLED = "__bro_plugin__.disabled"
+
 
 def name_from_path(path):
     """Returns the name of a package given a path to its git repository."""
-    return canonical_url(path).split('/')[-1]
+    return canonical_url(path).split("/")[-1]
 
 
 def canonical_url(path):
     """Returns the url of a package given a path to its git repo."""
-    url = path.rstrip('/')
+    url = path.rstrip("/")
 
-    if url.startswith('.') or url.startswith('/'):
+    if url.startswith(".") or url.startswith("/"):
         url = os.path.realpath(url)
 
     return url
@@ -51,38 +52,38 @@ def is_valid_name(name):
 
 def aliases(metadata_dict):
     """Return a list of package aliases found in metadata's 'aliases' field."""
-    if 'aliases' not in metadata_dict:
+    if "aliases" not in metadata_dict:
         return []
 
-    return re.split(',\s*|\s+', metadata_dict['aliases'])
+    return re.split(r",\s*|\s+", metadata_dict["aliases"])
 
 
 def tags(metadata_dict):
     """Return a list of tag strings found in the metadata's 'tags' field."""
-    if 'tags' not in metadata_dict:
+    if "tags" not in metadata_dict:
         return []
 
-    return re.split(',\s*', metadata_dict['tags'])
+    return re.split(r",\s*", metadata_dict["tags"])
 
 
 def short_description(metadata_dict):
     """Returns the first sentence of the metadata's 'desciption' field."""
-    if 'description' not in metadata_dict:
-        return ''
+    if "description" not in metadata_dict:
+        return ""
 
-    description = metadata_dict['description']
-    lines = description.split('\n')
-    rval = ''
+    description = metadata_dict["description"]
+    lines = description.split("\n")
+    rval = ""
 
     for line in lines:
         line = line.lstrip()
-        rval += ' '
+        rval += " "
         period_idx = find_sentence_end(line)
 
         if period_idx == -1:
             rval += line
         else:
-            rval += line[:period_idx + 1]
+            rval += line[: period_idx + 1]
             break
 
     return rval.lstrip()
@@ -105,7 +106,7 @@ def user_vars(metadata_dict):
     return [(uvar.name(), uvar.val(), uvar.desc()) for uvar in uvars]
 
 
-def dependencies(metadata_dict, field='depends'):
+def dependencies(metadata_dict, field="depends"):
     """Returns a dictionary of (str, str) based on metadata's dependency field.
 
     The keys indicate the name of a package (shorthand name or full git URL).
@@ -137,7 +138,7 @@ def dependencies(metadata_dict, field='depends'):
 
 
 @total_ordering
-class InstalledPackage(object):
+class InstalledPackage:
     """An installed package and its current status.
 
     Attributes:
@@ -145,6 +146,7 @@ class InstalledPackage(object):
 
         status (:class:`PackageStatus`): the status of the installed package
     """
+
     def __init__(self, package, status):
         self.package = package
         self.status = status
@@ -159,7 +161,7 @@ class InstalledPackage(object):
         return str(self.package) < str(other.package)
 
 
-class PackageStatus(object):
+class PackageStatus:
     """The status of an installed package.
 
     This class contains properties of a package related to how the package
@@ -184,8 +186,15 @@ class PackageStatus(object):
             package's current version/commit.
     """
 
-    def __init__(self, is_loaded=False, is_pinned=False, is_outdated=False,
-                 tracking_method=None, current_version=None, current_hash=None):
+    def __init__(
+        self,
+        is_loaded=False,
+        is_pinned=False,
+        is_outdated=False,
+        tracking_method=None,
+        current_version=None,
+        current_hash=None,
+    ):
         self.is_loaded = is_loaded
         self.is_pinned = is_pinned
         self.is_outdated = is_outdated
@@ -194,7 +203,7 @@ class PackageStatus(object):
         self.current_hash = current_hash
 
 
-class PackageInfo(object):
+class PackageInfo:
     """Contains information on an arbitrary package.
 
     If the package is installed, then its status is also available.
@@ -226,9 +235,18 @@ class PackageInfo(object):
             value is None.
     """
 
-    def __init__(self, package=None, status=None, metadata=None, versions=None,
-                 metadata_version='', invalid_reason='', version_type='',
-                 metadata_file=None, default_branch=None):
+    def __init__(
+        self,
+        package=None,
+        status=None,
+        metadata=None,
+        versions=None,
+        metadata_version="",
+        invalid_reason="",
+        version_type="",
+        metadata_file=None,
+        default_branch=None,
+    ):
         self.package = package
         self.status = status
         self.metadata = {} if metadata is None else metadata
@@ -258,7 +276,7 @@ class PackageInfo(object):
         This will be the first sentence of the package's 'description' field."""
         return short_description(self.metadata)
 
-    def dependencies(self, field='depends'):
+    def dependencies(self, field="depends"):
         """Returns a dictionary of dependency -> version strings.
 
         The keys indicate the name of a package (shorthand name or full git
@@ -296,7 +314,7 @@ class PackageInfo(object):
 
 
 @total_ordering
-class Package(object):
+class Package:
     """A Zeek package.
 
     This class contains properties of a package that are defined by the package
@@ -326,8 +344,16 @@ class Package(object):
             aggregation of the source's :file:`aggregate.meta` file (it may not
             be accurate/up-to-date).
     """
-    def __init__(self, git_url, source='', directory='', metadata=None,
-                 name=None, canonical=False):
+
+    def __init__(
+        self,
+        git_url,
+        source="",
+        directory="",
+        metadata=None,
+        name=None,
+        canonical=False,
+    ):
         self.git_url = git_url
         self.source = source
         self.directory = directory
@@ -382,7 +408,7 @@ class Package(object):
         package has not been installed yet."""
         return short_description(self.metadata)
 
-    def dependencies(self, field='depends'):
+    def dependencies(self, field="depends"):
         """Returns a dictionary of dependency -> version strings.
 
         The keys indicate the name of a package (shorthand name or full git
@@ -416,7 +442,7 @@ class Package(object):
         just the package name is returned.
         """
         if self.directory:
-            return '{}/{}'.format(self.directory, self.name)
+            return f"{self.directory}/{self.name}"
 
         return self.name
 
@@ -428,8 +454,7 @@ class Package(object):
         git URL is returned.
         """
         if self.source:
-            return '{}/{}'.format(self.source,
-                                  self.name_with_source_directory())
+            return f"{self.source}/{self.name_with_source_directory()}"
 
         return self.git_url
 
@@ -439,11 +464,11 @@ class Package(object):
         E.g for a package with :meth:`qualified_name()` of "zeek/alice/foo",
         the following inputs will match: "foo", "alice/foo", "zeek/alice/foo"
         """
-        path_parts = path.split('/')
+        path_parts = path.split("/")
 
         if self.source:
             pkg_path = self.qualified_name()
-            pkg_path_parts = pkg_path.split('/')
+            pkg_path_parts = pkg_path.split("/")
 
             for i, part in reversed(list(enumerate(path_parts))):
                 ri = i - len(path_parts)

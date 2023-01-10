@@ -7,6 +7,7 @@ import os
 import re
 import readline
 
+
 def slugify(string):
     """Returns file-system-safe, lower-case version of the input string.
 
@@ -14,10 +15,10 @@ def slugify(string):
     single underscore. If the variable has no value or the value is an
     empty string, returns the given default.
     """
-    return re.sub(r'[^\w]+', '_', string, flags=re.ASCII).lower()
+    return re.sub(r"[^\w]+", "_", string, flags=re.ASCII).lower()
 
 
-def _rlinput(prompt, prefill=''):
+def _rlinput(prompt, prefill=""):
     """Variation of input() that supports pre-filling a value."""
     readline.set_startup_hook(lambda: readline.insert_text(prefill))
     try:
@@ -26,7 +27,7 @@ def _rlinput(prompt, prefill=''):
         readline.set_startup_hook()
 
 
-class UserVar():
+class UserVar:
     """A class representing a single user variable.
 
     User variables have a name and an optional description. They
@@ -35,9 +36,10 @@ class UserVar():
     cached previous values, and user input. They may come with a
     default value.
     """
+
     def __init__(self, name, val=None, default=None, desc=None):
         self._name = name
-        self._desc = desc or ''
+        self._desc = desc or ""
         self._val = val
         self._default = default if default is not None else val
 
@@ -93,23 +95,26 @@ class UserVar():
             for uvar in user_var_args:
                 if uvar.name() == self._name:
                     val = uvar.val()
-                    source = 'command line'
+                    source = "command line"
                     break
 
         if val is None:
             val = os.environ.get(self._name)
             if val:
-                source = 'environment'
+                source = "environment"
 
         if source:
-            print('"{}" will use value of "{}" ({}) from {}: {}'.format(
-                name, self._name, self._desc, source, val))
+            print(
+                '"{}" will use value of "{}" ({}) from {}: {}'.format(
+                    name, self._name, self._desc, source, val
+                )
+            )
             self._val = val
             return val
 
         if val is None:
             # Try to re-use a cached value in the subsequent prompt
-            val = config.get('user_vars', self._name, fallback=self._default)
+            val = config.get("user_vars", self._name, fallback=self._default)
 
         if force:
             if val is None:
@@ -117,10 +122,9 @@ class UserVar():
             self._val = val
             return val
 
-        desc = ' (' + self._desc + ')' if self._desc else ''
-        print('"{}" requires a "{}" value{}: '.format(
-            name, self._name, desc))
-        self._val = _rlinput(self._name + ': ', val)
+        desc = " (" + self._desc + ")" if self._desc else ""
+        print(f'"{name}" requires a "{self._name}" value{desc}: ')
+        self._val = _rlinput(self._name + ": ", val)
 
         return self._val
 
@@ -128,11 +132,12 @@ class UserVar():
     def parse_arg(arg):
         """Parser for NAME=VAL format string used in command-line args."""
         try:
-            name, val = arg.split('=', 1)
+            name, val = arg.split("=", 1)
             return UserVar(name, val=val)
         except ValueError as error:
-            raise ValueError('invalid user var argument "{}", must be NAME=VAR'
-                             .format(arg)) from error
+            raise ValueError(
+                f'invalid user var argument "{arg}", must be NAME=VAR'
+            ) from error
 
     @staticmethod
     def parse_dict(metadata_dict):
@@ -146,7 +151,7 @@ class UserVar():
             list of UserVar. If the 'user_vars' field is not present,
             an empty list is returned.  If malformed, returns None.
         """
-        text = metadata_dict.get('user_vars')
+        text = metadata_dict.get("user_vars")
 
         if not text:
             return []

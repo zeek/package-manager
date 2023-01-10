@@ -50,7 +50,7 @@ remove
 .. note::
 
    You may also say ``uninstall``.
-           
+
 .. _purge-command:
 
 purge

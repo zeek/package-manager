@@ -3,7 +3,7 @@
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: zkg install rot13
 
-# @TEST-EXEC: btest-diff plugins/packages/rot13/__bro_plugin__ 
+# @TEST-EXEC: btest-diff plugins/packages/rot13/__bro_plugin__
 # @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.zeek
 
 # Unloading the package should also disable the plugin, which we

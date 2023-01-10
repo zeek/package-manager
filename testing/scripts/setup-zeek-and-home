@@ -20,4 +20,3 @@ state_dir = ${zeek_zkg_state_dir}
 script_dir = ${zeek_site_dir}
 plugin_dir = ${zeek_plugins_dir}
 " >> ${zeek_zkg_config_dir}/config
-
