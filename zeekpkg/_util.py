@@ -6,6 +6,7 @@ import errno
 import importlib.machinery
 import os
 import shutil
+import string
 import tarfile
 import types
 
@@ -287,28 +288,8 @@ def is_sha1(s):
     if len(s) != 40:
         return False
 
-    for c in s:
-        if c not in {
-            "a",
-            "b",
-            "c",
-            "d",
-            "e",
-            "f",
-            "0",
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
-        }:
-            return False
-
-    return True
+    hexdigits = set(string.hexdigits.lower())
+    return all(c in hexdigits for c in s)
 
 
 def is_exe(path):
