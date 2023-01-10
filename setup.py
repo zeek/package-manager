@@ -1,12 +1,22 @@
+import pathlib
 from setuptools import setup
 
 install_requires = ["gitpython", "semantic_version", "btest"]
 
+
+def version():
+    return pathlib.Path("VERSION").read_text().replace("-", ".dev", 1).strip()
+
+
+def long_description():
+    return pathlib.Path("README").read_text()
+
+
 setup(
     name="zkg",
-    version=open("VERSION").read().replace("-", ".dev", 1).strip(),
+    version=version(),
     description="The Zeek Package Manager",
-    long_description=open("README").read(),
+    long_description=long_description(),
     license="University of Illinois/NCSA Open Source License",
     keywords="zeek zeekctl zeekcontrol package manager scripts plugins security",
     maintainer="The Zeek Project",
