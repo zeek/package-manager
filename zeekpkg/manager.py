@@ -419,9 +419,9 @@ class Manager:
                     os.rename(magic_path_disabled, magic_path)
                 except OSError as exception:
                     LOG.warning(
-                        "could not enable plugin: %s: %s".format(
-                            type(exception).__name__, exception
-                        )
+                        "could not enable plugin: %s %s",
+                        type(exception).__name__,
+                        exception,
                     )
         else:
             if os.path.exists(magic_path):
@@ -429,9 +429,9 @@ class Manager:
                     os.rename(magic_path, magic_path_disabled)
                 except OSError as exception:
                     LOG.warning(
-                        "could not disable plugin: %s: %s".format(
-                            type(exception).__name__, exception
-                        )
+                        "could not disable plugin: %s %s",
+                        type(exception).__name__,
+                        exception,
                     )
 
     def _read_manifest(self):
@@ -1257,8 +1257,8 @@ class Manager:
                 try:
                     LOG.debug("removing link %s", link)
                     os.unlink(link)
-                except os.error as excpt:
-                    LOG.warn("cannot remove link for %s", exec)
+                except os.error as err:
+                    LOG.warn("cannot remove link for %s", err)
 
         del self.installed_pkgs[pkg_to_remove.name]
         self._write_manifest()
