@@ -45,6 +45,27 @@ try:
 except ImportError:
     pass
 
+from zeekpkg._util import (
+    delete_path,
+    make_dir,
+    make_symlink,
+    find_program,
+    read_zeek_config_line,
+    std_encoding,
+)
+from zeekpkg.package import (
+    TRACKING_METHOD_VERSION,
+)
+from zeekpkg.template import (
+    LoadError,
+    Template,
+)
+from zeekpkg.uservar import (
+    UserVar,
+)
+
+import zeekpkg
+
 # For Zeek-bundled installation, prepend the Python path of the Zeek
 # installation. This ensures we find the matching zeekpkg module
 # first, avoiding potential conflicts with installations elsewhere on
@@ -84,27 +105,6 @@ ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
 
 # The default package template
 ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
-
-from zeekpkg._util import (
-    delete_path,
-    make_dir,
-    make_symlink,
-    find_program,
-    read_zeek_config_line,
-    std_encoding,
-)
-from zeekpkg.package import (
-    TRACKING_METHOD_VERSION,
-)
-from zeekpkg.template import (
-    LoadError,
-    Template,
-)
-from zeekpkg.uservar import (
-    UserVar,
-)
-
-import zeekpkg
 
 
 def confirmation_prompt(prompt, default_to_yes=True):
