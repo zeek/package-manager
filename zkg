@@ -329,7 +329,7 @@ def create_config(args, configfile):
 def active_git_branch(path):
     try:
         repo = git.Repo(path)
-    except git.exc.NoSuchPathError as error:
+    except git.exc.NoSuchPathError:
         return None
 
     if not repo.working_tree_dir:
@@ -337,7 +337,7 @@ def active_git_branch(path):
 
     try:
         rval = repo.active_branch
-    except TypeError as error:
+    except TypeError:
         # return detached commit
         rval = repo.head.commit
 
@@ -359,7 +359,7 @@ def is_local_git_repo(git_url):
         # accessible, (2) it's not the root directory of a git repo.
         git.Repo(git_url)
         return True
-    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError) as error:
+    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
         return False
 
 
@@ -368,7 +368,7 @@ def is_local_git_repo_dirty(git_url):
         return False
     try:
         repo = git.Repo(git_url)
-    except git.exc.NoSuchPathError as error:
+    except git.exc.NoSuchPathError:
         return False
 
     return repo.is_dirty(untracked_files=True)
@@ -1536,11 +1536,9 @@ def cmd_upgrade(manager, args, config, configfile):
 
     for info, next_version, _ in outdated_packages:
         name = info.package.qualified_name()
-        bdir = name
 
         if not manager.match_source_packages(name):
             name = info.package.git_url
-            bdir = zeekpkg.package.name_from_path(name)
 
         ipkg = manager.find_installed_package(name)
         modifications = manager.modified_config_files(ipkg)
