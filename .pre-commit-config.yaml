@@ -19,5 +19,9 @@ repos:
   hooks:
   - id: pyupgrade
     args: ["--py37-plus"]
+- repo: https://github.com/pycqa/flake8
+  rev: 5.0.4  # 6.0.0 requires Python 3.8
+  hooks:
+  - id: flake8
 
 exclude: doc/ext/sphinxarg
