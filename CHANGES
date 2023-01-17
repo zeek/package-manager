@@ -1,3 +1,17 @@
+2.13.0-24 | 2023-01-17 14:29:45 -0800
+
+  * setup.cfg/pre-commit-config: Add flake8 hook and config (Arne Welzel, Corelight)
+
+  * zkg: Fix comparison with True (Arne Welzel, Corelight)
+
+  * zkg: Fix unused variables (Arne Welzel, Corelight)
+
+  * zkg: Imports at top of file (Arne Welzel, Corelight)
+
+  * manager: Bad logging invocatoins (Arne Welzel, Corelight)
+
+  * Remove CodeQL (Christian Kreibich, Corelight)
+
 2.13.0-17 | 2023-01-10 12:54:54 -0800
 
   * Replace manual nested loops with set operation. (Benjamin Bannier, Corelight)
