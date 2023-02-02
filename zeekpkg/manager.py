@@ -8,6 +8,7 @@ import copy
 import filecmp
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,7 @@ from ._util import (
     delete_path,
     make_symlink,
     copy_over_path,
+    get_zeek_info,
     git_default_branch,
     git_checkout,
     git_clone,
@@ -44,6 +46,8 @@ from ._util import (
 )
 from .source import AGGREGATE_DATA_FILE, Source
 from .package import (
+    BUILTIN_SOURCE,
+    BUILTIN_SCHEME,
     METADATA_FILENAME,
     LEGACY_METADATA_FILENAME,
     TRACKING_METHOD_VERSION,
@@ -55,6 +59,7 @@ from .package import (
     aliases,
     canonical_url,
     is_valid_name as is_valid_package_name,
+    make_builtin_package,
     Package,
     PackageInfo,
     PackageStatus,
@@ -269,6 +274,8 @@ class Manager:
         LOG.debug("init Manager version %s", __version__)
         self.sources = {}
         self.installed_pkgs = {}
+        self._builtin_packages = None  # Cached Zeek built-in packages.
+        self._builtin_packages_discovered = False  # Flag if discovery even worked.
         # The bro_dist attribute exists just for backward compatibility
         self.bro_dist = zeek_dist
         self.zeek_dist = zeek_dist
@@ -303,6 +310,12 @@ class Manager:
             self._write_manifest()
 
         prev_script_dir, prev_plugin_dir, prev_bin_dir = self._read_manifest()
+
+        # Place all Zeek built-in packages into installed packages.
+        for info in self.discover_builtin_packages():
+            self.installed_pkgs[info.package.name] = InstalledPackage(
+                package=info.package, status=info.status
+            )
 
         refresh_bin_dir = False  # whether we need to updates link in bin_dir
         relocating_bin_dir = False  # whether bin_dir has relocated
@@ -535,6 +548,9 @@ class Manager:
             str: empty string if the source is successfully added, else the
             reason why it failed.
         """
+        if name == BUILTIN_SOURCE:
+            return f"{name} is a reserved source name"
+
         if name in self.sources:
             existing_source = self.sources[name]
 
@@ -594,6 +610,98 @@ class Manager:
             rval += source.packages()
 
         return rval
+
+    def discover_builtin_packages(self):
+        """
+        Discover packages included in Zeek for dependency resolution.
+
+        This is using Zeek's ``--build-info`` flag and specifically the
+        ``zkg.provides`` entry it contains. Requires Zeek 6.0 and later.
+
+        Returns:
+            list of :class:`.package.BuiltinPackage`: List of built-in packages.
+        """
+        if self._builtin_packages is not None:
+            return self._builtin_packages
+
+        self._builtin_packages = []
+        try:
+            zeek_executable = get_zeek_info().zeek
+        except LookupError as e:
+            LOG.warning("unable to discover builtin-packages: %s", str(e))
+            return self._builtin_packages
+
+        try:
+            build_info_str = subprocess.check_output(
+                [zeek_executable, "--build-info"], stderr=subprocess.DEVNULL, timeout=10
+            )
+            build_info = json.loads(build_info_str)
+        except subprocess.CalledProcessError:
+            # Not a warning() due to being a bit noisy.
+            LOG.info("unable to discover built-in packages - requires Zeek 6.0")
+            return self._builtin_packages
+        except ValueError as e:
+            LOG.error("unable to parse Zeek's build info output: %s", str(e))
+            return self._builtin_packages
+
+        if "zkg" not in build_info or "provides" not in build_info["zkg"]:
+            LOG.warning("missing zkg.provides entry in zeek --build-info output")
+            return self._builtin_packages
+
+        self._builtin_packages_discovered = True
+
+        for p in build_info["zkg"]["provides"]:
+            name, version = p.get("name"), p.get("version")
+            commit = p.get("commit")
+
+            if not name or not version:
+                LOG.warning("zkg.provides entry missing name or version: %s", repr(p))
+                continue
+
+            orig_version = version
+            # The VERSION found in plugins isn't semantic version compatible.
+            # For example, 1.4.2-68 is parsed as prerelease 68 of 1.4.2.
+            # From update-changes/git describe, it's 68 commits after 1.4.2.
+            # Deal with that by stripping -68, but leave -rc1 or -dev alone.
+            m = re.match(r"([0-9]+\.[0-9]+\.[0-9]+)-[0-9]+", version)
+            if m:
+                version = m.group(1)
+
+            LOG.debug(
+                "found built-in package %s with version %s (%s)",
+                name,
+                version,
+                orig_version,
+            )
+
+            self._builtin_packages.append(
+                make_builtin_package(
+                    name=name,
+                    current_version=version,
+                    current_hash=commit,
+                )
+            )
+
+        return self._builtin_packages
+
+    def find_builtin_package(self, pkg_path):
+        """
+        Find a builtin plugin that matches ``pkg_path``.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.
+
+        Returns:
+            PackageInfo: PackageInfo instance representing a builtin package
+            matching ``pkg_path``.
+        """
+        pkg_name = name_from_path(pkg_path)
+        for info in self.discover_builtin_packages():
+            if info.package.matches_path(pkg_name):
+                return info
+
+        return None
 
     def installed_packages(self):
         """Return list of :class:`.package.InstalledPackage`."""
@@ -1146,6 +1254,12 @@ class Manager:
             IOError: if the package manifest file can't be written
         """
         for ipkg in self.installed_packages():
+            if ipkg.is_builtin():
+                LOG.debug(
+                    'skipping refresh of built-in package "%s"', ipkg.package.name
+                )
+                continue
+
             clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
             clone = git.Repo(clonepath)
             LOG.debug("fetch package %s", ipkg.package.qualified_name())
@@ -1238,6 +1352,10 @@ class Manager:
 
         if not ipkg:
             LOG.info('removing "%s": could not find matching package', pkg_path)
+            return False
+
+        if ipkg.is_builtin():
+            LOG.error('cannot remove built-in package "%s"', pkg_path)
             return False
 
         self.unload(pkg_path)
@@ -1720,6 +1838,13 @@ class Manager:
             return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
 
         LOG.debug('getting info on "%s"', pkg_path)
+
+        # Handle built-in packages like installed packages
+        # but avoid looking up the repository information.
+        bpkg_info = self.find_builtin_package(pkg_path)
+        if prefer_installed and bpkg_info:
+            return bpkg_info
+
         ipkg = self.find_installed_package(pkg_path)
 
         if prefer_installed and ipkg:
@@ -1821,6 +1946,7 @@ class Manager:
         requested_packages,
         ignore_installed_packages=False,
         ignore_suggestions=False,
+        use_builtin_packages=True,
     ):
         """Validates package dependencies.
 
@@ -1837,6 +1963,9 @@ class Manager:
             ignore_suggestions (bool): whether the dependency analysis should
                 consider installing dependencies that are marked in another
                 package's 'suggests' metadata field.
+
+            use_builtin_packages (bool): whether package information from
+                builtin packages is used for dependency resolution.
 
         Returns:
             (str, list of (:class:`.package.PackageInfo`, str, bool)):
@@ -1946,7 +2075,17 @@ class Manager:
                 is_suggestion = (
                     node.is_suggestion or dep_name in ds and dep_name not in dd
                 )
-                info = self.info(dep_name, prefer_installed=False)
+
+                # If a dependency can be fulfilled by a built-in package
+                # use its PackageInfo directly instead of going through
+                # self.info() to search for it in package sources, where
+                # it may not actually exist.
+                info = None
+                if use_builtin_packages:
+                    info = self.find_builtin_package(dep_name)
+
+                if info is None:
+                    info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
                     return (
@@ -1959,7 +2098,14 @@ class Manager:
                         [],
                     )
 
+                dep_name_orig = dep_name
                 dep_name = info.package.qualified_name()
+                LOG.info(
+                    'dependency "%s" of "%s" resolved to "%s"',
+                    dep_name_orig,
+                    node.name,
+                    dep_name,
+                )
 
                 if dep_name in graph:
                     if graph[dep_name].is_suggestion and not is_suggestion:
@@ -2399,6 +2545,9 @@ class Manager:
         config.optionxform = str
         config.add_section("bundle")
 
+        # To be placed into section "bundle_builtin".
+        builtin_packages = []
+
         def match_package_url_and_version(git_url, version):
             for ipkg in self.installed_packages():
                 if ipkg.package.git_url != git_url:
@@ -2412,6 +2561,12 @@ class Manager:
             return None
 
         for git_url, version in package_list:
+            # Record built-in packages in the bundle's manifest, but nothing
+            # more - there may not even be a valid repo for these.
+            if git_url.startswith(BUILTIN_SCHEME):
+                builtin_packages.append((git_url, version))
+                continue
+
             name = name_from_path(git_url)
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
@@ -2436,6 +2591,14 @@ class Manager:
                 git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
             except git.exc.GitCommandError as error:
                 return f"failed to clone {git_url}: {error}"
+
+        # Record the built-in packages expected by this bundle. This is in
+        # a separate section such that older zkg versions just ignore it
+        # and aren't confused by the zeek-builtin:// scheme used as URLs.
+        if builtin_packages:
+            config.add_section("bundle_builtin")
+            for git_url, version in builtin_packages:
+                config.set("bundle_builtin", git_url, version)
 
         with open(manifest_file, "w") as f:
             config.write(f)
@@ -2490,6 +2653,51 @@ class Manager:
 
             if error:
                 return error
+
+        # Check the bundle_builtin section for packages and warn the user
+        # if we can't figure out builtin packages or some are missing.
+        if config.has_section("bundle_builtin"):
+            for git_url, version in config.items("bundle_builtin"):
+                if not self._builtin_packages_discovered:
+                    LOG.warning(
+                        'bundle "%s" lists built-in package "%s", '
+                        "but unable to discover built-in packages",
+                        bundle_file,
+                        git_url,
+                    )
+                    continue
+
+                # Fishy stuff?
+                if not git_url.startswith(BUILTIN_SCHEME):
+                    LOG.warning(
+                        'built-in package in "%s" has invalid scheme "%s"',
+                        bundle_file,
+                        git_url,
+                    )
+                    continue
+
+                info = self.find_builtin_package(git_url)
+                if info is None:
+                    LOG.warning(
+                        'bundle "%s" lists built-in package "%s", '
+                        "but it is not availbale",
+                        bundle_file,
+                        git_url,
+                    )
+                    continue
+
+                builtin_version = semver.Version.coerce(info.status.current_version)
+                bundle_version = semver.Version.coerce(version)
+
+                # Warn if the version that is built-in is less than what the bundle
+                # specifies. We could check equality, but that seems overly strict.
+                if builtin_version < bundle_version:
+                    LOG.warning(
+                        'built-in version of "%s" is "%s", bundle has "%s"',
+                        git_url,
+                        builtin_version,
+                        bundle_version,
+                    )
 
         return ""
 

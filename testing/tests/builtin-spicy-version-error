@@ -1,0 +1,23 @@
+# @TEST-DOC: Package depends for built-in Spicy cannot be fulfilled with built-in package.
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC-FAIL: zkg install foo >output.orig 2>&1
+# @TEST-EXEC: sed -r 's/(.*)\([0-9]+\.[0-9]+\.[0-9]+\) is installed(.*)/\1(X.X.X) is installed\2/' <output.orig >output
+# @TEST-EXEC: btest-diff output
+# @TEST-EXEC: test ! -f package.log
+#
+
+export LOG=$(pwd)/package.log
+
+(
+    cd packages/foo
+    cat >>zkg.meta <<EOF
+test_command = echo "Testing foo" >> $LOG
+build_command = echo "Building foo" >> $LOG
+depends =
+  spicy-plugin <6.0.0
+EOF
+    git commit -am 'foo: depends on old spicy-plugin'
+)

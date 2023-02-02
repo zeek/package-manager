@@ -1,0 +1,6 @@
+# @TEST-DOC: Ensure that pinning spicy-plugin fails if it's built-in (default for 6.0)
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+#
+# @TEST-EXEC-FAIL: zkg pin spicy-plugin >out 2>&1
+# @TEST-EXEC: btest-diff out
