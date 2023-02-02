@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import typing
 
 try:
     from urllib.parse import urlparse
@@ -269,6 +270,7 @@ class Manager:
         LOG.debug("init Manager version %s", __version__)
         self.sources = {}
         self.installed_pkgs = {}
+        self._builtin_plugins = None  # Cached builtin plugins
         # The bro_dist attribute exists just for backward compatibility
         self.bro_dist = zeek_dist
         self.zeek_dist = zeek_dist
@@ -594,6 +596,98 @@ class Manager:
             rval += source.packages()
 
         return rval
+
+    def discover_builtin_plugins(self):
+        """
+        Discover Zeek builtin plugins and their versions for dependency
+        resolution.
+
+        Returns:
+            List of BuiltinPlugin instances with name, version and info
+            accessors.
+
+        At this point, this "recognizes" the spicy-plugin. That's the only
+        relevant plugin as of today. It was included with Zeek 5.0 as builtin
+        by default, but at the same time represents a dependency for many
+        packages that is currently not discovered.
+
+        If you're tempted to add a multitude of out-of-tree Zeek plugins here,
+        a generic approach replacing the specific zeek -N parsing with a
+        generic zeek -NNN approach (outputting zkg metadata) would be
+        preferable. If spicy-plugin becomes part of Zeek and the topic never
+        comes up again, remove below code.
+        """
+
+        class BuiltinPlugin(typing.NamedTuple):
+            name: str
+            version: str
+            info: PackageInfo
+
+            @classmethod
+            def make(cls, name, version):
+                package = Package(git_url=f"builtin://{name}")
+                status = PackageStatus(
+                    tracking_method=TRACKING_METHOD_VERSION,
+                    current_version=version,
+                )
+                info = PackageInfo(
+                    package=package,
+                    status=status,
+                    versions=[version],
+                )
+                return cls(name, version, info)
+
+        if self._builtin_plugins is not None:
+            return self._builtin_plugins
+
+        self._builtin_plugins = []
+        zeek = find_program("zeek")
+        if not zeek:
+            return self._builtin_plugins
+
+        plugin_list = subprocess.check_output([zeek, "-N"], timeout=10)
+        for line in plugin_list.decode("utf-8").splitlines():
+            if line.startswith("Zeek::Spicy") and line.endswith("(built-in)"):
+                # Unfortunately, there's no version output from Zeek when
+                # plugins are built-in. Use spicyz to determine the version.
+                spicyz = find_program("spicyz")
+                if not spicyz:
+                    LOG.warning(
+                        "Builtin Zeek::Spicy plugin found, but spicyz not in path"
+                    )
+                    # This is a lie...
+                    spicy_version = get_zeek_version()
+                else:
+                    spicy_version = (
+                        subprocess.check_output([spicyz, "--version"], timeout=10)
+                        .decode("utf-8")
+                        .strip()
+                    )
+
+                # Normalize dev versions like 1.4.2-23 to 1.4.2
+                if "-" in spicy_version:
+                    spicy_version = spicy_version.split("-", 1)[0]
+
+                self._builtin_plugins.append(
+                    BuiltinPlugin.make("zeek/spicy-plugin", spicy_version)
+                )
+
+        return self._builtin_plugins
+
+    def find_builtin_plugin(self, pkg_path):
+        """
+        Find a builtin plugin that matches pkg_path.
+
+        Returns:
+            PackageInfo: PackageInfo object representing a builtin plugin if
+            the dependency given by pkg_path can be fulfilled by a builtin
+            plugin, else None
+        """
+        for p in self.discover_builtin_plugins():
+            if p.info.package.matches_path(pkg_path):
+                return p.info
+
+        return None
 
     def installed_packages(self):
         """Return list of :class:`.package.InstalledPackage`."""
@@ -1946,7 +2040,17 @@ class Manager:
                 is_suggestion = (
                     node.is_suggestion or dep_name in ds and dep_name not in dd
                 )
-                info = self.info(dep_name, prefer_installed=False)
+
+                # If a dependency can be fulfilled by a builtin plugin,
+                # use its PackageInfo directly instead of going through
+                # self.info() to search for it in package sources, where
+                # it may not actually exist.
+                info = None
+                if not ignore_installed_packages:
+                    info = self.find_builtin_plugin(dep_name)
+
+                if info is None:
+                    info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
                     return (
@@ -1959,7 +2063,14 @@ class Manager:
                         [],
                     )
 
+                dep_name_orig = dep_name
                 dep_name = info.package.qualified_name()
+                LOG.info(
+                    "dependency %s of %s resolved to %s",
+                    dep_name_orig,
+                    node.name,
+                    dep_name,
+                )
 
                 if dep_name in graph:
                     if graph[dep_name].is_suggestion and not is_suggestion:
@@ -1995,6 +2106,19 @@ class Manager:
             node = Node("zkg")
             node.installed_version = (TRACKING_METHOD_VERSION, __version__)
             graph["zkg"] = node
+
+            # Add all Zeek builtin plugins as installed into the graph.
+            for plugin in self.discover_builtin_plugins():
+                qn = plugin.info.package.qualified_name()
+                if qn not in graph:
+                    node = Node(qn)
+                    node.info = plugin.info
+                    graph[qn] = node
+
+                graph[qn].installed_version = (
+                    TRACKING_METHOD_VERSION,
+                    plugin.version,
+                )
 
             for ipkg in self.installed_packages():
                 name = ipkg.package.qualified_name()
