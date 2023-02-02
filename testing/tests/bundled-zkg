@@ -1,0 +1,17 @@
+# @TEST-DOC: Simulate bundling of zkg in Zeek and ensure zkg works. This got broken during a cleanup previously.
+# @TEST-EXEC: bash %INPUT > output
+# @TEST-EXEC: btest-diff output
+
+set -eu
+
+# Place zkg and zeekpkg into bin and lib/python directories and do
+# the templating.
+mkdir -p install-dir/{bin,lib/python}
+cp -R $TEST_BASE/../zeekpkg ./install-dir/lib/python
+cp  $TEST_BASE/../zkg ./install-dir/bin
+sed -i "s,@PY_MOD_INSTALL_DIR@,$(pwd)/install-dir/lib/python," ./install-dir/bin/zkg
+
+export PATH=$(pwd)/install-dir/bin:$PATH
+# Ensure we're using the right zkg
+command -v zkg | sed -E 's,^.*/(.*/.*/.*/zkg),<xxx>/\1,'
+zkg --version | sed 's/zkg [0-9.-]*/zkg xxx/'
