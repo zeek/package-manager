@@ -1,4 +1,4 @@
-cpus: &CPUS 8
+cpus: &CPUS 2
 
 resources_template: &RESOURCES_TEMPLATE
   cpu: *CPUS
