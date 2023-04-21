@@ -1,0 +1,31 @@
+# @TEST-DOC: Upgrading fails when a test_comamnd fails, even with --force.
+# @TEST-REQUIRES: type zeek-config
+# @TEST-EXEC: (cd packages/foo && echo 'print "foo 1.0.2";' >> __load__.zeek && git tag -a 1.0.2 -m 1.0.2 )
+
+# @TEST-EXEC: zkg install foo >>out 2>&1
+
+# @TEST-EXEC: bash improve-foo-tag-1.0.3
+
+# @TEST-EXEC: zkg refresh
+#
+# @TEST-EXEC: echo "=== upgrade without skiptests" >>out
+# @TEST-EXEC-FAIL: zkg upgrade --force >>out 2>&1
+
+# The upgrade failed, no 1.0.3 to be found in the __load__.zeek file
+# @TEST-EXEC-FAIL: grep -F '1.0.3' scripts/packages/foo/__load__.zeek >>out
+#
+# @TEST-EXEC: echo "=== upgrade with skiptest" >>out
+# @TEST-EXEC: zkg upgrade --force --skiptests >>out 2>&1
+# @TEST-EXEC: grep -F '1.0.3' scripts/packages/foo/__load__.zeek >>out
+#
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff out
+
+@TEST-START-FILE improve-foo-tag-1.0.3
+set -e
+cd packages/foo
+echo 'test_command = exit 1' >> zkg.meta
+echo 'print "foo 1.0.3";' > __load__.zeek
+git add zkg.meta
+git commit -am 'add a test'
+git tag -a 1.0.3 -m 1.0.3
+@TEST-END-FILE
