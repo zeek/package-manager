@@ -726,7 +726,7 @@ def cmd_install(manager, args, config, configfile):
 
             if "test_command" not in info.metadata:
                 zeekpkg.LOG.info(
-                    'Skipping unit tests for "%s": ' "no test_command in metadata", name
+                    f'Skipping unit tests for "{name}": no test_command in metadata'
                 )
                 continue
 
@@ -758,7 +758,7 @@ def cmd_install(manager, args, config, configfile):
                 print_error(f"error: {error_msg}")
 
                 if args.force:
-                    continue
+                    sys.exit(1)
 
                 if not confirmation_prompt(
                     "Proceed to install anyway?", default_to_yes=False
@@ -1504,7 +1504,7 @@ def cmd_upgrade(manager, args, config, configfile):
                 print_error(f"error: {error_msg}")
 
                 if args.force:
-                    continue
+                    sys.exit(1)
 
                 if not confirmation_prompt(
                     "Proceed to install anyway?", default_to_yes=False

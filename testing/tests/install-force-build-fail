@@ -1,0 +1,16 @@
+# @TEST-DOC: Test that a failing build_command fails the package installation, no matter what.
+# @TEST-REQUIRES: type zeek-config
+#
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: zkg install bar
+#
+# @TEST-EXEC-FAIL: zkg -v install --force --skiptests foo >>out 2>&1
+# @TEST-EXEC: echo "have_load_bar=$(grep -c '@load.*bar' ./scripts/packages/packages.zeek)" >>out
+# @TEST-EXEC: echo "have_load_foo=$(grep -c '@load.*foo' ./scripts/packages/packages.zeek)" >>out
+#
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff out
+
+cd packages/foo
+echo 'build_command = exit 1' >> zkg.meta
+git commit -am 'build fails'
