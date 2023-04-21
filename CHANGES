@@ -1,3 +1,35 @@
+2.13.0-30 | 2023-04-21 20:37:27 +0200
+
+  * Reduce to 2 CPUs per task for CI tasks (Arne Welzel, Corelight)
+
+    Specifying 8 CPUs and two tasks immediately allocates as many resources
+    as are available for free for a single user on Cirrus. Depending on what
+    else a user is using Cirrus for, execution of zkg tasks may be delayed
+    for significant amounts of time.
+
+    The test-suite does not run such a long duration that the 4x reduction
+    in CPUs should have a practical impact.
+
+  * Fix upgrade using test_command of old version (Arne Welzel, Corelight)
+
+  * GH-137: Change --force to fail on failing tests (Arne Welzel, Corelight)
+
+    This is a user-visible change in behavior, but to something sane, so
+    hopefully that's acceptable.
+
+    Currently, `--force` is oftentimes used in scenarios where it should mean
+    "non-interactive". At the same time, `--force` also implies to ignore
+    failing test commands. This is not reasonable behavior, particularly as
+    `--skiptests` is available. This patch changes the behavior and causes
+    install/upgrade to exit with a failure code when tests fail even with
+    `--force` provided.
+
+    If someone intentionally wants to install a package with broken tests,
+    they can/should use `--skiptests` explicitly instead. That is less
+    surprising and stands out more.
+
+    Fixes #137
+
 2.13.0-26 | 2023-02-03 09:23:59 +0100
 
   * Fix zkg bundled usage (Arne Welzel, Corelight)

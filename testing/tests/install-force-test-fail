@@ -1,0 +1,19 @@
+# @TEST-DOC: Test that a failing test_command with --force causes zkg install to fail and the package is not loaded. Also, verify that --skiptests can override that.
+# @TEST-REQUIRES: type zeek-config
+#
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: echo "=== install without skiptests" >>out
+# @TEST-EXEC-FAIL: zkg -v install --force foo >>out 2>&1
+# @TEST-EXEC: echo "have_load_foo=$(grep -c '@load.*foo' ./scripts/packages/packages.zeek)" >>out
+#
+# @TEST-EXEC: rm -rf ./state
+# @TEST-EXEC: echo "=== install with skiptests" >>out
+# @TEST-EXEC: zkg -v install --force --skiptests foo >>out 2>&1
+# @TEST-EXEC: echo "have_load_foo=$(grep -c '@load.*foo' ./scripts/packages/packages.zeek)" >>out
+#
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff out
+
+cd packages/foo
+echo 'test_command = exit 1' >> zkg.meta
+git commit -am 'add a test'
