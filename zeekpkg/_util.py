@@ -311,6 +311,36 @@ def find_program(prog_name):
     return ""
 
 
+class ZeekInfo:
+    """
+    Helper class holding information about a Zeek installation.
+    """
+
+    def __init__(self, *, zeek: str):
+        self._zeek = zeek
+
+    @property
+    def zeek(self) -> str:
+        """Path to zeek executable."""
+        if not self._zeek:
+            raise LookupError('No "zeek" executable in PATH')
+        return self._zeek
+
+
+_zeek_info = None
+
+
+def get_zeek_info() -> ZeekInfo:
+    global _zeek_info
+
+    if _zeek_info is None:
+        _zeek_info = ZeekInfo(
+            zeek=find_program("zeek"),
+        )
+
+    return _zeek_info
+
+
 def std_encoding(stream):
     if stream.encoding:
         return stream.encoding
