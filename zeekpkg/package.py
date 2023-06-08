@@ -151,6 +151,9 @@ class InstalledPackage:
         self.package = package
         self.status = status
 
+    def __repr__(self):
+        return f"InstalledPackage(package={self.package!r}, status={self.status!r})"
+
     def __hash__(self):
         return hash(str(self.package))
 
@@ -202,6 +205,9 @@ class PackageStatus:
         self.current_version = current_version
         self.current_hash = current_hash
 
+    def __repr__(self):
+        member_str = ", ".join(f"{k}={v!r}" for (k, v) in self.__dict__.items())
+        return f"PackageStatus({member_str})"
 
 class PackageInfo:
     """Contains information on an arbitrary package.
@@ -312,6 +318,9 @@ class PackageInfo:
 
         return self.default_branch
 
+    def __repr__(self):
+        return f"PackageInfo(package={self.package!r}, status={self.status!r})"
+
 
 @total_ordering
 class Package:
@@ -374,7 +383,10 @@ class Package:
         return self.qualified_name()
 
     def __repr__(self):
-        return self.git_url
+        return (
+            f"Package(git_url={self.git_url!r}, source={self.source!r},"
+            f" directory={self.directory!r} name={self.name!r})"
+        )
 
     def __hash__(self):
         return hash(str(self))
