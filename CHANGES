@@ -1,3 +1,7 @@
+2.13.0-32 | 2023-06-20 15:55:21 -0700
+
+  * Add --ignore-dirty-git option to test and install commands (Tim Wojtulewicz, Corelight)
+
 2.13.0-30 | 2023-04-21 20:37:27 +0200
 
   * Reduce to 2 CPUs per task for CI tasks (Arne Welzel, Corelight)

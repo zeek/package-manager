@@ -374,12 +374,12 @@ def is_local_git_repo_dirty(git_url):
     return repo.is_dirty(untracked_files=True)
 
 
-def check_local_git_repo(git_url):
+def check_local_git_repo(git_url, allow_dirty):
     if is_local_git_repo_url(git_url):
         if not is_local_git_repo(git_url):
             print_error(f"error: path {git_url} is not a git repository")
             return False
-        if is_local_git_repo_dirty(git_url):
+        if not allow_dirty and is_local_git_repo_dirty(git_url):
             print_error(f"error: local git clone at {git_url} is dirty")
             return False
 
@@ -549,7 +549,7 @@ def cmd_test(manager, args, config, configfile):
     package_infos = []
 
     for name in args.package:
-        if not check_local_git_repo(name):
+        if not check_local_git_repo(name, args.ignore_dirty_git):
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
@@ -619,7 +619,7 @@ def cmd_install(manager, args, config, configfile):
     package_infos = []
 
     for name in args.package:
-        if not check_local_git_repo(name):
+        if not check_local_git_repo(name, args.ignore_dirty_git):
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
@@ -889,7 +889,7 @@ def cmd_bundle(manager, args, config, configfile):
         new_pkgs = []
 
         for name, version in packages:
-            if not check_local_git_repo(name):
+            if not check_local_git_repo(name, args.ignore_dirty_git):
                 sys.exit(1)
 
             if not version:
@@ -2471,6 +2471,13 @@ def argparser():
         " the latest version tag, or if a package has none,"
         ' the default branch, like "main" or "master".',
     )
+    sub_parser.add_argument(
+        "--ignore-dirty-git",
+        action="store_true",
+        help=(
+            "Allows installation of packages from 'dirty' git clones instead of failing."
+        ),
+    )
 
     # install
     sub_parser = command_parser.add_parser(
@@ -2511,6 +2518,13 @@ def argparser():
         " The default for other cases is to use"
         " the latest version tag, or if a package has none,"
         ' the default branch, like "main" or "master".',
+    )
+    sub_parser.add_argument(
+        "--ignore-dirty-git",
+        action="store_true",
+        help=(
+            "Allows installation of packages from 'dirty' git clones instead of failing."
+        ),
     )
     add_uservar_args(sub_parser)
 
@@ -2568,6 +2582,13 @@ def argparser():
         " version tags, branch names, or commit hashes.  The values may be"
         " left blank to indicate that the latest available version should be"
         " used.",
+    )
+    sub_parser.add_argument(
+        "--ignore-dirty-git",
+        action="store_true",
+        help=(
+            "Allows installation of packages from 'dirty' git clones instead of failing."
+        ),
     )
 
     # unbundle
