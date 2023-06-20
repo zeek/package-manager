@@ -4,7 +4,7 @@
 #
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC-FAIL: zkg install foo >output.orig 2>&1
-# @TEST-EXEC: sed -r 's/(.*)\([0-9]+\.[0-9]+\.[0-9]+\) is installed(.*)/\1(X.X.X) is installed\2/' <output.orig >output
+# @TEST-EXEC: sed -r 's/[0-9]+\.[0-9]+\.[0-9]+/X.X.X/g' <output.orig >output
 # @TEST-EXEC: btest-diff output
 # @TEST-EXEC: test ! -f package.log
 #

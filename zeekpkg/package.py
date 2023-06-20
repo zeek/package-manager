@@ -8,8 +8,10 @@ import re
 
 from functools import total_ordering
 
+import semantic_version as semver
+
 from .uservar import UserVar
-from ._util import find_sentence_end
+from ._util import find_sentence_end, normalize_version_tag
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = "zkg.meta"
@@ -141,6 +143,63 @@ def dependencies(metadata_dict, field="depends"):
     return rval
 
 
+class PackageVersion:
+    """
+    Helper class to compare package versions with version specs.
+    """
+
+    def __init__(self, method, version):
+        self.method = method
+        self.version = version
+        self.req_semver = None
+
+    def fullfills(self, version_spec):
+        """
+        Whether this package version fullfills the given version_spec.
+
+        Returns:
+            (some message, bool)
+        """
+        if version_spec == "*":  # anything goes
+            return "", True
+
+        if self.method == TRACKING_METHOD_COMMIT:
+            return f'tracking method commit not compatible with "{version_spec}"', False
+
+        elif self.method == TRACKING_METHOD_BRANCH:
+            return "tracking method branch and commit", False
+            if version_spec.startswith("branch="):
+                branch = version_spec[len("branch=") :]
+
+            if version_spec != self.version:
+                return f'branch "{self.version}" not matching "{branch}"', False
+
+            return "", True
+
+        else:
+            # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
+            if version_spec.startswith("branch="):
+                branch = version_spec[len("branch=") :]
+                return (
+                    f"branch {branch} requested, but using method {self.method}",
+                    False,
+                )
+
+            if self.req_semver is None:
+                normal_version = normalize_version_tag(self.version)
+                self.req_semver = semver.Version.coerce(normal_version)
+
+            try:
+                semver_spec = semver.Spec(version_spec)
+            except ValueError:
+                return f'invalid semver spec: "{version_spec}"', False
+            else:
+                if self.req_semver in semver_spec:
+                    return "", True
+
+                return f"{self.version} not in {version_spec}", False
+
+
 @total_ordering
 class InstalledPackage:
     """An installed package and its current status.
@@ -169,6 +228,14 @@ class InstalledPackage:
 
     def is_builtin(self):
         return self.package.is_builtin()
+
+    def fullfills(self, version_spec):
+        """
+        Does the current version fullfill version_spec?
+        """
+        return PackageVersion(
+            self.status.tracking_method, self.status.current_version
+        ).fullfills(version_spec)
 
 
 class PackageStatus:

@@ -64,6 +64,7 @@ from .package import (
     PackageInfo,
     PackageStatus,
     InstalledPackage,
+    PackageVersion,
 )
 from .uservar import (
     UserVar,
@@ -2031,7 +2032,7 @@ class Manager:
             node = Node(info.package.qualified_name())
             node.info = info
             method = node.info.version_type
-            node.requested_version = (method, version)
+            node.requested_version = PackageVersion(method, version)
             graph[node.name] = node
             requests.append(node)
 
@@ -2131,7 +2132,9 @@ class Manager:
 
             if zeek_version:
                 node = Node("zeek")
-                node.installed_version = (TRACKING_METHOD_VERSION, zeek_version)
+                node.installed_version = PackageVersion(
+                    TRACKING_METHOD_VERSION, zeek_version
+                )
                 graph["zeek"] = node
             else:
                 LOG.warning(
@@ -2139,7 +2142,9 @@ class Manager:
                 )
 
             node = Node("zkg")
-            node.installed_version = (TRACKING_METHOD_VERSION, __version__)
+            node.installed_version = PackageVersion(
+                TRACKING_METHOD_VERSION, __version__
+            )
             graph["zkg"] = node
 
             for ipkg in self.installed_packages():
@@ -2152,7 +2157,7 @@ class Manager:
                     node.info = info
                     graph[node.name] = node
 
-                graph[name].installed_version = (
+                graph[name].installed_version = PackageVersion(
                     status.tracking_method,
                     status.current_version,
                 )
@@ -2249,180 +2254,41 @@ class Manager:
 
             if node.requested_version:
                 # Check that requested version doesn't conflict with dependers.
-                track_method, required_version = node.requested_version
-
-                if track_method == TRACKING_METHOD_BRANCH:
-                    for depender_name, version_spec in node.dependers.items():
-                        if version_spec == "*":
-                            continue
-
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-
-                        if version_spec == required_version:
-                            continue
-
+                for depender_name, version_spec in node.dependers.items():
+                    msg, fullfills = node.requested_version.fullfills(version_spec)
+                    if not fullfills:
                         return (
                             str.format(
                                 'unsatisfiable dependency: requested "{}" ({}),'
-                                ' but "{}" requires {}',
+                                ' but "{}" requires {} ({})',
                                 node.name,
-                                required_version,
+                                node.requested_version.version,
                                 depender_name,
                                 version_spec,
+                                msg,
                             ),
                             new_pkgs,
                         )
-                elif track_method == TRACKING_METHOD_COMMIT:
-                    for depender_name, version_spec in node.dependers.items():
-                        if version_spec == "*":
-                            continue
 
-                        # Could allow commit= version specification like what
-                        # is done with branches, but unsure there's a common
-                        # use-case for it.
-
-                        return (
-                            str.format(
-                                'unsatisfiable dependency: requested "{}" ({}),'
-                                ' but "{}" requires {}',
-                                node.name,
-                                required_version,
-                                depender_name,
-                                version_spec,
-                            ),
-                            new_pkgs,
-                        )
-                else:
-                    normal_version = normalize_version_tag(required_version)
-                    req_semver = semver.Version.coerce(normal_version)
-
-                    for depender_name, version_spec in node.dependers.items():
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-                            return (
-                                str.format(
-                                    'unsatisfiable dependency: requested "{}" ({}),'
-                                    ' but "{}" requires {}',
-                                    node.name,
-                                    required_version,
-                                    depender_name,
-                                    version_spec,
-                                ),
-                                new_pkgs,
-                            )
-                        else:
-                            try:
-                                semver_spec = semver.Spec(version_spec)
-                            except ValueError:
-                                return (
-                                    str.format(
-                                        'package "{}" has invalid semver spec: {}',
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
-
-                            if req_semver not in semver_spec:
-                                return (
-                                    str.format(
-                                        'unsatisfiable dependency: requested "{}" ({}),'
-                                        ' but "{}" requires {}',
-                                        node.name,
-                                        required_version,
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
             elif node.installed_version:
                 # Check that installed version doesn't conflict with dependers.
-                track_method, required_version = node.installed_version
+                # track_method, required_version = node.installed_version
 
                 for depender_name, version_spec in node.dependers.items():
-                    if track_method == TRACKING_METHOD_BRANCH:
-                        if version_spec == "*":
-                            continue
-
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-
-                        if version_spec == required_version:
-                            continue
-
+                    msg, fullfills = node.installed_version.fullfills(version_spec)
+                    if not fullfills:
                         return (
                             str.format(
                                 'unsatisfiable dependency: "{}" ({}) is installed,'
-                                ' but "{}" requires {}',
+                                ' but "{}" requires {} ({})',
                                 node.name,
-                                required_version,
+                                node.installed_version.version,
                                 depender_name,
                                 version_spec,
+                                msg,
                             ),
                             new_pkgs,
                         )
-                    elif track_method == TRACKING_METHOD_COMMIT:
-                        if version_spec == "*":
-                            continue
-
-                        # Could allow commit= version specification like what
-                        # is done with branches, but unsure there's a common
-                        # use-case for it.
-
-                        return (
-                            str.format(
-                                'unsatisfiable dependency: "{}" ({}) is installed,'
-                                ' but "{}" requires {}',
-                                node.name,
-                                required_version,
-                                depender_name,
-                                version_spec,
-                            ),
-                            new_pkgs,
-                        )
-                    else:
-                        normal_version = normalize_version_tag(required_version)
-                        req_semver = semver.Version.coerce(normal_version)
-
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-                            return (
-                                str.format(
-                                    'unsatisfiable dependency: "{}" ({}) is installed,'
-                                    ' but "{}" requires {}',
-                                    node.name,
-                                    required_version,
-                                    depender_name,
-                                    version_spec,
-                                ),
-                                new_pkgs,
-                            )
-                        else:
-                            try:
-                                semver_spec = semver.Spec(version_spec)
-                            except ValueError:
-                                return (
-                                    str.format(
-                                        'package "{}" has invalid semver spec: {}',
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
-
-                            if req_semver not in semver_spec:
-                                return (
-                                    str.format(
-                                        'unsatisfiable dependency: "{}" ({}) is installed,'
-                                        ' but "{}" requires {}',
-                                        node.name,
-                                        required_version,
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
             else:
                 # Choose best version that satisfies constraints
                 best_version = None
