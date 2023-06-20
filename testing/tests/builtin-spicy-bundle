@@ -8,7 +8,7 @@
 # @TEST-EXEC: zkg bundle bundle.tar --manifest foo  >> output
 # @TEST-EXEC: zkg unbundle bundle.tar >> output
 # @TEST-EXEC: mkdir bundle && tar -C bundle -xf bundle.tar
-# @TEST-EXEC: TEST_DIFF_CANONIFIER='sed -r "s/(.*)= [0-9]+\.[0-9]+\.[0-9]+/\1= X.X.X/g" | $SCRIPTS/diff-remove-abspath btest-diff' btest-diff bundle/manifest.txt
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='sed -r "s/(.*)=[0-9]+\.[0-9]+\.[0-9]+/\1=X.X.X/g" | $SCRIPTS/diff-remove-abspath btest-diff' btest-diff bundle/manifest.txt
 # @TEST-EXEC: btest-diff output
 # @TEST-EXEC: btest-diff .stderr
 # @TEST-EXEC: btest-diff package.log

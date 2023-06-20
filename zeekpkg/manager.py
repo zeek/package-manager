@@ -2414,7 +2414,7 @@ class Manager:
         config.optionxform = str
         config.add_section("bundle")
 
-        # To be placed into section "bundle_builtin".
+        # To be placed into the meta section.
         builtin_packages = []
 
         def match_package_url_and_version(git_url, version):
@@ -2430,8 +2430,8 @@ class Manager:
             return None
 
         for git_url, version in package_list:
-            # Record built-in packages in the bundle's manifest, but nothing
-            # more - there may not even be a valid repo for these.
+            # Record built-in packages in the bundle's manifest, but
+            # otherwise ignore them silently.
             if git_url.startswith(BUILTIN_SCHEME):
                 builtin_packages.append((git_url, version))
                 continue
@@ -2461,13 +2461,17 @@ class Manager:
             except git.exc.GitCommandError as error:
                 return f"failed to clone {git_url}: {error}"
 
-        # Record the built-in packages expected by this bundle. This is in
-        # a separate section such that older zkg versions just ignore it
-        # and aren't confused by the zeek-builtin:// scheme used as URLs.
+        # Record the built-in packages expected by this bundle (or simply
+        # installed on the source system) in a new [meta] section to aid
+        # debugging. This isn't interpreted, but if unbundle produces
+        # warnings it may proof helpful.
         if builtin_packages:
-            config.add_section("bundle_builtin")
+            config.add_section("meta")
+            entries = []
             for git_url, version in builtin_packages:
-                config.set("bundle_builtin", git_url, version)
+                entries.append(f"{name_from_path(git_url)}={version}")
+
+            config.set("meta", "builtin_packages", ",".join(entries))
 
         with open(manifest_file, "w") as f:
             config.write(f)
@@ -2513,6 +2517,8 @@ class Manager:
             package = Package(
                 git_url=git_url, name=git_url.split("/")[-1], canonical=True
             )
+
+            # Prepare the clonepath with the contents from the bundle.
             clonepath = os.path.join(self.package_clonedir, package.name)
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)
@@ -2523,49 +2529,32 @@ class Manager:
             if error:
                 return error
 
-        # Check the bundle_builtin section for packages and warn the user
-        # if we can't figure out builtin packages or some are missing.
-        if config.has_section("bundle_builtin"):
-            for git_url, version in config.items("bundle_builtin"):
-                if not self._builtin_packages_discovered:
-                    LOG.warning(
-                        'bundle "%s" lists built-in package "%s", '
-                        "but unable to discover built-in packages",
-                        bundle_file,
-                        git_url,
-                    )
+        # For all the packages that we've just unbundled, verify that their
+        # dependencies are fulfilled through installed packages or built-in
+        # packages and log a warning if not.
+        #
+        # Possible reasons are built-in packages on the source system missing
+        # on the destination system or usage of --nodeps when creating the bundle.
+        for git_url, version in manifest:
+            deps = self.get_installed_package_dependencies(git_url)
+            if deps is None:
+                LOG.warning('package "%s" not installed?', git_url)
+                continue
+
+            for dep, version_spec in deps.items():
+                ipkg = self.find_installed_package(dep)
+                if ipkg is None:
+                    LOG.warning('dependency "%s" of bundled "%s" missing', dep, git_url)
                     continue
 
-                # Fishy stuff?
-                if not git_url.startswith(BUILTIN_SCHEME):
+                msg, fullfills = ipkg.fullfills(version_spec)
+                if not fullfills:
                     LOG.warning(
-                        'built-in package in "%s" has invalid scheme "%s"',
-                        bundle_file,
+                        'dependency "%s" (%s) of "%s" not compatible with "%s"',
+                        dep,
+                        ipkg.status.current_version,
                         git_url,
-                    )
-                    continue
-
-                info = self.find_builtin_package(git_url)
-                if info is None:
-                    LOG.warning(
-                        'bundle "%s" lists built-in package "%s", '
-                        "but it is not availbale",
-                        bundle_file,
-                        git_url,
-                    )
-                    continue
-
-                builtin_version = semver.Version.coerce(info.status.current_version)
-                bundle_version = semver.Version.coerce(version)
-
-                # Warn if the version that is built-in is less than what the bundle
-                # specifies. We could check equality, but that seems overly strict.
-                if builtin_version < bundle_version:
-                    LOG.warning(
-                        'built-in version of "%s" is "%s", bundle has "%s"',
-                        git_url,
-                        builtin_version,
-                        bundle_version,
+                        version_spec,
                     )
 
         return ""
