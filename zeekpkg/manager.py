@@ -487,6 +487,9 @@ class Manager:
         pkg_list = []
 
         for _, installed_pkg in self.installed_pkgs.items():
+            if installed_pkg.is_builtin():
+                continue
+
             pkg_list.append(
                 {
                     "package_dict": installed_pkg.package.__dict__,
