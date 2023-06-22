@@ -4,12 +4,12 @@
 # @TEST-EXEC: bash %INPUT
 
 # @TEST-EXEC: echo "=== install without skiptests" >>out
-# @TEST-EXEC-FAIL: zkg -v install --force foo >>out 2>&1
+# @TEST-EXEC-FAIL: zkg install --force foo >>out 2>&1
 # @TEST-EXEC: echo "have_load_foo=$(grep -c '@load.*foo' ./scripts/packages/packages.zeek)" >>out
 #
 # @TEST-EXEC: rm -rf ./state
 # @TEST-EXEC: echo "=== install with skiptests" >>out
-# @TEST-EXEC: zkg -v install --force --skiptests foo >>out 2>&1
+# @TEST-EXEC: zkg install --force --skiptests foo >>out 2>&1
 # @TEST-EXEC: echo "have_load_foo=$(grep -c '@load.*foo' ./scripts/packages/packages.zeek)" >>out
 #
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff out

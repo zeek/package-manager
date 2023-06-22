@@ -94,6 +94,7 @@ from zeekpkg._util import (
     std_encoding,
 )
 from zeekpkg.package import (
+    BUILTIN_SCHEME,
     TRACKING_METHOD_VERSION,
 )
 from zeekpkg.template import (
@@ -552,6 +553,13 @@ def cmd_test(manager, args, config, configfile):
         if not check_local_git_repo(name, args.ignore_dirty_git):
             sys.exit(1)
 
+        # If the package to be tested is included with Zeek, don't allow
+        # to run tests due to the potential of conflicts.
+        bpkg_info = manager.find_builtin_package(name)
+        if bpkg_info is not None:
+            print_error(f'cannot run tests for "{name}": built-in package')
+            sys.exit(1)
+
         version = args.version if args.version else active_git_branch(name)
         package_info = manager.info(name, version=version, prefer_installed=False)
 
@@ -620,6 +628,12 @@ def cmd_install(manager, args, config, configfile):
 
     for name in args.package:
         if not check_local_git_repo(name, args.ignore_dirty_git):
+            sys.exit(1)
+
+        # Outright prevent installing a package that Zeek has built-in.
+        bpkg_info = manager.find_builtin_package(name)
+        if bpkg_info is not None:
+            print_error(f'cannot install "{name}": built-in package')
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
@@ -921,7 +935,9 @@ def cmd_bundle(manager, args, config, configfile):
 
         if not args.nodeps:
             invalid_reason, new_pkgs = manager.validate_dependencies(
-                to_validate, True, ignore_suggestions=args.nosuggestions
+                to_validate,
+                ignore_installed_packages=True,
+                ignore_suggestions=args.nosuggestions,
             )
 
             if invalid_reason:
@@ -959,13 +975,16 @@ def cmd_bundle(manager, args, config, configfile):
     if not args.force:
         package_listing = ""
 
-        for name, _, version, is_dependency, is_suggestion in packages_to_bundle:
+        for name, git_url, version, is_dependency, is_suggestion in packages_to_bundle:
             package_listing += f"  {name} ({version})"
 
             if is_suggestion:
                 package_listing += " (suggested)"
             elif is_dependency:
                 package_listing += " (dependency)"
+
+            if git_url.startswith(BUILTIN_SCHEME):
+                package_listing += " (built-in)"
 
             package_listing += "\n"
 
@@ -1010,8 +1029,8 @@ def cmd_unbundle(manager, args, config, configfile):
         if pkg_info.invalid_reason:
             name = pkg_info.package.qualified_name()
             print_error(
-                "error: bundle {} contains invalid package {}: {}".format(
-                    args.bundle_filename, name, pkg_info.invalid_reason
+                "error: bundle {} contains invalid package {} ({}): {}".format(
+                    args.bundle_filename, git_url, name, pkg_info.invalid_reason
                 )
             )
             sys.exit(1)
@@ -1022,9 +1041,13 @@ def cmd_unbundle(manager, args, config, configfile):
 
     if not args.force:
         package_listing = ""
-
-        for git_url, version, _ in bundle_info:
+        builtin_listing = ""
+        for git_url, version, info in bundle_info:
             name = git_url
+
+            if info.is_builtin():
+                builtin_listing += f"  from {name} ({version}):\n"
+                continue
 
             for pkg in manager.source_packages():
                 if pkg.git_url == git_url:
@@ -1126,6 +1149,10 @@ def cmd_remove(manager, args, config, configfile):
             print_error(f'error: package "{name}" is not installed')
             sys.exit(1)
 
+        if ipkg.is_builtin():
+            print_error(f'cannot remove "{name}": built-in package')
+            sys.exit(1)
+
         packages_to_remove.append(ipkg)
 
     dependers_to_unload = set()
@@ -1197,6 +1224,7 @@ def cmd_remove(manager, args, config, configfile):
 
 def cmd_purge(manager, args, config, configfile):
     packages_to_remove = manager.installed_packages()
+    packages_to_remove = [p for p in packages_to_remove if not p.is_builtin()]
 
     if not packages_to_remove:
         print("No packages to remove.")
@@ -1677,6 +1705,13 @@ def cmd_unload(manager, args, config, configfile):
         if not ipkg.status.is_loaded:
             continue
 
+        # Maybe in the future that's possible, but as of now built-in
+        # packages are really built-in plugins and there is not a way
+        # to unload them.
+        if ipkg.is_builtin():
+            print_error(f'cannot unload "{name}": built-in package')
+            sys.exit(1)
+
         packages_to_unload.append(ipkg)
 
     if not args.nodeps:
@@ -1738,6 +1773,11 @@ def cmd_pin(manager, args, config, configfile):
             print(f'Failed to pin "{name}": no such package installed')
             continue
 
+        if ipkg.is_builtin():
+            had_failure = True
+            print_error(f'cannot pin "{name}": built-in package')
+            continue
+
         name = ipkg.package.qualified_name()
         ipkg = manager.pin(name)
 
@@ -1764,6 +1804,11 @@ def cmd_unpin(manager, args, config, configfile):
         if not ipkg:
             had_failure = True
             print(f'Failed to unpin "{name}": no such package installed')
+            continue
+
+        if ipkg.is_builtin():
+            had_failure = True
+            print_error(f'cannot unpin "{name}": built-in package')
             continue
 
         name = ipkg.package.qualified_name()
@@ -1840,6 +1885,10 @@ def cmd_list(manager, args, config, configfile):
     for pkg_name, val in sorted(filtered_pkgs.items()):
         if isinstance(val, zeekpkg.InstalledPackage):
             pkg = val.package
+
+            if val.is_builtin() and not args.include_builtin:
+                continue
+
             out = f"{pkg_name} (installed: {val.status.current_version})"
         else:
             pkg = val
@@ -1916,8 +1965,14 @@ def cmd_info(manager, args, config, configfile):
 
     if len(args.package) == 1:
         try:
-            filtered_pkgs = _get_filtered_packages(manager, args.package[0])
-            package_names = [pkg_name for pkg_name, _ in sorted(filtered_pkgs.items())]
+            package_names = []
+            for pkg_name, info in _get_filtered_packages(
+                manager, args.package[0]
+            ).items():
+                if info.is_builtin() and not args.include_builtin:
+                    continue
+
+                package_names.append(pkg_name)
         except NotImplementedError:
             package_names = args.package
     else:
@@ -2384,7 +2439,7 @@ def top_level_parser():
         action="count",
         default=0,
         help="Increase program output for debugging."
-        " Use multiple times for more output (e.g. -vvv).",
+        " Use multiple times for more output (e.g. -vv).",
     )
     top_parser.add_argument(
         "--extra-source",
@@ -2812,6 +2867,12 @@ def argparser():
         action="store_true",
         help="Do not display description text, just the package name(s).",
     )
+    sub_parser.add_argument(
+        "--include-builtin",
+        action="store_true",
+        help="Also output packages that Zeek has built-in. By default"
+        " these are not shown.",
+    )
 
     # search
     sub_parser = command_parser.add_parser(
@@ -2866,6 +2927,12 @@ def argparser():
         action="store_true",
         help="Do not read information from locally installed packages."
         " Instead read info from remote GitHub.",
+    )
+    sub_parser.add_argument(
+        "--include-builtin",
+        action="store_true",
+        help="Also output packages that Zeek has built-in. By default"
+        " these are not shown.",
     )
     add_json_args(sub_parser, "Output package information as JSON.")
     sub_parser.add_argument(
@@ -3030,21 +3097,18 @@ def argparser():
 def main():
     args = argparser().parse_args()
 
-    if args.verbose > 0:
-        formatter = logging.Formatter(
-            "%(asctime)s %(levelname)-8s %(message)s", "%Y-%m-%d %H:%M:%S"
-        )
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)-8s %(message)s", "%Y-%m-%d %H:%M:%S"
+    )
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
 
-        if args.verbose == 1:
-            zeekpkg.LOG.setLevel(logging.WARNING)
-        elif args.verbose == 2:
-            zeekpkg.LOG.setLevel(logging.INFO)
-        elif args.verbose >= 3:
-            zeekpkg.LOG.setLevel(logging.DEBUG)
+    if args.verbose == 1:
+        zeekpkg.LOG.setLevel(logging.INFO)
+    elif args.verbose >= 2:
+        zeekpkg.LOG.setLevel(logging.DEBUG)
 
-        zeekpkg.LOG.addHandler(handler)
+    zeekpkg.LOG.addHandler(handler)
 
     configfile = args.configfile
 

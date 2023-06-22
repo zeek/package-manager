@@ -1,0 +1,6 @@
+# @TEST-DOC: Listing packages with --include-builtin shows built-in packages.
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+#
+# @TEST-EXEC: zkg list --include-builtin | grep spicy-plugin | sed -E 's/[0-9]+\.[0-9]+\.[0-9]+/X.X.X/g' >out
+# @TEST-EXEC: btest-diff out

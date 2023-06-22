@@ -8,6 +8,7 @@ import copy
 import filecmp
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,7 @@ from ._util import (
     delete_path,
     make_symlink,
     copy_over_path,
+    get_zeek_info,
     git_default_branch,
     git_checkout,
     git_clone,
@@ -44,6 +46,8 @@ from ._util import (
 )
 from .source import AGGREGATE_DATA_FILE, Source
 from .package import (
+    BUILTIN_SOURCE,
+    BUILTIN_SCHEME,
     METADATA_FILENAME,
     LEGACY_METADATA_FILENAME,
     TRACKING_METHOD_VERSION,
@@ -55,10 +59,12 @@ from .package import (
     aliases,
     canonical_url,
     is_valid_name as is_valid_package_name,
+    make_builtin_package,
     Package,
     PackageInfo,
     PackageStatus,
     InstalledPackage,
+    PackageVersion,
 )
 from .uservar import (
     UserVar,
@@ -269,6 +275,8 @@ class Manager:
         LOG.debug("init Manager version %s", __version__)
         self.sources = {}
         self.installed_pkgs = {}
+        self._builtin_packages = None  # Cached Zeek built-in packages.
+        self._builtin_packages_discovered = False  # Flag if discovery even worked.
         # The bro_dist attribute exists just for backward compatibility
         self.bro_dist = zeek_dist
         self.zeek_dist = zeek_dist
@@ -303,6 +311,12 @@ class Manager:
             self._write_manifest()
 
         prev_script_dir, prev_plugin_dir, prev_bin_dir = self._read_manifest()
+
+        # Place all Zeek built-in packages into installed packages.
+        for info in self.discover_builtin_packages():
+            self.installed_pkgs[info.package.name] = InstalledPackage(
+                package=info.package, status=info.status
+            )
 
         refresh_bin_dir = False  # whether we need to updates link in bin_dir
         relocating_bin_dir = False  # whether bin_dir has relocated
@@ -473,6 +487,9 @@ class Manager:
         pkg_list = []
 
         for _, installed_pkg in self.installed_pkgs.items():
+            if installed_pkg.is_builtin():
+                continue
+
             pkg_list.append(
                 {
                     "package_dict": installed_pkg.package.__dict__,
@@ -535,6 +552,9 @@ class Manager:
             str: empty string if the source is successfully added, else the
             reason why it failed.
         """
+        if name == BUILTIN_SOURCE:
+            return f"{name} is a reserved source name"
+
         if name in self.sources:
             existing_source = self.sources[name]
 
@@ -594,6 +614,98 @@ class Manager:
             rval += source.packages()
 
         return rval
+
+    def discover_builtin_packages(self):
+        """
+        Discover packages included in Zeek for dependency resolution.
+
+        This is using Zeek's ``--build-info`` flag and specifically the
+        ``zkg.provides`` entry it contains. Requires Zeek 6.0 and later.
+
+        Returns:
+            list of :class:`.package.BuiltinPackage`: List of built-in packages.
+        """
+        if self._builtin_packages is not None:
+            return self._builtin_packages
+
+        self._builtin_packages = []
+        try:
+            zeek_executable = get_zeek_info().zeek
+        except LookupError as e:
+            LOG.warning("unable to discover builtin-packages: %s", str(e))
+            return self._builtin_packages
+
+        try:
+            build_info_str = subprocess.check_output(
+                [zeek_executable, "--build-info"], stderr=subprocess.DEVNULL, timeout=10
+            )
+            build_info = json.loads(build_info_str)
+        except subprocess.CalledProcessError:
+            # Not a warning() due to being a bit noisy.
+            LOG.info("unable to discover built-in packages - requires Zeek 6.0")
+            return self._builtin_packages
+        except json.JSONDecodeError as e:
+            LOG.error("unable to parse Zeek's build info output: %s", str(e))
+            return self._builtin_packages
+
+        if "zkg" not in build_info or "provides" not in build_info["zkg"]:
+            LOG.warning("missing zkg.provides entry in zeek --build-info output")
+            return self._builtin_packages
+
+        self._builtin_packages_discovered = True
+
+        for p in build_info["zkg"]["provides"]:
+            name, version = p.get("name"), p.get("version")
+            commit = p.get("commit")
+
+            if not name or not version:
+                LOG.warning("zkg.provides entry missing name or version: %s", repr(p))
+                continue
+
+            orig_version = version
+            # The "version" field may not be semantic version compatible.
+            # For example, 1.4.2-68 is parsed as prerelease 68 of 1.4.2, but
+            # from update-changes/git describe, it's 68 commits after 1.4.2.
+            # Deal with that by stripping -68, but leave -rc1 or -dev alone.
+            m = re.match(r"([0-9]+\.[0-9]+\.[0-9]+)-[0-9]+", version)
+            if m:
+                version = m.group(1)
+
+            LOG.debug(
+                "found built-in package %s with version %s (%s)",
+                name,
+                version,
+                orig_version,
+            )
+
+            self._builtin_packages.append(
+                make_builtin_package(
+                    name=name,
+                    current_version=version,
+                    current_hash=commit,
+                )
+            )
+
+        return self._builtin_packages
+
+    def find_builtin_package(self, pkg_path):
+        """
+        Find a builtin plugin that matches ``pkg_path``.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.
+
+        Returns:
+            PackageInfo: PackageInfo instance representing a builtin package
+            matching ``pkg_path``.
+        """
+        pkg_name = name_from_path(pkg_path)
+        for info in self.discover_builtin_packages():
+            if info.package.matches_path(pkg_name):
+                return info
+
+        return None
 
     def installed_packages(self):
         """Return list of :class:`.package.InstalledPackage`."""
@@ -1146,6 +1258,12 @@ class Manager:
             IOError: if the package manifest file can't be written
         """
         for ipkg in self.installed_packages():
+            if ipkg.is_builtin():
+                LOG.debug(
+                    'skipping refresh of built-in package "%s"', ipkg.package.name
+                )
+                continue
+
             clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
             clone = git.Repo(clonepath)
             LOG.debug("fetch package %s", ipkg.package.qualified_name())
@@ -1238,6 +1356,10 @@ class Manager:
 
         if not ipkg:
             LOG.info('removing "%s": could not find matching package', pkg_path)
+            return False
+
+        if ipkg.is_builtin():
+            LOG.error('cannot remove built-in package "%s"', pkg_path)
             return False
 
         self.unload(pkg_path)
@@ -1720,6 +1842,13 @@ class Manager:
             return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
 
         LOG.debug('getting info on "%s"', pkg_path)
+
+        # Handle built-in packages like installed packages
+        # but avoid looking up the repository information.
+        bpkg_info = self.find_builtin_package(pkg_path)
+        if prefer_installed and bpkg_info:
+            return bpkg_info
+
         ipkg = self.find_installed_package(pkg_path)
 
         if prefer_installed and ipkg:
@@ -1821,6 +1950,7 @@ class Manager:
         requested_packages,
         ignore_installed_packages=False,
         ignore_suggestions=False,
+        use_builtin_packages=True,
     ):
         """Validates package dependencies.
 
@@ -1837,6 +1967,9 @@ class Manager:
             ignore_suggestions (bool): whether the dependency analysis should
                 consider installing dependencies that are marked in another
                 package's 'suggests' metadata field.
+
+            use_builtin_packages (bool): whether package information from
+                builtin packages is used for dependency resolution.
 
         Returns:
             (str, list of (:class:`.package.PackageInfo`, str, bool)):
@@ -1902,7 +2035,7 @@ class Manager:
             node = Node(info.package.qualified_name())
             node.info = info
             method = node.info.version_type
-            node.requested_version = (method, version)
+            node.requested_version = PackageVersion(method, version)
             graph[node.name] = node
             requests.append(node)
 
@@ -1946,7 +2079,17 @@ class Manager:
                 is_suggestion = (
                     node.is_suggestion or dep_name in ds and dep_name not in dd
                 )
-                info = self.info(dep_name, prefer_installed=False)
+
+                # If a dependency can be fulfilled by a built-in package
+                # use its PackageInfo directly instead of going through
+                # self.info() to search for it in package sources, where
+                # it may not actually exist.
+                info = None
+                if use_builtin_packages:
+                    info = self.find_builtin_package(dep_name)
+
+                if info is None:
+                    info = self.info(dep_name, prefer_installed=False)
 
                 if info.invalid_reason:
                     return (
@@ -1959,7 +2102,14 @@ class Manager:
                         [],
                     )
 
+                dep_name_orig = dep_name
                 dep_name = info.package.qualified_name()
+                LOG.debug(
+                    'dependency "%s" of "%s" resolved to "%s"',
+                    dep_name_orig,
+                    node.name,
+                    dep_name,
+                )
 
                 if dep_name in graph:
                     if graph[dep_name].is_suggestion and not is_suggestion:
@@ -1985,7 +2135,9 @@ class Manager:
 
             if zeek_version:
                 node = Node("zeek")
-                node.installed_version = (TRACKING_METHOD_VERSION, zeek_version)
+                node.installed_version = PackageVersion(
+                    TRACKING_METHOD_VERSION, zeek_version
+                )
                 graph["zeek"] = node
             else:
                 LOG.warning(
@@ -1993,7 +2145,9 @@ class Manager:
                 )
 
             node = Node("zkg")
-            node.installed_version = (TRACKING_METHOD_VERSION, __version__)
+            node.installed_version = PackageVersion(
+                TRACKING_METHOD_VERSION, __version__
+            )
             graph["zkg"] = node
 
             for ipkg in self.installed_packages():
@@ -2006,7 +2160,7 @@ class Manager:
                     node.info = info
                     graph[node.name] = node
 
-                graph[name].installed_version = (
+                graph[name].installed_version = PackageVersion(
                     status.tracking_method,
                     status.current_version,
                 )
@@ -2103,180 +2257,41 @@ class Manager:
 
             if node.requested_version:
                 # Check that requested version doesn't conflict with dependers.
-                track_method, required_version = node.requested_version
-
-                if track_method == TRACKING_METHOD_BRANCH:
-                    for depender_name, version_spec in node.dependers.items():
-                        if version_spec == "*":
-                            continue
-
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-
-                        if version_spec == required_version:
-                            continue
-
+                for depender_name, version_spec in node.dependers.items():
+                    msg, fullfills = node.requested_version.fullfills(version_spec)
+                    if not fullfills:
                         return (
                             str.format(
                                 'unsatisfiable dependency: requested "{}" ({}),'
-                                ' but "{}" requires {}',
+                                ' but "{}" requires {} ({})',
                                 node.name,
-                                required_version,
+                                node.requested_version.version,
                                 depender_name,
                                 version_spec,
+                                msg,
                             ),
                             new_pkgs,
                         )
-                elif track_method == TRACKING_METHOD_COMMIT:
-                    for depender_name, version_spec in node.dependers.items():
-                        if version_spec == "*":
-                            continue
 
-                        # Could allow commit= version specification like what
-                        # is done with branches, but unsure there's a common
-                        # use-case for it.
-
-                        return (
-                            str.format(
-                                'unsatisfiable dependency: requested "{}" ({}),'
-                                ' but "{}" requires {}',
-                                node.name,
-                                required_version,
-                                depender_name,
-                                version_spec,
-                            ),
-                            new_pkgs,
-                        )
-                else:
-                    normal_version = normalize_version_tag(required_version)
-                    req_semver = semver.Version.coerce(normal_version)
-
-                    for depender_name, version_spec in node.dependers.items():
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-                            return (
-                                str.format(
-                                    'unsatisfiable dependency: requested "{}" ({}),'
-                                    ' but "{}" requires {}',
-                                    node.name,
-                                    required_version,
-                                    depender_name,
-                                    version_spec,
-                                ),
-                                new_pkgs,
-                            )
-                        else:
-                            try:
-                                semver_spec = semver.Spec(version_spec)
-                            except ValueError:
-                                return (
-                                    str.format(
-                                        'package "{}" has invalid semver spec: {}',
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
-
-                            if req_semver not in semver_spec:
-                                return (
-                                    str.format(
-                                        'unsatisfiable dependency: requested "{}" ({}),'
-                                        ' but "{}" requires {}',
-                                        node.name,
-                                        required_version,
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
             elif node.installed_version:
                 # Check that installed version doesn't conflict with dependers.
-                track_method, required_version = node.installed_version
+                # track_method, required_version = node.installed_version
 
                 for depender_name, version_spec in node.dependers.items():
-                    if track_method == TRACKING_METHOD_BRANCH:
-                        if version_spec == "*":
-                            continue
-
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-
-                        if version_spec == required_version:
-                            continue
-
+                    msg, fullfills = node.installed_version.fullfills(version_spec)
+                    if not fullfills:
                         return (
                             str.format(
                                 'unsatisfiable dependency: "{}" ({}) is installed,'
-                                ' but "{}" requires {}',
+                                ' but "{}" requires {} ({})',
                                 node.name,
-                                required_version,
+                                node.installed_version.version,
                                 depender_name,
                                 version_spec,
+                                msg,
                             ),
                             new_pkgs,
                         )
-                    elif track_method == TRACKING_METHOD_COMMIT:
-                        if version_spec == "*":
-                            continue
-
-                        # Could allow commit= version specification like what
-                        # is done with branches, but unsure there's a common
-                        # use-case for it.
-
-                        return (
-                            str.format(
-                                'unsatisfiable dependency: "{}" ({}) is installed,'
-                                ' but "{}" requires {}',
-                                node.name,
-                                required_version,
-                                depender_name,
-                                version_spec,
-                            ),
-                            new_pkgs,
-                        )
-                    else:
-                        normal_version = normalize_version_tag(required_version)
-                        req_semver = semver.Version.coerce(normal_version)
-
-                        if version_spec.startswith("branch="):
-                            version_spec = version_spec[len("branch=") :]
-                            return (
-                                str.format(
-                                    'unsatisfiable dependency: "{}" ({}) is installed,'
-                                    ' but "{}" requires {}',
-                                    node.name,
-                                    required_version,
-                                    depender_name,
-                                    version_spec,
-                                ),
-                                new_pkgs,
-                            )
-                        else:
-                            try:
-                                semver_spec = semver.Spec(version_spec)
-                            except ValueError:
-                                return (
-                                    str.format(
-                                        'package "{}" has invalid semver spec: {}',
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
-
-                            if req_semver not in semver_spec:
-                                return (
-                                    str.format(
-                                        'unsatisfiable dependency: "{}" ({}) is installed,'
-                                        ' but "{}" requires {}',
-                                        node.name,
-                                        required_version,
-                                        depender_name,
-                                        version_spec,
-                                    ),
-                                    new_pkgs,
-                                )
             else:
                 # Choose best version that satisfies constraints
                 best_version = None
@@ -2399,6 +2414,9 @@ class Manager:
         config.optionxform = str
         config.add_section("bundle")
 
+        # To be placed into the meta section.
+        builtin_packages = []
+
         def match_package_url_and_version(git_url, version):
             for ipkg in self.installed_packages():
                 if ipkg.package.git_url != git_url:
@@ -2412,6 +2430,12 @@ class Manager:
             return None
 
         for git_url, version in package_list:
+            # Record built-in packages in the bundle's manifest, but
+            # otherwise ignore them silently.
+            if git_url.startswith(BUILTIN_SCHEME):
+                builtin_packages.append((git_url, version))
+                continue
+
             name = name_from_path(git_url)
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
@@ -2436,6 +2460,18 @@ class Manager:
                 git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
             except git.exc.GitCommandError as error:
                 return f"failed to clone {git_url}: {error}"
+
+        # Record the built-in packages expected by this bundle (or simply
+        # installed on the source system) in a new [meta] section to aid
+        # debugging. This isn't interpreted, but if unbundle produces
+        # warnings it may proof helpful.
+        if builtin_packages:
+            config.add_section("meta")
+            entries = []
+            for git_url, version in builtin_packages:
+                entries.append(f"{name_from_path(git_url)}={version}")
+
+            config.set("meta", "builtin_packages", ",".join(entries))
 
         with open(manifest_file, "w") as f:
             config.write(f)
@@ -2481,6 +2517,8 @@ class Manager:
             package = Package(
                 git_url=git_url, name=git_url.split("/")[-1], canonical=True
             )
+
+            # Prepare the clonepath with the contents from the bundle.
             clonepath = os.path.join(self.package_clonedir, package.name)
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)
@@ -2490,6 +2528,34 @@ class Manager:
 
             if error:
                 return error
+
+        # For all the packages that we've just unbundled, verify that their
+        # dependencies are fulfilled through installed packages or built-in
+        # packages and log a warning if not.
+        #
+        # Possible reasons are built-in packages on the source system missing
+        # on the destination system or usage of --nodeps when creating the bundle.
+        for git_url, version in manifest:
+            deps = self.get_installed_package_dependencies(git_url)
+            if deps is None:
+                LOG.warning('package "%s" not installed?', git_url)
+                continue
+
+            for dep, version_spec in deps.items():
+                ipkg = self.find_installed_package(dep)
+                if ipkg is None:
+                    LOG.warning('dependency "%s" of bundled "%s" missing', dep, git_url)
+                    continue
+
+                msg, fullfills = ipkg.fullfills(version_spec)
+                if not fullfills:
+                    LOG.warning(
+                        'dependency "%s" (%s) of "%s" not compatible with "%s"',
+                        dep,
+                        ipkg.status.current_version,
+                        git_url,
+                        version_spec,
+                    )
 
         return ""
 

@@ -1,0 +1,6 @@
+# @TEST-DOC: Using info on a built-in package works
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+#
+# @TEST-EXEC: zkg info spicy-plugin | sed -E 's/[0-9]+\.[0-9]+\.[0-9]+/X.X.X/g' >out
+# @TEST-EXEC: btest-diff out

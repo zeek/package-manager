@@ -8,8 +8,10 @@ import re
 
 from functools import total_ordering
 
+import semantic_version as semver
+
 from .uservar import UserVar
-from ._util import find_sentence_end
+from ._util import find_sentence_end, normalize_version_tag
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = "zkg.meta"
@@ -18,6 +20,10 @@ LEGACY_METADATA_FILENAME = "bro-pkg.meta"
 TRACKING_METHOD_VERSION = "version"
 TRACKING_METHOD_BRANCH = "branch"
 TRACKING_METHOD_COMMIT = "commit"
+TRACKING_METHOD_BUILTIN = "builtin"
+
+BUILTIN_SOURCE = "zeek-builtin"
+BUILTIN_SCHEME = "zeek-builtin://"
 
 PLUGIN_MAGIC_FILE = "__bro_plugin__"
 PLUGIN_MAGIC_FILE_DISABLED = "__bro_plugin__.disabled"
@@ -137,6 +143,63 @@ def dependencies(metadata_dict, field="depends"):
     return rval
 
 
+class PackageVersion:
+    """
+    Helper class to compare package versions with version specs.
+    """
+
+    def __init__(self, method, version):
+        self.method = method
+        self.version = version
+        self.req_semver = None
+
+    def fullfills(self, version_spec):
+        """
+        Whether this package version fullfills the given version_spec.
+
+        Returns:
+            (some message, bool)
+        """
+        if version_spec == "*":  # anything goes
+            return "", True
+
+        if self.method == TRACKING_METHOD_COMMIT:
+            return f'tracking method commit not compatible with "{version_spec}"', False
+
+        elif self.method == TRACKING_METHOD_BRANCH:
+            return "tracking method branch and commit", False
+            if version_spec.startswith("branch="):
+                branch = version_spec[len("branch=") :]
+
+            if version_spec != self.version:
+                return f'branch "{self.version}" not matching "{branch}"', False
+
+            return "", True
+
+        else:
+            # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
+            if version_spec.startswith("branch="):
+                branch = version_spec[len("branch=") :]
+                return (
+                    f"branch {branch} requested, but using method {self.method}",
+                    False,
+                )
+
+            if self.req_semver is None:
+                normal_version = normalize_version_tag(self.version)
+                self.req_semver = semver.Version.coerce(normal_version)
+
+            try:
+                semver_spec = semver.Spec(version_spec)
+            except ValueError:
+                return f'invalid semver spec: "{version_spec}"', False
+            else:
+                if self.req_semver in semver_spec:
+                    return "", True
+
+                return f"{self.version} not in {version_spec}", False
+
+
 @total_ordering
 class InstalledPackage:
     """An installed package and its current status.
@@ -151,6 +214,9 @@ class InstalledPackage:
         self.package = package
         self.status = status
 
+    def __repr__(self):
+        return f"InstalledPackage(package={self.package!r}, status={self.status!r})"
+
     def __hash__(self):
         return hash(str(self.package))
 
@@ -159,6 +225,17 @@ class InstalledPackage:
 
     def __lt__(self, other):
         return str(self.package) < str(other.package)
+
+    def is_builtin(self):
+        return self.package.is_builtin()
+
+    def fullfills(self, version_spec):
+        """
+        Does the current version fullfill version_spec?
+        """
+        return PackageVersion(
+            self.status.tracking_method, self.status.current_version
+        ).fullfills(version_spec)
 
 
 class PackageStatus:
@@ -174,10 +251,11 @@ class PackageStatus:
 
         is_outdated (bool): whether a newer version of the package exists.
 
-        tracking_method (str): either "branch", "version", or "commit" to
-            indicate (respectively) whether package upgrades should stick to a
-            git branch, use git version tags, or do nothing because the
-            package is to always use a specific git commit hash.
+        tracking_method (str): either "branch", "version", "commit", or
+            "builtin" to indicate (respectively) whether package upgrades
+            should stick to a git branch, use git version tags, do nothing
+            because the package is to always use a specific git commit hash,
+            or do nothing because the package is built into Zeek.
 
         current_version (str): the current version of the installed
             package, which is either a git branch name or a git version tag.
@@ -201,6 +279,10 @@ class PackageStatus:
         self.tracking_method = tracking_method
         self.current_version = current_version
         self.current_hash = current_hash
+
+    def __repr__(self):
+        member_str = ", ".join(f"{k}={v!r}" for (k, v) in self.__dict__.items())
+        return f"PackageStatus({member_str})"
 
 
 class PackageInfo:
@@ -312,6 +394,12 @@ class PackageInfo:
 
         return self.default_branch
 
+    def is_builtin(self):
+        return self.package and self.package.is_builtin()
+
+    def __repr__(self):
+        return f"PackageInfo(package={self.package!r}, status={self.status!r})"
+
 
 @total_ordering
 class Package:
@@ -374,7 +462,13 @@ class Package:
         return self.qualified_name()
 
     def __repr__(self):
-        return self.git_url
+        return (
+            f"Package(git_url={self.git_url!r}, source={self.source!r},"
+            f" directory={self.directory!r} name={self.name!r})"
+        )
+
+    def is_builtin(self):
+        return self.git_url.startswith(BUILTIN_SCHEME)
 
     def __hash__(self):
         return hash(str(self))
@@ -482,3 +576,32 @@ class Package:
                 return True
 
             return path == self.git_url
+
+
+def make_builtin_package(*, name: str, current_version: str, current_hash: str = None):
+    """
+    Given ``name``, ``version`` and ``commit`` as found in Zeek's ``zkg.provides``
+    entry, construct a :class:`PackageInfo` instance representing the built-in
+    package.
+    """
+    package = Package(
+        git_url=f"{BUILTIN_SCHEME}{name}",
+        name=name,
+        source=BUILTIN_SOURCE,
+        canonical=True,
+    )
+
+    status = PackageStatus(
+        is_loaded=True,  # May not hold in the future?
+        is_outdated=False,
+        is_pinned=True,
+        tracking_method=TRACKING_METHOD_BUILTIN,
+        current_version=current_version,
+        current_hash=current_hash,
+    )
+
+    return PackageInfo(
+        package=package,
+        status=status,
+        versions=[current_version],
+    )

@@ -1,0 +1,33 @@
+# @TEST-DOC: Create a bundle by hand with a package depending on "spicy-plugin<6.0.0" which isn't satisfiable. Observe a warning during unbundling.
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+# @TEST-REQUIRES: tar --version
+#
+# @TEST-EXEC: bash %INPUT
+#
+# @TEST-EXEC: zkg unbundle bundle.tar >> output
+# @TEST-EXEC: zkg list >> output
+# @TEST-EXEC: btest-diff output
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='sed -r "s/[0-9]{2}/XX/g" | sed -r "s/\(.\..\..\)/(X.X.X)/g" | $SCRIPTS/diff-remove-abspath btest-diff' btest-diff .stderr
+# @TEST-EXEC: btest-diff package.log
+#
+
+export LOG=$(pwd)/package.log
+
+(
+    cd packages/foo
+    cat >>zkg.meta <<EOF
+test_command = echo "Testing foo" >> $LOG
+build_command = echo "Building foo" >> $LOG
+depends =
+  spicy-plugin <6.0.0
+EOF
+    git commit -am 'foo: depends on spicy-plugin'
+    git checkout -b origin/main
+)
+
+# Create a bundle
+mkdir the-bundle
+cp -R packages/foo ./the-bundle
+echo -e '[bundle]\n/one/alice/foo = main' >> the-bundle/manifest.txt
+tar -cf bundle.tar -C ./the-bundle .

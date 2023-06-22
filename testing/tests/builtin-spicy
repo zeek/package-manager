@@ -1,0 +1,22 @@
+# @TEST-DOC: Ensure a package that requires spicy-plugin installs when spicy-plugin is built-in
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: zkg install foo > output
+# @TEST-EXEC: btest-diff output
+# @TEST-EXEC: btest-diff package.log
+#
+
+export LOG=$(pwd)/package.log
+
+(
+    cd packages/foo
+    cat >>zkg.meta <<EOF
+test_command = echo "Testing foo" >> $LOG
+build_command = echo "Building foo" >> $LOG
+depends =
+  spicy-plugin *
+EOF
+    git commit -am 'foo: depends on spicy-plugin'
+)

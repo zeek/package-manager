@@ -5,7 +5,7 @@
 
 # @TEST-EXEC: zkg install bar
 #
-# @TEST-EXEC-FAIL: zkg -v install --force --skiptests foo >>out 2>&1
+# @TEST-EXEC-FAIL: zkg install --force --skiptests foo >>out 2>&1
 # @TEST-EXEC: echo "have_load_bar=$(grep -c '@load.*bar' ./scripts/packages/packages.zeek)" >>out
 # @TEST-EXEC: echo "have_load_foo=$(grep -c '@load.*foo' ./scripts/packages/packages.zeek)" >>out
 #

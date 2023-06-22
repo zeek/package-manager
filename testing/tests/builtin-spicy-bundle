@@ -1,0 +1,28 @@
+# @TEST-DOC: Bundle foo which depends spicy-plugin (built-in) and check the created manifest.txt
+#
+# @TEST-REQUIRES: zeek -e 'exit(Version::at_least("6.0.0") ? 0 : 1)'
+# @TEST-REQUIRES: tar --version
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: zkg install foo > output
+# @TEST-EXEC: zkg bundle bundle.tar --manifest foo  >> output
+# @TEST-EXEC: zkg unbundle bundle.tar >> output
+# @TEST-EXEC: mkdir bundle && tar -C bundle -xf bundle.tar
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='sed -r "s/(.*)=[0-9]+\.[0-9]+\.[0-9]+/\1=X.X.X/g" | $SCRIPTS/diff-remove-abspath btest-diff' btest-diff bundle/manifest.txt
+# @TEST-EXEC: btest-diff output
+# @TEST-EXEC: btest-diff .stderr
+# @TEST-EXEC: btest-diff package.log
+#
+
+export LOG=$(pwd)/package.log
+
+(
+    cd packages/foo
+    cat >>zkg.meta <<EOF
+test_command = echo "Testing foo" >> $LOG
+build_command = echo "Building foo" >> $LOG
+depends =
+  spicy-plugin >=6.0.0
+EOF
+    git commit -am 'foo: depends on spicy-plugin'
+)
