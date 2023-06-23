@@ -119,22 +119,15 @@ class Stage:
                     make_symlink(entry.path, os.path.join(self.clone_dir, entry.name))
 
     def get_subprocess_env(self):
-        zeekpath = os.environ.get("ZEEKPATH") or os.environ.get("BROPATH")
-        pluginpath = os.environ.get("ZEEK_PLUGIN_PATH") or os.environ.get(
-            "BRO_PLUGIN_PATH"
-        )
+        zeekpath = os.environ.get("ZEEKPATH")
+        pluginpath = os.environ.get("ZEEK_PLUGIN_PATH")
 
         if not (zeekpath and pluginpath):
             zeek_config = find_program("zeek-config")
-            path_option = "--zeekpath"
-
-            if not zeek_config:
-                zeek_config = find_program("bro-config")
-                path_option = "--bropath"
 
             if zeek_config:
                 cmd = subprocess.Popen(
-                    [zeek_config, path_option, "--plugin_dir"],
+                    [zeek_config, "--zeekpath", "--plugin_dir"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     bufsize=1,
@@ -149,7 +142,7 @@ class Stage:
                 if not pluginpath:
                     pluginpath = line2
             else:
-                return None, 'no "zeek-config" or "bro-config" found in PATH'
+                return None, 'no "zeek-config" found in PATH'
 
         zeekpath = os.path.dirname(self.script_dir) + os.pathsep + zeekpath
         pluginpath = os.path.dirname(self.plugin_dir) + os.pathsep + pluginpath
@@ -158,8 +151,6 @@ class Stage:
         env["PATH"] = self.bin_dir + os.pathsep + os.environ.get("PATH", "")
         env["ZEEKPATH"] = zeekpath
         env["ZEEK_PLUGIN_PATH"] = pluginpath
-        env["BROPATH"] = zeekpath
-        env["BRO_PLUGIN_PATH"] = pluginpath
 
         return env, ""
 
@@ -277,8 +268,6 @@ class Manager:
         self.installed_pkgs = {}
         self._builtin_packages = None  # Cached Zeek built-in packages.
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
-        # The bro_dist attribute exists just for backward compatibility
-        self.bro_dist = zeek_dist
         self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
@@ -379,14 +368,6 @@ class Manager:
 
         self._write_autoloader()
         make_symlink("packages.zeek", self.autoload_package)
-
-        # Backward compatibility (Pre-Zeek 3.0 does not handle .zeek files)
-        autoload_script_fallback = os.path.join(self.script_dir, "packages.bro")
-        autoload_package_fallback = os.path.join(self.script_dir, "__load__.bro")
-        delete_path(autoload_script_fallback)
-        delete_path(autoload_package_fallback)
-        make_symlink("packages.zeek", autoload_script_fallback)
-        make_symlink("packages.zeek", autoload_package_fallback)
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -516,13 +497,6 @@ class Manager:
         """
         return os.path.dirname(self.script_dir)
 
-    def bropath(self):
-        """Same as :meth:`zeekpath`.
-
-        Using :meth:`zeekpath` is preferred since this may later be deprecated.
-        """
-        return self.zeekpath()
-
     def zeek_plugin_path(self):
         """Return the path where installed package plugins are located.
 
@@ -530,14 +504,6 @@ class Manager:
         interoperability with Zeek.
         """
         return os.path.dirname(self.plugin_dir)
-
-    def bro_plugin_path(self):
-        """Same as :meth:`zeek_plugin_path`.
-
-        Using :meth:`zeek_plugin_path` is preferred since this may later be
-        deprecated.
-        """
-        return self.zeek_plugin_path()
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
@@ -1493,16 +1459,8 @@ class Manager:
         pkg_load_script = os.path.join(
             self.script_dir, ipkg.package.name, "__load__.zeek"
         )
-        # Check if __load__.bro exists for compatibility with older packages
-        pkg_load_fallback = os.path.join(
-            self.script_dir, ipkg.package.name, "__load__.bro"
-        )
 
-        if (
-            not os.path.exists(pkg_load_script)
-            and not os.path.exists(pkg_load_fallback)
-            and not self.has_plugin(ipkg)
-        ):
+        if not os.path.exists(pkg_load_script) and not self.has_plugin(ipkg):
             LOG.debug(
                 'loading "%s": %s not found and package has no plugin',
                 pkg_path,
@@ -2067,11 +2025,11 @@ class Manager:
                 all_deps.update(ds)
 
             for dep_name, _ in all_deps.items():
-                if dep_name == "bro" or dep_name == "zeek":
+                if dep_name == "zeek":
                     # A zeek node will get added later.
                     continue
 
-                if dep_name == "bro-pkg" or dep_name == "zkg":
+                if dep_name == "zkg":
                     # A zkg node will get added later.
                     continue
 
@@ -2140,9 +2098,7 @@ class Manager:
                 )
                 graph["zeek"] = node
             else:
-                LOG.warning(
-                    'could not get zeek version: no "zeek-config" or "bro-config" in PATH ?'
-                )
+                LOG.warning('could not get zeek version: no "zeek-config" in PATH ?')
 
             node = Node("zkg")
             node.installed_version = PackageVersion(
@@ -2196,11 +2152,11 @@ class Manager:
                 all_deps.update(ds)
 
             for dep_name, dep_version in all_deps.items():
-                if dep_name == "bro" or dep_name == "zeek":
+                if dep_name == "zeek":
                     if "zeek" in graph:
                         graph["zeek"].dependers[name] = dep_version
                         node.dependees["zeek"] = dep_version
-                elif dep_name == "bro-pkg" or dep_name == "zkg":
+                elif dep_name == "zkg":
                     if "zkg" in graph:
                         graph["zkg"].dependers[name] = dep_version
                         node.dependees["zkg"] = dep_version
@@ -2840,8 +2796,7 @@ class Manager:
 
         pkgload = os.path.join(script_dir_src, "__load__.")
 
-        # Check if __load__.bro exists for compatibility with older packages
-        if os.path.isfile(pkgload + "zeek") or os.path.isfile(pkgload + "bro"):
+        if os.path.isfile(pkgload + "zeek"):
             try:
                 symlink_path = os.path.join(
                     os.path.dirname(stage.script_dir), package.name
@@ -3095,7 +3050,6 @@ class Manager:
             return None, "package has malformed 'user_vars' metadata field"
 
         substitutions = {
-            "bro_dist": self.zeek_dist,
             "zeek_dist": self.zeek_dist,
             "package_base": stage.clone_dir,
         }
@@ -3368,4 +3322,4 @@ def _info_from_clone(clone, package, status, version):
 
 
 def _is_reserved_pkg_name(name):
-    return name == "bro" or name == "zeek" or name == "zkg"
+    return name == "zeek" or name == "zkg"

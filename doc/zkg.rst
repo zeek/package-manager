@@ -1,5 +1,3 @@
-.. _bro-pkg:
-
 .. _zkg:
 
 zkg Command-Line Tool
@@ -216,8 +214,6 @@ template info
     :func: argparser
     :prog: zkg
     :path: template info
-
-.. _bro-pkg-config-file:
 
 .. _zkg-config-file:
 
