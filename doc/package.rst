@@ -36,7 +36,7 @@ last component of its git URL. E.g. a package at ``https://github.com/zeek/foo``
 may be referred to as **foo** when using :program:`zkg` and a Zeek
 script that wants to load all the scripts within that package can use:
 
-.. code-block:: bro
+.. code-block:: zeek
 
   @load foo
 
@@ -229,11 +229,6 @@ though the following step are the essentials needed to create a package.
      script_dir = scripts/Demo/Rot13
      build_command = ./configure && make
 
-   .. note::
-
-      See :ref:`legacy-bro-support` for notes on configuring packages to
-      support Bro 2.5 or earlier.
-
 #. Add example script code:
 
    .. code-block:: console
@@ -257,9 +252,7 @@ though the following step are the essentials needed to create a package.
               *p  = (*p - b + 13) % 26 + b;
               }
 
-          BroString* bs = new BroString(1, reinterpret_cast<byte_vec>(rot13),
-                                        strlen(rot13));
-          return new StringVal(bs);
+          return make_intrusive<StringVal>(strlen(rot13), rot13);
           %}
 
 #. Commit everything to git:
@@ -576,11 +569,6 @@ An example :file:`zkg.meta`::
   script_dir = scripts/Demo/Rot13
   build_command = ./configure && make
 
-.. note::
-
-   See :ref:`legacy-bro-support` for notes on configuring packages to
-   support Bro 2.5 or earlier.
-
 The default CMake skeleton for Zeek plugins will use :file:`build/` as the
 directory for the final/built version of the plugin, which matches the defaulted
 value of the omitted `plugin_dir` metadata field.
@@ -591,31 +579,6 @@ script components, the "plugin" part is always unconditionally loaded by Zeek,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
-.. _legacy-bro-support:
-
-Supporting Older Bro Versions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Plugin skeletons generated before Bro v2.6 and also any packages
-that generally want to support such Bro versions need to pass
-an additional configuration option such as::
-
-    build_command = ./configure --bro-dist=%(bro_dist)s && make
-
-See the :ref:`Value Interpolation <metadata-interpolation>`
-section for more information on what the ``%(bro_dist)s``
-string does, but a brief explanation is that it will expand to
-a path containing the Bro source-code on the user's system.
-For newer versions of Bro, packages are able to work entirely
-with the installation path and don't require original source code.
-
-Also note that other various Zeek scripting and CMake infrastructure may
-have changed between Bro v2.6 and Zeek v3.0.  So if you plan to support
-older version of Bro (before the Zeek rename), then you should keep an eye
-out for various things that got renamed.  For example, the `zeek_init` event
-won't exist in any version before Zeek v3.0, nor will any CMake macros
-that start with `zeek_plugin`.
-
 .. _metadata-interpolation:
 
 Value Interpolation
@@ -624,18 +587,14 @@ Value Interpolation
 The `build_command field`_ may reference the settings any given user has in
 their customized :ref:`package manager config file <zkg-config-file>`.
 
-For example, if a metadata field's value contains the ``%(bro_dist)s`` string,
+For example, if a metadata field's value contains the ``%(zeek_dist)s`` string,
 then :program:`zkg` operations that use that field will automatically
-substitute the actual value of `bro_dist` that the user has in their local
+substitute the actual value of `zeek_dist` that the user has in their local
 config file.  Note the trailing 's' character at the end of the interpolation
-string, ``%(bro_dist)s``, is intended/necessary for all such interpolation
-usages.  Note that :program:`since zkg v2.0`, `zeek_dist` is the canonical name
-for `bro_dist` within the :ref:`zkg config file <zkg-config-file>`,
-but either one means the same thing and should work.  To support older
-versions of :program:`bro-pkg`, you'd want to use `bro_dist` in package
-metadata files.
+string, ``%(zeek_dist)s``, is intended/necessary for all such interpolation
+usages.
 
-Besides the `bro_dist`/`zeek_dist` config keys, any key inside the
+Besides the `zeek_dist` config key, any key inside the
 `user_vars` sections of their :ref:`package manager config file
 <zkg-config-file>` that matches the key of an entry in the package's
 `user_vars field`_ will be interpolated.
@@ -777,37 +736,23 @@ An example :file:`zkg.meta`::
 The field is a list of dependency names and their version requirement
 specifications.
 
-A dependency name may be either `zeek`, `zkg`, `bro`, `bro-pkg`,
+A dependency name may be either `zeek`, `zkg`,
 a full git URL of the package, or a :ref:`package shorthand name
 <package-shorthand-name>`.
 
-- The special `zeek` and `bro` dependencies refers not to a package,
-  but the version of Zeek that the package requires in order to function.  If
-  the user has :program:`zeek-config` or :program:`bro-config` in their
-  :envvar:`PATH` when installing/upgrading a package that specifies a `zeek` or
-  `bro` dependency, then :program:`zkg` will enforce that the requirement is
-  satisfied.
+- The special `zeek` dependency refers not to a package, but the version of Zeek
+  that the package requires in order to function.  If the user has
+  :program:`zeek-config` in their :envvar:`PATH` when installing/upgrading a
+  package that specifies a `zeek` dependency, then :program:`zkg` will enforce
+  that the requirement is satisfied.
 
-  .. note::
-
-     In this context, `zeek` and `bro` mean the same thing -- the
-     later is maintained for backwards compatibility while the former
-     became available :program:`since zkg v2.0`.
-
-- The special `zkg` and `bro-pkg` dependencies refers to the version of the
+- The special `zkg` dependency refers to the version of the
   package manager that is required by the package.  E.g. if a package takes
   advantage of new features that are not present in older versions of the
   package manager, then it should indicate that so users of those old version
   will see an error message an know to upgrade instead of seeing a cryptic
   error/exception, or worse, seeing no errors, but without the desired
   functionality being performed.
-
-  .. note::
-
-     This feature itself, via use of a `bro-pkg` dependency, is only
-     available :program:`since bro-pkg v1.2` while a `zkg` dependency is only
-     recognized :program:`since zkg v2.0`.  Otherwise, `zkg` and `bro-pkg` mean
-     the same thing in this context.
 
 - The full git URL may be directly specified in the `depends` metadata if you
   want to force the dependency to always resolve to a single, canonical git

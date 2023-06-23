@@ -141,7 +141,7 @@ have Zeek automatically load the scripts from all
 :ref:`installed <install-command>` packages that are also marked as
 ":ref:`loaded <load-command>`" add:
 
-.. code-block:: bro
+.. code-block:: zeek
 
   @load packages
 

@@ -88,7 +88,6 @@ ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
 from zeekpkg._util import (
     delete_path,
     make_dir,
-    make_symlink,
     find_program,
     read_zeek_config_line,
     std_encoding,
@@ -200,19 +199,10 @@ def find_configfile(args):
 
     configfile = os.environ.get("ZKG_CONFIG_FILE")
 
-    if not configfile:
-        # For backward compatibility with old bro-pkg.
-        configfile = os.environ.get("BRO_PKG_CONFIG_FILE")
-
     if configfile and file_is_not_empty(configfile):
         return configfile
 
     configfile = os.path.join(default_config_dir(), "config")
-
-    if file_is_not_empty(configfile):
-        return configfile
-
-    configfile = os.path.join(legacy_config_dir(), "config")
 
     if file_is_not_empty(configfile):
         return configfile
@@ -228,16 +218,8 @@ def default_config_dir():
     return ZEEK_ZKG_CONFIG_DIR or home_config_dir()
 
 
-def legacy_config_dir():
-    return os.path.join(os.path.expanduser("~"), ".bro-pkg")
-
-
 def default_state_dir():
     return ZEEK_ZKG_STATE_DIR or home_config_dir()
-
-
-def legacy_state_dir():
-    return os.path.join(os.path.expanduser("~"), ".bro-pkg")
 
 
 def create_config(args, configfile):
@@ -292,9 +274,6 @@ def create_config(args, configfile):
     )
     bin_dir = get_option(config, "paths", "bin_dir", os.path.join(state_dir, "bin"))
     zeek_dist = get_option(config, "paths", "zeek_dist", "")
-
-    if not zeek_dist:
-        zeek_dist = get_option(config, "paths", "bro_dist", "")
 
     config.set("paths", "state_dir", state_dir)
     config.set("paths", "script_dir", script_dir)
@@ -393,10 +372,6 @@ def create_manager(args, config):
     plugin_dir = config.get("paths", "plugin_dir")
     bin_dir = config.get("paths", "bin_dir")
     zeek_dist = config.get("paths", "zeek_dist")
-
-    if state_dir == default_state_dir():
-        if not os.path.exists(state_dir) and os.path.exists(legacy_state_dir()):
-            make_symlink(legacy_state_dir(), state_dir)
 
     try:
         manager = zeekpkg.Manager(
@@ -2124,20 +2099,12 @@ def cmd_autoconfig(manager, args, config, configfile):
 
     zeek_config = find_program("zeek-config")
 
-    if zeek_config:
-        have_zeek_config = True
-    else:
-        have_zeek_config = False
-        zeek_config = find_program("bro-config")
-
     if not zeek_config:
-        print_error('error: no "zeek-config" or "bro-config" in PATH')
+        print_error('error: no "zeek-config" in PATH')
         sys.exit(1)
 
-    dist_option = "--zeek_dist" if have_zeek_config else "--bro_dist"
-
     cmd = subprocess.Popen(
-        [zeek_config, "--site_dir", "--plugin_dir", "--prefix", dist_option],
+        [zeek_config, "--site_dir", "--plugin_dir", "--prefix", "--zeek_dist"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         bufsize=1,
@@ -2190,25 +2157,12 @@ def cmd_autoconfig(manager, args, config, configfile):
 
 def cmd_env(manager, args, config, configfile):
     zeek_config = find_program("zeek-config")
-    path_option = "--zeekpath"
-
-    if not zeek_config:
-        path_option = "--bropath"
-        zeek_config = find_program("bro-config")
-
     zeekpath = os.environ.get("ZEEKPATH")
-
-    if not zeekpath:
-        zeekpath = os.environ.get("BROPATH")
-
     pluginpath = os.environ.get("ZEEK_PLUGIN_PATH")
-
-    if not pluginpath:
-        pluginpath = os.environ.get("BRO_PLUGIN_PATH")
 
     if zeek_config:
         cmd = subprocess.Popen(
-            [zeek_config, path_option, "--plugin_dir"],
+            [zeek_config, "--zeekpath", "--plugin_dir"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=1,
@@ -2236,14 +2190,10 @@ def cmd_env(manager, args, config, configfile):
     pluginpaths = remove_redundant_paths(pluginpaths)
 
     if os.environ.get("SHELL", "").endswith("csh"):
-        print("setenv BROPATH {}".format(":".join(zeekpaths)))
-        print("setenv BRO_PLUGIN_PATH {}".format(":".join(pluginpaths)))
         print("setenv ZEEKPATH {}".format(":".join(zeekpaths)))
         print("setenv ZEEK_PLUGIN_PATH {}".format(":".join(pluginpaths)))
         print(f"setenv PATH {manager.bin_dir}:$PATH")
     else:
-        print("export BROPATH={}".format(":".join(zeekpaths)))
-        print("export BRO_PLUGIN_PATH={}".format(":".join(pluginpaths)))
         print("export ZEEKPATH={}".format(":".join(zeekpaths)))
         print("export ZEEK_PLUGIN_PATH={}".format(":".join(pluginpaths)))
         print(f"export PATH={manager.bin_dir}:$PATH")
@@ -2463,8 +2413,7 @@ def argparser():
         " the ambiguity. A full git URL may also be used to refer"
         " to a package that does not belong to a source. E.g. for"
         ' a package source called "zeek" that has a package named'
-        ' "foo" located in either "alice/zkg.index" or'
-        ' "alice/bro-pkg.index", the following'
+        ' "foo" located in "alice/zkg.index", the following'
         ' names work: "foo", "alice/foo", "zeek/alice/foo".'
     )
 
@@ -2718,8 +2667,7 @@ def argparser():
     sub_parser.add_argument(
         "--aggregate",
         action="store_true",
-        help="Crawls the urls listed in package source zkg.index"
-        " (or legacy bro-pkg.index) files and"
+        help="Crawls the urls listed in package source zkg.index files and"
         " aggregates the metadata found in their zkg.meta (or legacy"
         " bro-pkg.meta) files.  The aggregated metadata is stored in the local"
         " clone of the package source that zkg uses internally for locating"
@@ -2970,7 +2918,6 @@ def argparser():
             "plugin_dir",
             "bin_dir",
             "zeek_dist",
-            "bro_dist",
         ],
         help="Name of a specific config file field to output.",
     )
@@ -2983,7 +2930,7 @@ def argparser():
         " config file that is generated by using the ``zeek-config`` script"
         " that is installed along with Zeek.  It is the suggested configuration"
         " to use for most Zeek installations.  For this command to work, the"
-        " ``zeek-config`` (or ``bro-config``) script must be in ``PATH``,"
+        " ``zeek-config`` script must be in ``PATH``,"
         " unless the --user option is given, in which case this creates"
         " a config that does not touch the Zeek installation.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -2999,13 +2946,11 @@ def argparser():
         help="Show the value of environment variables that need to be set for"
         " Zeek to be able to use installed packages.",
         description="This command returns shell commands that, when executed,"
-        " will correctly set ``ZEEKPATH`` and ``ZEEK_PLUGIN_PATH`` (also"
-        " ``BROPATH`` and ``BRO_PLUGIN_PATH`` for legacy compatibility) to use"
+        " will correctly set ``ZEEKPATH`` and ``ZEEK_PLUGIN_PATH`` to use"
         " scripts and plugins from packages installed by the package manager."
         " For this command to function properly, either have the ``zeek-config``"
         " script (installed by zeek) in ``PATH``, or have the ``ZEEKPATH`` and"
-        " ``ZEEK_PLUGIN_PATH`` (or ``BROPATH`` and ``BRO_PLUGIN_PATH``)"
-        " environment variables already set so this command"
+        " ``ZEEK_PLUGIN_PATH`` environment variables already set so this command"
         " can append package-specific paths to them.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
