@@ -25,8 +25,8 @@ TRACKING_METHOD_BUILTIN = "builtin"
 BUILTIN_SOURCE = "zeek-builtin"
 BUILTIN_SCHEME = "zeek-builtin://"
 
-PLUGIN_MAGIC_FILE = "__bro_plugin__"
-PLUGIN_MAGIC_FILE_DISABLED = "__bro_plugin__.disabled"
+PLUGIN_MAGIC_FILE = "__zeek_plugin__"
+PLUGIN_MAGIC_FILE_DISABLED = "__zeek_plugin__.disabled"
 
 
 def name_from_path(path):

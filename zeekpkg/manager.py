@@ -391,12 +391,12 @@ class Manager:
         """Enables/disables any Zeek plugin included with a package.
 
         Zeek's plugin code scans its plugin directories for
-        __bro_plugin__ magic files, which indicate presence of a
+        __zeek_plugin__ magic files, which indicate presence of a
         plugin directory. When this file does not exist, Zeek does not
         recognize a plugin.
 
         When we're loading a package, this function renames an
-        existing __bro_plugin__.disabled file to __bro_plugin__, and
+        existing __zeek_plugin__.disabled file to __zeek_plugin__, and
         vice versa when we're unloading a package.
 
         When the package doesn't include a plugin, or when the plugin
