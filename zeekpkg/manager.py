@@ -3303,6 +3303,9 @@ def _parse_package_metadata(parser, metadata_file):
     return ""
 
 
+_legacy_metadata_warnings = set()
+
+
 def _info_from_clone(clone, package, status, version):
     """Retrieves information about a package.
 
@@ -3334,6 +3337,20 @@ def _info_from_clone(clone, package, status, version):
             metadata_file=metadata_file,
             default_branch=default_branch,
         )
+
+    # Remove in v3.0 by either silently ignoring LEGACY_METADATA_FILENAME
+    # completely or error with helpful instructions about zkg.meta.
+    if (
+        os.path.basename(metadata_file) == LEGACY_METADATA_FILENAME
+        and package.qualified_name() not in _legacy_metadata_warnings
+    ):
+        LOG.warning(
+            "Package %s is using the legacy bro-pkg.meta metadata file. "
+            "It will soon stop working unless updated to use zkg.meta instead. "
+            "Please report this to the package maintainers.",
+            package.qualified_name(),
+        )
+        _legacy_metadata_warnings.add(package.qualified_name())
 
     metadata = _get_package_metadata(metadata_parser)
 
