@@ -2668,11 +2668,10 @@ def argparser():
         "--aggregate",
         action="store_true",
         help="Crawls the urls listed in package source zkg.index files and"
-        " aggregates the metadata found in their zkg.meta (or legacy"
-        " bro-pkg.meta) files.  The aggregated metadata is stored in the local"
-        " clone of the package source that zkg uses internally for locating"
-        " package metadata."
-        " For each package, the metadata is taken from the highest available"
+        " aggregates the metadata found in their zkg.meta files.  The aggregated"
+        " metadata is stored in the local clone of the package source that zkg"
+        " uses internally for locating package metadata. For each package, the"
+        " metadata is taken from the highest available"
         ' git version tag or the default branch, like "main" or "master", if no version tags exist',
     )
     sub_parser.add_argument(

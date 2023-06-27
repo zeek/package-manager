@@ -15,7 +15,6 @@ from ._util import find_sentence_end, normalize_version_tag
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = "zkg.meta"
-LEGACY_METADATA_FILENAME = "bro-pkg.meta"
 
 TRACKING_METHOD_VERSION = "version"
 TRACKING_METHOD_BRANCH = "branch"
@@ -297,7 +296,7 @@ class PackageInfo:
             packages
 
         metadata (dict of str -> str): the contents of the package's
-            :file:`zkg.meta` or :file:`bro-pkg.meta`
+            :file:`zkg.meta`
 
         versions (list of str): a list of the package's availabe git version
             tags
@@ -311,10 +310,9 @@ class PackageInfo:
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong.
 
-        metadata_file: the absolute path to the :file:`zkg.meta` or
-            :file:`bro-pkg.meta` for this package.  Use this if you'd like to
-            parse the metadata yourself. May not be defined, in which case the
-            value is None.
+        metadata_file: the absolute path to the :file:`zkg.meta` or for this
+            package. Use this if you'd like to parse the metadata yourself.
+            May not be defined, in which case the value is None.
     """
 
     def __init__(
@@ -427,10 +425,10 @@ class Package:
             or if it's located in a top-level :file:`zkg.index` file.
 
         metadata (dict of str -> str): the contents of the package's
-            :file:`zkg.meta` or :file:`bro-pkg.meta` file.  If the package has
-            not been installed then this information may come from the last
-            aggregation of the source's :file:`aggregate.meta` file (it may not
-            be accurate/up-to-date).
+            :file:`zkg.meta` file.  If the package has not been installed then
+            this information may come from the last aggregation of the source's
+            :file:`aggregate.meta` file (it may not be accurate/up-to-date).
+
     """
 
     def __init__(

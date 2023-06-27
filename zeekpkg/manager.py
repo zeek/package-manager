@@ -49,7 +49,6 @@ from .package import (
     BUILTIN_SOURCE,
     BUILTIN_SCHEME,
     METADATA_FILENAME,
-    LEGACY_METADATA_FILENAME,
     TRACKING_METHOD_VERSION,
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_COMMIT,
@@ -190,20 +189,19 @@ class Manager:
         scratch_dir (str): a directory where the package manager performs
             miscellaneous/temporary file operations
 
-        script_dir (str): the directory where the package manager will
-            copy each installed package's `script_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `script_dir` associated with its name.
+        script_dir (str): the directory where the package manager will copy each
+            installed package's `script_dir` (as given by its :file:`zkg.meta`).
+            Each package gets a subdirectory within `script_dir` associated with
+            its name.
 
-        plugin_dir (str): the directory where the package manager will
-            copy each installed package's `plugin_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `plugin_dir` associated with its name.
+        plugin_dir (str): the directory where the package manager will copy each
+            installed package's `plugin_dir` (as given by its :file:`zkg.meta`).
+            Each package gets a subdirectory within `plugin_dir` associated with
+            its name.
 
         bin_dir (str): the directory where the package manager will link
             executables into that are provided by an installed package through
-            `executables` (as given by its :file:`zkg.meta` or
-            :file:`bro-pkg.meta`)
+            `executables` (as given by its :file:`zkg.meta`)
 
         source_clonedir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
@@ -230,6 +228,7 @@ class Manager:
             in a directory named :file:`packages`, so as long as
             :envvar:`ZEEKPATH` is configured correctly, ``@load packages`` will
             load all installed packages that have been marked as loaded.
+
     """
 
     def __init__(
@@ -1134,7 +1133,7 @@ class Manager:
                         aggregation_issues.append((url, msg))
                         continue
 
-                    metadata_file = _pick_metadata_file(clone.working_dir)
+                    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
                     metadata_parser = configparser.ConfigParser(interpolation=None)
                     invalid_reason = _parse_package_metadata(
                         metadata_parser, metadata_file
@@ -2716,7 +2715,7 @@ class Manager:
 
         """
         LOG.debug('staging "%s": version %s', package, version)
-        metadata_file = _pick_metadata_file(clone.working_dir)
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
         if invalid_reason:
@@ -3007,7 +3006,7 @@ class Manager:
         status.current_hash = clone.head.object.hexsha
         status.is_outdated = _is_clone_outdated(clone, version, status.tracking_method)
 
-        metadata_file = _pick_metadata_file(clone.working_dir)
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
@@ -3183,7 +3182,7 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         rval = []
 
         for f in files:
-            if f in {".git", "bro-pkg.meta", "zkg.meta"}:
+            if f in {".git", "zkg.meta"}:
                 rval.append(f)
 
         return rval
@@ -3233,31 +3232,17 @@ def _get_package_metadata(parser):
     return metadata
 
 
-def _pick_metadata_file(directory):
-    rval = os.path.join(directory, METADATA_FILENAME)
-
-    if os.path.exists(rval):
-        return rval
-
-    return os.path.join(directory, LEGACY_METADATA_FILENAME)
-
-
 def _parse_package_metadata(parser, metadata_file):
     """Return string explaining why metadata is invalid, or '' if valid."""
     if not parser.read(metadata_file):
         LOG.warning("%s: missing metadata file", metadata_file)
-        return "missing {} (or {}) metadata file".format(
-            METADATA_FILENAME, LEGACY_METADATA_FILENAME
-        )
+        return f"missing {METADATA_FILENAME} metadata file"
 
     if not parser.has_section("package"):
         LOG.warning("%s: metadata missing [package]", metadata_file)
         return f"{os.path.basename(metadata_file)} is missing [package] section"
 
     return ""
-
-
-_legacy_metadata_warnings = set()
 
 
 def _info_from_clone(clone, package, status, version):
@@ -3276,7 +3261,7 @@ def _info_from_clone(clone, package, status, version):
     else:
         version_type = TRACKING_METHOD_BRANCH
 
-    metadata_file = _pick_metadata_file(clone.working_dir)
+    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
     metadata_parser = configparser.ConfigParser(interpolation=None)
     invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
@@ -3291,20 +3276,6 @@ def _info_from_clone(clone, package, status, version):
             metadata_file=metadata_file,
             default_branch=default_branch,
         )
-
-    # Remove in v3.0 by either silently ignoring LEGACY_METADATA_FILENAME
-    # completely or error with helpful instructions about zkg.meta.
-    if (
-        os.path.basename(metadata_file) == LEGACY_METADATA_FILENAME
-        and package.qualified_name() not in _legacy_metadata_warnings
-    ):
-        LOG.warning(
-            "Package %s is using the legacy bro-pkg.meta metadata file. "
-            "It will soon stop working unless updated to use zkg.meta instead. "
-            "Please report this to the package maintainers.",
-            package.qualified_name(),
-        )
-        _legacy_metadata_warnings.add(package.qualified_name())
 
     metadata = _get_package_metadata(metadata_parser)
 

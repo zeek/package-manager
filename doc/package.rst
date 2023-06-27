@@ -22,12 +22,6 @@ This is the package's metadata file in INI file format and may contain
 :ref:`additional fields <metadata-fields>` that describe the package as well
 as how it inter-operates with Zeek, the package manager, or other packages.
 
-.. note::
-
-   :file:`zkg.meta` is the canonical metadata file name used :program:`since
-   zkg v2.0`.  The previous metadata file name of :file:`bro-pkg.meta` is also
-   accepted when no :file:`zkg.meta` exists.
-
 .. _package-shorthand-name:
 
 Note that the shorthand name for your package that may be used by :ref:`zkg
