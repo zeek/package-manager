@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Jun 23, 2023" "2.13.0-32" "Zeek Package Manager"
+.TH "ZKG" "1" "Jun 30, 2023" "2.13.0-32" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -62,7 +62,7 @@ See \fI\%Config File\fP\&.
 Store all state in user\(aqs home directory. Precludes \-\-configfile.
 .TP
 .B \-\-verbose=0\fP,\fB  \-v=0
-Increase program output for debugging. Use multiple times for more output (e.g. \-vvv).
+Increase program output for debugging. Use multiple times for more output (e.g. \-vv).
 .TP
 .B \-\-extra\-source
 Add an extra source.
@@ -326,7 +326,7 @@ usage: zkg refresh [\-h] [\-\-aggregate] [\-\-fail\-on\-aggregate\-problems] [\-
 .INDENT 7.0
 .TP
 .B \-\-aggregate=False
-Crawls the urls listed in package source zkg.index files and aggregates the metadata found in their zkg.meta (or legacy bro\-pkg.meta) files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally for locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
+Crawls the urls listed in package source zkg.index files and aggregates the metadata found in their zkg.meta files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally for locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
 .TP
 .B \-\-fail\-on\-aggregate\-problems=False
 When using \-\-aggregate, exit with error when any packages trigger metadata problems. Normally such problems only cause a warning.
@@ -499,7 +499,7 @@ Outputs a list of packages that match a given category.
 .sp
 .nf
 .ft C
-usage: zkg list [\-h] [\-\-nodesc] [{all,installed,not_installed,loaded,unloaded,outdated}]
+usage: zkg list [\-h] [\-\-nodesc] [\-\-include\-builtin] [{all,installed,not_installed,loaded,unloaded,outdated}]
 .ft P
 .fi
 .UNINDENT
@@ -520,6 +520,9 @@ Possible choices: all, installed, not_installed, loaded, unloaded, outdated
 .TP
 .B \-\-nodesc=False
 Do not display description text, just the package name(s).
+.TP
+.B \-\-include\-builtin=False
+Also output packages that Zeek has built\-in. By default these are not shown.
 .UNINDENT
 .UNINDENT
 .SS search
@@ -554,7 +557,8 @@ Shows detailed information/metadata for given packages. If the package is curren
 .sp
 .nf
 .ft C
-usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json] [\-\-jsonpretty SPACES] [\-\-allvers]
+usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-include\-builtin] [\-\-json] [\-\-jsonpretty SPACES]
+                [\-\-allvers]
                 package [package ...]
 .ft P
 .fi
@@ -577,6 +581,9 @@ The version of the package metadata to inspect.  A version tag, branch name, or 
 .TP
 .B \-\-nolocal=False
 Do not read information from locally installed packages. Instead read info from remote GitHub.
+.TP
+.B \-\-include\-builtin=False
+Also output packages that Zeek has built\-in. By default these are not shown.
 .TP
 .B \-\-json=False
 Output package information as JSON.
@@ -776,7 +783,7 @@ state_dir =
 # A subdirectory named "packages" is always created within the
 # specified path and the package manager will copy the directory
 # specified by the "script_dir" option of each package\(aqs zkg.meta
-# (or legacy bro\-pkg.meta) file there.
+# file there.
 # If left blank or with \-\-user this defaults to <state_dir>/script_dir.
 # In Zeek\-bundled installations, it defaults to
 # <zeek_install_prefix>/share/zeek/site.
@@ -789,7 +796,7 @@ script_dir =
 # A subdirectory named "packages" is always created within the
 # specified path and the package manager will copy the directory
 # specified by the "plugin_dir" option of each package\(aqs zkg.meta
-# (or legacy bro\-pkg.meta) file there.
+# file there.
 # If left blank or with \-\-user this defaults to <state_dir>/plugin_dir.
 # In Zeek\-bundled installations, it defaults to
 # <zeek_install_prefix>/lib/zeek/plugins.
@@ -808,7 +815,8 @@ bin_dir =
 
 # The directory containing Zeek distribution source code.  This is only
 # needed when installing packages that contain Zeek plugins that are
-# not pre\-built.
+# not pre\-built. This value is generally not needed by most users other
+# than plugin developers anymore.
 zeek_dist =
 
 [templates]
@@ -819,13 +827,13 @@ default = https://github.com/zeek/package\-template
 
 [user_vars]
 
-# For any key in this section that is matched for value interpolation
-# in a package\(aqs zkg.meta (or legacy bro\-pkg.meta) file, the corresponding
-# value is substituted during execution of the package\(aqs \(gabuild_command\(ga.
-# This section is typically automatically populated with the
-# the answers supplied during package installation prompts
-# and, as a convenience feature, used to recall the last\-used settings
-# during subsequent operations (e.g. upgrades) on the same package.
+# For any key in this section that is matched for value interpolation in a
+# package\(aqs zkg.meta file, the corresponding value is substituted during
+# execution of the package\(aqs \(gabuild_command\(ga.  This section is typically
+# automatically populated with the the answers supplied during package
+# installation prompts and, as a convenience feature, used to recall the
+# last\-used settings during subsequent operations (e.g. upgrades) on the same
+# package.
 
 .ft P
 .fi
