@@ -361,9 +361,6 @@ def get_zeek_version():
     zeek_config = find_program("zeek-config")
 
     if not zeek_config:
-        zeek_config = find_program("bro-config")
-
-    if not zeek_config:
         return ""
 
     import subprocess

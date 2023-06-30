@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "ZKG" "1" "Jun 20, 2023" "2.13.0-32" "Zeek Package Manager"
+.TH "ZKG" "1" "Jun 30, 2023" "2.13.0-46" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .
@@ -62,7 +62,7 @@ See \fI\%Config File\fP\&.
 Store all state in user\(aqs home directory. Precludes \-\-configfile.
 .TP
 .B \-\-verbose=0\fP,\fB  \-v=0
-Increase program output for debugging. Use multiple times for more output (e.g. \-vvv).
+Increase program output for debugging. Use multiple times for more output (e.g. \-vv).
 .TP
 .B \-\-extra\-source
 Add an extra source.
@@ -99,7 +99,7 @@ usage: zkg test [\-h] [\-\-version VERSION] [\-\-ignore\-dirty\-git] package [pa
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .TP
 .B Options:
@@ -134,7 +134,7 @@ usage: zkg install [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-v
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .TP
 .B Options:
@@ -182,7 +182,7 @@ usage: zkg remove [\-h] [\-\-force] [\-\-nodeps] package [package ...]
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .TP
 .B Options:
@@ -326,7 +326,7 @@ usage: zkg refresh [\-h] [\-\-aggregate] [\-\-fail\-on\-aggregate\-problems] [\-
 .INDENT 7.0
 .TP
 .B \-\-aggregate=False
-Crawls the urls listed in package source zkg.index (or legacy bro\-pkg.index) files and aggregates the metadata found in their zkg.meta (or legacy bro\-pkg.meta) files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally for locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
+Crawls the urls listed in package source zkg.index files and aggregates the metadata found in their zkg.meta files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally for locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
 .TP
 .B \-\-fail\-on\-aggregate\-problems=False
 When using \-\-aggregate, exit with error when any packages trigger metadata problems. Normally such problems only cause a warning.
@@ -359,7 +359,7 @@ usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-f
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .TP
 .B Options:
@@ -431,7 +431,7 @@ usage: zkg unload [\-h] [\-\-force] [\-\-nodeps] package [package ...]
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .TP
 .B Options:
@@ -464,7 +464,7 @@ usage: zkg pin [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS unpin
@@ -487,7 +487,7 @@ usage: zkg unpin [\-h] package [package ...]
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo".
 .UNINDENT
 .UNINDENT
 .SS list
@@ -499,7 +499,7 @@ Outputs a list of packages that match a given category.
 .sp
 .nf
 .ft C
-usage: zkg list [\-h] [\-\-nodesc] [{all,installed,not_installed,loaded,unloaded,outdated}]
+usage: zkg list [\-h] [\-\-nodesc] [\-\-include\-builtin] [{all,installed,not_installed,loaded,unloaded,outdated}]
 .ft P
 .fi
 .UNINDENT
@@ -520,6 +520,9 @@ Possible choices: all, installed, not_installed, loaded, unloaded, outdated
 .TP
 .B \-\-nodesc=False
 Do not display description text, just the package name(s).
+.TP
+.B \-\-include\-builtin=False
+Also output packages that Zeek has built\-in. By default these are not shown.
 .UNINDENT
 .UNINDENT
 .SS search
@@ -554,7 +557,8 @@ Shows detailed information/metadata for given packages. If the package is curren
 .sp
 .nf
 .ft C
-usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json] [\-\-jsonpretty SPACES] [\-\-allvers]
+usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-include\-builtin] [\-\-json] [\-\-jsonpretty SPACES]
+                [\-\-allvers]
                 package [package ...]
 .ft P
 .fi
@@ -566,7 +570,7 @@ usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-json] [\-\-jsonpr
 .INDENT 7.0
 .TP
 .B package
-The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in either "alice/zkg.index" or "alice/bro\-pkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo". If a single name is given and matches one of the same categories as the "list" command, then it is automatically expanded to be the names of all packages which match the given category.
+The name(s) of package(s) to operate on.  The package may be named in several ways.  If the package is part of a package source, it may be referred to by the base name of the package (last component of git URL) or its path within the package source. If two packages in different package sources have conflicting paths, then the package source name may be prepended to the package path to resolve the ambiguity. A full git URL may also be used to refer to a package that does not belong to a source. E.g. for a package source called "zeek" that has a package named "foo" located in "alice/zkg.index", the following names work: "foo", "alice/foo", "zeek/alice/foo". If a single name is given and matches one of the same categories as the "list" command, then it is automatically expanded to be the names of all packages which match the given category.
 .UNINDENT
 .TP
 .B Options:
@@ -577,6 +581,9 @@ The version of the package metadata to inspect.  A version tag, branch name, or 
 .TP
 .B \-\-nolocal=False
 Do not read information from locally installed packages. Instead read info from remote GitHub.
+.TP
+.B \-\-include\-builtin=False
+Also output packages that Zeek has built\-in. By default these are not shown.
 .TP
 .B \-\-json=False
 Output package information as JSON.
@@ -597,7 +604,7 @@ The default output of this command is a valid package manager config file that c
 .sp
 .nf
 .ft C
-usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bin_dir,zeek_dist,bro_dist}]
+usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bin_dir,zeek_dist}]
 .ft P
 .fi
 .UNINDENT
@@ -610,12 +617,12 @@ usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,
 .B config_param
 Name of a specific config file field to output.
 .sp
-Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, bin_dir, zeek_dist, bro_dist
+Possible choices: all, sources, user_vars, state_dir, script_dir, plugin_dir, bin_dir, zeek_dist
 .UNINDENT
 .UNINDENT
 .SS autoconfig
 .sp
-The output of this command is a valid package manager config file that is generated by using the \fBzeek\-config\fP script that is installed along with Zeek.  It is the suggested configuration to use for most Zeek installations.  For this command to work, the \fBzeek\-config\fP (or \fBbro\-config\fP) script must be in \fBPATH\fP, unless the \-\-user option is given, in which case this creates a config that does not touch the Zeek installation.
+The output of this command is a valid package manager config file that is generated by using the \fBzeek\-config\fP script that is installed along with Zeek.  It is the suggested configuration to use for most Zeek installations.  For this command to work, the \fBzeek\-config\fP script must be in \fBPATH\fP, unless the \-\-user option is given, in which case this creates a config that does not touch the Zeek installation.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -638,7 +645,7 @@ Skip any confirmation prompt.
 .UNINDENT
 .SS env
 .sp
-This command returns shell commands that, when executed, will correctly set \fBZEEKPATH\fP and \fBZEEK_PLUGIN_PATH\fP (also \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP for legacy compatibility) to use scripts and plugins from packages installed by the package manager. For this command to function properly, either have the \fBzeek\-config\fP script (installed by zeek) in \fBPATH\fP, or have the \fBZEEKPATH\fP and \fBZEEK_PLUGIN_PATH\fP (or \fBBROPATH\fP and \fBBRO_PLUGIN_PATH\fP) environment variables already set so this command can append package\-specific paths to them.
+This command returns shell commands that, when executed, will correctly set \fBZEEKPATH\fP and \fBZEEK_PLUGIN_PATH\fP to use scripts and plugins from packages installed by the package manager. For this command to function properly, either have the \fBzeek\-config\fP script (installed by zeek) in \fBPATH\fP, or have the \fBZEEKPATH\fP and \fBZEEK_PLUGIN_PATH\fP environment variables already set so this command can append package\-specific paths to them.
 
 .INDENT 0.0
 .INDENT 3.5
@@ -776,7 +783,7 @@ state_dir =
 # A subdirectory named "packages" is always created within the
 # specified path and the package manager will copy the directory
 # specified by the "script_dir" option of each package\(aqs zkg.meta
-# (or legacy bro\-pkg.meta) file there.
+# file there.
 # If left blank or with \-\-user this defaults to <state_dir>/script_dir.
 # In Zeek\-bundled installations, it defaults to
 # <zeek_install_prefix>/share/zeek/site.
@@ -789,7 +796,7 @@ script_dir =
 # A subdirectory named "packages" is always created within the
 # specified path and the package manager will copy the directory
 # specified by the "plugin_dir" option of each package\(aqs zkg.meta
-# (or legacy bro\-pkg.meta) file there.
+# file there.
 # If left blank or with \-\-user this defaults to <state_dir>/plugin_dir.
 # In Zeek\-bundled installations, it defaults to
 # <zeek_install_prefix>/lib/zeek/plugins.
@@ -808,7 +815,8 @@ bin_dir =
 
 # The directory containing Zeek distribution source code.  This is only
 # needed when installing packages that contain Zeek plugins that are
-# not pre\-built.  The legacy name of this option is "bro_dist".
+# not pre\-built. This value is generally not needed by most users other
+# than plugin developers anymore.
 zeek_dist =
 
 [templates]
@@ -819,13 +827,13 @@ default = https://github.com/zeek/package\-template
 
 [user_vars]
 
-# For any key in this section that is matched for value interpolation
-# in a package\(aqs zkg.meta (or legacy bro\-pkg.meta) file, the corresponding
-# value is substituted during execution of the package\(aqs \(gabuild_command\(ga.
-# This section is typically automatically populated with the
-# the answers supplied during package installation prompts
-# and, as a convenience feature, used to recall the last\-used settings
-# during subsequent operations (e.g. upgrades) on the same package.
+# For any key in this section that is matched for value interpolation in a
+# package\(aqs zkg.meta file, the corresponding value is substituted during
+# execution of the package\(aqs \(gabuild_command\(ga.  This section is typically
+# automatically populated with the the answers supplied during package
+# installation prompts and, as a convenience feature, used to recall the
+# last\-used settings during subsequent operations (e.g. upgrades) on the same
+# package.
 
 .ft P
 .fi

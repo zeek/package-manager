@@ -49,7 +49,6 @@ from .package import (
     BUILTIN_SOURCE,
     BUILTIN_SCHEME,
     METADATA_FILENAME,
-    LEGACY_METADATA_FILENAME,
     TRACKING_METHOD_VERSION,
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_COMMIT,
@@ -119,22 +118,15 @@ class Stage:
                     make_symlink(entry.path, os.path.join(self.clone_dir, entry.name))
 
     def get_subprocess_env(self):
-        zeekpath = os.environ.get("ZEEKPATH") or os.environ.get("BROPATH")
-        pluginpath = os.environ.get("ZEEK_PLUGIN_PATH") or os.environ.get(
-            "BRO_PLUGIN_PATH"
-        )
+        zeekpath = os.environ.get("ZEEKPATH")
+        pluginpath = os.environ.get("ZEEK_PLUGIN_PATH")
 
         if not (zeekpath and pluginpath):
             zeek_config = find_program("zeek-config")
-            path_option = "--zeekpath"
-
-            if not zeek_config:
-                zeek_config = find_program("bro-config")
-                path_option = "--bropath"
 
             if zeek_config:
                 cmd = subprocess.Popen(
-                    [zeek_config, path_option, "--plugin_dir"],
+                    [zeek_config, "--zeekpath", "--plugin_dir"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     bufsize=1,
@@ -149,7 +141,7 @@ class Stage:
                 if not pluginpath:
                     pluginpath = line2
             else:
-                return None, 'no "zeek-config" or "bro-config" found in PATH'
+                return None, 'no "zeek-config" found in PATH'
 
         zeekpath = os.path.dirname(self.script_dir) + os.pathsep + zeekpath
         pluginpath = os.path.dirname(self.plugin_dir) + os.pathsep + pluginpath
@@ -158,8 +150,6 @@ class Stage:
         env["PATH"] = self.bin_dir + os.pathsep + os.environ.get("PATH", "")
         env["ZEEKPATH"] = zeekpath
         env["ZEEK_PLUGIN_PATH"] = pluginpath
-        env["BROPATH"] = zeekpath
-        env["BRO_PLUGIN_PATH"] = pluginpath
 
         return env, ""
 
@@ -199,20 +189,19 @@ class Manager:
         scratch_dir (str): a directory where the package manager performs
             miscellaneous/temporary file operations
 
-        script_dir (str): the directory where the package manager will
-            copy each installed package's `script_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `script_dir` associated with its name.
+        script_dir (str): the directory where the package manager will copy each
+            installed package's `script_dir` (as given by its :file:`zkg.meta`).
+            Each package gets a subdirectory within `script_dir` associated with
+            its name.
 
-        plugin_dir (str): the directory where the package manager will
-            copy each installed package's `plugin_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `plugin_dir` associated with its name.
+        plugin_dir (str): the directory where the package manager will copy each
+            installed package's `plugin_dir` (as given by its :file:`zkg.meta`).
+            Each package gets a subdirectory within `plugin_dir` associated with
+            its name.
 
         bin_dir (str): the directory where the package manager will link
             executables into that are provided by an installed package through
-            `executables` (as given by its :file:`zkg.meta` or
-            :file:`bro-pkg.meta`)
+            `executables` (as given by its :file:`zkg.meta`)
 
         source_clonedir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
@@ -239,6 +228,7 @@ class Manager:
             in a directory named :file:`packages`, so as long as
             :envvar:`ZEEKPATH` is configured correctly, ``@load packages`` will
             load all installed packages that have been marked as loaded.
+
     """
 
     def __init__(
@@ -277,8 +267,6 @@ class Manager:
         self.installed_pkgs = {}
         self._builtin_packages = None  # Cached Zeek built-in packages.
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
-        # The bro_dist attribute exists just for backward compatibility
-        self.bro_dist = zeek_dist
         self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
@@ -379,14 +367,6 @@ class Manager:
 
         self._write_autoloader()
         make_symlink("packages.zeek", self.autoload_package)
-
-        # Backward compatibility (Pre-Zeek 3.0 does not handle .zeek files)
-        autoload_script_fallback = os.path.join(self.script_dir, "packages.bro")
-        autoload_package_fallback = os.path.join(self.script_dir, "__load__.bro")
-        delete_path(autoload_script_fallback)
-        delete_path(autoload_package_fallback)
-        make_symlink("packages.zeek", autoload_script_fallback)
-        make_symlink("packages.zeek", autoload_package_fallback)
 
     def _write_autoloader(self):
         """Write the :file:`packages.zeek` loader script.
@@ -516,13 +496,6 @@ class Manager:
         """
         return os.path.dirname(self.script_dir)
 
-    def bropath(self):
-        """Same as :meth:`zeekpath`.
-
-        Using :meth:`zeekpath` is preferred since this may later be deprecated.
-        """
-        return self.zeekpath()
-
     def zeek_plugin_path(self):
         """Return the path where installed package plugins are located.
 
@@ -530,14 +503,6 @@ class Manager:
         interoperability with Zeek.
         """
         return os.path.dirname(self.plugin_dir)
-
-    def bro_plugin_path(self):
-        """Same as :meth:`zeek_plugin_path`.
-
-        Using :meth:`zeek_plugin_path` is preferred since this may later be
-        deprecated.
-        """
-        return self.zeek_plugin_path()
 
     def add_source(self, name, git_url):
         """Add a git repository that acts as a source of packages.
@@ -1168,7 +1133,7 @@ class Manager:
                         aggregation_issues.append((url, msg))
                         continue
 
-                    metadata_file = _pick_metadata_file(clone.working_dir)
+                    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
                     metadata_parser = configparser.ConfigParser(interpolation=None)
                     invalid_reason = _parse_package_metadata(
                         metadata_parser, metadata_file
@@ -1493,16 +1458,8 @@ class Manager:
         pkg_load_script = os.path.join(
             self.script_dir, ipkg.package.name, "__load__.zeek"
         )
-        # Check if __load__.bro exists for compatibility with older packages
-        pkg_load_fallback = os.path.join(
-            self.script_dir, ipkg.package.name, "__load__.bro"
-        )
 
-        if (
-            not os.path.exists(pkg_load_script)
-            and not os.path.exists(pkg_load_fallback)
-            and not self.has_plugin(ipkg)
-        ):
+        if not os.path.exists(pkg_load_script) and not self.has_plugin(ipkg):
             LOG.debug(
                 'loading "%s": %s not found and package has no plugin',
                 pkg_path,
@@ -2067,11 +2024,11 @@ class Manager:
                 all_deps.update(ds)
 
             for dep_name, _ in all_deps.items():
-                if dep_name == "bro" or dep_name == "zeek":
+                if dep_name == "zeek":
                     # A zeek node will get added later.
                     continue
 
-                if dep_name == "bro-pkg" or dep_name == "zkg":
+                if dep_name == "zkg":
                     # A zkg node will get added later.
                     continue
 
@@ -2140,9 +2097,7 @@ class Manager:
                 )
                 graph["zeek"] = node
             else:
-                LOG.warning(
-                    'could not get zeek version: no "zeek-config" or "bro-config" in PATH ?'
-                )
+                LOG.warning('could not get zeek version: no "zeek-config" in PATH ?')
 
             node = Node("zkg")
             node.installed_version = PackageVersion(
@@ -2196,11 +2151,11 @@ class Manager:
                 all_deps.update(ds)
 
             for dep_name, dep_version in all_deps.items():
-                if dep_name == "bro" or dep_name == "zeek":
+                if dep_name == "zeek":
                     if "zeek" in graph:
                         graph["zeek"].dependers[name] = dep_version
                         node.dependees["zeek"] = dep_version
-                elif dep_name == "bro-pkg" or dep_name == "zkg":
+                elif dep_name == "zkg":
                     if "zkg" in graph:
                         graph["zkg"].dependers[name] = dep_version
                         node.dependees["zkg"] = dep_version
@@ -2760,7 +2715,7 @@ class Manager:
 
         """
         LOG.debug('staging "%s": version %s', package, version)
-        metadata_file = _pick_metadata_file(clone.working_dir)
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
         if invalid_reason:
@@ -2838,10 +2793,9 @@ class Manager:
                 "package's 'script_dir' does not exist: {}", pkg_script_dir
             )
 
-        pkgload = os.path.join(script_dir_src, "__load__.")
+        pkgload = os.path.join(script_dir_src, "__load__.zeek")
 
-        # Check if __load__.bro exists for compatibility with older packages
-        if os.path.isfile(pkgload + "zeek") or os.path.isfile(pkgload + "bro"):
+        if os.path.isfile(pkgload):
             try:
                 symlink_path = os.path.join(
                     os.path.dirname(stage.script_dir), package.name
@@ -3052,7 +3006,7 @@ class Manager:
         status.current_hash = clone.head.object.hexsha
         status.is_outdated = _is_clone_outdated(clone, version, status.tracking_method)
 
-        metadata_file = _pick_metadata_file(clone.working_dir)
+        metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
         metadata_parser = configparser.ConfigParser(interpolation=None)
         invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
@@ -3095,7 +3049,6 @@ class Manager:
             return None, "package has malformed 'user_vars' metadata field"
 
         substitutions = {
-            "bro_dist": self.zeek_dist,
             "zeek_dist": self.zeek_dist,
             "package_base": stage.clone_dir,
         }
@@ -3229,7 +3182,7 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         rval = []
 
         for f in files:
-            if f in {".git", "bro-pkg.meta", "zkg.meta"}:
+            if f in {".git", "zkg.meta"}:
                 rval.append(f)
 
         return rval
@@ -3279,31 +3232,17 @@ def _get_package_metadata(parser):
     return metadata
 
 
-def _pick_metadata_file(directory):
-    rval = os.path.join(directory, METADATA_FILENAME)
-
-    if os.path.exists(rval):
-        return rval
-
-    return os.path.join(directory, LEGACY_METADATA_FILENAME)
-
-
 def _parse_package_metadata(parser, metadata_file):
     """Return string explaining why metadata is invalid, or '' if valid."""
     if not parser.read(metadata_file):
         LOG.warning("%s: missing metadata file", metadata_file)
-        return "missing {} (or {}) metadata file".format(
-            METADATA_FILENAME, LEGACY_METADATA_FILENAME
-        )
+        return f"missing {METADATA_FILENAME} metadata file"
 
     if not parser.has_section("package"):
         LOG.warning("%s: metadata missing [package]", metadata_file)
         return f"{os.path.basename(metadata_file)} is missing [package] section"
 
     return ""
-
-
-_legacy_metadata_warnings = set()
 
 
 def _info_from_clone(clone, package, status, version):
@@ -3322,7 +3261,7 @@ def _info_from_clone(clone, package, status, version):
     else:
         version_type = TRACKING_METHOD_BRANCH
 
-    metadata_file = _pick_metadata_file(clone.working_dir)
+    metadata_file = os.path.join(clone.working_dir, METADATA_FILENAME)
     metadata_parser = configparser.ConfigParser(interpolation=None)
     invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
 
@@ -3337,20 +3276,6 @@ def _info_from_clone(clone, package, status, version):
             metadata_file=metadata_file,
             default_branch=default_branch,
         )
-
-    # Remove in v3.0 by either silently ignoring LEGACY_METADATA_FILENAME
-    # completely or error with helpful instructions about zkg.meta.
-    if (
-        os.path.basename(metadata_file) == LEGACY_METADATA_FILENAME
-        and package.qualified_name() not in _legacy_metadata_warnings
-    ):
-        LOG.warning(
-            "Package %s is using the legacy bro-pkg.meta metadata file. "
-            "It will soon stop working unless updated to use zkg.meta instead. "
-            "Please report this to the package maintainers.",
-            package.qualified_name(),
-        )
-        _legacy_metadata_warnings.add(package.qualified_name())
 
     metadata = _get_package_metadata(metadata_parser)
 
@@ -3368,4 +3293,4 @@ def _info_from_clone(clone, package, status, version):
 
 
 def _is_reserved_pkg_name(name):
-    return name == "bro" or name == "zeek" or name == "zkg"
+    return name == "zeek" or name == "zkg"
