@@ -1,0 +1,56 @@
+name: Test and upload Python package
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags:
+      - 'v*'
+      - '!v*-dev'
+
+env:
+  ZEEKROOT: /usr/local/zeek
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test Zeek LTS, latest, and nightly, and
+        # don't fail for the nightly one.
+        include:
+          - repo: zeek
+            version: latest
+            continue_on_error: false
+          - repo: zeek
+            version: lts
+            continue_on_error: false
+          - repo: zeek-dev
+            version: latest
+            continue_on_error: true
+
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.continue_on_error }}
+    container:
+      image: zeek/${{ matrix.repo }}:${{ matrix.version }}
+
+    steps:
+      - name: Install build environment
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake g++ libssl-dev libpcap-dev make
+      - name: Remove zkg installation
+        # Rule out confusion between test environment and pre-existing zkg:
+        run: |
+          rm $ZEEKROOT/bin/zkg $ZEEKROOT/share/man/man1/zkg.1
+          rm -r $ZEEKROOT/etc/zkg
+          rm -r $ZEEKROOT/lib/zeek/python/zeekpkg
+          rm -r $ZEEKROOT/var/lib/zkg
+      - uses: actions/checkout@v3
+      - name: Run unit tests
+        run: btest -j -A -d -c testing/btest.cfg
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: btest-${{ matrix.repo }}-${{ matrix.version }}
+          path: testing/.tmp/
