@@ -1,3 +1,7 @@
+2.14.0 | 2023-06-27 18:58:50 +0200
+
+  * Release 2.14.0.
+
 2.13.0-30 | 2023-04-21 20:37:27 +0200
 
   * Reduce to 2 CPUs per task for CI tasks (Arne Welzel, Corelight)
