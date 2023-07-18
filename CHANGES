@@ -1,3 +1,13 @@
+2.13.0-51 | 2023-07-17 18:07:42 -0700
+
+  * CI: automatically push to PyPI when pushing a git tag (Christian Kreibich, Corelight)
+
+  * CI: add Github workflow for testing zkg (Christian Kreibich, Corelight)
+
+  * CI: remove Cirrus setup (Christian Kreibich, Corelight)
+
+  * Don't analyze __bro_plugin__ file content in tests, only its presence (Christian Kreibich, Corelight)
+
 2.13.0-46 | 2023-06-30 12:47:34 -0700
 
   * Update man page with changes to other documentation (Tim Wojtulewicz, Corelight)

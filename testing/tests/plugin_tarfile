@@ -3,7 +3,7 @@
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: zkg install rot13
 
-# @TEST-EXEC: btest-diff plugins/packages/rot13/__bro_plugin__
+# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__
 # @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.zeek
 
 cd packages/rot13
