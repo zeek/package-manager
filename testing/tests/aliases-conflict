@@ -1,0 +1,23 @@
+# @TEST-DOC: Ensure alias conflicts are reported and cause package installation failures.
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: zkg install foo >>out 2>&1
+# @TEST-EXEC-FAIL: zkg install bar >>out 2>&1
+# @TEST-EXEC-FAIL: zkg install baz >>out 2>&1
+# @TEST-EXEC-FAIL: zkg install corge >>out 2>&1
+# @TEST-EXEC: cp scripts/packages/packages.zeek packages.zeek.1
+#
+# Remove foo, then install baz and corge
+# Now, remove foo, install baz and corge and ensure foo cannot be installed thereafter.
+# @TEST-EXEC: zkg remove foo >>out 2>&1
+# @TEST-EXEC: zkg install baz >>out 2>&1
+# @TEST-EXEC: zkg install corge >>out 2>&1
+# @TEST-EXEC-FAIL: zkg install foo >>out 2>&1
+# @TEST-EXEC: cp scripts/packages/packages.zeek packages.zeek.2
+# @TEST-EXEC: btest-diff out
+# @TEST-EXEC: btest-diff packages.zeek.1
+# @TEST-EXEC: btest-diff packages.zeek.2
+
+(cd packages/foo && echo 'aliases = bar'  >> zkg.meta && git commit -n -am 'new stuff')
+(cd packages/baz && echo 'aliases = foo'  >> zkg.meta && git commit -n -am 'new stuff')
+(cd packages/corge && echo 'aliases = bar'  >> zkg.meta && git commit -n -am 'new stuff')
