@@ -57,6 +57,15 @@ def is_valid_name(name):
     return True
 
 
+def validate_aliases(metadata_dict):
+    """Return empty string if package contains valid aliases only."""
+    for a in aliases(metadata_dict):
+        if not re.match(r"^[a-zA-Z0-9][+.-_a-zA-Z0-9]*[a-zA-Z0-9]$", a):
+            return f'invalid alias "{a}"'
+
+    return ""
+
+
 def aliases(metadata_dict):
     """Return a list of package aliases found in metadata's 'aliases' field."""
     if "aliases" not in metadata_dict:

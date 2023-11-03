@@ -62,6 +62,7 @@ from .package import (
     canonical_url,
     is_valid_name as is_valid_package_name,
     make_builtin_package,
+    validate_aliases,
     Package,
     PackageInfo,
     PackageStatus,
@@ -3258,6 +3259,10 @@ def _parse_package_metadata(parser, metadata_file):
     if not parser.has_section("package"):
         LOG.warning("%s: metadata missing [package]", metadata_file)
         return f"{os.path.basename(metadata_file)} is missing [package] section"
+
+    error = validate_aliases(_get_package_metadata(parser))
+    if error:
+        return error
 
     return ""
 
