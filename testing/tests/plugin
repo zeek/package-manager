@@ -3,21 +3,21 @@
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: zkg install rot13
 
-# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__
+# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__ || test -f plugins/packages/rot13/__zeek_plugin__
 # @TEST-EXEC: btest-diff scripts/packages/rot13/__load__.zeek
 
 # Unloading the package should also disable the plugin, which we
 # detect via the renamed __bro_plugin__ magic file.
 # @TEST-EXEC: zkg unload rot13
 
-# @TEST-EXEC: test ! -f plugins/packages/rot13/__bro_plugin__
-# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__.disabled
+# @TEST-EXEC: test ! -f plugins/packages/rot13/__bro_plugin__ && test ! -f plugins/packages/rot13/__zeek_plugin__
+# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__.disabled || test -f plugins/packages/rot13/__zeek_plugin__.disabled
 
 # (Re-)loading the package should also (re-)enable the plugin.
 # @TEST-EXEC: zkg load rot13
 
-# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__
-# @TEST-EXEC: test ! -f plugins/packages/rot13/__bro_plugin__.disabled
+# @TEST-EXEC: test -f plugins/packages/rot13/__bro_plugin__ || test -f plugins/packages/rot13/__zeek_plugin__
+# @TEST-EXEC: test ! -f plugins/packages/rot13/__bro_plugin__.disabled && test ! -f plugins/packages/rot13/__zeek_plugin__.disabled
 
 echo "$(pwd)/packages/rot13" >> sources/one/bob/zkg.index
 cd sources/one

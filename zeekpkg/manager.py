@@ -8,6 +8,7 @@ import copy
 import filecmp
 import json
 import os
+import pathlib
 import re
 import shutil
 import subprocess
@@ -54,6 +55,8 @@ from .package import (
     TRACKING_METHOD_COMMIT,
     PLUGIN_MAGIC_FILE,
     PLUGIN_MAGIC_FILE_DISABLED,
+    LEGACY_PLUGIN_MAGIC_FILE,
+    LEGACY_PLUGIN_MAGIC_FILE_DISABLED,
     name_from_path,
     aliases,
     canonical_url,
@@ -390,43 +393,57 @@ class Manager:
         """Enables/disables any Zeek plugin included with a package.
 
         Zeek's plugin code scans its plugin directories for
-        __bro_plugin__ magic files, which indicate presence of a
+        __zeek_plugin__ magic files, which indicate presence of a
         plugin directory. When this file does not exist, Zeek does not
         recognize a plugin.
 
         When we're loading a package, this function renames an
-        existing __bro_plugin__.disabled file to __bro_plugin__, and
+        existing __zeek_plugin__.disabled file to __zeek_plugin__, and
         vice versa when we're unloading a package.
 
         When the package doesn't include a plugin, or when the plugin
         directory already contains a correctly named magic file, this
         function does nothing.
-        """
-        magic_path = os.path.join(self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE)
-        magic_path_disabled = os.path.join(
-            self.plugin_dir, ipkg.package.name, PLUGIN_MAGIC_FILE_DISABLED
-        )
 
-        if ipkg.status.is_loaded:
-            if os.path.exists(magic_path_disabled):
-                try:
-                    os.rename(magic_path_disabled, magic_path)
-                except OSError as exception:
-                    LOG.warning(
-                        "could not enable plugin: %s %s",
-                        type(exception).__name__,
-                        exception,
-                    )
-        else:
-            if os.path.exists(magic_path):
-                try:
-                    os.rename(magic_path, magic_path_disabled)
-                except OSError as exception:
-                    LOG.warning(
-                        "could not disable plugin: %s %s",
-                        type(exception).__name__,
-                        exception,
-                    )
+        Until Zeek 6.1, the magic file was named __bro_plugin__. zkg implements
+        a fallback for recognizing the older name so that newer zkg versions
+        continue to work with older Zeek versions for some time longer.
+        """
+        package_dir = pathlib.Path(self.plugin_dir) / ipkg.package.name
+
+        magic_paths_enabled = [
+            package_dir / PLUGIN_MAGIC_FILE,
+            package_dir / LEGACY_PLUGIN_MAGIC_FILE,
+        ]
+
+        magic_paths_disabled = [
+            package_dir / PLUGIN_MAGIC_FILE_DISABLED,
+            package_dir / LEGACY_PLUGIN_MAGIC_FILE_DISABLED,
+        ]
+
+        for path_enabled, path_disabled in zip(
+            magic_paths_enabled, magic_paths_disabled
+        ):
+            if ipkg.status.is_loaded:
+                if path_disabled.exists():
+                    try:
+                        path_disabled.rename(path_enabled)
+                    except OSError as exception:
+                        LOG.error(
+                            "could not enable plugin: %s %s",
+                            type(exception).__name__,
+                            exception,
+                        )
+            else:
+                if path_enabled.exists():
+                    try:
+                        path_enabled.rename(path_disabled)
+                    except OSError as exception:
+                        LOG.error(
+                            "could not disable plugin: %s %s",
+                            type(exception).__name__,
+                            exception,
+                        )
 
     def _read_manifest(self):
         """Read the manifest file containing the list of installed packages.
