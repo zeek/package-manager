@@ -2969,6 +2969,54 @@ class Manager:
             LOG.warning('installing "%s": source package git repo is invalid', pkg_path)
             return f'failed to clone package "{pkg_path}": {error}'
 
+    def _validate_alias_conflict(self, pkg, metadata_dict):
+        """Check if there's an alias conflict.
+
+        If any of the installed packages aliases collide with the package's
+        name or its aliases, return a string describing the issue.
+
+        Args:
+            package (:class:`.package.Package`): the package to be installed
+
+            metadata_dict (dict): The metadata for the given package.
+                package.metadata may not be valid yet.
+
+        Returns:
+            str: empty string on success, else descriptive error message.
+        """
+        package_names = {}
+        alias_names = {}
+        for ipkg in self.installed_packages():
+            if ipkg.package == pkg:
+                continue
+
+            qn = ipkg.package.qualified_name()
+
+            package_names[ipkg.package.name] = qn
+            for ipkg_alias in ipkg.package.aliases():
+                alias_names[ipkg_alias] = qn
+
+        # Is the new package's name the same as an existing alias?
+        if pkg.name in alias_names:
+            qn = alias_names[pkg.name]
+            return f'name "{pkg.name}" conflicts with alias from "{qn}"'
+
+        # Any of the aliases matching another package's name or another alias?
+        for alias in aliases(metadata_dict):
+            if alias in package_names:
+                qn = package_names[alias]
+                return (
+                    f'alias "{alias}" conflicts with name of installed package "{qn}"'
+                )
+
+            if alias in alias_names:
+                qn = alias_names[alias]
+                return (
+                    f'alias "{alias}" conflicts with alias of installed package "{qn}"'
+                )
+
+        return ""
+
     def _install(self, package, version, use_existing_clone=False):
         """Install a :class:`.package.Package`.
 
@@ -3031,6 +3079,11 @@ class Manager:
             return invalid_reason
 
         raw_metadata = _get_package_metadata(metadata_parser)
+
+        invalid_reason = self._validate_alias_conflict(package, raw_metadata)
+
+        if invalid_reason:
+            return invalid_reason
 
         # A dummy stage that uses the actual installation folders;
         # we do not need to populate() it.
@@ -3258,6 +3311,10 @@ def _parse_package_metadata(parser, metadata_file):
     if not parser.has_section("package"):
         LOG.warning("%s: metadata missing [package]", metadata_file)
         return f"{os.path.basename(metadata_file)} is missing [package] section"
+
+    for a in aliases(_get_package_metadata(parser)):
+        if not is_valid_package_name(a):
+            return f'invalid alias "{a}"'
 
     return ""
 

@@ -51,6 +51,14 @@ def is_valid_name(name):
         # Reject names with leading/trailing whitespace
         return False
 
+    # For aliases: Do not allow file separators.
+    if "/" in name:
+        return False
+
+    # Avoid creating hidden files and directories.
+    if name.startswith("."):
+        return False
+
     if name in ("package", "packages"):
         return False
 
