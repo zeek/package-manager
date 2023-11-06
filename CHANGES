@@ -1,3 +1,52 @@
+2.13.0-64 | 2023-11-06 12:49:34 +0100
+
+  * manager/package: Use is_valid_name() for alias validation (Arne Welzel, Corelight)
+
+    Tighten is_valid_name() to disallow filesystem separator and
+    leading dots.
+
+  * GH-168: manager: Check for alias conflicts (Arne Welzel, Corelight)
+
+    Prevent aliases to shadow installed packages, or newly installed
+    packages to replaces aliases, or the same aliases from different
+    packages clashing.
+
+  * _parse_package_metadata: Restrict alias names (Arne Welzel, Corelight)
+
+    Ensure aliases do not contain overly surprising characters. This is
+    mainly to avoid directory traversals because it can be used to
+    delete existing symlinks. Also, os.path.join("/a/b", "/c") results
+    in "/c", so an alias of "/c" would place a symlink in /.
+
+  * GH-171: manager: Support __zeek_plugin__ magic file (Arne Welzel, Corelight)
+
+    Zeek 6.1 switched from __bro_plugin__ to __zeek_plugin__. Modify
+    _write_plugin_magic() to handle the new and the old file.
+
+  * overview: Replace :note: with note directive (Arne Welzel, Corelight)
+
+    Looks better and is what we use elsewhere.
+
+  * doc/conf.py: Use sphinx_rtd_theme also when on_rtd (Arne Welzel, Corelight)
+
+    Do not rely on it being set implicitly by readthedocs. It's not anymore.
+
+  * Place .readthedocs.yaml (Arne Welzel, Corelight)
+
+  * testing: Bump minimum required cmake version rot13 test plugin (Arne Welzel, Corelight)
+
+  * Fix Github edit links in top-right of HTML pages (Christian Kreibich, Corelight)
+
+    These links 404'd because they omitted the file suffix, and they didn't really
+    link to anything editable, just the raw file.
+
+    ---
+
+    In this case, "suffix" was used which is set by the readthedocs theme in
+    older versions [1]. Seem good to replace with page_source_suffix.
+
+    [1] https://github.com/readthedocs/sphinx_rtd_theme/pull/1104
+
 2.13.0-51 | 2023-07-17 18:07:42 -0700
 
   * CI: automatically push to PyPI when pushing a git tag (Christian Kreibich, Corelight)
