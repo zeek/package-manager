@@ -51,19 +51,18 @@ def is_valid_name(name):
         # Reject names with leading/trailing whitespace
         return False
 
+    # For aliases: Do not allow file separators.
+    if "/" in name:
+        return False
+
+    # Avoid creating hidden files and directories.
+    if name.startswith("."):
+        return False
+
     if name in ("package", "packages"):
         return False
 
     return True
-
-
-def validate_aliases(metadata_dict):
-    """Return empty string if package contains valid aliases only."""
-    for a in aliases(metadata_dict):
-        if not re.match(r"^[a-zA-Z0-9][+.-_a-zA-Z0-9]*[a-zA-Z0-9]$", a):
-            return f'invalid alias "{a}"'
-
-    return ""
 
 
 def aliases(metadata_dict):

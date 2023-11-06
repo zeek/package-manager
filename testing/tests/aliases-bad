@@ -9,7 +9,7 @@ git commit -am 'new stuff'
 
 # @TEST-START-NEXT
 cd packages/foo
-echo 'aliases = 1' >> zkg.meta
+echo 'aliases = .hidden' >> zkg.meta
 git commit -am 'new stuff'
 
 # @TEST-START-NEXT

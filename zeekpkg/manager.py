@@ -62,7 +62,6 @@ from .package import (
     canonical_url,
     is_valid_name as is_valid_package_name,
     make_builtin_package,
-    validate_aliases,
     Package,
     PackageInfo,
     PackageStatus,
@@ -2980,7 +2979,7 @@ class Manager:
             package (:class:`.package.Package`): the package to be installed
 
             metadata_dict (dict): The metadata for the given package.
-                package.metadata may note be valid yet.
+                package.metadata may not be valid yet.
 
         Returns:
             str: empty string on success, else descriptive error message.
@@ -2997,7 +2996,7 @@ class Manager:
             for ipkg_alias in ipkg.package.aliases():
                 alias_names[ipkg_alias] = qn
 
-        # Does the new package's name is the same as an existing alias?
+        # Is the new package's name the same as an existing alias?
         if pkg.name in alias_names:
             qn = alias_names[pkg.name]
             return f'name "{pkg.name}" conflicts with alias from "{qn}"'
@@ -3313,9 +3312,9 @@ def _parse_package_metadata(parser, metadata_file):
         LOG.warning("%s: metadata missing [package]", metadata_file)
         return f"{os.path.basename(metadata_file)} is missing [package] section"
 
-    error = validate_aliases(_get_package_metadata(parser))
-    if error:
-        return error
+    for a in aliases(_get_package_metadata(parser)):
+        if not is_valid_package_name(a):
+            return f'invalid alias "{a}"'
 
     return ""
 
