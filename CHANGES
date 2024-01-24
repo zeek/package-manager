@@ -1,3 +1,7 @@
+2.13.0-67 | 2024-01-24 09:31:19 -0800
+
+  * Add developer docs about zkg's internal use of directories (Christian Kreibich, Corelight)
+
 2.13.0-64 | 2023-11-06 12:49:34 +0100
 
   * manager/package: Use is_valid_name() for alias validation (Arne Welzel, Corelight)
