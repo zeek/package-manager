@@ -1,3 +1,9 @@
+2.13.0-70 | 2024-01-24 12:27:36 -0800
+
+  * Set language in conf.py to avoid Sphinx warning (Christian Kreibich, Corelight)
+
+  * Incorporate sphinx-argparse fix for deprecation warnings in regex. (Christian Kreibich, Corelight)
+
 2.13.0-67 | 2024-01-24 09:31:19 -0800
 
   * Add developer docs about zkg's internal use of directories (Christian Kreibich, Corelight)
