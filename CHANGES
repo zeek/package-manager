@@ -1,3 +1,7 @@
+3.0.0 | 2024-02-15 09:21:49 -0500
+
+  * Release 3.0.0.
+
 2.13.0-72 | 2024-02-15 09:21:42 -0500
 
   * Revert --ignore-dirty-git addition (Arne Welzel, Corelight)
