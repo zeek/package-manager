@@ -1,3 +1,9 @@
+2.13.0-72 | 2024-02-15 09:21:42 -0500
+
+  * Revert --ignore-dirty-git addition (Arne Welzel, Corelight)
+
+    This reverts commit e3de7c2dd70afde8e5512bdb608ec16138aaf525.
+
 2.13.0-70 | 2024-01-24 12:27:36 -0800
 
   * Set language in conf.py to avoid Sphinx warning (Christian Kreibich, Corelight)
