@@ -1,3 +1,7 @@
+3.0.1 | 2024-02-20 10:52:01 -0700
+
+  * Update github actions to checkout v3 and upload-artifact v4 (Tim Wojtulewicz, Corelight)
+
 3.0.0-3 | 2024-02-20 10:42:47 -0700
 
   * Update some documentation about bro-pkg.meta (Tim Wojtulewicz, Corelight)
