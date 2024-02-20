@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "ZKG" "1" "Feb 15, 2024" "3.0.0" "Zeek Package Manager"
+.TH "ZKG" "1" "Feb 20, 2024" "3.0.0-3" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .sp
@@ -316,7 +316,7 @@ usage: zkg refresh [\-h] [\-\-aggregate] [\-\-fail\-on\-aggregate\-problems] [\-
 .INDENT 7.0
 .TP
 .B  \-\-aggregate=False
-Crawls the urls listed in package source zkg.index files and aggregates the metadata found in their zkg.meta files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally for locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
+Crawls the urls listed in package source zkg.index files and aggregates the metadata found in their zkg.meta (or legacy bro\-pkg.meta) files.  The aggregated metadata is stored in the local clone of the package source that zkg uses internally for locating package metadata. For each package, the metadata is taken from the highest available git version tag or the default branch, like "main" or "master", if no version tags exist
 .TP
 .B  \-\-fail\-on\-aggregate\-problems=False
 When using \-\-aggregate, exit with error when any packages trigger metadata problems. Normally such problems only cause a warning.
@@ -773,7 +773,7 @@ state_dir =
 # A subdirectory named "packages" is always created within the
 # specified path and the package manager will copy the directory
 # specified by the "script_dir" option of each package\(aqs zkg.meta
-# file there.
+# (or legacy bro\-pkg.meta) file there.
 # If left blank or with \-\-user this defaults to <state_dir>/script_dir.
 # In Zeek\-bundled installations, it defaults to
 # <zeek_install_prefix>/share/zeek/site.
@@ -786,7 +786,7 @@ script_dir =
 # A subdirectory named "packages" is always created within the
 # specified path and the package manager will copy the directory
 # specified by the "plugin_dir" option of each package\(aqs zkg.meta
-# file there.
+# (or legacy bro\-pkg.meta) file there.
 # If left blank or with \-\-user this defaults to <state_dir>/plugin_dir.
 # In Zeek\-bundled installations, it defaults to
 # <zeek_install_prefix>/lib/zeek/plugins.
@@ -817,13 +817,13 @@ default = https://github.com/zeek/package\-template
 
 [user_vars]
 
-# For any key in this section that is matched for value interpolation in a
-# package\(aqs zkg.meta file, the corresponding value is substituted during
-# execution of the package\(aqs \(gabuild_command\(ga.  This section is typically
-# automatically populated with the the answers supplied during package
-# installation prompts and, as a convenience feature, used to recall the
-# last\-used settings during subsequent operations (e.g. upgrades) on the same
-# package.
+# For any key in this section that is matched for value interpolation
+# in a package\(aqs zkg.meta (or legacy bro\-pkg.meta) file, the corresponding
+# value is substituted during execution of the package\(aqs \(gabuild_command\(ga.
+# This section is typically automatically populated with the
+# the answers supplied during package installation prompts
+# and, as a convenience feature, used to recall the last\-used settings
+# during subsequent operations (e.g. upgrades) on the same package.
 
 .ft P
 .fi

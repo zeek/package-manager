@@ -2,6 +2,6 @@
 Refresh package source: one
 	No membership changes
 	WARNING: Metadata aggregated, but excludes the following packages due to described problems:
-		<...>/bad_pkg: missing zkg.meta metadata file
+		<...>/bad_pkg: missing zkg.meta (or bro-pkg.meta) metadata file
 Refresh installed packages
 	No new outdated packages

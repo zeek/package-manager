@@ -1,3 +1,11 @@
+3.0.0-3 | 2024-02-20 10:42:47 -0700
+
+  * Update some documentation about bro-pkg.meta (Tim Wojtulewicz, Corelight)
+
+  * Revert "Remove references to bro-pkg.meta and bro-pkg.index" (Tim Wojtulewicz, Corelight)
+
+    This reverts commit 964b0e7235febd17e414134737513d600673e77c.
+
 3.0.0 | 2024-02-15 09:21:49 -0500
 
   * Release 3.0.0.

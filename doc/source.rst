@@ -22,6 +22,12 @@ usernames or some unique way of identifying the organization/person that
 maintains Zeek packages.  However, a source is free to use a flat organization
 with a single, top-level :file:`zkg.index`.
 
+.. note::
+
+   The magic index file name of :file:`zkg.index` is available :program:`since
+   zkg v2.0`.  For compatibility purposes, the old index file name of
+   :file:`bro-pkg.index` is also still supported.
+
 After creating a git repo for the package source and adding package index files
 to it, it's ready to be used by :ref:`zkg <zkg>`.
 
@@ -30,9 +36,10 @@ to it, it's ready to be used by :ref:`zkg <zkg>`.
 Package Index Files
 -------------------
 
-Files named :file:`zkg.index` are used to describe the :doc:`Zeek Packages
-<package>` found within the package source.  They are simply a list of git URLs
-pointing to the git repositories of packages.  For example::
+Files named :file:`zkg.index` (or the legacy :file:`bro-pkg.index`) are used to
+describe the :doc:`Zeek Packages <package>` found within the package source.
+They are simply a list of git URLs pointing to the git repositories of
+packages.  For example::
 
   https://github.com/zeek/foo
   https://github.com/zeek/bar
@@ -68,8 +75,9 @@ Aggregating Metadata
 --------------------
 
 The maintainer/operator of a package source may choose to periodically aggregate
-the metadata contained in its packages' :file:`zkg.meta` files.  The :ref:`zkg
-refresh <refresh-command>` is used to perform the task. For example:
+the metadata contained in its packages' :file:`zkg.meta` (and legacy
+:file:`bro-pkg.meta`) files.  The :ref:`zkg refresh <refresh-command>`
+is used to perform the task.  For example:
 
 .. code-block:: console
 
