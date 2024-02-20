@@ -46,10 +46,10 @@ jobs:
           rm -r $ZEEKROOT/etc/zkg
           rm -r $ZEEKROOT/lib/zeek/python/zeekpkg
           rm -r $ZEEKROOT/var/lib/zkg
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Run unit tests
         run: btest -j -A -d -c testing/btest.cfg
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: btest-${{ matrix.repo }}-${{ matrix.version }}
@@ -60,7 +60,7 @@ jobs:
     needs: [test]
     if: github.repository == 'zeek/package-manager' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check release version
         # This fails e.g. if VERSION contains a dev commits suffix,
         # since we don't want to push these to PyPI. Accepts two-
