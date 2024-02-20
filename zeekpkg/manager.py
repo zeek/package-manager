@@ -3366,16 +3366,15 @@ def _info_from_clone(clone, package, status, version):
             default_branch=default_branch,
         )
 
-    # Remove in v3.0 by either silently ignoring LEGACY_METADATA_FILENAME
-    # completely or error with helpful instructions about zkg.meta.
     if (
         os.path.basename(metadata_file) == LEGACY_METADATA_FILENAME
         and package.qualified_name() not in _legacy_metadata_warnings
     ):
         LOG.warning(
             "Package %s is using the legacy bro-pkg.meta metadata file. "
-            "It will soon stop working unless updated to use zkg.meta instead. "
-            "Please report this to the package maintainers.",
+            "While bro-pkg.meta still functions, it is recommended to "
+            "use zkg.meta instead for future-proofing. Please report this "
+            "to the package maintainers.",
             package.qualified_name(),
         )
         _legacy_metadata_warnings.add(package.qualified_name())
