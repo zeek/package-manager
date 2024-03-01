@@ -3,6 +3,7 @@ A module for zkg's notion of "user variables": named values required
 by packages that the user can provide in a variety of ways, including
 responses to zkg's input prompting.
 """
+
 import os
 import re
 import readline
