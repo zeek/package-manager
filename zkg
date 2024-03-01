@@ -328,8 +328,10 @@ def active_git_branch(path):
     return rval
 
 
-def is_local_git_repo_url(git_url):
-    return git_url.startswith(".") or git_url.startswith("/")
+def is_local_git_repo_url(git_url) -> bool:
+    return (
+        git_url.startswith(".") or git_url.startswith("/") or is_local_git_repo(git_url)
+    )
 
 
 def is_local_git_repo(git_url):

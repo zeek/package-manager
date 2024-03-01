@@ -4,3 +4,5 @@ error: invalid package ".": Package name 'trailing-whitespace ' is not valid.
 error: path ./packages/doesntexist is not a git repository
 error: path ./packages/notagitrepo is not a git repository
 error: local git clone at ./packages/dirtyrepo is dirty
+error: local git clone at dirtyrepo is dirty
+error: local git clone at ./dirtyrepo is dirty

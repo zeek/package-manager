@@ -17,6 +17,18 @@ mkdir ./packages/notagitrepo
 zkg --config=$CONFIG install --force ./packages/notagitrepo
 
 mkdir ./packages/dirtyrepo
-( cd ./packages/dirtyrepo && git init . && touch README && git add README && git commit -m "Initial commit")
+(
+cd ./packages/dirtyrepo && \
+git init . && \
+touch README && \
+cat << EOF > zkg.meta
+[package]
+EOF
+git add README zkg.meta && \
+git commit -m "Initial commit"
+)
 echo README > ./packages/dirtyrepo/README
 zkg --config=$CONFIG install --force ./packages/dirtyrepo
+
+(cd ./packages && zkg --config=$CONFIG install dirtyrepo --force 1>&2)
+(cd ./packages && zkg --config=$CONFIG install ./dirtyrepo --force 1>&2)
