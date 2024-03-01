@@ -363,7 +363,7 @@ class Manager:
                 # We try to remove the old bin_dir. That may not succeed in case
                 # it wasn't actually managed by us, but that's ok.
                 os.rmdir(prev_bin_dir)
-            except os.error:
+            except OSError:
                 pass
 
         if need_manifest_update:
@@ -1362,7 +1362,7 @@ class Manager:
                 try:
                     LOG.debug("removing link %s", link)
                     os.unlink(link)
-                except os.error as err:
+                except OSError as err:
                     LOG.warn("cannot remove link for %s", err)
 
         del self.installed_pkgs[pkg_to_remove.name]
