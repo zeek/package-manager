@@ -85,26 +85,26 @@ ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
 # The default package template
 ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
 
-from zeekpkg._util import (
+from zeekpkg._util import (  # noqa: E402
     delete_path,
     make_dir,
     find_program,
     read_zeek_config_line,
     std_encoding,
 )
-from zeekpkg.package import (
+from zeekpkg.package import (  # noqa: E402
     BUILTIN_SCHEME,
     TRACKING_METHOD_VERSION,
 )
-from zeekpkg.template import (
+from zeekpkg.template import (  # noqa: E402
     LoadError,
     Template,
 )
-from zeekpkg.uservar import (
+from zeekpkg.uservar import (  # noqa: E402
     UserVar,
 )
 
-import zeekpkg
+import zeekpkg  # noqa: E402
 
 
 def confirmation_prompt(prompt, default_to_yes=True):

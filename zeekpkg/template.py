@@ -1,6 +1,7 @@
 """
 A module for instantiating different types of Zeek packages.
 """
+
 import abc
 import configparser
 import re
@@ -797,9 +798,7 @@ class Package(_Content):
             """Initial commit.
 
 zkg {} created this package from template "{}"
-using {}{}.""".format(
-                __version__, tmpl.name(), ver_info, features_info
-            )
+using {}{}.""".format(__version__, tmpl.name(), ver_info, features_info)
         )
 
 
