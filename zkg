@@ -591,7 +591,6 @@ def cmd_test(manager, args, config, configfile):
                     clone_dir,
                 )
             )
-            continue
 
     if not all_passed:
         sys.exit(1)
