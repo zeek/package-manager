@@ -559,7 +559,7 @@ def cmd_test(manager, args, config, configfile):
         name = info.package.qualified_name()
 
         if "test_command" not in info.metadata:
-            print(str.format("{}: no test_command found in metadata, skipping", name))
+            print(str.format("{} {} : no test_command found in metadata, skipping", name, version))
             continue
 
         error_msg, passed, test_dir = manager.test(
@@ -569,8 +569,13 @@ def cmd_test(manager, args, config, configfile):
         if error_msg:
             all_passed = False
             print_error(
-                str.format('error: failed to run tests for "{}": {}', name, error_msg)
+                str.format('error: failed to run tests for "{}" {} : {}'
+                           'the contents of {} may provide details'
+                           , name, version, error_msg, test_dir)
             )
+            # continue here to the next version, we want to separate
+            # "passing" from failing to run (error_msg is present)
+            continue
 
         if passed:
             print(str.format("{} {}: all tests passed", name, version))
