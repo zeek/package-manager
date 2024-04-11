@@ -8,7 +8,7 @@ from docutils.parsers.rst.directives import flag, unchanged
 try:
     # Removed as of Sphinx 1.7
     from sphinx.util.compat import Directive
-except ImportError as err:
+except ImportError:
     from docutils.parsers.rst import Directive
 
 from sphinx.util.nodes import nested_parse_with_titles
