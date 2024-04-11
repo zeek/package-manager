@@ -573,7 +573,7 @@ def cmd_test(manager, args, config, configfile):
             )
 
         if passed:
-            print(str.format("{}: all tests passed", name))
+            print(str.format("{} {}: all tests passed", name, version))
         else:
             all_passed = False
             clone_dir = os.path.join(
