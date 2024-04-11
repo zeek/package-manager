@@ -1,2 +1,8 @@
 # Migrate code style to Black
 99520f9201340d57d2cc9cf6f45992b994eff7c4
+
+# Standardize on ruff for python formatting/linting via pre-commits
+4551ae13f72bee68c50509570edead4e6e19bf00
+
+# Automatically reformat doc module
+b5ae905041f45c360117962e89713753edf1199c
