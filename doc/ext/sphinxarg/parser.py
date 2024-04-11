@@ -87,11 +87,11 @@ def parse_parser(parser, data=None, **kwargs):
                 if name in subsection_alias_names:
                     continue
                 subalias = subsection_alias[subaction]
-                subaction.prog = "%s %s" % (parser.prog, name)
+                subaction.prog = f"{parser.prog} {name}"
                 subdata = {
                     "name": name
                     if not subalias
-                    else "%s (%s)" % (name, ", ".join(subalias)),
+                    else "{} ({})".format(name, ", ".join(subalias)),
                     "help": helps.get(name, ""),
                     "usage": subaction.format_usage().strip(),
                     "bare_usage": _format_usage_without_prefix(subaction),
