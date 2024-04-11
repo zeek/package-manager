@@ -571,7 +571,6 @@ def cmd_test(manager, args, config, configfile):
             print_error(
                 str.format('error: failed to run tests for "{}": {}', name, error_msg)
             )
-            continue
 
         if passed:
             print(str.format("{}: all tests passed", name))
@@ -582,15 +581,17 @@ def cmd_test(manager, args, config, configfile):
             )
             print_error(
                 str.format(
-                    'error: package "{}" tests failed, inspect'
+                    'error: package "{}" version "{}" tests failed, inspect'
                     " contents of {} for details, especially"
                     ' any "zkg.test_command.{{stderr,stdout}}"'
                     " files within {}",
                     name,
+                    version,
                     test_dir,
                     clone_dir,
                 )
             )
+            continue
 
     if not all_passed:
         sys.exit(1)
