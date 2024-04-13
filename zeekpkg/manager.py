@@ -836,7 +836,7 @@ class Manager:
 
             if not os.path.isfile(config_file_path):
                 LOG.info(
-                    "package '%s' claims config file at '%s'," " but it does not exist",
+                    "package '%s' claims config file at '%s', but it does not exist",
                     pkg_name,
                     config_file,
                 )
@@ -884,7 +884,7 @@ class Manager:
 
             if not os.path.isfile(their_config_file_path):
                 LOG.info(
-                    "package '%s' claims config file at '%s'," " but it does not exist",
+                    "package '%s' claims config file at '%s', but it does not exist",
                     pkg_name,
                     config_file,
                 )
@@ -897,7 +897,7 @@ class Manager:
 
                 if not os.path.isfile(our_config_file_path):
                     LOG.info(
-                        "package '%s' config file '%s' not found" " in plugin_dir: %s",
+                        "package '%s' config file '%s' not found in plugin_dir: %s",
                         pkg_name,
                         config_file,
                         our_config_file_path,
@@ -910,7 +910,7 @@ class Manager:
 
                 if not os.path.isfile(our_config_file_path):
                     LOG.info(
-                        "package '%s' config file '%s' not found" " in script_dir: %s",
+                        "package '%s' config file '%s' not found in script_dir: %s",
                         pkg_name,
                         config_file,
                         our_config_file_path,
@@ -1859,11 +1859,11 @@ class Manager:
                 pkg_path,
                 matches_string,
             )
-            reason = str.format(
-                '"{}" matches multiple packages, try a more' " specific name from: {}",
-                pkg_path,
-                matches_string,
+            reason = (
+                f'"{pkg_path}" matches multiple packages, '
+                f"try a more specific name from: {matches_string}"
             )
+
             return PackageInfo(invalid_reason=reason, status=status)
 
         package = matches[0]
@@ -2838,7 +2838,7 @@ class Manager:
         else:
             if "script_dir" in metadata:
                 return str.format(
-                    "no __load__.zeek file found" " in package's 'script_dir' : {}",
+                    "no __load__.zeek file found in package's 'script_dir' : {}",
                     pkg_script_dir,
                 )
             else:
@@ -2956,10 +2956,10 @@ class Manager:
                 pkg_path,
                 matches_string,
             )
-            return str.format(
-                '"{}" matches multiple packages, try a more' " specific name from: {}",
-                pkg_path,
-                matches_string,
+
+            return (
+                f'"{pkg_path}" matches multiple packages, '
+                f"try a more specific name from: {matches_string}"
             )
 
         try:
