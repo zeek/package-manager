@@ -1,9 +1,9 @@
-from argparse import ArgumentParser
 import os
+from argparse import ArgumentParser
 
 from docutils import nodes
-from docutils.statemachine import StringList
 from docutils.parsers.rst.directives import flag, unchanged
+from docutils.statemachine import StringList
 
 try:
     # Removed as of Sphinx 1.7

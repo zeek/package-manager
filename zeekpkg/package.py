@@ -5,13 +5,12 @@ the properties and status of Zeek packages.
 
 import os
 import re
-
 from functools import total_ordering
 
 import semantic_version as semver
 
-from .uservar import UserVar
 from ._util import find_sentence_end, normalize_version_tag
+from .uservar import UserVar
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = "zkg.meta"

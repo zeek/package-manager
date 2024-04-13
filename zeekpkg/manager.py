@@ -20,61 +20,63 @@ try:
 except ImportError:
     from urlparse import urlparse
 
+from collections import deque
+
 import git
 import semantic_version as semver
 
-from collections import deque
-
+from . import (
+    LOG,
+    __version__,
+)
 from ._util import (
-    make_dir,
-    delete_path,
-    make_symlink,
+    configparser_section_dict,
     copy_over_path,
+    delete_path,
+    find_program,
     get_zeek_info,
-    git_default_branch,
+    get_zeek_version,
     git_checkout,
     git_clone,
+    git_default_branch,
     git_pull,
     git_version_tags,
     is_sha1,
-    get_zeek_version,
-    std_encoding,
-    find_program,
-    read_zeek_config_line,
+    make_dir,
+    make_symlink,
     normalize_version_tag,
-    configparser_section_dict,
+    read_zeek_config_line,
     safe_tarfile_extractall,
+    std_encoding,
 )
-from .source import AGGREGATE_DATA_FILE, Source
 from .package import (
-    BUILTIN_SOURCE,
     BUILTIN_SCHEME,
-    METADATA_FILENAME,
+    BUILTIN_SOURCE,
     LEGACY_METADATA_FILENAME,
-    TRACKING_METHOD_VERSION,
-    TRACKING_METHOD_BRANCH,
-    TRACKING_METHOD_COMMIT,
-    PLUGIN_MAGIC_FILE,
-    PLUGIN_MAGIC_FILE_DISABLED,
     LEGACY_PLUGIN_MAGIC_FILE,
     LEGACY_PLUGIN_MAGIC_FILE_DISABLED,
-    name_from_path,
-    aliases,
-    canonical_url,
-    is_valid_name as is_valid_package_name,
-    make_builtin_package,
+    METADATA_FILENAME,
+    PLUGIN_MAGIC_FILE,
+    PLUGIN_MAGIC_FILE_DISABLED,
+    TRACKING_METHOD_BRANCH,
+    TRACKING_METHOD_COMMIT,
+    TRACKING_METHOD_VERSION,
+    InstalledPackage,
     Package,
     PackageInfo,
     PackageStatus,
-    InstalledPackage,
     PackageVersion,
+    aliases,
+    canonical_url,
+    make_builtin_package,
+    name_from_path,
 )
+from .package import (
+    is_valid_name as is_valid_package_name,
+)
+from .source import AGGREGATE_DATA_FILE, Source
 from .uservar import (
     UserVar,
-)
-from . import (
-    __version__,
-    LOG,
 )
 
 

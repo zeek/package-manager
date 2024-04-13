@@ -4,20 +4,16 @@ A module for instantiating different types of Zeek packages.
 
 import abc
 import configparser
-import re
 import os
+import re
 import shutil
 
-import semantic_version as semver
 import git
+import semantic_version as semver
 
 from . import (
-    __version__,
     LOG,
-)
-from .package import (
-    METADATA_FILENAME,
-    name_from_path,
+    __version__,
 )
 from ._util import (
     delete_path,
@@ -25,10 +21,14 @@ from ._util import (
     git_clone,
     git_default_branch,
     git_pull,
-    git_version_tags,
     git_remote_urls,
+    git_version_tags,
     load_source,
     make_dir,
+)
+from .package import (
+    METADATA_FILENAME,
+    name_from_path,
 )
 
 API_VERSION = "1.1.0"

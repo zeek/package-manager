@@ -1,5 +1,5 @@
-from argparse import _HelpAction, _SubParsersAction
 import re
+from argparse import _HelpAction, _SubParsersAction
 
 
 class NavigationException(Exception):

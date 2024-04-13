@@ -15,7 +15,6 @@ import shutil
 import subprocess
 import sys
 import threading
-
 from collections import OrderedDict
 
 try:
@@ -85,10 +84,11 @@ ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
 # The default package template
 ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
 
+import zeekpkg  # noqa: E402
 from zeekpkg._util import (  # noqa: E402
     delete_path,
-    make_dir,
     find_program,
+    make_dir,
     read_zeek_config_line,
     std_encoding,
 )
@@ -103,8 +103,6 @@ from zeekpkg.template import (  # noqa: E402
 from zeekpkg.uservar import (  # noqa: E402
     UserVar,
 )
-
-import zeekpkg  # noqa: E402
 
 
 def confirmation_prompt(prompt, default_to_yes=True):

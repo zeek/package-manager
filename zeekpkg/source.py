@@ -7,13 +7,14 @@ located and metadata tags that help classify/describe it.
 """
 
 import configparser
-import git
 import os
 import shutil
 
+import git
+
 from . import LOG
-from .package import name_from_path, Package
-from ._util import git_default_branch, git_checkout, git_clone
+from ._util import git_checkout, git_clone, git_default_branch
+from .package import Package, name_from_path
 
 #: The name of package index files.
 INDEX_FILENAME = "zkg.index"
