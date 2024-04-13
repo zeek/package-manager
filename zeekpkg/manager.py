@@ -2008,13 +2008,12 @@ class Manager:
                 self.is_suggestion = False
 
             def __str__(self):
-                return str.format(
-                    "{}\n\trequested: {}\n\tinstalled: {}\n\tdependers: {}\n\tsuggestion: {}",
-                    self.name,
-                    self.requested_version,
-                    self.installed_version,
-                    self.dependers,
-                    self.is_suggestion,
+                return (
+                    f"{self.name}\n\t"
+                    f"requested: {self.requested_version}\n\t"
+                    f"installed: {self.installed_version}\n\t"
+                    f"dependers: {self.dependers}\n\t"
+                    f"suggestion: {self.is_suggestion}"
                 )
 
         graph = {}  # Node.name -> Node, nodes store edges
@@ -2049,7 +2048,7 @@ class Manager:
 
             if dd is None:
                 return (
-                    str.format('package "{}" has malformed "depends" field', node.name),
+                    f'package "{node.name}" has malformed "depends" field',
                     [],
                 )
 
@@ -2058,10 +2057,7 @@ class Manager:
             if not ignore_suggestions:
                 if ds is None:
                     return (
-                        str.format(
-                            'package "{}" has malformed "suggests" field',
-                            node.name,
-                        ),
+                        f'package "{node.name}" has malformed "suggests" field',
                         [],
                     )
 
@@ -2094,12 +2090,7 @@ class Manager:
 
                 if info.invalid_reason:
                     return (
-                        str.format(
-                            'package "{}" has invalid dependency "{}": {}',
-                            node.name,
-                            dep_name,
-                            info.invalid_reason,
-                        ),
+                        f'package "{node.name}" has invalid dependency "{dep_name}": {info.invalid_reason}',
                         [],
                     )
 
@@ -2179,7 +2170,7 @@ class Manager:
 
             if dd is None:
                 return (
-                    str.format('package "{}" has malformed "depends" field', node.name),
+                    f'package "{node.name}" has malformed "depends" field',
                     [],
                 )
 
@@ -2188,10 +2179,7 @@ class Manager:
             if not ignore_suggestions:
                 if ds is None:
                     return (
-                        str.format(
-                            'package "{}" has malformed "suggests" field',
-                            node.name,
-                        ),
+                        f'package "{node.name}" has malformed "suggests" field',
                         [],
                     )
 
@@ -2263,15 +2251,8 @@ class Manager:
                     msg, fullfills = node.requested_version.fullfills(version_spec)
                     if not fullfills:
                         return (
-                            str.format(
-                                'unsatisfiable dependency: requested "{}" ({}),'
-                                ' but "{}" requires {} ({})',
-                                node.name,
-                                node.requested_version.version,
-                                depender_name,
-                                version_spec,
-                                msg,
-                            ),
+                            f'unsatisfiable dependency: requested "{node.name}" ({node.requested_version.version}),'
+                            f' but "{depender_name}" requires {version_spec} ({msg})',
                             new_pkgs,
                         )
 
@@ -2283,15 +2264,8 @@ class Manager:
                     msg, fullfills = node.installed_version.fullfills(version_spec)
                     if not fullfills:
                         return (
-                            str.format(
-                                'unsatisfiable dependency: "{}" ({}) is installed,'
-                                ' but "{}" requires {} ({})',
-                                node.name,
-                                node.installed_version.version,
-                                depender_name,
-                                version_spec,
-                                msg,
-                            ),
+                            f'unsatisfiable dependency: "{node.name}" ({node.installed_version.version}) is installed,'
+                            f' but "{depender_name}" requires {version_spec} ({msg})',
                             new_pkgs,
                         )
             else:
@@ -2301,17 +2275,10 @@ class Manager:
                 need_version = False
 
                 def no_best_version_string(node):
-                    rval = str.format(
-                        '"{}" has no version satisfying dependencies:\n',
-                        node.name,
-                    )
+                    rval = f'"{node.name}" has no version satisfying dependencies:\n'
 
                     for depender_name, version_spec in node.dependers.items():
-                        rval += str.format(
-                            '\t"{}" requires: "{}"\n',
-                            depender_name,
-                            version_spec,
-                        )
+                        rval += f'\t"{depender_name}" requires: "{version_spec}"\n'
 
                     return rval
 
@@ -2354,11 +2321,7 @@ class Manager:
                                 semver_spec = semver.Spec(version_spec)
                             except ValueError:
                                 return (
-                                    str.format(
-                                        'package "{}" has invalid semver spec: {}',
-                                        depender_name,
-                                        version_spec,
-                                    ),
+                                    f'package "{depender_name}" has invalid semver spec: {version_spec}',
                                     new_pkgs,
                                 )
 
@@ -2662,11 +2625,7 @@ class Manager:
             except git.exc.GitCommandError as error:
                 LOG.warning("failed to checkout git repo version: %s", error)
                 return (
-                    str.format(
-                        "failed to checkout {} of {}",
-                        version,
-                        info.package.git_url,
-                    ),
+                    f"failed to checkout {version} of {info.package.git_url}",
                     False,
                     stage.state_dir,
                 )
@@ -2850,10 +2809,7 @@ class Manager:
         script_dir_dst = os.path.join(stage.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
-            return str.format(
-                "package's 'script_dir' does not exist: {}",
-                pkg_script_dir,
-            )
+            return f"package's 'script_dir' does not exist: {pkg_script_dir}"
 
         pkgload = os.path.join(script_dir_src, "__load__.zeek")
 
@@ -2889,10 +2845,7 @@ class Manager:
                 return error
         else:
             if "script_dir" in metadata:
-                return str.format(
-                    "no __load__.zeek file found in package's 'script_dir' : {}",
-                    pkg_script_dir,
-                )
+                return f"no __load__.zeek file found in package's 'script_dir' : {pkg_script_dir}"
             else:
                 LOG.warning(
                     'installing "%s": no __load__.zeek in implicit'
@@ -2914,10 +2867,7 @@ class Manager:
             if pkg_plugin_dir != "build":
                 # It's common for a package to not have build directory for
                 # plugins, so don't error out in that case, just log it.
-                return str.format(
-                    "package's 'plugin_dir' does not exist: {}",
-                    pkg_plugin_dir,
-                )
+                return f"package's 'plugin_dir' does not exist: {pkg_plugin_dir}"
 
         error = _copy_package_dir(
             package,
@@ -2934,10 +2884,10 @@ class Manager:
         for p in self._get_executables(metadata):
             full_path = os.path.join(clone.working_dir, p)
             if not os.path.isfile(full_path):
-                return str.format("executable '{}' is missing", p)
+                return f"executable '{p}' is missing"
 
             if not os.access(full_path, os.X_OK):
-                return str.format("file '{}' is not executable", p)
+                return f"file '{p}' is not executable"
 
             if stage.bin_dir is not None:
                 make_symlink(
@@ -2988,11 +2938,7 @@ class Manager:
                     pkg_path,
                     conflict,
                 )
-                return str.format(
-                    'package with name "{}" ({}) is already installed',
-                    conflict.name,
-                    conflict,
-                )
+                return f'package with name "{conflict.name}" ({conflict}) is already installed'
 
         matches = self.match_source_packages(pkg_path)
 

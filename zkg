@@ -137,7 +137,7 @@ def prompt_for_user_vars(manager, config, configfile, args, pkg_infos):
         requested_user_vars = info.user_vars()
 
         if requested_user_vars is None:
-            print_error(str.format('error: malformed user_vars in "{}"', name))
+            print_error(f'error: malformed user_vars in "{name}"')
             sys.exit(1)
 
         for uvar in requested_user_vars:
@@ -150,11 +150,8 @@ def prompt_for_user_vars(manager, config, configfile, args, pkg_infos):
                 )
             except ValueError:
                 print_error(
-                    str.format(
-                        'error: could not determine value of user variable "{}",'
-                        " provide via environment or --user-var",
-                        uvar.name(),
-                    ),
+                    f'error: could not determine value of user variable "{uvar.name()}",'
+                    " provide via environment or --user-var",
                 )
                 sys.exit(1)
 
@@ -300,13 +297,9 @@ def create_config(args, configfile):
     for key, value in config.items("paths"):
         if value and not os.path.isabs(value):
             print_error(
-                str.format(
-                    "error: invalid config file value for key"
-                    ' "{}" in section [paths]: "{}" is not'
-                    " an absolute path",
-                    key,
-                    value,
-                ),
+                "error: invalid config file value for key"
+                f' "{key}" in section [paths]: "{value}" is not'
+                " an absolute path",
             )
             sys.exit(1)
 
@@ -438,11 +431,7 @@ def create_manager(args, config):
 
         if error:
             print_error(
-                str.format(
-                    'warning: skipped using package source named "{}": {}',
-                    key,
-                    error,
-                ),
+                f'warning: skipped using package source named "{key}": {error}',
             )
 
     return manager
@@ -549,11 +538,7 @@ def cmd_test(manager, args, config, configfile):
 
         if package_info.invalid_reason:
             print_error(
-                str.format(
-                    'error: invalid package "{}": {}',
-                    name,
-                    package_info.invalid_reason,
-                ),
+                f'error: invalid package "{name}": {package_info.invalid_reason}',
             )
             sys.exit(1)
 
@@ -568,7 +553,7 @@ def cmd_test(manager, args, config, configfile):
         name = info.package.qualified_name()
 
         if "test_command" not in info.metadata:
-            print(str.format("{}: no test_command found in metadata, skipping", name))
+            print(f"{name}: no test_command found in metadata, skipping")
             continue
 
         error_msg, passed, test_dir = manager.test(
@@ -579,13 +564,11 @@ def cmd_test(manager, args, config, configfile):
 
         if error_msg:
             all_passed = False
-            print_error(
-                str.format('error: failed to run tests for "{}": {}', name, error_msg),
-            )
+            print_error(f'error: failed to run tests for "{name}": {error_msg}')
             continue
 
         if passed:
-            print(str.format("{}: all tests passed", name))
+            print(f"{name}: all tests passed")
         else:
             all_passed = False
             clone_dir = os.path.join(
@@ -593,15 +576,10 @@ def cmd_test(manager, args, config, configfile):
                 info.package.name,
             )
             print_error(
-                str.format(
-                    'error: package "{}" tests failed, inspect'
-                    " contents of {} for details, especially"
-                    ' any "zkg.test_command.{{stderr,stdout}}"'
-                    " files within {}",
-                    name,
-                    test_dir,
-                    clone_dir,
-                ),
+                f'error: package "{name}" tests failed, inspect'
+                f" contents of {test_dir} for details, especially"
+                ' any "zkg.test_command.{{stderr,stdout}}"'
+                f" files within {clone_dir}",
             )
 
     if not all_passed:
@@ -630,11 +608,7 @@ def cmd_install(manager, args, config, configfile):
 
         if package_info.invalid_reason:
             print_error(
-                str.format(
-                    'error: invalid package "{}": {}',
-                    name,
-                    package_info.invalid_reason,
-                ),
+                f'error: invalid package "{name}": {package_info.invalid_reason}',
             )
             sys.exit(1)
 
@@ -750,20 +724,17 @@ def cmd_install(manager, args, config, configfile):
                 test_dependencies=True,
             )
             if error:
-                error_msg = str.format("failed to run tests for {}: {}", name, error)
+                error_msg = f"failed to run tests for {name}: {error}"
             elif not passed:
                 clone_dir = os.path.join(
                     os.path.join(test_dir, "clones"),
                     info.package.name,
                 )
-                error_msg = str.format(
-                    '"{}" tests failed, inspect contents of'
-                    " {} for details, especially any"
+                error_msg = (
+                    f'"{name}" tests failed, inspect contents of'
+                    f" {test_dir} for details, especially any"
                     ' "zkg.test_command.{{stderr,stdout}}"'
-                    " files within {}",
-                    name,
-                    test_dir,
-                    clone_dir,
+                    f" files within {clone_dir}"
                 )
 
             if error_msg:
@@ -911,13 +882,7 @@ def cmd_bundle(manager, args, config, configfile):
             info = manager.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                print_error(
-                    str.format(
-                        'error: invalid package "{}": {}',
-                        name,
-                        info.invalid_reason,
-                    ),
-                )
+                print_error(f'error: invalid package "{name}": {info.invalid_reason}')
                 sys.exit(1)
 
             if not version:
@@ -1407,13 +1372,7 @@ def cmd_upgrade(manager, args, config, configfile):
         )
 
         if info.invalid_reason:
-            print_error(
-                str.format(
-                    'error: invalid package "{}": {}',
-                    name,
-                    info.invalid_reason,
-                ),
-            )
+            print_error(f'error: invalid package "{name}": {info.invalid_reason}')
             sys.exit(1)
 
         next_version = ipkg.status.current_version
@@ -1533,20 +1492,17 @@ def cmd_upgrade(manager, args, config, configfile):
             )
 
             if error:
-                error_msg = str.format("failed to run tests for {}: {}", name, error)
+                error_msg = f"failed to run tests for {name}: {error}"
             elif not passed:
                 clone_dir = os.path.join(
                     os.path.join(test_dir, "clones"),
                     info.package.name,
                 )
-                error_msg = str.format(
-                    '"{}" tests failed, inspect contents of'
-                    " {} for details, especially any"
+                error_msg = (
+                    f'"{name}" tests failed, inspect contents of'
+                    f" {test_dir} for details, especially any"
                     ' "zkg.test_command.{{stderr,stdout}}"'
-                    " files within {}",
-                    name,
-                    test_dir,
-                    clone_dir,
+                    f" files within {clone_dir}"
                 )
 
             if error_msg:
@@ -2293,11 +2249,8 @@ def cmd_create(manager, args, config, configfile):
                 uvar.resolve(tmpl.name(), config, args.user_var, args.force)
             except ValueError:
                 print_error(
-                    str.format(
-                        'error: could not determine value of user variable "{}",'
-                        " provide via environment or --user-var",
-                        uvar.name(),
-                    ),
+                    f'error: could not determine value of user variable "{uvar.name()}",'
+                    " provide via environment or --user-var",
                 )
                 sys.exit(1)
 
