@@ -23,6 +23,9 @@ class Readme(zeekpkg.template.Feature):
     def needed_user_vars(self):
         return ["readme"]
 
+    def validate(self, tmpl):
+        pass
+
 
 class Template(zeekpkg.template.Template):
     def define_user_vars(self):
@@ -51,3 +54,6 @@ class Template(zeekpkg.template.Template):
 
     def features(self):
         return [Readme()]
+
+    def validate(self, tmpl):
+        pass

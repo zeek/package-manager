@@ -838,7 +838,7 @@ def cmd_install(manager, args, config, configfile):
     if not args.nodeps:
         # Now load runtime dependencies after all dependencies and suggested
         # packages have been installed and loaded.
-        for info, ver, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
+        for info, _, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
             _listing, saved_state = "", manager.loaded_package_states()
             name = info.package.qualified_name()
 
@@ -1024,7 +1024,7 @@ def cmd_unbundle(manager, args, config, configfile):
         print_error(f"error: failed to unbundle {args.bundle_filename}: {error}")
         sys.exit(1)
 
-    for git_url, version, pkg_info in bundle_info:
+    for git_url, _, pkg_info in bundle_info:
         if pkg_info.invalid_reason:
             name = pkg_info.package.qualified_name()
             print_error(
@@ -1584,7 +1584,7 @@ def cmd_upgrade(manager, args, config, configfile):
 
     had_failure = False
 
-    for info, next_version, _ in outdated_packages:
+    for info, _, _ in outdated_packages:
         name = info.package.qualified_name()
 
         if not manager.match_source_packages(name):

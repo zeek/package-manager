@@ -985,9 +985,9 @@ class Manager:
                 the failure.
         """
 
-        def __init__(self, refresh_error="", package_issues=[]):
+        def __init__(self, refresh_error="", package_issues=None):
             self.refresh_error = refresh_error
-            self.package_issues = package_issues
+            self.package_issues = package_issues if package_issues else []
 
     def aggregate_source(self, name, push=False):
         """Pull latest git info from a package source and aggregate metadata.
@@ -1540,7 +1540,7 @@ class Manager:
         self._write_autoloader()
         self._write_manifest()
 
-    def load_with_dependencies(self, pkg_name, visited=set()):
+    def load_with_dependencies(self, pkg_name, visited=None):
         """Mark dependent (but previously installed) packages as being "loaded".
 
         Args:
@@ -1553,6 +1553,9 @@ class Manager:
             it was marked as loaded or else an explanation of why the loading failed.
 
         """
+        if visited is None:
+            visited = set()
+
         ipkg = self.find_installed_package(pkg_name)
 
         # skip loading a package if it is not installed.
@@ -2324,7 +2327,7 @@ class Manager:
                 if need_branch:
                     branch_name = None
 
-                    for depender_name, version_spec in node.dependers.items():
+                    for _, version_spec in node.dependers.items():
                         if version_spec == "*":
                             continue
 
@@ -2539,7 +2542,7 @@ class Manager:
         #
         # Possible reasons are built-in packages on the source system missing
         # on the destination system or usage of --nodeps when creating the bundle.
-        for git_url, version in manifest:
+        for git_url, _ in manifest:
             deps = self.get_installed_package_dependencies(git_url)
             if deps is None:
                 LOG.warning('package "%s" not installed?', git_url)
@@ -2679,7 +2682,7 @@ class Manager:
         else:
             test_pkgs = [(pkg_info, version)]
 
-        for info, version in reversed(test_pkgs):
+        for info, _ in reversed(test_pkgs):
             LOG.info('testing "%s"', package)
             # Interpolate the test command:
             metadata, invalid_reason = self._interpolate_package_metadata(

@@ -196,7 +196,7 @@ class Template:
         except ValueError:
             raise LoadError(
                 f'API version string "{mod.TEMPLATE_API_VERSION}" is invalid',
-            )
+            ) from None
 
         if not is_compat:
             msg = "template{} API version is incompatible with zkg ({} vs {})".format(
@@ -512,6 +512,7 @@ class _Content(metaclass=abc.ABCMeta):
         for feature in self._features:
             feature.validate(tmpl)
 
+    @abc.abstractmethod
     def validate(self, tmpl):
         """Validation of template configuration for this component.
 
@@ -528,6 +529,7 @@ class _Content(metaclass=abc.ABCMeta):
             zeekpkg.template.InputError when failing validation.
 
         """
+        pass
 
     def do_instantiate(self, tmpl, packagedir, use_force=False):
         """Main driver for instantiating template content.
