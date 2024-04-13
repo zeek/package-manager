@@ -14,13 +14,8 @@ import shutil
 import subprocess
 import sys
 import tarfile
-
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
-
 from collections import deque
+from urllib.parse import urlparse
 
 import git
 import semantic_version as semver
