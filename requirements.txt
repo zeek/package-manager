@@ -3,7 +3,7 @@
 # Requirements for general zkg usage
 GitPython>3.1.43
 semantic_version>2.10.0
-btest>=1.1
 # Requirements for development (e.g. building docs)
+btest>=1.1
 Sphinx>=7.2.6
 sphinx_rtd_theme>=2.0.0
