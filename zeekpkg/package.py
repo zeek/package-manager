@@ -244,7 +244,8 @@ class InstalledPackage:
         Does the current version fullfill version_spec?
         """
         return PackageVersion(
-            self.status.tracking_method, self.status.current_version
+            self.status.tracking_method,
+            self.status.current_version,
         ).fullfills(version_spec)
 
 
@@ -589,7 +590,10 @@ class Package:
 
 
 def make_builtin_package(
-    *, name: str, current_version: str, current_hash: Optional[str] = None
+    *,
+    name: str,
+    current_version: str,
+    current_hash: Optional[str] = None,
 ):
     """
     Given ``name``, ``version`` and ``commit`` as found in Zeek's ``zkg.provides``

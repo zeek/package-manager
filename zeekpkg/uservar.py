@@ -106,7 +106,7 @@ class UserVar:
 
         if source:
             print(
-                f'"{name}" will use value of "{self._name}" ({self._desc}) from {source}: {val}'
+                f'"{name}" will use value of "{self._name}" ({self._desc}) from {source}: {val}',
             )
             self._val = val
             return val
@@ -135,7 +135,7 @@ class UserVar:
             return UserVar(name, val=val)
         except ValueError as error:
             raise ValueError(
-                f'invalid user var argument "{arg}", must be NAME=VAR'
+                f'invalid user var argument "{arg}", must be NAME=VAR',
             ) from error
 
     @staticmethod

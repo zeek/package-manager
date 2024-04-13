@@ -113,7 +113,9 @@ class Template:
             # zkg state folder's clone space and support version
             # requests.
             template_clonedir = os.path.join(
-                config.get("paths", "state_dir"), "clones", "template"
+                config.get("paths", "state_dir"),
+                "clones",
+                "template",
             )
             templatedir = os.path.join(template_clonedir, name_from_path(template))
             make_dir(template_clonedir)
@@ -180,7 +182,7 @@ class Template:
 
         if not hasattr(mod, "TEMPLATE_API_VERSION"):
             msg = "template{} does not indicate its API version".format(
-                " version " + version if version else ""
+                " version " + version if version else "",
             )
             LOG.error(msg)
             raise LoadError(msg)
@@ -193,7 +195,7 @@ class Template:
             is_compat = Template.is_api_compatible(mod.TEMPLATE_API_VERSION)
         except ValueError:
             raise LoadError(
-                f'API version string "{mod.TEMPLATE_API_VERSION}" is invalid'
+                f'API version string "{mod.TEMPLATE_API_VERSION}" is invalid',
             )
 
         if not is_compat:
@@ -437,7 +439,8 @@ class Template:
                     res["user_vars"][uvar_name]["used_by"].append("package")
                 except KeyError:
                     LOG.warning(
-                        'Package requires undefined user var "%s", skipping', uvar_name
+                        'Package requires undefined user var "%s", skipping',
+                        uvar_name,
                     )
 
         for feature in self.features():
@@ -791,7 +794,7 @@ class Package(_Content):
             f"""Initial commit.
 
 zkg {__version__} created this package from template "{tmpl.name()}"
-using {ver_info}{features_info}."""
+using {ver_info}{features_info}.""",
         )
 
 

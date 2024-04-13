@@ -71,8 +71,8 @@ def print_arg_list(data, nested_content):
                         text=(
                             "Possible choices: %s"
                             % ", ".join([str(c) for c in arg["choices"]])
-                        )
-                    )
+                        ),
+                    ),
                 )
             argname = name
 
@@ -83,10 +83,11 @@ def print_arg_list(data, nested_content):
                 nodes.option_list_item(
                     "",
                     nodes.option_group(
-                        "", nodes.option("", nodes.option_string(text=argname))
+                        "",
+                        nodes.option("", nodes.option_string(text=argname)),
                     ),
                     nodes.description("", *my_def),
-                )
+                ),
             )
     return nodes.option_list("", *items) if items else None
 
@@ -102,7 +103,8 @@ def print_opt_list(data, nested_content):
                 option_declaration = [nodes.option_string(text=name)]
                 if opt["default"] is not None and opt["default"] != "==SUPPRESS==":
                     option_declaration += nodes.option_argument(
-                        "", text="=" + str(opt["default"])
+                        "",
+                        text="=" + str(opt["default"]),
                     )
                 names.append(nodes.option("", *option_declaration))
                 my_def = apply_definition(definitions, my_def, name)
@@ -114,13 +116,15 @@ def print_opt_list(data, nested_content):
                         text=(
                             "Possible choices: %s"
                             % ", ".join([str(c) for c in opt["choices"]])
-                        )
-                    )
+                        ),
+                    ),
                 )
             items.append(
                 nodes.option_list_item(
-                    "", nodes.option_group("", *names), nodes.description("", *my_def)
-                )
+                    "",
+                    nodes.option_group("", *names),
+                    nodes.description("", *my_def),
+                ),
             )
     return nodes.option_list("", *items) if items else None
 
@@ -133,19 +137,23 @@ def print_command_args_and_opts(arg_list, opt_list, sub_list=None):
                 "",
                 nodes.term(text="Positional arguments:"),
                 nodes.definition("", arg_list),
-            )
+            ),
         )
     if opt_list:
         items.append(
             nodes.definition_list_item(
-                "", nodes.term(text="Options:"), nodes.definition("", opt_list)
-            )
+                "",
+                nodes.term(text="Options:"),
+                nodes.definition("", opt_list),
+            ),
         )
     if sub_list and len(sub_list):
         items.append(
             nodes.definition_list_item(
-                "", nodes.term(text="Sub-commands:"), nodes.definition("", sub_list)
-            )
+                "",
+                nodes.term(text="Sub-commands:"),
+                nodes.definition("", sub_list),
+            ),
         )
     return nodes.definition_list("", *items)
 
@@ -182,14 +190,14 @@ def print_subcommand_list(data, nested_content):
                     print_arg_list(child, nested_content),
                     print_opt_list(child, nested_content),
                     print_subcommand_list(child, nested_content),
-                )
+                ),
             )
             items.append(
                 nodes.definition_list_item(
                     "",
                     nodes.term("", "", nodes.strong(text=name)),
                     nodes.definition("", *my_def),
-                )
+                ),
             )
     return nodes.definition_list("", *items)
 
@@ -232,8 +240,9 @@ class ArgParseDirective(Directive):
             nodes.title(text="Description"),
             nodes.paragraph(
                 text=parser_info.get(
-                    "description", parser_info.get("help", "undocumented").capitalize()
-                )
+                    "description",
+                    parser_info.get("help", "undocumented").capitalize(),
+                ),
             ),
             ids=["description-section"],
         )
@@ -246,7 +255,9 @@ class ArgParseDirective(Directive):
             description_section += nodes.paragraph(text=parser_info["epilog"])
         # OPTIONS section
         options_section = nodes.section(
-            "", nodes.title(text="Options"), ids=["options-section"]
+            "",
+            nodes.title(text="Options"),
+            ids=["options-section"],
         )
         if "args" in parser_info:
             options_section += nodes.paragraph()
@@ -270,7 +281,9 @@ class ArgParseDirective(Directive):
         if "nosubcommands" not in self.options:
             # SUBCOMMANDS section (non-standard)
             subcommands_section = nodes.section(
-                "", nodes.title(text="Sub-Commands"), ids=["subcommands-section"]
+                "",
+                nodes.title(text="Sub-Commands"),
+                ids=["subcommands-section"],
             )
             if "children" in parser_info:
                 subcommands_section += self._format_subcommands(parser_info)
@@ -301,17 +314,18 @@ class ArgParseDirective(Directive):
             if "choices" in arg:
                 arg_items.append(
                     nodes.paragraph(
-                        text="Possible choices: " + ", ".join(arg["choices"])
-                    )
+                        text="Possible choices: " + ", ".join(arg["choices"]),
+                    ),
                 )
             items.append(
                 nodes.option_list_item(
                     "",
                     nodes.option_group(
-                        "", nodes.option("", nodes.option_string(text=arg["metavar"]))
+                        "",
+                        nodes.option("", nodes.option_string(text=arg["metavar"])),
                     ),
                     nodes.description("", *arg_items),
-                )
+                ),
             )
         return nodes.option_list("", *items)
 
@@ -325,7 +339,8 @@ class ArgParseDirective(Directive):
                 option_declaration = [nodes.option_string(text=name)]
                 if opt["default"] is not None and opt["default"] != "==SUPPRESS==":
                     option_declaration += nodes.option_argument(
-                        "", text="=" + str(opt["default"])
+                        "",
+                        text="=" + str(opt["default"]),
                     )
                 names.append(nodes.option("", *option_declaration))
             if opt["help"]:
@@ -335,15 +350,15 @@ class ArgParseDirective(Directive):
             if "choices" in opt:
                 opt_items.append(
                     nodes.paragraph(
-                        text="Possible choices: " + ", ".join(opt["choices"])
-                    )
+                        text="Possible choices: " + ", ".join(opt["choices"]),
+                    ),
                 )
             items.append(
                 nodes.option_list_item(
                     "",
                     nodes.option_group("", *names),
                     nodes.description("", *opt_items),
-                )
+                ),
             )
         return nodes.option_list("", *items)
 
@@ -361,7 +376,7 @@ class ArgParseDirective(Directive):
                     "",
                     nodes.term("", "", nodes.strong(text=subcmd["bare_usage"])),
                     nodes.definition("", *subcmd_items),
-                )
+                ),
             )
         return nodes.definition_list("", *items)
 
@@ -397,13 +412,13 @@ class ArgParseDirective(Directive):
                 "lineno": self.lineno,
                 "dependency_file": file_dependency,
                 "dependency_mtime": os.stat(file_dependency).st_mtime,
-            }
+            },
         )
 
         if not hasattr(mod, attr_name):
             raise self.error(
                 f'Module "{module_name}" has no attribute "{attr_name}"\n'
-                "Incorrect argparse :module: or :func: values?"
+                "Incorrect argparse :module: or :func: values?",
             )
         func = getattr(mod, attr_name)
         if isinstance(func, ArgumentParser):
@@ -444,7 +459,7 @@ class ArgParseDirective(Directive):
                 print_arg_list(result, nested_content),
                 print_opt_list(result, nested_content),
                 subcommands,
-            )
+            ),
         )
         if "epilog" in result:
             items.append(self._nested_parse_paragraph(result["epilog"]))

@@ -17,7 +17,7 @@ def parser_navigate(parser_result, path, current_path=None):
     if "children" not in parser_result:
         raise NavigationError(
             "Current parser have no children elements.  (path: %s)"
-            % " ".join(current_path)
+            % " ".join(current_path),
         )
     next_hop = path.pop(0)
     for child in parser_result["children"]:
@@ -28,7 +28,7 @@ def parser_navigate(parser_result, path, current_path=None):
             return parser_navigate(child, path, current_path)
     raise NavigationError(
         f"Current parser have no children element with name: {next_hop}  (path: %s)"
-        % " ".join(current_path)
+        % " ".join(current_path),
     )
 
 
@@ -49,7 +49,10 @@ def _format_usage_without_prefix(parser):
     """
     fmt = parser._get_formatter()
     fmt.add_usage(
-        parser.usage, parser._actions, parser._mutually_exclusive_groups, prefix=""
+        parser.usage,
+        parser._actions,
+        parser._mutually_exclusive_groups,
+        prefix="",
     )
     return fmt.format_help().strip()
 
