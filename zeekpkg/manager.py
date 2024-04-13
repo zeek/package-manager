@@ -1356,8 +1356,8 @@ class Manager:
         for alias in pkg_to_remove.aliases():
             delete_path(os.path.join(self.zeekpath(), alias))
 
-        for exec in self._get_executables(pkg_to_remove.metadata):
-            link = os.path.join(self.bin_dir, os.path.basename(exec))
+        for exe in self._get_executables(pkg_to_remove.metadata):
+            link = os.path.join(self.bin_dir, os.path.basename(exe))
             if os.path.islink(link):
                 try:
                     LOG.debug("removing link %s", link)
@@ -3143,10 +3143,10 @@ class Manager:
     # the currently installed packages.
     def _refresh_bin_dir(self, bin_dir, prev_bin_dir=None):
         for ipkg in self.installed_pkgs.values():
-            for exec in self._get_executables(ipkg.package.metadata):
+            for exe in self._get_executables(ipkg.package.metadata):
                 # Put symlinks in place that are missing in current directory
-                src = os.path.join(self.package_clonedir, ipkg.package.name, exec)
-                dst = os.path.join(bin_dir, os.path.basename(exec))
+                src = os.path.join(self.package_clonedir, ipkg.package.name, exe)
+                dst = os.path.join(bin_dir, os.path.basename(exe))
 
                 if (
                     not os.path.exists(dst)
@@ -3162,8 +3162,8 @@ class Manager:
     # coming with any of the currently installed package.
     def _clear_bin_dir(self, bin_dir):
         for ipkg in self.installed_pkgs.values():
-            for exec in self._get_executables(ipkg.package.metadata):
-                old = os.path.join(bin_dir, os.path.basename(exec))
+            for exe in self._get_executables(ipkg.package.metadata):
+                old = os.path.join(bin_dir, os.path.basename(exe))
                 if os.path.islink(old):
                     try:
                         os.unlink(old)
