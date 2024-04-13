@@ -2,7 +2,7 @@ import re
 from argparse import _HelpAction, _SubParsersAction
 
 
-class NavigationException(Exception):
+class NavigationError(Exception):
     pass
 
 
@@ -15,7 +15,7 @@ def parser_navigate(parser_result, path, current_path=None):
     if len(path) == 0:
         return parser_result
     if "children" not in parser_result:
-        raise NavigationException(
+        raise NavigationError(
             "Current parser have no children elements.  (path: %s)"
             % " ".join(current_path)
         )
@@ -26,7 +26,7 @@ def parser_navigate(parser_result, path, current_path=None):
         if identifier == next_hop:
             current_path.append(next_hop)
             return parser_navigate(child, path, current_path)
-    raise NavigationException(
+    raise NavigationError(
         f"Current parser have no children element with name: {next_hop}  (path: %s)"
         % " ".join(current_path)
     )

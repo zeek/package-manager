@@ -63,4 +63,4 @@ script-files = ["zkg"]
 universal = true
 
 [tool.ruff.lint]
-select = ["I", "RUF", "UP"]
+select = ["I", "N", "RUF", "UP"]
