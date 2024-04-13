@@ -1,0 +1,63 @@
+[build-system]
+requires = [
+    "setuptools",
+]
+
+[project]
+name = "zkg"
+dynamic = ["version"]
+description = "The Zeek Package Manager"
+readme = "README"
+
+keywords = [
+    "zeek",
+    "zeekctl",
+    "zeekcontrol",
+    "package",
+    "manager",
+    "scripts",
+    "plugins",
+    "security",
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "License :: OSI Approved :: University of Illinois/NCSA Open Source License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: Utilities",
+]
+
+# NOTE: Keep `requirements.txt` in sync which we currently use e.g., for RTD.
+dependencies = [
+    "GitPython>=3.1.43",
+    "semantic_version>=2.10.0",
+    "btest>=1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "Sphinx>=7.2.6",
+    "sphinx_rtd_theme>=2.0.0",
+]
+
+[project.license]
+file = "COPYING"
+
+[project.urls]
+Homepage = "https://docs.zeek.org/projects/package-manager"
+Repository = "https://github.com/zeek/package-manager"
+
+[[project.maintainers]]
+name = "The Zeek Project"
+email = "info@zeek.org"
+
+[tool.setuptools]
+packages = ["zeekpkg"]
+script-files = ["zkg"]
+
+[tool.distutils.bdist_wheel]
+universal = true
