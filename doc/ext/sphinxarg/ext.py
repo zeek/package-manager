@@ -475,7 +475,7 @@ def env_get_outdated_hook(app, env, added, changed, removed):
     for docname in rval:
         from sphinx.util.console import blue
 
-        msg = blue("found outdated argparse doc: {0}".format(docname))
+        msg = blue(f"found outdated argparse doc: {docname}")
         logger.info(msg)
 
     return list(rval)
