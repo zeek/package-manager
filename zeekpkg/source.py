@@ -133,7 +133,7 @@ class Source:
                 metadata = {}
 
                 if parser.has_section(agg_key):
-                    metadata = {key: value for key, value in parser.items(agg_key)}
+                    metadata = dict(parser.items(agg_key))
 
                 package = Package(
                     git_url=url,

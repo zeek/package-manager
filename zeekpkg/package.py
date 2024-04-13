@@ -135,9 +135,9 @@ def dependencies(metadata_dict, field="depends"):
     number of values), then None is returned.
     """
     if field not in metadata_dict:
-        return dict()
+        return {}
 
-    rval = dict()
+    rval = {}
     depends = metadata_dict[field]
     parts = depends.split()
     keys = parts[::2]

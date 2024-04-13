@@ -196,17 +196,17 @@ def print_subcommand_list(data, nested_content):
 
 class ArgParseDirective(Directive):
     has_content = True
-    option_spec: ClassVar[dict[str, Callable[[str | None], str | None]]] = dict(
-        module=unchanged,
-        func=unchanged,
-        ref=unchanged,
-        prog=unchanged,
-        path=unchanged,
-        nodefault=flag,
-        manpage=unchanged,
-        nosubcommands=unchanged,
-        passparser=flag,
-    )
+    option_spec: ClassVar[dict[str, Callable[[str | None], str | None]]] = {
+        "module": unchanged,
+        "func": unchanged,
+        "ref": unchanged,
+        "prog": unchanged,
+        "path": unchanged,
+        "nodefault": flag,
+        "manpage": unchanged,
+        "nosubcommands": unchanged,
+        "passparser": flag,
+    }
 
     def _construct_manpage_specific_structure(self, parser_info):
         """

@@ -1300,10 +1300,10 @@ def cmd_refresh(manager, args, config, configfile):
         if args.push:
             print("\tPushed aggregated metadata")
 
-    outdated_before = {i for i in outdated(manager)}
+    outdated_before = set(outdated(manager))
     print("Refresh installed packages")
     manager.refresh_installed_packages()
-    outdated_after = {i for i in outdated(manager)}
+    outdated_after = set(outdated(manager))
 
     if outdated_before == outdated_after:
         print("\tNo new outdated packages")
@@ -1784,7 +1784,7 @@ def cmd_unpin(manager, args, config, configfile):
 
 
 def _get_filtered_packages(manager, category):
-    pkg_dict = dict()
+    pkg_dict = {}
 
     for ipkg in manager.installed_packages():
         pkg_dict[ipkg.package.qualified_name()] = ipkg
@@ -1915,7 +1915,7 @@ def cmd_info(manager, args, config, configfile):
         sys.exit(1)
 
     # Dictionary for storing package info to output as JSON
-    pkginfo = dict()
+    pkginfo = {}
     had_invalid_package = False
 
     if len(args.package) == 1:
@@ -1942,8 +1942,8 @@ def cmd_info(manager, args, config, configfile):
             name = info.package.qualified_name()
 
         if args.json:
-            pkginfo[name] = dict()
-            pkginfo[name]["metadata"] = dict()
+            pkginfo[name] = {}
+            pkginfo[name]["metadata"] = {}
         else:
             print(f'"{name}" info:')
 
@@ -1965,7 +1965,7 @@ def cmd_info(manager, args, config, configfile):
 
         if info.status:
             if args.json:
-                pkginfo[name]["install_status"] = dict()
+                pkginfo[name]["install_status"] = {}
 
                 for key, value in sorted(info.status.__dict__.items()):
                     pkginfo[name]["install_status"][key] = value
@@ -1978,7 +1978,7 @@ def cmd_info(manager, args, config, configfile):
         if args.json:
             if info.metadata_file:
                 pkginfo[name]["metadata_file"] = info.metadata_file
-            pkginfo[name]["metadata"][info.metadata_version] = dict()
+            pkginfo[name]["metadata"][info.metadata_version] = {}
         else:
             if info.metadata_file:
                 print(f"\tmetadata file: {info.metadata_file}")
@@ -2006,7 +2006,7 @@ def cmd_info(manager, args, config, configfile):
                     info2 = manager.info(
                         name, vers, prefer_installed=(not args.nolocal)
                     )
-                    pkginfo[name]["metadata"][info2.metadata_version] = dict()
+                    pkginfo[name]["metadata"][info2.metadata_version] = {}
                     if info2.metadata_file:
                         pkginfo[name]["metadata_file"] = info2.metadata_file
                     _fill_metadata_version(
@@ -2042,7 +2042,7 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
     """
     for key, value in info_metadata.items():
         if key == "depends" or key == "suggests":
-            pkginfo_name_metadata_version[key] = dict()
+            pkginfo_name_metadata_version[key] = {}
             deps = value.split("\n")
 
             for i in range(1, len(deps)):
@@ -2157,8 +2157,8 @@ def cmd_env(manager, args, config, configfile):
         if not pluginpath:
             pluginpath = line2
 
-    zeekpaths = [p for p in zeekpath.split(":")] if zeekpath else []
-    pluginpaths = [p for p in pluginpath.split(":")] if pluginpath else []
+    zeekpaths = list(zeekpath.split(":")) if zeekpath else []
+    pluginpaths = list(pluginpath.split(":")) if pluginpath else []
 
     zeekpaths.append(manager.zeekpath())
     pluginpaths.append(manager.zeek_plugin_path())

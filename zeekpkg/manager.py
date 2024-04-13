@@ -1592,17 +1592,17 @@ class Manager:
             item = queue.popleft()
 
             for _pkg_name in pkg_dependencies:
-                pkg_dependees = {_pkg for _pkg in pkg_dependencies.get(_pkg_name)}
+                pkg_dependees = set(pkg_dependencies.get(_pkg_name))
 
                 if item in pkg_dependees:
                     # check if there is a cyclic dependency
                     if _pkg_name == pkg_name:
-                        return sorted([pkg for pkg in depender_packages] + [pkg_name])
+                        return sorted([*list(depender_packages), [pkg_name]])
 
                     queue.append(_pkg_name)
                     depender_packages.add(_pkg_name)
 
-        return sorted([pkg for pkg in depender_packages])
+        return sorted(depender_packages)
 
     def unload_with_unused_dependers(self, pkg_name):
         """Unmark dependent (but previously installed packages) as being "loaded".
@@ -1976,8 +1976,8 @@ class Manager:
                 self.info = None
                 self.requested_version = None  # (tracking method, version)
                 self.installed_version = None  # (tracking method, version)
-                self.dependers = dict()  # name -> version, name needs self at version
-                self.dependees = dict()  # name -> version, self needs name at version
+                self.dependers = {}  # name -> version, name needs self at version
+                self.dependees = {}  # name -> version, self needs name at version
                 self.is_suggestion = False
 
             def __str__(self):
@@ -1990,7 +1990,7 @@ class Manager:
                     self.is_suggestion,
                 )
 
-        graph = dict()  # Node.name -> Node, nodes store edges
+        graph = {}  # Node.name -> Node, nodes store edges
         requests = []  # List of Node, just for requested packages
 
         # 1. Try to make nodes for everything in the dependency graph...
