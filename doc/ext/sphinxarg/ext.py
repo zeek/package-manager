@@ -1,5 +1,6 @@
 import os
 from argparse import ArgumentParser
+from typing import Callable, ClassVar
 
 from docutils import nodes
 from docutils.parsers.rst.directives import flag, unchanged
@@ -195,7 +196,7 @@ def print_subcommand_list(data, nested_content):
 
 class ArgParseDirective(Directive):
     has_content = True
-    option_spec = dict(
+    option_spec: ClassVar[dict[str, Callable[[str | None], str | None]]] = dict(
         module=unchanged,
         func=unchanged,
         ref=unchanged,

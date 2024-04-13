@@ -19,7 +19,7 @@ from collections import OrderedDict
 
 try:
     import git
-    import semantic_version  # noqa  # pylint: disable=unused-import
+    import semantic_version
 except ImportError as error:
     print(
         "error: zkg failed to import one or more dependencies:\n"
@@ -40,7 +40,7 @@ except ImportError as error:
 try:
     # Argcomplete provides command-line completion for users of argparse.
     # We support it if available, but don't complain when it isn't.
-    import argcomplete  # pylint: disable=import-error
+    import argcomplete
 except ImportError:
     pass
 
@@ -84,23 +84,23 @@ ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
 # The default package template
 ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
 
-import zeekpkg  # noqa: E402
-from zeekpkg._util import (  # noqa: E402
+import zeekpkg
+from zeekpkg._util import (
     delete_path,
     find_program,
     make_dir,
     read_zeek_config_line,
     std_encoding,
 )
-from zeekpkg.package import (  # noqa: E402
+from zeekpkg.package import (
     BUILTIN_SCHEME,
     TRACKING_METHOD_VERSION,
 )
-from zeekpkg.template import (  # noqa: E402
+from zeekpkg.template import (
     LoadError,
     Template,
 )
-from zeekpkg.uservar import (  # noqa: E402
+from zeekpkg.uservar import (
     UserVar,
 )
 

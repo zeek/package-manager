@@ -188,7 +188,6 @@ class Template:
         # The above guards against absence of TEMPLATE_API_VERSION, so
         # appease pylint for the rest of this function while we access
         # it.
-        # pylint: disable=no-member
 
         try:
             is_compat = Template.is_api_compatible(mod.TEMPLATE_API_VERSION)
@@ -310,7 +309,7 @@ class Template:
         """
         return None
 
-    def features(self):  # pylint: disable=no-self-use
+    def features(self):
         """Provides any additional features templates supported.
 
         If the template provides extra features, return each as an
@@ -419,7 +418,7 @@ class Template:
             res["versions"] = []
             res["has_repo"] = False
 
-        pkg = self.package()  # pylint: disable=assignment-from-none
+        pkg = self.package()
         uvars = self.define_user_vars()
         feature_names = []
         res["user_vars"] = {}
@@ -669,7 +668,7 @@ class _Content(metaclass=abc.ABCMeta):
 
                 yield in_file, out_path, out_file, out_content
 
-    def _replace(self, tmpl, content):  # pylint: disable=no-self-use
+    def _replace(self, tmpl, content):
         """Helper for content substitution.
 
         Args:
@@ -752,7 +751,7 @@ class Package(_Content):
         config.remove_section(section)
         config.add_section(section)
 
-        for uvar in tmpl._get_user_vars():  # pylint: disable=protected-access
+        for uvar in tmpl._get_user_vars():
             if uvar.val() is not None:
                 config.set(section, uvar.name(), uvar.val())
 
