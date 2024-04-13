@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
-from typing import Callable, ClassVar
+from collections.abc import Callable
+from typing import ClassVar
 
 from docutils import nodes
 from docutils.parsers.rst.directives import flag, unchanged

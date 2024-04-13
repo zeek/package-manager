@@ -19,7 +19,7 @@ from collections import OrderedDict
 
 try:
     import git
-    import semantic_version
+    import semantic_version  # noqa: F401
 except ImportError as error:
     print(
         "error: zkg failed to import one or more dependencies:\n"
