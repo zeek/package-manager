@@ -545,8 +545,8 @@ class Manager:
                 LOG.debug('duplicate source "%s"', name)
                 return True
 
-            return "source already exists with different URL: {}".format(
-                existing_source.git_url
+            return (
+                f"source already exists with different URL: {existing_source.git_url}"
             )
 
         clone_path = os.path.join(self.source_clonedir, name)
@@ -1145,9 +1145,7 @@ class Manager:
                             url,
                             error,
                         )
-                        msg = 'failed to checkout branch/version "{}": {}'.format(
-                            version, repr(error)
-                        )
+                        msg = f'failed to checkout branch/version "{version}": {repr(error)}'
                         aggregation_issues.append((url, msg))
                         continue
 
@@ -1688,9 +1686,7 @@ class Manager:
                     errors.append(
                         (
                             item,
-                            "Package is in use by other packages --- {}.".format(
-                                dep_listing[:-2]
-                            ),
+                            f"Package is in use by other packages --- {dep_listing[:-2]}.",
                         )
                     )
                     return errors
@@ -3195,7 +3191,7 @@ def _is_version_outdated(clone, version):
 
 
 def _is_branch_outdated(clone, branch):
-    it = clone.iter_commits("{0}..origin/{0}".format(branch))
+    it = clone.iter_commits(f"{branch}..origin/{branch}")
     num_commits_behind = sum(1 for c in it)
     return num_commits_behind > 0
 
@@ -3316,8 +3312,8 @@ def _parse_package_metadata(parser, metadata_file):
     """Return string explaining why metadata is invalid, or '' if valid."""
     if not parser.read(metadata_file):
         LOG.warning("%s: missing metadata file", metadata_file)
-        return "missing {} (or {}) metadata file".format(
-            METADATA_FILENAME, LEGACY_METADATA_FILENAME
+        return (
+            f"missing {METADATA_FILENAME} (or {LEGACY_METADATA_FILENAME}) metadata file"
         )
 
     if not parser.has_section("package"):

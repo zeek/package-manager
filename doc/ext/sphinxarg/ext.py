@@ -401,11 +401,8 @@ class ArgParseDirective(Directive):
 
         if not hasattr(mod, attr_name):
             raise self.error(
-                (
-                    'Module "%s" has no attribute "%s"\n'
-                    "Incorrect argparse :module: or :func: values?"
-                )
-                % (module_name, attr_name)
+                f'Module "{module_name}" has no attribute "{attr_name}"\n'
+                "Incorrect argparse :module: or :func: values?"
             )
         func = getattr(mod, attr_name)
         if isinstance(func, ArgumentParser):

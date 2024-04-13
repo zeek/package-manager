@@ -27,8 +27,8 @@ def parser_navigate(parser_result, path, current_path=None):
             current_path.append(next_hop)
             return parser_navigate(child, path, current_path)
     raise NavigationException(
-        "Current parser have no children element with name: %s  (path: %s)"
-        % (next_hop, " ".join(current_path))
+        f"Current parser have no children element with name: {next_hop}  (path: %s)"
+        % " ".join(current_path)
     )
 
 

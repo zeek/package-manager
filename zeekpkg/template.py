@@ -153,11 +153,7 @@ class Template:
             try:
                 git_checkout(repo, version)
             except git.exc.GitCommandError as error:
-                msg = (
-                    'failed to checkout branch/version "{}" of template {}: {}'.format(
-                        version, template, error
-                    )
-                )
+                msg = f'failed to checkout branch/version "{version}" of template {template}: {error}'
                 LOG.warn(msg)
                 raise GitError(msg) from error
 
@@ -171,9 +167,7 @@ class Template:
             except TypeError:
                 pass  # Not on a branch, do nothing
             except git.exc.GitCommandError as error:
-                msg = 'failed to update branch "{}" of template {}: {}'.format(
-                    version, template, error
-                )
+                msg = f'failed to update branch "{version}" of template {template}: {error}'
                 LOG.warning(msg)
                 raise GitError(msg) from error
 
@@ -795,10 +789,10 @@ class Package(_Content):
                 ver_info += " (" + ver_sha[:8] + ")"
 
         repo.index.commit(
-            """Initial commit.
+            f"""Initial commit.
 
-zkg {} created this package from template "{}"
-using {}{}.""".format(__version__, tmpl.name(), ver_info, features_info)
+zkg {__version__} created this package from template "{tmpl.name()}"
+using {ver_info}{features_info}."""
         )
 
 

@@ -33,7 +33,7 @@ except ImportError as error:
         "     pip3 install GitPython semantic-version\n"
         "\n"
         "Also check the following exception output for possible alternate explanations:\n\n"
-        "{}: {}".format(type(error).__name__, error),
+        f"{type(error).__name__}: {error}",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -405,9 +405,7 @@ def create_manager(args, config):
 
             if permissions_trouble and not args.user:
                 print_error(
-                    "Consider the --user flag to manage zkg state via {}/config".format(
-                        home_config_dir()
-                    )
+                    f"Consider the --user flag to manage zkg state via {home_config_dir()}/config"
                 )
             sys.exit(1)
 
@@ -681,9 +679,7 @@ def cmd_install(manager, args, config, configfile):
             extdeps = info.dependencies(field="external_depends")
 
             if extdeps is None:
-                extdep_listing += "  from {} ({}):\n    <malformed>\n".format(
-                    name, version
-                )
+                extdep_listing += f"  from {name} ({version}):\n    <malformed>\n"
                 continue
 
             if extdeps:
@@ -841,7 +837,7 @@ def cmd_install(manager, args, config, configfile):
             else:
                 print(
                     "The following installed packages could NOT be loaded "
-                    'to satisfy runtime dependencies for "{}"'.format(name)
+                    f'to satisfy runtime dependencies for "{name}"'
                 )
                 print(_listing)
                 manager.restore_loaded_package_states(saved_state)
@@ -965,11 +961,7 @@ def cmd_bundle(manager, args, config, configfile):
 
             package_listing += "\n"
 
-        print(
-            "The following packages will be BUNDLED into {}:".format(
-                args.bundle_filename
-            )
-        )
+        print(f"The following packages will be BUNDLED into {args.bundle_filename}:")
         print(package_listing)
 
         if not confirmation_prompt("Proceed?"):
@@ -1006,9 +998,7 @@ def cmd_unbundle(manager, args, config, configfile):
         if pkg_info.invalid_reason:
             name = pkg_info.package.qualified_name()
             print_error(
-                "error: bundle {} contains invalid package {} ({}): {}".format(
-                    args.bundle_filename, git_url, name, pkg_info.invalid_reason
-                )
+                f"error: bundle {args.bundle_filename} contains invalid package {git_url} ({name}): {pkg_info.invalid_reason}"
             )
             sys.exit(1)
 
@@ -1049,9 +1039,7 @@ def cmd_unbundle(manager, args, config, configfile):
             extdeps = info.dependencies(field="external_depends")
 
             if extdeps is None:
-                extdep_listing += "  from {} ({}):\n    <malformed>\n".format(
-                    name, version
-                )
+                extdep_listing += f"  from {name} ({version}):\n    <malformed>\n"
                 continue
 
             if extdeps:
@@ -1444,9 +1432,7 @@ def cmd_upgrade(manager, args, config, configfile):
             extdeps = info.dependencies(field="external_depends")
 
             if extdeps is None:
-                extdep_listing += "  from {} ({}):\n    <malformed>\n".format(
-                    name, version
-                )
+                extdep_listing += f"  from {name} ({version}):\n    <malformed>\n"
                 continue
 
             if extdeps:
@@ -1634,7 +1620,7 @@ def cmd_load(manager, args, config, configfile):
                 if dep_listing:
                     print(
                         "The following installed packages were additionally loaded to satisfy"
-                        ' runtime dependencies for "{}".'.format(name)
+                        f' runtime dependencies for "{name}".'
                     )
                     print(dep_listing)
 
@@ -1644,9 +1630,7 @@ def cmd_load(manager, args, config, configfile):
             if not args.nodeps:
                 if dep_error_listing:
                     print(
-                        'The following installed dependencies could not be loaded for "{}".'.format(
-                            name
-                        )
+                        f'The following installed dependencies could not be loaded for "{name}".'
                     )
                     print(dep_error_listing)
                     manager.restore_loaded_package_states(saved_state)
@@ -1760,9 +1744,7 @@ def cmd_pin(manager, args, config, configfile):
 
         if ipkg:
             print(
-                'Pinned "{}" at version: {} ({})'.format(
-                    name, ipkg.status.current_version, ipkg.status.current_hash
-                )
+                f'Pinned "{name}" at version: {ipkg.status.current_version} ({ipkg.status.current_hash})'
             )
         else:
             had_failure = True
@@ -1793,9 +1775,7 @@ def cmd_unpin(manager, args, config, configfile):
 
         if ipkg:
             print(
-                'Unpinned "{}" from version: {} ({})'.format(
-                    name, ipkg.status.current_version, ipkg.status.current_hash
-                )
+                f'Unpinned "{name}" from version: {ipkg.status.current_version} ({ipkg.status.current_hash})'
             )
         else:
             had_failure = True
@@ -2288,9 +2268,7 @@ def cmd_create(manager, args, config, configfile):
                     )
                 except OSError as err:
                     print_error(
-                        "error: could not remove package directory {}: {}".format(
-                            args.packagedir, err
-                        )
+                        f"error: could not remove package directory {args.packagedir}: {err}"
                     )
                     sys.exit(1)
 
@@ -2363,11 +2341,9 @@ def top_level_parser():
         "    ``ZKG_CONFIG_FILE``:\t"
         "Same as ``--configfile`` option, but has less precedence.\n"
         "    ``ZKG_DEFAULT_SOURCE``:\t"
-        "The default package source to use (normally {}).\n"
+        f"The default package source to use (normally {ZKG_DEFAULT_SOURCE}).\n"
         "    ``ZKG_DEFAULT_TEMPLATE``:\t"
-        "The default package template to use (normally {}).\n".format(
-            ZKG_DEFAULT_SOURCE, ZKG_DEFAULT_TEMPLATE
-        ),
+        f"The default package template to use (normally {ZKG_DEFAULT_TEMPLATE}).\n",
     )
     top_parser.add_argument(
         "--version", action="version", version="%(prog)s " + zeekpkg.__version__
