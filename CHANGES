@@ -1,3 +1,74 @@
+3.0.1-29 | 2024-05-08 09:38:06 -0700
+
+  * Remove python2 `urlparse` (Benjamin Bannier)
+
+  * Require at least python-3.9 (Benjamin Bannier)
+
+  * Enforce pyflakes lint set (Benjamin Bannier)
+
+  * Replace `str.format` uses with f-strings (Benjamin Bannier)
+
+  * Enforce flake8-bugbear rules (Benjamin Bannier)
+
+  * Enforce trainling commas (Benjamin Bannier)
+
+  * Remove shadowing of builtins (Benjamin Bannier)
+
+  * Remove unnecessary comprehensions (Benjamin Bannier)
+
+  * Fix accidental implicit str concats (Benjamin Bannier)
+
+  * Enforce PEP8 naming conventions (Benjamin Bannier)
+
+  * Enable RUF lint set (Benjamin Bannier)
+
+  * Fix imports with ruff (Benjamin Bannier)
+
+  * Modernize Python code with ruff (Benjamin Bannier)
+
+  * Move btest to dev dependencies (Benjamin Bannier)
+
+  * Modernize doc module with pyupgrade (Benjamin Bannier)
+
+  * Automatically reformat doc module (Benjamin Bannier)
+
+  * Fix ruff lints in doc modules (Benjamin Bannier)
+
+  * Stop excluding `doc/ext/sphinxarg` from linting (Benjamin Bannier)
+
+  * Bump pre-commit hooks (Benjamin Bannier)
+
+  * Centralize project configuration (Benjamin Bannier)
+
+    We previously used a mix of `setup.py` and `setup.cfg` which are not
+    well supported by more modern Python developer tools which instead
+    prefer `pyproject.toml`. This meant that developing this project
+    required manually setting up and managing virtualenvs.
+
+    With this patch we now move most of our configuration over into
+    `pyproject.toml` so especially dev environments can be managed with
+    tools like Hatch[^1] or Rye[^2]. Dev envs managed by these tools are
+    automaticallt discovered by many editors so there is potentially less
+    need to even think about virtualenvs.
+
+    Now `setup.py` contains the absolute minimum required settings. We still
+    need to keep dynamically generating the package version from the
+    Zeek-style `VERSION` file, and also need to add a tweak to make sure it
+    is distributed in wheels so the installation code reading it has access
+    to it.
+
+    Since settings in `setup.cfg` can conflict with `pyproject.toml` we
+    delete the file after either moving all setttings to `pyproject.toml` or
+    to tool specific files (flake8 still does not support `pyproject.toml`).
+
+    For now we keep `requirements.txt` (which updated versions) so we can
+    install dev dependencies, e.g., for RTD. Unfortunately dev dependencies
+    in `pyproject.toml` are still not standardized[^3].
+
+    [^1]: hatch.pypa.io
+    [^2]: https://rye-up.com/
+    [^3]: https://discuss.python.org/t/development-dependencies-in-pyproject-toml/26149
+
 3.0.1-8 | 2024-04-10 09:34:51 -0700
 
   * Standardize on ruff for python formatting/linting via pre-commits (Tim Wojtulewicz, Corelight)

@@ -126,7 +126,11 @@ def git_clone(git_url, dst_path, shallow=False):
     if shallow:
         try:
             git.Git().clone(
-                git_url, dst_path, "--no-single-branch", recursive=True, depth=1
+                git_url,
+                dst_path,
+                "--no-single-branch",
+                recursive=True,
+                depth=1,
             )
         except git.exc.GitCommandError:
             if not git_url.startswith(".") and not git_url.startswith("/"):

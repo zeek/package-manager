@@ -50,7 +50,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Zeek Package Manager"
-copyright = "2019, The Zeek Project"
+copyright = "2019, The Zeek Project"  # noqa: A001
 author = "The Zeek Project"
 
 # The version info for the project you're documenting, acts as replacement for

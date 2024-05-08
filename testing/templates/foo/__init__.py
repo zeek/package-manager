@@ -23,15 +23,21 @@ class Readme(zeekpkg.template.Feature):
     def needed_user_vars(self):
         return ["readme"]
 
+    def validate(self, tmpl):
+        pass
+
 
 class Template(zeekpkg.template.Template):
     def define_user_vars(self):
         return [
             zeekpkg.uservar.UserVar(
-                "name", desc='the name of the package, e.g. "FooBar"'
+                "name",
+                desc='the name of the package, e.g. "FooBar"',
             ),
             zeekpkg.uservar.UserVar(
-                "readme", desc="Content of the README file", val="This is a README."
+                "readme",
+                desc="Content of the README file",
+                val="This is a README.",
             ),
         ]
 
@@ -48,3 +54,6 @@ class Template(zeekpkg.template.Template):
 
     def features(self):
         return [Readme()]
+
+    def validate(self, tmpl):
+        pass

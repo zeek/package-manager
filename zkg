@@ -15,12 +15,11 @@ import shutil
 import subprocess
 import sys
 import threading
-
 from collections import OrderedDict
 
 try:
     import git
-    import semantic_version  # noqa  # pylint: disable=unused-import
+    import semantic_version  # noqa: F401
 except ImportError as error:
     print(
         "error: zkg failed to import one or more dependencies:\n"
@@ -33,7 +32,7 @@ except ImportError as error:
         "     pip3 install GitPython semantic-version\n"
         "\n"
         "Also check the following exception output for possible alternate explanations:\n\n"
-        "{}: {}".format(type(error).__name__, error),
+        f"{type(error).__name__}: {error}",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -41,7 +40,7 @@ except ImportError as error:
 try:
     # Argcomplete provides command-line completion for users of argparse.
     # We support it if available, but don't complain when it isn't.
-    import argcomplete  # pylint: disable=import-error
+    import argcomplete
 except ImportError:
     pass
 
@@ -85,26 +84,25 @@ ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
 # The default package template
 ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
 
-from zeekpkg._util import (  # noqa: E402
+import zeekpkg
+from zeekpkg._util import (
     delete_path,
-    make_dir,
     find_program,
+    make_dir,
     read_zeek_config_line,
     std_encoding,
 )
-from zeekpkg.package import (  # noqa: E402
+from zeekpkg.package import (
     BUILTIN_SCHEME,
     TRACKING_METHOD_VERSION,
 )
-from zeekpkg.template import (  # noqa: E402
+from zeekpkg.template import (
     LoadError,
     Template,
 )
-from zeekpkg.uservar import (  # noqa: E402
+from zeekpkg.uservar import (
     UserVar,
 )
-
-import zeekpkg  # noqa: E402
 
 
 def confirmation_prompt(prompt, default_to_yes=True):
@@ -139,21 +137,21 @@ def prompt_for_user_vars(manager, config, configfile, args, pkg_infos):
         requested_user_vars = info.user_vars()
 
         if requested_user_vars is None:
-            print_error(str.format('error: malformed user_vars in "{}"', name))
+            print_error(f'error: malformed user_vars in "{name}"')
             sys.exit(1)
 
         for uvar in requested_user_vars:
             try:
                 answers[uvar.name()] = uvar.resolve(
-                    name, config, args.user_var, args.force
+                    name,
+                    config,
+                    args.user_var,
+                    args.force,
                 )
             except ValueError:
                 print_error(
-                    str.format(
-                        'error: could not determine value of user variable "{}",'
-                        " provide via environment or --user-var",
-                        uvar.name(),
-                    )
+                    f'error: could not determine value of user variable "{uvar.name()}",'
+                    " provide via environment or --user-var",
                 )
                 sys.exit(1)
 
@@ -267,10 +265,16 @@ def create_config(args, configfile):
 
     state_dir = get_option(config, "paths", "state_dir", os.path.join(def_state_dir))
     script_dir = get_option(
-        config, "paths", "script_dir", os.path.join(state_dir, "script_dir")
+        config,
+        "paths",
+        "script_dir",
+        os.path.join(state_dir, "script_dir"),
     )
     plugin_dir = get_option(
-        config, "paths", "plugin_dir", os.path.join(state_dir, "plugin_dir")
+        config,
+        "paths",
+        "plugin_dir",
+        os.path.join(state_dir, "plugin_dir"),
     )
     bin_dir = get_option(config, "paths", "bin_dir", os.path.join(state_dir, "bin"))
     zeek_dist = get_option(config, "paths", "zeek_dist", "")
@@ -293,13 +297,9 @@ def create_config(args, configfile):
     for key, value in config.items("paths"):
         if value and not os.path.isabs(value):
             print_error(
-                str.format(
-                    "error: invalid config file value for key"
-                    ' "{}" in section [paths]: "{}" is not'
-                    " an absolute path",
-                    key,
-                    value,
-                )
+                "error: invalid config file value for key"
+                f' "{key}" in section [paths]: "{value}" is not'
+                " an absolute path",
             )
             sys.exit(1)
 
@@ -400,14 +400,12 @@ def create_manager(args, config):
                     check_permission(script_dir),
                     check_permission(plugin_dir),
                     check_permission(bin_dir),
-                ]
+                ],
             )
 
             if permissions_trouble and not args.user:
                 print_error(
-                    "Consider the --user flag to manage zkg state via {}/config".format(
-                        home_config_dir()
-                    )
+                    f"Consider the --user flag to manage zkg state via {home_config_dir()}/config",
                 )
             sys.exit(1)
 
@@ -433,9 +431,7 @@ def create_manager(args, config):
 
         if error:
             print_error(
-                str.format(
-                    'warning: skipped using package source named "{}": {}', key, error
-                )
+                f'warning: skipped using package source named "{key}": {error}',
             )
 
     return manager
@@ -542,9 +538,7 @@ def cmd_test(manager, args, config, configfile):
 
         if package_info.invalid_reason:
             print_error(
-                str.format(
-                    'error: invalid package "{}": {}', name, package_info.invalid_reason
-                )
+                f'error: invalid package "{name}": {package_info.invalid_reason}',
             )
             sys.exit(1)
 
@@ -559,37 +553,33 @@ def cmd_test(manager, args, config, configfile):
         name = info.package.qualified_name()
 
         if "test_command" not in info.metadata:
-            print(str.format("{}: no test_command found in metadata, skipping", name))
+            print(f"{name}: no test_command found in metadata, skipping")
             continue
 
         error_msg, passed, test_dir = manager.test(
-            name, version, test_dependencies=True
+            name,
+            version,
+            test_dependencies=True,
         )
 
         if error_msg:
             all_passed = False
-            print_error(
-                str.format('error: failed to run tests for "{}": {}', name, error_msg)
-            )
+            print_error(f'error: failed to run tests for "{name}": {error_msg}')
             continue
 
         if passed:
-            print(str.format("{}: all tests passed", name))
+            print(f"{name}: all tests passed")
         else:
             all_passed = False
             clone_dir = os.path.join(
-                os.path.join(test_dir, "clones"), info.package.name
+                os.path.join(test_dir, "clones"),
+                info.package.name,
             )
             print_error(
-                str.format(
-                    'error: package "{}" tests failed, inspect'
-                    " contents of {} for details, especially"
-                    ' any "zkg.test_command.{{stderr,stdout}}"'
-                    " files within {}",
-                    name,
-                    test_dir,
-                    clone_dir,
-                )
+                f'error: package "{name}" tests failed, inspect'
+                f" contents of {test_dir} for details, especially"
+                ' any "zkg.test_command.{{stderr,stdout}}"'
+                f" files within {clone_dir}",
             )
 
     if not all_passed:
@@ -618,9 +608,7 @@ def cmd_install(manager, args, config, configfile):
 
         if package_info.invalid_reason:
             print_error(
-                str.format(
-                    'error: invalid package "{}": {}', name, package_info.invalid_reason
-                )
+                f'error: invalid package "{name}": {package_info.invalid_reason}',
             )
             sys.exit(1)
 
@@ -639,7 +627,8 @@ def cmd_install(manager, args, config, configfile):
             for info, version, _ in package_infos
         ]
         invalid_reason, new_pkgs = manager.validate_dependencies(
-            to_validate, ignore_suggestions=args.nosuggestions
+            to_validate,
+            ignore_suggestions=args.nosuggestions,
         )
 
         if invalid_reason:
@@ -660,7 +649,8 @@ def cmd_install(manager, args, config, configfile):
             dependency_listing = ""
 
             for info, version, suggested in sorted(
-                new_pkgs, key=lambda x: x[0].package.name
+                new_pkgs,
+                key=lambda x: x[0].package.name,
             ):
                 name = info.package.qualified_name()
                 dependency_listing += f"  {name} ({version})"
@@ -681,9 +671,7 @@ def cmd_install(manager, args, config, configfile):
             extdeps = info.dependencies(field="external_depends")
 
             if extdeps is None:
-                extdep_listing += "  from {} ({}):\n    <malformed>\n".format(
-                    name, version
-                )
+                extdep_listing += f"  from {name} ({version}):\n    <malformed>\n"
                 continue
 
             if extdeps:
@@ -696,7 +684,7 @@ def cmd_install(manager, args, config, configfile):
             print(
                 "Verify the following REQUIRED external dependencies:\n"
                 "(Ensure their installation on all relevant systems before"
-                " proceeding):"
+                " proceeding):",
             )
             print(extdep_listing)
 
@@ -706,7 +694,11 @@ def cmd_install(manager, args, config, configfile):
     package_infos += new_pkgs
 
     prompt_for_user_vars(
-        manager, config, configfile, args, [info for info, _, _ in package_infos]
+        manager,
+        config,
+        configfile,
+        args,
+        [info for info, _, _ in package_infos],
     )
 
     if not args.skiptests:
@@ -717,7 +709,7 @@ def cmd_install(manager, args, config, configfile):
 
             if "test_command" not in info.metadata:
                 zeekpkg.LOG.info(
-                    f'Skipping unit tests for "{name}": no test_command in metadata'
+                    f'Skipping unit tests for "{name}": no test_command in metadata',
                 )
                 continue
 
@@ -727,22 +719,22 @@ def cmd_install(manager, args, config, configfile):
             # well fail without them. If the user wants --nodeps and the tests
             # fail because of it, they'll also need to say --skiptests.
             error, passed, test_dir = manager.test(
-                name, version, test_dependencies=True
+                name,
+                version,
+                test_dependencies=True,
             )
             if error:
-                error_msg = str.format("failed to run tests for {}: {}", name, error)
+                error_msg = f"failed to run tests for {name}: {error}"
             elif not passed:
                 clone_dir = os.path.join(
-                    os.path.join(test_dir, "clones"), info.package.name
+                    os.path.join(test_dir, "clones"),
+                    info.package.name,
                 )
-                error_msg = str.format(
-                    '"{}" tests failed, inspect contents of'
-                    " {} for details, especially any"
+                error_msg = (
+                    f'"{name}" tests failed, inspect contents of'
+                    f" {test_dir} for details, especially any"
                     ' "zkg.test_command.{{stderr,stdout}}"'
-                    " files within {}",
-                    name,
-                    test_dir,
-                    clone_dir,
+                    f" files within {clone_dir}"
                 )
 
             if error_msg:
@@ -752,7 +744,8 @@ def cmd_install(manager, args, config, configfile):
                     sys.exit(1)
 
                 if not confirmation_prompt(
-                    "Proceed to install anyway?", default_to_yes=False
+                    "Proceed to install anyway?",
+                    default_to_yes=False,
                 ):
                     return
 
@@ -816,12 +809,12 @@ def cmd_install(manager, args, config, configfile):
     if not args.nodeps:
         # Now load runtime dependencies after all dependencies and suggested
         # packages have been installed and loaded.
-        for info, ver, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
+        for info, _, _ in sorted(orig_pkgs, key=lambda x: x[0].package.name):
             _listing, saved_state = "", manager.loaded_package_states()
             name = info.package.qualified_name()
 
             load_error = manager.load_with_dependencies(
-                zeekpkg.package.name_from_path(name)
+                zeekpkg.package.name_from_path(name),
             )
 
             for _name, _error in load_error:
@@ -834,14 +827,14 @@ def cmd_install(manager, args, config, configfile):
                 if dep_listing:
                     print(
                         "The following installed packages were additionally "
-                        "loaded to satisfy runtime dependencies"
+                        "loaded to satisfy runtime dependencies",
                     )
                     print(dep_listing)
 
             else:
                 print(
                     "The following installed packages could NOT be loaded "
-                    'to satisfy runtime dependencies for "{}"'.format(name)
+                    f'to satisfy runtime dependencies for "{name}"',
                 )
                 print(_listing)
                 manager.restore_loaded_package_states(saved_state)
@@ -849,7 +842,7 @@ def cmd_install(manager, args, config, configfile):
     if installs_failed:
         print_error(
             "error: incomplete installation, the follow packages"
-            " failed to be installed:"
+            " failed to be installed:",
         )
 
         for n, v in installs_failed:
@@ -889,11 +882,7 @@ def cmd_bundle(manager, args, config, configfile):
             info = manager.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                print_error(
-                    str.format(
-                        'error: invalid package "{}": {}', name, info.invalid_reason
-                    )
-                )
+                print_error(f'error: invalid package "{name}": {info.invalid_reason}')
                 sys.exit(1)
 
             if not version:
@@ -907,7 +896,7 @@ def cmd_bundle(manager, args, config, configfile):
                     version,
                     False,
                     False,
-                )
+                ),
             )
 
         if not args.nodeps:
@@ -929,7 +918,7 @@ def cmd_bundle(manager, args, config, configfile):
                     version,
                     True,
                     suggested,
-                )
+                ),
             )
     else:
         prefer_existing_clones = True
@@ -942,7 +931,7 @@ def cmd_bundle(manager, args, config, configfile):
                     ipkg.status.current_version,
                     False,
                     False,
-                )
+                ),
             )
 
     if not packages_to_bundle:
@@ -965,11 +954,7 @@ def cmd_bundle(manager, args, config, configfile):
 
             package_listing += "\n"
 
-        print(
-            "The following packages will be BUNDLED into {}:".format(
-                args.bundle_filename
-            )
-        )
+        print(f"The following packages will be BUNDLED into {args.bundle_filename}:")
         print(package_listing)
 
         if not confirmation_prompt("Proceed?"):
@@ -977,7 +962,9 @@ def cmd_bundle(manager, args, config, configfile):
 
     git_urls = [(git_url, version) for _, git_url, version, _, _ in packages_to_bundle]
     error = manager.bundle(
-        args.bundle_filename, git_urls, prefer_existing_clones=prefer_existing_clones
+        args.bundle_filename,
+        git_urls,
+        prefer_existing_clones=prefer_existing_clones,
     )
 
     if error:
@@ -1002,13 +989,11 @@ def cmd_unbundle(manager, args, config, configfile):
         print_error(f"error: failed to unbundle {args.bundle_filename}: {error}")
         sys.exit(1)
 
-    for git_url, version, pkg_info in bundle_info:
+    for git_url, _, pkg_info in bundle_info:
         if pkg_info.invalid_reason:
             name = pkg_info.package.qualified_name()
             print_error(
-                "error: bundle {} contains invalid package {} ({}): {}".format(
-                    args.bundle_filename, git_url, name, pkg_info.invalid_reason
-                )
+                f"error: bundle {args.bundle_filename} contains invalid package {git_url} ({name}): {pkg_info.invalid_reason}",
             )
             sys.exit(1)
 
@@ -1049,9 +1034,7 @@ def cmd_unbundle(manager, args, config, configfile):
             extdeps = info.dependencies(field="external_depends")
 
             if extdeps is None:
-                extdep_listing += "  from {} ({}):\n    <malformed>\n".format(
-                    name, version
-                )
+                extdep_listing += f"  from {name} ({version}):\n    <malformed>\n"
                 continue
 
             if extdeps:
@@ -1064,7 +1047,7 @@ def cmd_unbundle(manager, args, config, configfile):
             print(
                 "Verify the following REQUIRED external dependencies:\n"
                 "(Ensure their installation on all relevant systems before"
-                " proceeding):"
+                " proceeding):",
             )
             print(extdep_listing)
 
@@ -1072,7 +1055,11 @@ def cmd_unbundle(manager, args, config, configfile):
             return
 
     prompt_for_user_vars(
-        manager, config, configfile, args, [info for _, _, info in bundle_info]
+        manager,
+        config,
+        configfile,
+        args,
+        [info for _, _, info in bundle_info],
     )
 
     error = manager.unbundle(args.bundle_filename)
@@ -1259,7 +1246,7 @@ def cmd_refresh(manager, args, config, configfile):
     if args.fail_on_aggregate_problems and not args.aggregate:
         print_error(
             "warning: --fail-on-aggregate-problems without --aggregate"
-            " has no effect."
+            " has no effect.",
         )
 
     had_failure = False
@@ -1301,7 +1288,7 @@ def cmd_refresh(manager, args, config, configfile):
             if aggregation_issues:
                 print(
                     "\tWARNING: Metadata aggregated, but excludes the "
-                    "following packages due to described problems:"
+                    "following packages due to described problems:",
                 )
 
                 for url, issue in aggregation_issues:
@@ -1314,10 +1301,10 @@ def cmd_refresh(manager, args, config, configfile):
         if args.push:
             print("\tPushed aggregated metadata")
 
-    outdated_before = {i for i in outdated(manager)}
+    outdated_before = set(outdated(manager))
     print("Refresh installed packages")
     manager.refresh_installed_packages()
-    outdated_after = {i for i in outdated(manager)}
+    outdated_after = set(outdated(manager))
 
     if outdated_before == outdated_after:
         print("\tNo new outdated packages")
@@ -1379,13 +1366,13 @@ def cmd_upgrade(manager, args, config, configfile):
             name = ipkg.package.git_url
 
         info = manager.info(
-            name, version=ipkg.status.current_version, prefer_installed=False
+            name,
+            version=ipkg.status.current_version,
+            prefer_installed=False,
         )
 
         if info.invalid_reason:
-            print_error(
-                str.format('error: invalid package "{}": {}', name, info.invalid_reason)
-            )
+            print_error(f'error: invalid package "{name}": {info.invalid_reason}')
             sys.exit(1)
 
         next_version = ipkg.status.current_version
@@ -1409,7 +1396,8 @@ def cmd_upgrade(manager, args, config, configfile):
             for info, next_version, _ in outdated_packages
         ]
         invalid_reason, new_pkgs = manager.validate_dependencies(
-            to_validate, ignore_suggestions=args.nosuggestions
+            to_validate,
+            ignore_suggestions=args.nosuggestions,
         )
 
         if invalid_reason:
@@ -1444,9 +1432,7 @@ def cmd_upgrade(manager, args, config, configfile):
             extdeps = info.dependencies(field="external_depends")
 
             if extdeps is None:
-                extdep_listing += "  from {} ({}):\n    <malformed>\n".format(
-                    name, version
-                )
+                extdep_listing += f"  from {name} ({version}):\n    <malformed>\n"
                 continue
 
             if extdeps:
@@ -1459,7 +1445,7 @@ def cmd_upgrade(manager, args, config, configfile):
             print(
                 "Verify the following REQUIRED external dependencies:\n"
                 "(Ensure their installation on all relevant systems before"
-                " proceeding):"
+                " proceeding):",
             )
             print(extdep_listing)
 
@@ -1467,7 +1453,11 @@ def cmd_upgrade(manager, args, config, configfile):
             return
 
     prompt_for_user_vars(
-        manager, config, configfile, args, [info for info, _, _ in allpkgs]
+        manager,
+        config,
+        configfile,
+        args,
+        [info for info, _, _ in allpkgs],
     )
 
     if not args.skiptests:
@@ -1479,13 +1469,14 @@ def cmd_upgrade(manager, args, config, configfile):
             next_info = manager.info(name, version=version, prefer_installed=False)
             if next_info.invalid_reason:
                 print_error(
-                    f'error: invalid package "{name}": {next_info.invalid_reason}'
+                    f'error: invalid package "{name}": {next_info.invalid_reason}',
                 )
                 sys.exit(1)
 
             if "test_command" not in next_info.metadata:
                 zeekpkg.LOG.info(
-                    'Skipping unit tests for "%s": no test_command in metadata', name
+                    'Skipping unit tests for "%s": no test_command in metadata',
+                    name,
                 )
                 continue
 
@@ -1495,23 +1486,23 @@ def cmd_upgrade(manager, args, config, configfile):
             # might well fail without them. If the user wants --nodeps and the
             # tests fail because of it, they'll also need to say --skiptests.
             error, passed, test_dir = manager.test(
-                name, version, test_dependencies=True
+                name,
+                version,
+                test_dependencies=True,
             )
 
             if error:
-                error_msg = str.format("failed to run tests for {}: {}", name, error)
+                error_msg = f"failed to run tests for {name}: {error}"
             elif not passed:
                 clone_dir = os.path.join(
-                    os.path.join(test_dir, "clones"), info.package.name
+                    os.path.join(test_dir, "clones"),
+                    info.package.name,
                 )
-                error_msg = str.format(
-                    '"{}" tests failed, inspect contents of'
-                    " {} for details, especially any"
+                error_msg = (
+                    f'"{name}" tests failed, inspect contents of'
+                    f" {test_dir} for details, especially any"
                     ' "zkg.test_command.{{stderr,stdout}}"'
-                    " files within {}",
-                    name,
-                    test_dir,
-                    clone_dir,
+                    f" files within {clone_dir}"
                 )
 
             if error_msg:
@@ -1521,7 +1512,8 @@ def cmd_upgrade(manager, args, config, configfile):
                     sys.exit(1)
 
                 if not confirmation_prompt(
-                    "Proceed to install anyway?", default_to_yes=False
+                    "Proceed to install anyway?",
+                    default_to_yes=False,
                 ):
                     return
 
@@ -1548,7 +1540,7 @@ def cmd_upgrade(manager, args, config, configfile):
 
     had_failure = False
 
-    for info, next_version, _ in outdated_packages:
+    for info, _, _ in outdated_packages:
         name = info.package.qualified_name()
 
         if not manager.match_source_packages(name):
@@ -1620,7 +1612,7 @@ def cmd_load(manager, args, config, configfile):
             dep_error_listing, load_error = "", False
 
             loaded_dep_list = manager.load_with_dependencies(
-                zeekpkg.package.name_from_path(name)
+                zeekpkg.package.name_from_path(name),
             )
 
             for _name, _error in loaded_dep_list:
@@ -1634,7 +1626,7 @@ def cmd_load(manager, args, config, configfile):
                 if dep_listing:
                     print(
                         "The following installed packages were additionally loaded to satisfy"
-                        ' runtime dependencies for "{}".'.format(name)
+                        f' runtime dependencies for "{name}".',
                     )
                     print(dep_listing)
 
@@ -1644,9 +1636,7 @@ def cmd_load(manager, args, config, configfile):
             if not args.nodeps:
                 if dep_error_listing:
                     print(
-                        'The following installed dependencies could not be loaded for "{}".'.format(
-                            name
-                        )
+                        f'The following installed dependencies could not be loaded for "{name}".',
                     )
                     print(dep_error_listing)
                     manager.restore_loaded_package_states(saved_state)
@@ -1760,9 +1750,7 @@ def cmd_pin(manager, args, config, configfile):
 
         if ipkg:
             print(
-                'Pinned "{}" at version: {} ({})'.format(
-                    name, ipkg.status.current_version, ipkg.status.current_hash
-                )
+                f'Pinned "{name}" at version: {ipkg.status.current_version} ({ipkg.status.current_hash})',
             )
         else:
             had_failure = True
@@ -1793,9 +1781,7 @@ def cmd_unpin(manager, args, config, configfile):
 
         if ipkg:
             print(
-                'Unpinned "{}" from version: {} ({})'.format(
-                    name, ipkg.status.current_version, ipkg.status.current_hash
-                )
+                f'Unpinned "{name}" from version: {ipkg.status.current_version} ({ipkg.status.current_hash})',
             )
         else:
             had_failure = True
@@ -1806,7 +1792,7 @@ def cmd_unpin(manager, args, config, configfile):
 
 
 def _get_filtered_packages(manager, category):
-    pkg_dict = dict()
+    pkg_dict = {}
 
     for ipkg in manager.installed_packages():
         pkg_dict[ipkg.package.qualified_name()] = ipkg
@@ -1937,14 +1923,15 @@ def cmd_info(manager, args, config, configfile):
         sys.exit(1)
 
     # Dictionary for storing package info to output as JSON
-    pkginfo = dict()
+    pkginfo = {}
     had_invalid_package = False
 
     if len(args.package) == 1:
         try:
             package_names = []
             for pkg_name, info in _get_filtered_packages(
-                manager, args.package[0]
+                manager,
+                args.package[0],
             ).items():
                 if info.is_builtin() and not args.include_builtin:
                     continue
@@ -1957,15 +1944,17 @@ def cmd_info(manager, args, config, configfile):
 
     for name in package_names:
         info = manager.info(
-            name, version=args.version, prefer_installed=(not args.nolocal)
+            name,
+            version=args.version,
+            prefer_installed=(not args.nolocal),
         )
 
         if info.package:
             name = info.package.qualified_name()
 
         if args.json:
-            pkginfo[name] = dict()
-            pkginfo[name]["metadata"] = dict()
+            pkginfo[name] = {}
+            pkginfo[name]["metadata"] = {}
         else:
             print(f'"{name}" info:')
 
@@ -1987,7 +1976,7 @@ def cmd_info(manager, args, config, configfile):
 
         if info.status:
             if args.json:
-                pkginfo[name]["install_status"] = dict()
+                pkginfo[name]["install_status"] = {}
 
                 for key, value in sorted(info.status.__dict__.items()):
                     pkginfo[name]["install_status"][key] = value
@@ -2000,7 +1989,7 @@ def cmd_info(manager, args, config, configfile):
         if args.json:
             if info.metadata_file:
                 pkginfo[name]["metadata_file"] = info.metadata_file
-            pkginfo[name]["metadata"][info.metadata_version] = dict()
+            pkginfo[name]["metadata"][info.metadata_version] = {}
         else:
             if info.metadata_file:
                 print(f"\tmetadata file: {info.metadata_file}")
@@ -2012,7 +2001,8 @@ def cmd_info(manager, args, config, configfile):
         else:
             if args.json:
                 _fill_metadata_version(
-                    pkginfo[name]["metadata"][info.metadata_version], info.metadata
+                    pkginfo[name]["metadata"][info.metadata_version],
+                    info.metadata,
                 )
             else:
                 for key, value in sorted(info.metadata.items()):
@@ -2026,9 +2016,11 @@ def cmd_info(manager, args, config, configfile):
                 # Skip the version that was already processed
                 if vers != info.metadata_version:
                     info2 = manager.info(
-                        name, vers, prefer_installed=(not args.nolocal)
+                        name,
+                        vers,
+                        prefer_installed=(not args.nolocal),
                     )
-                    pkginfo[name]["metadata"][info2.metadata_version] = dict()
+                    pkginfo[name]["metadata"][info2.metadata_version] = {}
                     if info2.metadata_file:
                         pkginfo[name]["metadata_file"] = info2.metadata_file
                     _fill_metadata_version(
@@ -2064,7 +2056,7 @@ def _fill_metadata_version(pkginfo_name_metadata_version, info_metadata):
     """
     for key, value in info_metadata.items():
         if key == "depends" or key == "suggests":
-            pkginfo_name_metadata_version[key] = dict()
+            pkginfo_name_metadata_version[key] = {}
             deps = value.split("\n")
 
             for i in range(1, len(deps)):
@@ -2179,8 +2171,8 @@ def cmd_env(manager, args, config, configfile):
         if not pluginpath:
             pluginpath = line2
 
-    zeekpaths = [p for p in zeekpath.split(":")] if zeekpath else []
-    pluginpaths = [p for p in pluginpath.split(":")] if pluginpath else []
+    zeekpaths = list(zeekpath.split(":")) if zeekpath else []
+    pluginpaths = list(pluginpath.split(":")) if pluginpath else []
 
     zeekpaths.append(manager.zeekpath())
     pluginpaths.append(manager.zeek_plugin_path())
@@ -2241,8 +2233,10 @@ def cmd_create(manager, args, config, configfile):
                 print_error(
                     "error: the following features are unknown: {}."
                     ' Template "{}" offers {}.'.format(
-                        unknowns, tmpl.name(), knowns or "no features"
-                    )
+                        unknowns,
+                        tmpl.name(),
+                        knowns or "no features",
+                    ),
                 )
                 sys.exit(1)
 
@@ -2255,11 +2249,8 @@ def cmd_create(manager, args, config, configfile):
                 uvar.resolve(tmpl.name(), config, args.user_var, args.force)
             except ValueError:
                 print_error(
-                    str.format(
-                        'error: could not determine value of user variable "{}",'
-                        " provide via environment or --user-var",
-                        uvar.name(),
-                    )
+                    f'error: could not determine value of user variable "{uvar.name()}",'
+                    " provide via environment or --user-var",
                 )
                 sys.exit(1)
 
@@ -2284,13 +2275,12 @@ def cmd_create(manager, args, config, configfile):
                 try:
                     delete_path(args.packagedir)
                     zeekpkg.LOG.info(
-                        "Removed existing package directory %s", args.packagedir
+                        "Removed existing package directory %s",
+                        args.packagedir,
                     )
                 except OSError as err:
                     print_error(
-                        "error: could not remove package directory {}: {}".format(
-                            args.packagedir, err
-                        )
+                        f"error: could not remove package directory {args.packagedir}: {err}",
                     )
                     sys.exit(1)
 
@@ -2337,7 +2327,7 @@ def cmd_template_info(manager, args, config, configfile):
                     uvar_info["description"],
                     uvar_info["default"] or "no default",
                     ", ".join(uvar_info["used_by"]) or "not used",
-                )
+                ),
             )
         print("versions: " + ", ".join(tmplinfo["versions"]))
 
@@ -2363,14 +2353,14 @@ def top_level_parser():
         "    ``ZKG_CONFIG_FILE``:\t"
         "Same as ``--configfile`` option, but has less precedence.\n"
         "    ``ZKG_DEFAULT_SOURCE``:\t"
-        "The default package source to use (normally {}).\n"
+        f"The default package source to use (normally {ZKG_DEFAULT_SOURCE}).\n"
         "    ``ZKG_DEFAULT_TEMPLATE``:\t"
-        "The default package template to use (normally {}).\n".format(
-            ZKG_DEFAULT_SOURCE, ZKG_DEFAULT_TEMPLATE
-        ),
+        f"The default package template to use (normally {ZKG_DEFAULT_TEMPLATE}).\n",
     )
     top_parser.add_argument(
-        "--version", action="version", version="%(prog)s " + zeekpkg.__version__
+        "--version",
+        action="version",
+        version="%(prog)s " + zeekpkg.__version__,
     )
 
     group = top_parser.add_mutually_exclusive_group()
@@ -2550,7 +2540,9 @@ def argparser():
         " to first terminate that argument list.",
     )
     sub_parser.add_argument(
-        "--force", action="store_true", help="Skip the confirmation prompt."
+        "--force",
+        action="store_true",
+        help="Skip the confirmation prompt.",
     )
     sub_parser.add_argument(
         "--nodeps",
@@ -2611,7 +2603,9 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_remove)
     sub_parser.add_argument("package", nargs="+", help=pkg_name_help)
     sub_parser.add_argument(
-        "--force", action="store_true", help="Skip the confirmation prompt."
+        "--force",
+        action="store_true",
+        help="Skip the confirmation prompt.",
     )
     sub_parser.add_argument(
         "--nodeps",
@@ -2631,7 +2625,9 @@ def argparser():
     )
     sub_parser.set_defaults(run_cmd=cmd_purge)
     sub_parser.add_argument(
-        "--force", action="store_true", help="Skip the confirmation prompt."
+        "--force",
+        action="store_true",
+        help="Skip the confirmation prompt.",
     )
 
     # refresh
@@ -2721,7 +2717,10 @@ def argparser():
     )
     sub_parser.set_defaults(run_cmd=cmd_load)
     sub_parser.add_argument(
-        "package", nargs="+", default=[], help="Name(s) of package(s) to load."
+        "package",
+        nargs="+",
+        default=[],
+        help="Name(s) of package(s) to load.",
     )
     sub_parser.add_argument(
         "--nodeps",
@@ -2745,7 +2744,9 @@ def argparser():
     sub_parser.set_defaults(run_cmd=cmd_unload)
     sub_parser.add_argument("package", nargs="+", default=[], help=pkg_name_help)
     sub_parser.add_argument(
-        "--force", action="store_true", help="Skip the confirmation prompt."
+        "--force",
+        action="store_true",
+        help="Skip the confirmation prompt.",
     )
     sub_parser.add_argument(
         "--nodeps",
@@ -2918,7 +2919,9 @@ def argparser():
     )
     sub_parser.set_defaults(run_cmd=cmd_autoconfig)
     sub_parser.add_argument(
-        "--force", action="store_true", help="Skip any confirmation prompt."
+        "--force",
+        action="store_true",
+        help="Skip any confirmation prompt.",
     )
 
     # env
@@ -3024,7 +3027,8 @@ def main():
     args = argparser().parse_args()
 
     formatter = logging.Formatter(
-        "%(asctime)s %(levelname)-8s %(message)s", "%Y-%m-%d %H:%M:%S"
+        "%(asctime)s %(levelname)-8s %(message)s",
+        "%Y-%m-%d %H:%M:%S",
     )
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)

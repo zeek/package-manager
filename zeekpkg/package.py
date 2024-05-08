@@ -5,13 +5,13 @@ the properties and status of Zeek packages.
 
 import os
 import re
-
 from functools import total_ordering
+from typing import Optional
 
 import semantic_version as semver
 
-from .uservar import UserVar
 from ._util import find_sentence_end, normalize_version_tag
+from .uservar import UserVar
 
 #: The name of files used by packages to store their metadata.
 METADATA_FILENAME = "zkg.meta"
@@ -135,9 +135,9 @@ def dependencies(metadata_dict, field="depends"):
     number of values), then None is returned.
     """
     if field not in metadata_dict:
-        return dict()
+        return {}
 
-    rval = dict()
+    rval = {}
     depends = metadata_dict[field]
     parts = depends.split()
     keys = parts[::2]
@@ -244,7 +244,8 @@ class InstalledPackage:
         Does the current version fullfill version_spec?
         """
         return PackageVersion(
-            self.status.tracking_method, self.status.current_version
+            self.status.tracking_method,
+            self.status.current_version,
         ).fullfills(version_spec)
 
 
@@ -588,7 +589,12 @@ class Package:
             return path == self.git_url
 
 
-def make_builtin_package(*, name: str, current_version: str, current_hash: str = None):
+def make_builtin_package(
+    *,
+    name: str,
+    current_version: str,
+    current_hash: Optional[str] = None,
+):
     """
     Given ``name``, ``version`` and ``commit`` as found in Zeek's ``zkg.provides``
     entry, construct a :class:`PackageInfo` instance representing the built-in
