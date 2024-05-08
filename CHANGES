@@ -1,3 +1,10 @@
+3.0.1-31 | 2024-05-08 09:57:29 -0700
+
+  * Make requirements.txt match pyproject file (Tim Wojtulewicz, Corelight)
+
+    Notably, the two versions listed here are the current releases. The current
+    setting causes RTD to fail since it can't find versions newer than those.
+
 3.0.1-29 | 2024-05-08 09:38:06 -0700
 
   * Remove python2 `urlparse` (Benjamin Bannier)
