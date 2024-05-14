@@ -1,7 +1,10 @@
+# NOTE: Dependencies should go into `pyproject.toml`. We keep this file to e.g., support RTD.
+
 # Requirements for general zkg usage
-GitPython
-semantic_version
-btest
+GitPython>=3.1.43
+semantic_version>=2.10.0
+# Technically not a zkg dependency, but typically expected by users to be present.
+btest>=1.1
 # Requirements for development (e.g. building docs)
-Sphinx>=3.0
-sphinx_rtd_theme
+Sphinx>=7.2.6
+sphinx_rtd_theme>=2.0.0

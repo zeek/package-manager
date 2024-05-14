@@ -4,20 +4,16 @@ A module for instantiating different types of Zeek packages.
 
 import abc
 import configparser
-import re
 import os
+import re
 import shutil
 
-import semantic_version as semver
 import git
+import semantic_version as semver
 
 from . import (
-    __version__,
     LOG,
-)
-from .package import (
-    METADATA_FILENAME,
-    name_from_path,
+    __version__,
 )
 from ._util import (
     delete_path,
@@ -25,10 +21,14 @@ from ._util import (
     git_clone,
     git_default_branch,
     git_pull,
-    git_version_tags,
     git_remote_urls,
+    git_version_tags,
     load_source,
     make_dir,
+)
+from .package import (
+    METADATA_FILENAME,
+    name_from_path,
 )
 
 API_VERSION = "1.1.0"
@@ -113,7 +113,9 @@ class Template:
             # zkg state folder's clone space and support version
             # requests.
             template_clonedir = os.path.join(
-                config.get("paths", "state_dir"), "clones", "template"
+                config.get("paths", "state_dir"),
+                "clones",
+                "template",
             )
             templatedir = os.path.join(template_clonedir, name_from_path(template))
             make_dir(template_clonedir)
@@ -153,11 +155,7 @@ class Template:
             try:
                 git_checkout(repo, version)
             except git.exc.GitCommandError as error:
-                msg = (
-                    'failed to checkout branch/version "{}" of template {}: {}'.format(
-                        version, template, error
-                    )
-                )
+                msg = f'failed to checkout branch/version "{version}" of template {template}: {error}'
                 LOG.warn(msg)
                 raise GitError(msg) from error
 
@@ -171,9 +169,7 @@ class Template:
             except TypeError:
                 pass  # Not on a branch, do nothing
             except git.exc.GitCommandError as error:
-                msg = 'failed to update branch "{}" of template {}: {}'.format(
-                    version, template, error
-                )
+                msg = f'failed to update branch "{version}" of template {template}: {error}'
                 LOG.warning(msg)
                 raise GitError(msg) from error
 
@@ -186,7 +182,7 @@ class Template:
 
         if not hasattr(mod, "TEMPLATE_API_VERSION"):
             msg = "template{} does not indicate its API version".format(
-                " version " + version if version else ""
+                " version " + version if version else "",
             )
             LOG.error(msg)
             raise LoadError(msg)
@@ -194,14 +190,13 @@ class Template:
         # The above guards against absence of TEMPLATE_API_VERSION, so
         # appease pylint for the rest of this function while we access
         # it.
-        # pylint: disable=no-member
 
         try:
             is_compat = Template.is_api_compatible(mod.TEMPLATE_API_VERSION)
         except ValueError:
             raise LoadError(
-                f'API version string "{mod.TEMPLATE_API_VERSION}" is invalid'
-            )
+                f'API version string "{mod.TEMPLATE_API_VERSION}" is invalid',
+            ) from None
 
         if not is_compat:
             msg = "template{} API version is incompatible with zkg ({} vs {})".format(
@@ -316,7 +311,7 @@ class Template:
         """
         return None
 
-    def features(self):  # pylint: disable=no-self-use
+    def features(self):
         """Provides any additional features templates supported.
 
         If the template provides extra features, return each as an
@@ -425,7 +420,7 @@ class Template:
             res["versions"] = []
             res["has_repo"] = False
 
-        pkg = self.package()  # pylint: disable=assignment-from-none
+        pkg = self.package()
         uvars = self.define_user_vars()
         feature_names = []
         res["user_vars"] = {}
@@ -444,7 +439,8 @@ class Template:
                     res["user_vars"][uvar_name]["used_by"].append("package")
                 except KeyError:
                     LOG.warning(
-                        'Package requires undefined user var "%s", skipping', uvar_name
+                        'Package requires undefined user var "%s", skipping',
+                        uvar_name,
                     )
 
         for feature in self.features():
@@ -516,6 +512,7 @@ class _Content(metaclass=abc.ABCMeta):
         for feature in self._features:
             feature.validate(tmpl)
 
+    @abc.abstractmethod
     def validate(self, tmpl):
         """Validation of template configuration for this component.
 
@@ -532,6 +529,7 @@ class _Content(metaclass=abc.ABCMeta):
             zeekpkg.template.InputError when failing validation.
 
         """
+        pass
 
     def do_instantiate(self, tmpl, packagedir, use_force=False):
         """Main driver for instantiating template content.
@@ -675,7 +673,7 @@ class _Content(metaclass=abc.ABCMeta):
 
                 yield in_file, out_path, out_file, out_content
 
-    def _replace(self, tmpl, content):  # pylint: disable=no-self-use
+    def _replace(self, tmpl, content):
         """Helper for content substitution.
 
         Args:
@@ -758,7 +756,7 @@ class Package(_Content):
         config.remove_section(section)
         config.add_section(section)
 
-        for uvar in tmpl._get_user_vars():  # pylint: disable=protected-access
+        for uvar in tmpl._get_user_vars():
             if uvar.val() is not None:
                 config.set(section, uvar.name(), uvar.val())
 
@@ -795,10 +793,10 @@ class Package(_Content):
                 ver_info += " (" + ver_sha[:8] + ")"
 
         repo.index.commit(
-            """Initial commit.
+            f"""Initial commit.
 
-zkg {} created this package from template "{}"
-using {}{}.""".format(__version__, tmpl.name(), ver_info, features_info)
+zkg {__version__} created this package from template "{tmpl.name()}"
+using {ver_info}{features_info}.""",
         )
 
 

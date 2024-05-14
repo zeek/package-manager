@@ -7,13 +7,14 @@ located and metadata tags that help classify/describe it.
 """
 
 import configparser
-import git
 import os
 import shutil
 
+import git
+
 from . import LOG
-from .package import name_from_path, Package
-from ._util import git_default_branch, git_checkout, git_clone
+from ._util import git_checkout, git_clone, git_default_branch
+from .package import Package, name_from_path
 
 #: The name of package index files.
 INDEX_FILENAME = "zkg.index"
@@ -132,7 +133,7 @@ class Source:
                 metadata = {}
 
                 if parser.has_section(agg_key):
-                    metadata = {key: value for key, value in parser.items(agg_key)}
+                    metadata = dict(parser.items(agg_key))
 
                 package = Package(
                     git_url=url,

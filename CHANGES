@@ -1,3 +1,93 @@
+3.0.1-33 | 2024-05-13 13:52:59 -0700
+
+  * Pull in `btest` when installing package manager (Benjamin Bannier, Corelight)
+
+    This reverts a24124d2f298b306e47d43a8aa0361f98ede9a04 where we moved
+    `btest` into a dev dependency which would not be installed by default.
+    While this would have been unobservable for users getting their `zkg`
+    via Zeek (which also provides `btest`), or who install `zkg` via `pipx`
+    (which even previously would never have linked the pulled in `btest`
+    into the prefix), it might break users installing via `pip` into a
+    random prefix.
+
+3.0.1-31 | 2024-05-08 09:57:29 -0700
+
+  * Make requirements.txt match pyproject file (Tim Wojtulewicz, Corelight)
+
+    Notably, the two versions listed here are the current releases. The current
+    setting causes RTD to fail since it can't find versions newer than those.
+
+3.0.1-29 | 2024-05-08 09:38:06 -0700
+
+  * Remove python2 `urlparse` (Benjamin Bannier)
+
+  * Require at least python-3.9 (Benjamin Bannier)
+
+  * Enforce pyflakes lint set (Benjamin Bannier)
+
+  * Replace `str.format` uses with f-strings (Benjamin Bannier)
+
+  * Enforce flake8-bugbear rules (Benjamin Bannier)
+
+  * Enforce trainling commas (Benjamin Bannier)
+
+  * Remove shadowing of builtins (Benjamin Bannier)
+
+  * Remove unnecessary comprehensions (Benjamin Bannier)
+
+  * Fix accidental implicit str concats (Benjamin Bannier)
+
+  * Enforce PEP8 naming conventions (Benjamin Bannier)
+
+  * Enable RUF lint set (Benjamin Bannier)
+
+  * Fix imports with ruff (Benjamin Bannier)
+
+  * Modernize Python code with ruff (Benjamin Bannier)
+
+  * Move btest to dev dependencies (Benjamin Bannier)
+
+  * Modernize doc module with pyupgrade (Benjamin Bannier)
+
+  * Automatically reformat doc module (Benjamin Bannier)
+
+  * Fix ruff lints in doc modules (Benjamin Bannier)
+
+  * Stop excluding `doc/ext/sphinxarg` from linting (Benjamin Bannier)
+
+  * Bump pre-commit hooks (Benjamin Bannier)
+
+  * Centralize project configuration (Benjamin Bannier)
+
+    We previously used a mix of `setup.py` and `setup.cfg` which are not
+    well supported by more modern Python developer tools which instead
+    prefer `pyproject.toml`. This meant that developing this project
+    required manually setting up and managing virtualenvs.
+
+    With this patch we now move most of our configuration over into
+    `pyproject.toml` so especially dev environments can be managed with
+    tools like Hatch[^1] or Rye[^2]. Dev envs managed by these tools are
+    automaticallt discovered by many editors so there is potentially less
+    need to even think about virtualenvs.
+
+    Now `setup.py` contains the absolute minimum required settings. We still
+    need to keep dynamically generating the package version from the
+    Zeek-style `VERSION` file, and also need to add a tweak to make sure it
+    is distributed in wheels so the installation code reading it has access
+    to it.
+
+    Since settings in `setup.cfg` can conflict with `pyproject.toml` we
+    delete the file after either moving all setttings to `pyproject.toml` or
+    to tool specific files (flake8 still does not support `pyproject.toml`).
+
+    For now we keep `requirements.txt` (which updated versions) so we can
+    install dev dependencies, e.g., for RTD. Unfortunately dev dependencies
+    in `pyproject.toml` are still not standardized[^3].
+
+    [^1]: hatch.pypa.io
+    [^2]: https://rye-up.com/
+    [^3]: https://discuss.python.org/t/development-dependencies-in-pyproject-toml/26149
+
 3.0.1-8 | 2024-04-10 09:34:51 -0700
 
   * Standardize on ruff for python formatting/linting via pre-commits (Tim Wojtulewicz, Corelight)
