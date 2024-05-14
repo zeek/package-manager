@@ -562,21 +562,28 @@ def cmd_test(manager, args, config, configfile):
             test_dependencies=True,
         )
 
+        clone_dir = os.path.join(
+            os.path.join(test_dir, "clones"),
+            info.package.name,
+        )
+
         if error_msg:
             all_passed = False
             print_error(
-                f'error: failed to run tests for "{name} {version}": {error_msg}',
+                f'error: failed to run tests for "{name} {version}": {error_msg},'
+                f" inspect contents of {test_dir} for details, especially"
+                ' any "zkg.test_command.{{stderr,stdout}}"'
+                f" files within {clone_dir}",
             )
             continue
 
         if passed:
-            print(f"{name} {version}: all tests passed")
+            print(
+                f"{name} {version}: all tests passed. The contents of {test_dir} and {clone_dir} "
+                'can be inspected for details, especially any "zkg.test_command.{stderr,stdout}"',
+            )
         else:
             all_passed = False
-            clone_dir = os.path.join(
-                os.path.join(test_dir, "clones"),
-                info.package.name,
-            )
             print_error(
                 f'error: package "{name} {version}" tests failed, inspect'
                 f" contents of {test_dir} for details, especially"
