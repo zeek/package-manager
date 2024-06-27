@@ -8,3 +8,4 @@
 <...>/out3 (installed: master) - TODO: A more detailed description of test3.
 error: could not determine value of user variable "name", provide via environment or --user-var
 error: the following features are unknown: "doesntexist". Template "foo" offers "readme".
+"foo" will use value of "name" (the name of the package, e.g. "FooBar") from command line: 你こ안مγПनสXש😊©GBCDČM
