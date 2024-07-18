@@ -16,8 +16,9 @@ def parser_navigate(parser_result, path, current_path=None):
         return parser_result
     if "children" not in parser_result:
         raise NavigationError(
-            "Current parser have no children elements.  (path: %s)"
-            % " ".join(current_path),
+            "Current parser have no children elements.  (path: {})".format(
+                " ".join(current_path),
+            ),
         )
     next_hop = path.pop(0)
     for child in parser_result["children"]:

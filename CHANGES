@@ -1,3 +1,22 @@
+3.0.1-39 | 2024-07-18 18:48:44 +0200
+
+  * Use documented Git package exception API (Benjamin Bannier, Corelight)
+
+  * Bump pre-commit hooks (Benjamin Bannier, Corelight)
+
+  * Use f-strings in more places (Benjamin Bannier, Corelight)
+
+  * Add installation workaround for tar files with macos metadata (Benjamin Bannier, Corelight)
+
+  * Fix test use of `sed` for macos (Benjamin Bannier, Corelight)
+
+    This fixes the invocation of `sed` in the test to be compatible with
+    macos' `sed` version. Previously this test would fail with
+
+    ```
+    sed: 1: "./install-dir/bin/zkg": invalid command code
+    ```
+
 3.0.1-33 | 2024-05-13 13:52:59 -0700
 
   * Pull in `btest` when installing package manager (Benjamin Bannier, Corelight)

@@ -580,7 +580,7 @@ class Manager:
                 git_url=git_url,
                 version=version,
             )
-        except git.exc.GitCommandError as error:
+        except git.GitCommandError as error:
             LOG.warning("failed to clone git repo: %s", error)
             return "failed to clone git repo"
         else:
@@ -1068,7 +1068,7 @@ class Manager:
         try:
             source.clone.git.fetch("--recurse-submodules=yes")
             git_pull(source.clone)
-        except git.exc.GitCommandError as error:
+        except git.GitCommandError as error:
             LOG.error("failed to pull source %s: %s", name, error)
             return self.SourceAggregationResults(
                 f"failed to pull from remote source: {error}",
@@ -1125,7 +1125,7 @@ class Manager:
 
                     try:
                         clone = git_clone(url, clonepath, shallow=True)
-                    except git.exc.GitCommandError as error:
+                    except git.GitCommandError as error:
                         LOG.warn(
                             "failed to clone %s, skipping aggregation: %s",
                             url,
@@ -1143,7 +1143,7 @@ class Manager:
 
                     try:
                         git_checkout(clone, version)
-                    except git.exc.GitCommandError as error:
+                    except git.GitCommandError as error:
                         LOG.warn(
                             'failed to checkout branch/version "%s" of %s, '
                             "skipping aggregation: %s",
@@ -1264,7 +1264,7 @@ class Manager:
 
             try:
                 clone.git.fetch("--recurse-submodules=yes")
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 LOG.warn(
                     "failed to fetch package %s: %s",
                     ipkg.package.qualified_name(),
@@ -1859,7 +1859,7 @@ class Manager:
 
             try:
                 return self._info(package, status, version)
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 LOG.info(
                     'getting info on "%s": invalid git repo path: %s',
                     pkg_path,
@@ -1892,7 +1892,7 @@ class Manager:
 
         try:
             return self._info(package, status, version)
-        except git.exc.GitCommandError as error:
+        except git.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s', pkg_path, error)
             reason = "git repository is either invalid or unreachable"
             return PackageInfo(package=package, invalid_reason=reason, status=status)
@@ -1904,7 +1904,7 @@ class Manager:
             A :class:`.package.PackageInfo` object.
 
         Raises:
-            git.exc.GitCommandError: when failing to clone the package repo
+            git.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
         clone = _clone_package(package, clonepath, version)
@@ -1918,7 +1918,7 @@ class Manager:
 
         try:
             git_checkout(clone, version)
-        except git.exc.GitCommandError:
+        except git.GitCommandError:
             reason = f'no such commit, branch, or version tag: "{version}"'
             return PackageInfo(package=package, status=status, invalid_reason=reason)
 
@@ -2421,7 +2421,7 @@ class Manager:
 
             try:
                 git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 return f"failed to clone {git_url}: {error}"
 
         # Record the built-in packages expected by this bundle (or simply
@@ -2607,7 +2607,7 @@ class Manager:
 
             try:
                 clone = _clone_package(info.package, clonepath, version)
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 LOG.warning("failed to clone git repo: %s", error)
                 return (
                     f"failed to clone {info.package.git_url}",
@@ -2617,7 +2617,7 @@ class Manager:
 
             try:
                 git_checkout(clone, version)
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 LOG.warning("failed to checkout git repo version: %s", error)
                 return (
                     f"failed to checkout {version} of {info.package.git_url}",
@@ -2941,7 +2941,7 @@ class Manager:
             try:
                 package = Package(git_url=pkg_path)
                 return self._install(package, version)
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 LOG.info('installing "%s": invalid git repo path: %s', pkg_path, error)
 
             LOG.info('installing "%s": matched no source package', pkg_path)
@@ -2962,7 +2962,7 @@ class Manager:
 
         try:
             return self._install(matches[0], version)
-        except git.exc.GitCommandError as error:
+        except git.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid', pkg_path)
             return f'failed to clone package "{pkg_path}": {error}'
 
@@ -3022,7 +3022,7 @@ class Manager:
             string explaining why it failed.
 
         Raises:
-            git.exc.GitCommandError: if the git repo is invalid
+            git.GitCommandError: if the git repo is invalid
             IOError: if the package manifest file can't be written
         """
         clonepath = os.path.join(self.package_clonedir, package.name)
@@ -3240,7 +3240,15 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         ld = os.listdir(tmp_dir)
 
         if len(ld) != 1:
-            return f"failed to copy package {dirname}: invalid tarfile"
+            # Apple `tar` might store HFS+ extended metadata in tar files.
+            # These metadata files have the names `._FOO` for each entry `FOO`.
+            # Since we expect a single top-level directory for the extracted
+            # plugin, ignore the metadata file if we see it.
+            ld.sort()
+            if len(ld) == 2 and ld[0] == f"._{ld[1]}":
+                ld = ld[1:]
+            else:
+                return f"failed to copy package {dirname}: invalid tarfile"
 
         src = os.path.join(tmp_dir, ld[0])
 
@@ -3289,7 +3297,7 @@ def _clone_package(package, clonepath, version):
         git.Repo: the cloned package
 
     Raises:
-        git.exc.GitCommandError: if the git repo is invalid
+        git.GitCommandError: if the git repo is invalid
     """
     delete_path(clonepath)
     shallow = not is_sha1(version)

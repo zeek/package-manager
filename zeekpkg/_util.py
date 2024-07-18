@@ -132,7 +132,7 @@ def git_clone(git_url, dst_path, shallow=False):
                 recursive=True,
                 depth=1,
             )
-        except git.exc.GitCommandError:
+        except git.GitCommandError:
             if not git_url.startswith(".") and not git_url.startswith("/"):
                 # Not a local repo
                 raise
@@ -171,7 +171,7 @@ def git_checkout(clone, version):
         version (str): the branch, tag, or commit to checkout
 
     Raises:
-        git.exc.GitCommandError: if the git repo is invalid
+        git.GitCommandError: if the git repo is invalid
     """
     clone.git.checkout(version)
     clone.git.submodule("sync", "--recursive")
@@ -255,7 +255,7 @@ def git_pull(repo):
         clone (git.Repo): the git clone on which to operate
 
     Raises:
-        git.exc.GitCommandError: in case of git trouble
+        git.GitCommandError: in case of git trouble
     """
     repo.git.pull()
     repo.git.submodule("sync", "--recursive")

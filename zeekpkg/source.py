@@ -42,7 +42,7 @@ class Source:
         """Create a package source.
 
         Raises:
-            git.exc.GitCommandError: if the git repo is invalid
+            git.GitCommandError: if the git repo is invalid
             OSError: if the git repo is invalid and can't be re-initialized
         """
         git_url = os.path.expanduser(git_url)
@@ -52,10 +52,10 @@ class Source:
 
         try:
             self.clone = git.Repo(clone_path)
-        except git.exc.NoSuchPathError:
+        except git.NoSuchPathError:
             LOG.debug('creating source clone of "%s" at %s', name, clone_path)
             self.clone = git_clone(git_url, clone_path, shallow=True)
-        except git.exc.InvalidGitRepositoryError:
+        except git.InvalidGitRepositoryError:
             LOG.debug('deleting invalid source clone of "%s" at %s', name, clone_path)
             shutil.rmtree(clone_path)
             self.clone = git_clone(git_url, clone_path, shallow=True)
