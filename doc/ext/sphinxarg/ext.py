@@ -42,7 +42,7 @@ def map_nested_definitions(nested_content):
                 "@before",
                 "@after",
             ):
-                raise Exception("Unknown classifier: %s" % classifier)
+                raise Exception(f"Unknown classifier: {classifier}")
             idx = subitem.first_child_matching_class(nodes.term)
             if idx is not None:
                 ch = subitem[idx]
@@ -70,8 +70,9 @@ def print_arg_list(data, nested_content):
                 my_def.append(
                     nodes.paragraph(
                         text=(
-                            "Possible choices: %s"
-                            % ", ".join([str(c) for c in arg["choices"]])
+                            "Possible choices: {}".format(
+                                ", ".join([str(c) for c in arg["choices"]]),
+                            )
                         ),
                     ),
                 )
@@ -115,8 +116,9 @@ def print_opt_list(data, nested_content):
                 my_def.append(
                     nodes.paragraph(
                         text=(
-                            "Possible choices: %s"
-                            % ", ".join([str(c) for c in opt["choices"]])
+                            "Possible choices: {}".format(
+                                ", ".join([str(c) for c in opt["choices"]]),
+                            )
                         ),
                     ),
                 )
@@ -169,7 +171,7 @@ def apply_definition(definitions, my_def, name):
             return my_def + definition.children
         if classifier == "@before":
             return definition.children + my_def
-        raise Exception("Unknown classifier: %s" % classifier)
+        raise Exception(f"Unknown classifier: {classifier}")
     return my_def
 
 
