@@ -9,7 +9,7 @@ set -eu
 mkdir -p install-dir/{bin,lib/python}
 cp -R $TEST_BASE/../zeekpkg ./install-dir/lib/python
 cp  $TEST_BASE/../zkg ./install-dir/bin
-sed -i "s,@PY_MOD_INSTALL_DIR@,$(pwd)/install-dir/lib/python," ./install-dir/bin/zkg
+sed -i -e "s,@PY_MOD_INSTALL_DIR@,$(pwd)/install-dir/lib/python," ./install-dir/bin/zkg
 
 export PATH=$(pwd)/install-dir/bin:$PATH
 # Ensure we're using the right zkg
