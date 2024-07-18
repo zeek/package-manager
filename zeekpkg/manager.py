@@ -3240,7 +3240,15 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         ld = os.listdir(tmp_dir)
 
         if len(ld) != 1:
-            return f"failed to copy package {dirname}: invalid tarfile"
+            # Apple `tar` might store HFS+ extended metadata in tar files.
+            # These metadata files have the names `._FOO` for each entry `FOO`.
+            # Since we expect a single top-level directory for the extracted
+            # plugin, ignore the metadata file if we see it.
+            ld.sort()
+            if len(ld) == 2 and ld[0] == f"._{ld[1]}":
+                ld = ld[1:]
+            else:
+                return f"failed to copy package {dirname}: invalid tarfile"
 
         src = os.path.join(tmp_dir, ld[0])
 
