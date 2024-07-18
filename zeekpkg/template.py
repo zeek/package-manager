@@ -105,7 +105,7 @@ class Template:
                 repo = git.Repo(template)
                 if not repo.is_dirty():
                     version = repo.head.ref.commit.hexsha[:8]
-            except git.exc.InvalidGitRepositoryError:
+            except git.InvalidGitRepositoryError:
                 pass
             templatedir = template
         else:
@@ -139,7 +139,7 @@ class Template:
                         repo = None
                 if repo is None:
                     repo = git_clone(template, templatedir)
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 msg = f'failed to update template "{template}": {error}'
                 LOG.error(msg)
                 raise GitError(msg) from error
@@ -154,7 +154,7 @@ class Template:
 
             try:
                 git_checkout(repo, version)
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 msg = f'failed to checkout branch/version "{version}" of template {template}: {error}'
                 LOG.warn(msg)
                 raise GitError(msg) from error
@@ -168,7 +168,7 @@ class Template:
                 git_pull(repo)
             except TypeError:
                 pass  # Not on a branch, do nothing
-            except git.exc.GitCommandError as error:
+            except git.GitCommandError as error:
                 msg = f'failed to update branch "{version}" of template {template}: {error}'
                 LOG.warning(msg)
                 raise GitError(msg) from error

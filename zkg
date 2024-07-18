@@ -309,7 +309,7 @@ def create_config(args, configfile):
 def active_git_branch(path):
     try:
         repo = git.Repo(path)
-    except git.exc.NoSuchPathError:
+    except git.NoSuchPathError:
         return None
 
     if not repo.working_tree_dir:
@@ -341,7 +341,7 @@ def is_local_git_repo(git_url):
         # accessible, (2) it's not the root directory of a git repo.
         git.Repo(git_url)
         return True
-    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
+    except (git.InvalidGitRepositoryError, git.NoSuchPathError):
         return False
 
 
@@ -350,7 +350,7 @@ def is_local_git_repo_dirty(git_url):
         return False
     try:
         repo = git.Repo(git_url)
-    except git.exc.NoSuchPathError:
+    except git.NoSuchPathError:
         return False
 
     return repo.is_dirty(untracked_files=True)
