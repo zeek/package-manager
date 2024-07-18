@@ -687,8 +687,8 @@ class _Content(metaclass=abc.ABCMeta):
         for name, val in tmpl.params().items():
             pat = "@" + name + "@"
             if not isinstance(content, str):
-                pat = bytes(pat, "ascii")
-                val = bytes(val, "ascii")
+                pat = bytes(pat, "utf-8")
+                val = bytes(val, "utf-8")
             content = re.sub(pat, val, content, flags=re.IGNORECASE)
 
         return content
