@@ -41,7 +41,8 @@ from ._util import (
     make_symlink,
     normalize_version_tag,
     read_zeek_config_line,
-    safe_tarfile_extractall,
+    zkg_tarfile_create,
+    zkg_tarfile_extractall,
     std_encoding,
 )
 from .package import (
@@ -1774,7 +1775,7 @@ class Manager:
         infos = []
 
         try:
-            safe_tarfile_extractall(bundle_file, bundle_dir)
+            zkg_tarfile_extractall(bundle_file, bundle_dir)
         except Exception as error:
             return (str(error), infos)
 
@@ -2439,7 +2440,8 @@ class Manager:
         with open(manifest_file, "w") as f:
             config.write(f)
 
-        archive = shutil.make_archive(bundle_dir, "gztar", bundle_dir)
+        #archive = shutil.make_archive(bundle_dir, "gztar", bundle_dir)
+        archive = zkg_tarfile_create(bundle_dir)
         delete_path(bundle_file)
         shutil.move(archive, bundle_file)
         return ""
@@ -2460,7 +2462,7 @@ class Manager:
         make_dir(bundle_dir)
 
         try:
-            safe_tarfile_extractall(bundle_file, bundle_dir)
+            zkg_tarfile_extractall(bundle_file, bundle_dir)
         except Exception as error:
             return str(error)
 
@@ -3233,7 +3235,7 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         make_dir(tmp_dir)
 
         try:
-            safe_tarfile_extractall(src, tmp_dir)
+            zkg_tarfile_extractall(src, tmp_dir)
         except Exception as error:
             return str(error)
 

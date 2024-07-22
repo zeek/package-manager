@@ -7,11 +7,28 @@ import importlib.machinery
 import os
 import shutil
 import string
-import tarfile
+import sys
 import types
 
 import git
 import semantic_version as semver
+
+pysemver = sys.version_info
+# try to handle older versions of python that don't have a recent version of tarfile
+if (pysemver.major > 4 or pysemver.major == 3 and (
+    pysemver.minor >= 12
+    or pysemver.minor == 11 and pysemver.micro >= 4
+    or pysemver.minor == 10 and pysemver.micro >= 12
+    or pysemver.minor == 9 and pysemver.micro >= 17
+    or pysemver.minor == 8 and pysemver.micro >= 17
+)):
+    # Python should have the needed version of tarfile
+    import tarfile
+    _tarfile_info = "native"
+else:
+    # use our local copy of the python3.12 tarfile package
+    from . import tarfile_fallback as tarfile
+    _tarfile_info = "fallback"
 
 
 def make_dir(path):
@@ -69,14 +86,23 @@ def make_symlink(target_path, link_path, force=True):
             raise error
 
 
-def safe_tarfile_extractall(tfile, destdir):
-    """Wrapper to tarfile.extractall(), checking for path traversal.
+def zkg_tarfile_create(basedir):
+    compression = "gz"
+    tar_name = ''.join((basedir, '.tar.', compression))
 
-    This adds the safeguards the Python docs for tarfile.extractall warn about:
+    with tarfile.open(tar_name, "w:" + compression) as tar:
+        tar.add(basedir, arcname=".", filter=zkg_tarfile_create_filter)
 
-    Never extract archives from untrusted sources without prior inspection. It
-    is possible that files are created outside of path, e.g. members that have
-    absolute filenames starting with "/" or filenames with two dots "..".
+    return tar_name
+
+
+def zkg_tarfile_extractall(tfile, destdir):
+    """Wrapper to tarfile.extractall() using our filter that calls data_filter.
+
+    This adds a lot of sanity checking for the tar file.
+
+    A zeek package contains arbitrary code that will be executed with the same
+    permissions as the user running zeek. Never extract archives from untrusted sources.
 
     Args:
         tfile (str): the tar file to extract
@@ -84,22 +110,59 @@ def safe_tarfile_extractall(tfile, destdir):
         destdir (str): the destination directory into which to place contents
 
     Raises:
-        Exception: if the tarfile would extract outside destdir
+        Exception: see tarfile.data_filter, tarfile.TarFile.extractall
     """
 
-    def is_within_directory(directory, target):
-        abs_directory = os.path.abspath(directory)
-        abs_target = os.path.abspath(target)
-        prefix = os.path.commonprefix([abs_directory, abs_target])
-        return prefix == abs_directory
-
     with tarfile.open(tfile) as tar:
-        for member in tar.getmembers():
-            member_path = os.path.join(destdir, member.name)
-            if not is_within_directory(destdir, member_path):
-                raise Exception("attempted path traversal in tarfile")
+        tar.extractall(destdir, filter=zkg_tarfile_extract_filter)
 
-        tar.extractall(destdir)
+
+def zkg_update_perms(new_attrs, member, extract):
+    # we are doing our own thing with `mode` here
+    mode = member.mode
+    if member.isreg() or member.islnk():
+        # if user has x bit
+        if mode is None or not mode & 0o100:
+            # not executable
+            mode = 0o644
+        else:
+            mode = 0o755
+    elif member.isdir():
+        mode = 0o755
+    elif member.issym():
+        mode = None
+    else:
+        raise Exception("unexpected special files in tarfile")
+
+    if extract:
+        new_attrs["uid"] = new_attrs["gid"] = None
+        new_attrs["uname"] = new_attrs["gname"] = None
+    else:
+        new_attrs["uid"] = new_attrs["gid"] = 0
+        new_attrs["uname"] = new_attrs["gname"] = "root"
+
+
+
+def zkg_tarfile_create_filter(member):
+    new_attrs = {}
+    zkg_update_perms(new_attrs, member, extract=False)
+
+    # FIXME: it seems like we should be using member.replace(**new_attrs), but
+    # copy.deepcopy() disagrees strongly
+    for attr in new_attrs:
+        setattr(member, attr, new_attrs[attr])
+
+    return member
+
+
+def zkg_tarfile_extract_filter(member, dest_path=False):
+    # we are uncompressing, so do more sanity checking
+    new_member = tarfile.data_filter(member, dest_path)
+
+    new_attrs = {}
+    zkg_update_perms(new_attrs, member, extract=True)
+
+    return new_member.replace(**new_attrs)
 
 
 def find_sentence_end(s):
