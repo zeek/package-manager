@@ -15,19 +15,29 @@ import semantic_version as semver
 
 pysemver = sys.version_info
 # try to handle older versions of python that don't have a recent version of tarfile
-if (pysemver.major > 4 or pysemver.major == 3 and (
-    pysemver.minor >= 12
-    or pysemver.minor == 11 and pysemver.micro >= 4
-    or pysemver.minor == 10 and pysemver.micro >= 12
-    or pysemver.minor == 9 and pysemver.micro >= 17
-    or pysemver.minor == 8 and pysemver.micro >= 17
-)):
+if (
+    pysemver.major > 4
+    or pysemver.major == 3
+    and (
+        pysemver.minor >= 12
+        or pysemver.minor == 11
+        and pysemver.micro >= 4
+        or pysemver.minor == 10
+        and pysemver.micro >= 12
+        or pysemver.minor == 9
+        and pysemver.micro >= 17
+        or pysemver.minor == 8
+        and pysemver.micro >= 17
+    )
+):
     # Python should have the needed version of tarfile
     import tarfile
+
     _tarfile_info = "native"
 else:
     # use our local copy of the python3.12 tarfile package
     from . import tarfile_fallback as tarfile
+
     _tarfile_info = "fallback"
 
 
@@ -88,7 +98,7 @@ def make_symlink(target_path, link_path, force=True):
 
 def zkg_tarfile_create(basedir):
     compression = "gz"
-    tar_name = ''.join((basedir, '.tar.', compression))
+    tar_name = "".join((basedir, ".tar.", compression))
 
     with tarfile.open(tar_name, "w:" + compression) as tar:
         tar.add(basedir, arcname=".", filter=zkg_tarfile_create_filter)
@@ -142,7 +152,6 @@ def zkg_update_perms(new_attrs, member, extract):
     else:
         new_attrs["uid"] = new_attrs["gid"] = 0
         new_attrs["uname"] = new_attrs["gname"] = "root"
-
 
 
 def zkg_tarfile_create_filter(member):

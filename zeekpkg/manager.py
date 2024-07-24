@@ -41,9 +41,9 @@ from ._util import (
     make_symlink,
     normalize_version_tag,
     read_zeek_config_line,
+    std_encoding,
     zkg_tarfile_create,
     zkg_tarfile_extractall,
-    std_encoding,
 )
 from .package import (
     BUILTIN_SCHEME,
@@ -2440,7 +2440,6 @@ class Manager:
         with open(manifest_file, "w") as f:
             config.write(f)
 
-        #archive = shutil.make_archive(bundle_dir, "gztar", bundle_dir)
         archive = zkg_tarfile_create(bundle_dir)
         delete_path(bundle_file)
         shutil.move(archive, bundle_file)
