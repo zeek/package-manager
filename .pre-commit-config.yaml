@@ -15,4 +15,6 @@ repos:
   hooks:
     - id: ruff
       args: [--fix]
+      exclude: zeekpkg/tarfile_fallback.py
     - id: ruff-format
+      exclude: zeekpkg/tarfile_fallback.py
