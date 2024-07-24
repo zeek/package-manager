@@ -134,6 +134,8 @@ def zkg_update_perms(new_attrs, member, extract):
     else:
         raise Exception("unexpected special files in tarfile")
 
+    new_attrs["mode"] = mode
+
     if extract:
         new_attrs["uid"] = new_attrs["gid"] = None
         new_attrs["uname"] = new_attrs["gname"] = None
@@ -147,12 +149,8 @@ def zkg_tarfile_create_filter(member):
     new_attrs = {}
     zkg_update_perms(new_attrs, member, extract=False)
 
-    # FIXME: it seems like we should be using member.replace(**new_attrs), but
-    # copy.deepcopy() disagrees strongly
-    for attr in new_attrs:
-        setattr(member, attr, new_attrs[attr])
-
-    return member
+    # copy.deepcopy() can't copy a file handle
+    return member.replace(deep=False, **new_attrs)
 
 
 def zkg_tarfile_extract_filter(member, dest_path=False):
