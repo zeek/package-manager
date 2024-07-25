@@ -136,7 +136,7 @@ def zkg_tarfile_create_filter(member):
     return member.replace(deep=False, **new_attrs)
 
 
-def zkg_tarfile_extract_filter(member, dest_path=False):
+def zkg_tarfile_extract_filter(member, dest_path):
     # we are uncompressing, so do more sanity checking
     new_member = tarfile.data_filter(member, dest_path)
 
