@@ -7,38 +7,12 @@ import importlib.machinery
 import os
 import shutil
 import string
-import sys
 import types
 
 import git
 import semantic_version as semver
 
-pysemver = sys.version_info
-# try to handle older versions of python that don't have a recent version of tarfile
-if (
-    pysemver.major > 4
-    or pysemver.major == 3
-    and (
-        pysemver.minor >= 12
-        or pysemver.minor == 11
-        and pysemver.micro >= 4
-        or pysemver.minor == 10
-        and pysemver.micro >= 12
-        or pysemver.minor == 9
-        and pysemver.micro >= 17
-        or pysemver.minor == 8
-        and pysemver.micro >= 17
-    )
-):
-    # Python should have the needed version of tarfile
-    import tarfile
-
-    _tarfile_info = "native"
-else:
-    # use our local copy of the python3.12 tarfile package
-    from . import tarfile_fallback as tarfile
-
-    _tarfile_info = "fallback"
+from .vendor import tarfile
 
 
 def make_dir(path):

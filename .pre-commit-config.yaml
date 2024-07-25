@@ -15,4 +15,4 @@ repos:
       args: [--fix]
     - id: ruff-format
 
-exclude: testing/baselines|zeekpkg/tarfile_fallback.py
+exclude: testing/baselines|zeekpkg/vendor/.*
