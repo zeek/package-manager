@@ -5,9 +5,7 @@ repos:
   rev: v4.6.0
   hooks:
   - id: trailing-whitespace
-    exclude: testing/baselines
   - id: end-of-file-fixer
-    exclude: testing/baselines
   - id: check-yaml
   - id: check-added-large-files
 - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -15,6 +13,6 @@ repos:
   hooks:
     - id: ruff
       args: [--fix]
-      exclude: zeekpkg/tarfile_fallback.py
     - id: ruff-format
-      exclude: zeekpkg/tarfile_fallback.py
+
+exclude: testing/baselines|zeekpkg/tarfile_fallback.py
