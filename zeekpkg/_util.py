@@ -71,6 +71,11 @@ def make_symlink(target_path, link_path, force=True):
 
 
 def zkg_tarfile_create(basedir):
+    """Create a tar of the bundle files at `basedir`
+
+    Args:
+        basedir (str): the path to the bundle root
+    """
     compression = "gz"
     tar_name = "".join((basedir, ".tar.", compression))
 
@@ -101,7 +106,21 @@ def zkg_tarfile_extractall(tfile, destdir):
         tar.extractall(destdir, filter=zkg_tarfile_extract_filter)
 
 
-def zkg_update_perms(new_attrs, member, extract):
+def zkg_update_perms(member, extract):
+    """Returns a dict of attributes that should be modified on member to result in our
+    desired permissions set. If extract is set, we set owner/group to None, otherwise
+    they are set to root/root.
+
+    Args:
+        member (tarfile.TarInfo): tarfile member info
+
+        extract (bool): whether or not we are extracting
+
+    Returns:
+        dict: member attributes to be replaced and their new values
+    """
+
+    new_attrs = {}
     # we are doing our own thing with `mode` here
     mode = member.mode
     if member.isreg() or member.islnk():
@@ -127,10 +146,19 @@ def zkg_update_perms(new_attrs, member, extract):
         new_attrs["uid"] = new_attrs["gid"] = 0
         new_attrs["uname"] = new_attrs["gname"] = "root"
 
+    return new_attrs
+
 
 def zkg_tarfile_create_filter(member):
-    new_attrs = {}
-    zkg_update_perms(new_attrs, member, extract=False)
+    """Filter member items during tar creation
+
+    Args:
+        member (tarfile.TarInfo): the member to inspect/normalize
+
+    Returns:
+        tarfile.TarInfo: the new member with desired permissions or None to omit
+    """
+    new_attrs = zkg_update_perms(member, extract=False)
 
     # copy.deepcopy() can't copy a file handle
     return member.replace(deep=False, **new_attrs)
@@ -140,8 +168,7 @@ def zkg_tarfile_extract_filter(member, dest_path):
     # we are uncompressing, so do more sanity checking
     new_member = tarfile.data_filter(member, dest_path)
 
-    new_attrs = {}
-    zkg_update_perms(new_attrs, member, extract=True)
+    new_attrs = zkg_update_perms(member, extract=True)
 
     return new_member.replace(**new_attrs)
 
