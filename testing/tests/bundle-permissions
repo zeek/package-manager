@@ -32,3 +32,21 @@ cat << EOF > my_zkg.config
 state_dir = $(pwd)/state
 
 EOF
+
+# @TEST-START-FILE list-dir.py
+#!/usr/bin/env python3
+
+"""System-independent helper to print permissions of entries in directories."""
+
+import os
+import stat
+import sys
+from pathlib import Path
+
+DIRS = map(lambda d: Path(d), sys.argv[1:])
+for d in DIRS:
+    for e in sorted(os.listdir(d)):
+       f = d / e
+       s = os.stat(f, follow_symlinks=False)
+       print(f"{stat.filemode(s.st_mode)} {f}")
+# @TEST-END-FILE
