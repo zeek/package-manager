@@ -3,13 +3,14 @@
 # @TEST-EXEC: zkg purge
 # @TEST-EXEC: umask 0027 && zkg bundle test.bundle --manifest manifest.txt
 
-# FIXME: this may be specific to gnu tar output format
-# @TEST-EXEC: tar tvf test.bundle | grep -v git | awk '{ print $1, $2, $NF }' > bundle.out
+# Check that permissions in the bundle match expectations.
+# NOTE: We only extract the first (permission) and last column (filename) to be generic over GNU and BSD tar.
+# @TEST-EXEC: tar tvf test.bundle | grep -v git | awk '{ print $1, $NF }' > bundle.out
 # @TEST-EXEC: btest-diff bundle.out
 # @TEST-EXEC: umask 0027 && zkg --config=my_zkg.config unbundle --force --replace test.bundle
 
-# FIXME: this output may differ based on ls implementation
-# @TEST-EXEC: ls -l state/script_dir/packages/rot13 state/clones/package/rot13 | grep -v 'git\|dist' | awk '{ print $1, $NF }' > unbundle.out
+# Check that permissions of the extracted bundle match expectations.
+# @TEST-EXEC: python3 ./list-dir.py state/script_dir/packages/rot13 state/clones/package/rot13 > unbundle.out
 # @TEST-EXEC: btest-diff unbundle.out
 
 # make sure the on-disk permissions will differ
