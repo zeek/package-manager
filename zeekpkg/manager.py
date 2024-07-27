@@ -265,6 +265,8 @@ class Manager:
             IOError: when a package manager state file can't be created
         """
         LOG.debug("init Manager version %s", __version__)
+        # TODO: make this umask user-configurable
+        self.zkg_umask = 0o022
         self.sources = {}
         self.installed_pkgs = {}
         self._builtin_packages = None  # Cached Zeek built-in packages.
@@ -1775,7 +1777,7 @@ class Manager:
         infos = []
 
         try:
-            zkg_tarfile_extractall(bundle_file, bundle_dir)
+            zkg_tarfile_extractall(bundle_file, bundle_dir, umask=self.zkg_umask)
         except Exception as error:
             return (str(error), infos)
 
@@ -2461,7 +2463,7 @@ class Manager:
         make_dir(bundle_dir)
 
         try:
-            zkg_tarfile_extractall(bundle_file, bundle_dir)
+            zkg_tarfile_extractall(bundle_file, bundle_dir, umask=self.zkg_umask)
         except Exception as error:
             return str(error)
 
@@ -2746,6 +2748,11 @@ class Manager:
                 build_command,
             )
             bufsize = 4096
+
+            def set_umask():
+                """Set the umask for spawned process"""
+                os.umask(self.zkg_umask)
+
             build = subprocess.Popen(
                 build_command,
                 shell=True,
@@ -2754,6 +2761,7 @@ class Manager:
                 bufsize=bufsize,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                preexec_fn=set_umask,
             )
 
             try:

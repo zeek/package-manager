@@ -7,7 +7,7 @@ drwxr-xr-x state/clones/package/rot13/.git
 -rw-r--r-- state/clones/package/rot13/Makefile
 -rw-r--r-- state/clones/package/rot13/README
 -rw-r--r-- state/clones/package/rot13/VERSION
-drwxr-x--- state/clones/package/rot13/build
+drwxr-xr-x state/clones/package/rot13/build
 -rwxr-xr-x state/clones/package/rot13/configure
 -rw-r--r-- state/clones/package/rot13/configure.plugin
 drwxr-xr-x state/clones/package/rot13/scripts
