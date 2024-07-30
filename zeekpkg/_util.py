@@ -15,6 +15,24 @@ import semantic_version as semver
 from .vendor import tarfile
 
 
+class UmaskContext:
+    prev_umask = None
+
+    def __init__(self, new_umask):
+        self.new_umask = new_umask
+
+    def __enter__(self):
+        if self.prev_umask is not None:
+            raise ValueError("Can't nest umask context")
+
+        self.prev_umask = os.umask(self.new_umask)
+
+    def __exit__(self, _type, value, traceback):
+        if self.prev_umask is not None:
+            os.umask(self.prev_umask)
+            self.prev_umask = None
+
+
 def make_dir(path):
     """Create a directory or do nothing if it already exists.
 

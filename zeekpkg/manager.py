@@ -25,6 +25,7 @@ from . import (
     __version__,
 )
 from ._util import (
+    UmaskContext,
     configparser_section_dict,
     copy_over_path,
     delete_path,
@@ -2628,7 +2629,8 @@ class Manager:
                     stage.state_dir,
                 )
 
-            fail_msg = self._stage(info.package, version, clone, stage, env)
+            with UmaskContext(self.zkg_umask):
+                fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
                 return (fail_msg, False, self.state_dir)
@@ -2749,20 +2751,16 @@ class Manager:
             )
             bufsize = 4096
 
-            def set_umask():
-                """Set the umask for spawned process"""
-                os.umask(self.zkg_umask)
-
-            build = subprocess.Popen(
-                build_command,
-                shell=True,
-                cwd=clone.working_dir,
-                env=env,
-                bufsize=bufsize,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                preexec_fn=set_umask,
-            )
+            with UmaskContext(self.zkg_umask):
+                build = subprocess.Popen(
+                    build_command,
+                    shell=True,
+                    cwd=clone.working_dir,
+                    env=env,
+                    bufsize=bufsize,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
 
             try:
                 buildlog = self.package_build_log(clone.working_dir)
@@ -3096,7 +3094,8 @@ class Manager:
         # A dummy stage that uses the actual installation folders;
         # we do not need to populate() it.
         stage = Stage(self)
-        fail_msg = self._stage(package, version, clone, stage)
+        with UmaskContext(self.zkg_umask):
+            fail_msg = self._stage(package, version, clone, stage)
         if fail_msg:
             return fail_msg
 
