@@ -1,3 +1,7 @@
+3.0.1-41 | 2024-09-10 10:36:13 +0200
+
+  * Fix UnicodeEncodeError in `zkg create` with non-ASCII characters in user vars (Fupeng Zhao)
+
 3.0.1-39 | 2024-07-18 18:48:44 +0200
 
   * Use documented Git package exception API (Benjamin Bannier, Corelight)

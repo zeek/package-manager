@@ -36,4 +36,8 @@
 # Request an unknown feature. This should fail.
 # @TEST-EXEC-FAIL: zkg create --packagedir out5 --template $TEMPLATES/foo --feature doesntexist >>output 2>&1
 
+# Provide non-ASCII characters variable via --user-var and ensure resulting package installs
+# @TEST-EXEC: zkg create --packagedir out6 --template $TEMPLATES/foo --user-var name=你こ안مγПनสXש😊©GBCDČM >>output
+# @TEST-EXEC: zkg install ./out6
+
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff output
