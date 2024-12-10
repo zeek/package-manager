@@ -1,3 +1,7 @@
+3.0.1-43 | 2024-12-10 12:21:04 -0700
+
+  * Update versions for pre-commit hooks (Tim Wojtulewicz, Corelight)
+
 3.0.1-41 | 2024-09-10 10:36:13 +0200
 
   * Fix UnicodeEncodeError in `zkg create` with non-ASCII characters in user vars (Fupeng Zhao)

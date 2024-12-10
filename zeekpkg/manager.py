@@ -2068,8 +2068,8 @@ class Manager:
                     continue
 
                 # Suggestion status propagates to 'depends' field of suggested packages.
-                is_suggestion = (
-                    node.is_suggestion or dep_name in ds and dep_name not in dd
+                is_suggestion = node.is_suggestion or (
+                    dep_name in ds and dep_name not in dd
                 )
 
                 # If a dependency can be fulfilled by a built-in package
