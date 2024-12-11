@@ -1,0 +1,52 @@
+# @TEST-EXEC: bash %INPUT
+
+# @TEST-EXEC: zkg purge
+# @TEST-EXEC: umask 0027 && zkg bundle test.bundle --manifest manifest.txt
+
+# Check that permissions in the bundle match expectations.
+# NOTE: We only extract the first (permission) and last column (filename) to be generic over GNU and BSD tar.
+# @TEST-EXEC: tar tvf test.bundle | grep -v git | awk '{ print $1, $NF }' > bundle.out
+# @TEST-EXEC: btest-diff bundle.out
+# @TEST-EXEC: umask 0027 && zkg --config=my_zkg.config unbundle --force --replace test.bundle
+
+# Check that permissions of the extracted bundle match expectations.
+# @TEST-EXEC: python3 ./list-dir.py state/script_dir/packages/rot13 state/clones/package/rot13 > unbundle.out
+# @TEST-EXEC: btest-diff unbundle.out
+
+# make sure the on-disk permissions will differ
+chmod -R g-w,o-rwx packages/rot13
+
+echo "$(pwd)/packages/rot13" >> sources/one/bob/zkg.index
+cd sources/one
+git commit -am 'add rot13 package'
+cd ../..
+
+echo "[bundle]" > manifest.txt
+default_branch_name=$( cd packages/baz && git rev-parse --abbrev-ref HEAD )
+echo "baz = ${default_branch_name}" >> manifest.txt
+default_branch_name=$( cd packages/rot13 && git rev-parse --abbrev-ref HEAD )
+echo "rot13 = ${default_branch_name}" >> manifest.txt
+
+cat << EOF > my_zkg.config
+[paths]
+state_dir = $(pwd)/state
+
+EOF
+
+# @TEST-START-FILE list-dir.py
+#!/usr/bin/env python3
+
+"""System-independent helper to print permissions of entries in directories."""
+
+import os
+import stat
+import sys
+from pathlib import Path
+
+DIRS = map(lambda d: Path(d), sys.argv[1:])
+for d in DIRS:
+    for e in sorted(os.listdir(d)):
+       f = d / e
+       s = os.stat(f, follow_symlinks=False)
+       print(f"{stat.filemode(s.st_mode)} {f}")
+# @TEST-END-FILE
