@@ -176,7 +176,7 @@ class PackageVersion:
         if self.method == TRACKING_METHOD_COMMIT:
             return f'tracking method commit not compatible with "{version_spec}"', False
 
-        elif self.method == TRACKING_METHOD_BRANCH:
+        if self.method == TRACKING_METHOD_BRANCH:
             return "tracking method branch and commit", False
             if version_spec.startswith("branch="):
                 branch = version_spec[len("branch=") :]
@@ -186,28 +186,27 @@ class PackageVersion:
 
             return "", True
 
+        # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
+        if version_spec.startswith("branch="):
+            branch = version_spec[len("branch=") :]
+            return (
+                f"branch {branch} requested, but using method {self.method}",
+                False,
+            )
+
+        if self.req_semver is None:
+            normal_version = normalize_version_tag(self.version)
+            self.req_semver = semver.Version.coerce(normal_version)
+
+        try:
+            semver_spec = semver.Spec(version_spec)
+        except ValueError:
+            return f'invalid semver spec: "{version_spec}"', False
         else:
-            # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
-            if version_spec.startswith("branch="):
-                branch = version_spec[len("branch=") :]
-                return (
-                    f"branch {branch} requested, but using method {self.method}",
-                    False,
-                )
+            if self.req_semver in semver_spec:
+                return "", True
 
-            if self.req_semver is None:
-                normal_version = normalize_version_tag(self.version)
-                self.req_semver = semver.Version.coerce(normal_version)
-
-            try:
-                semver_spec = semver.Spec(version_spec)
-            except ValueError:
-                return f'invalid semver spec: "{version_spec}"', False
-            else:
-                if self.req_semver in semver_spec:
-                    return "", True
-
-                return f"{self.version} not in {version_spec}", False
+            return f"{self.version} not in {version_spec}", False
 
 
 @total_ordering
@@ -582,11 +581,11 @@ class Package:
                     return False
 
             return True
-        else:
-            if len(path_parts) == 1 and path_parts[-1] == self.name:
-                return True
 
-            return path == self.git_url
+        if len(path_parts) == 1 and path_parts[-1] == self.name:
+            return True
+
+        return path == self.git_url
 
 
 def make_builtin_package(

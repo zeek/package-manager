@@ -1318,15 +1318,17 @@ class Manager:
         if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
             version_tags = git_version_tags(clone)
             return self._install(ipkg.package, version_tags[-1])
-        elif ipkg.status.tracking_method == TRACKING_METHOD_BRANCH:
+
+        if ipkg.status.tracking_method == TRACKING_METHOD_BRANCH:
             git_pull(clone)
             return self._install(ipkg.package, ipkg.status.current_version)
-        elif ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
+
+        if ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
             # The above check for whether the installed package is outdated
             # also should have already caught this situation.
             return "package is not outdated"
-        else:
-            raise NotImplementedError
+
+        raise NotImplementedError
 
     def remove(self, pkg_path):
         """Remove an installed package.
@@ -1690,26 +1692,26 @@ class Manager:
                     continue
 
                 # check if all dependers are unloaded
-                elif _has_all_dependers_unloaded(item, dep_packages):
+                if _has_all_dependers_unloaded(item, dep_packages):
                     self.unload(item)
                     errors.append((item, ""))
                     continue
 
                 # package is in use
-                else:
-                    dep_packages = self.list_depender_pkgs(pkg_name)
-                    dep_listing = ""
+                dep_packages = self.list_depender_pkgs(pkg_name)
+                dep_listing = ""
 
-                    for _name in dep_packages:
-                        dep_listing += f'"{_name}", '
+                for _name in dep_packages:
+                    dep_listing += f'"{_name}", '
 
-                    errors.append(
-                        (
-                            item,
-                            f"Package is in use by other packages --- {dep_listing[:-2]}.",
-                        ),
-                    )
-                    return errors
+                errors.append(
+                    (
+                        item,
+                        f"Package is in use by other packages --- {dep_listing[:-2]}.",
+                    ),
+                )
+
+                return errors
 
         return errors
 
@@ -1850,9 +1852,9 @@ class Manager:
             clonepath = os.path.join(self.package_clonedir, pkg_name)
             clone = git.Repo(clonepath)
             return _info_from_clone(clone, ipkg.package, status, status.current_version)
-        else:
-            status = None
-            matches = self.match_source_packages(pkg_path)
+
+        status = None
+        matches = self.match_source_packages(pkg_path)
 
         if not matches:
             package = Package(git_url=pkg_path)
@@ -2841,12 +2843,12 @@ class Manager:
         else:
             if "script_dir" in metadata:
                 return f"no __load__.zeek file found in package's 'script_dir' : {pkg_script_dir}"
-            else:
-                LOG.warning(
-                    'installing "%s": no __load__.zeek in implicit'
-                    " script_dir, skipped installing scripts",
-                    package,
-                )
+
+            LOG.warning(
+                'installing "%s": no __load__.zeek in implicit'
+                " script_dir, skipped installing scripts",
+                package,
+            )
 
         pkg_plugin_dir = metadata.get("plugin_dir", "build")
         plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
@@ -2927,13 +2929,15 @@ class Manager:
                 clonepath = os.path.join(self.package_clonedir, conflict.name)
                 _clone_package(conflict, clonepath, version)
                 return self._install(conflict, version)
-            else:
-                LOG.info(
-                    'installing "%s": matched already installed package: %s',
-                    pkg_path,
-                    conflict,
-                )
-                return f'package with name "{conflict.name}" ({conflict}) is already installed'
+
+            LOG.info(
+                'installing "%s": matched already installed package: %s',
+                pkg_path,
+                conflict,
+            )
+            return (
+                f'package with name "{conflict.name}" ({conflict}) is already installed'
+            )
 
         matches = self.match_source_packages(pkg_path)
 
@@ -3201,12 +3205,14 @@ def _is_branch_outdated(clone, branch):
 def _is_clone_outdated(clone, ref_name, tracking_method):
     if tracking_method == TRACKING_METHOD_VERSION:
         return _is_version_outdated(clone, ref_name)
-    elif tracking_method == TRACKING_METHOD_BRANCH:
+
+    if tracking_method == TRACKING_METHOD_BRANCH:
         return _is_branch_outdated(clone, ref_name)
-    elif tracking_method == TRACKING_METHOD_COMMIT:
+
+    if tracking_method == TRACKING_METHOD_COMMIT:
         return False
-    else:
-        raise NotImplementedError
+
+    raise NotImplementedError
 
 
 def _is_commit_hash(clone, text):
@@ -3305,8 +3311,7 @@ def _clone_package(package, clonepath, version):
 
 
 def _get_package_metadata(parser):
-    metadata = {item[0]: item[1] for item in parser.items("package")}
-    return metadata
+    return {item[0]: item[1] for item in parser.items("package")}
 
 
 def _pick_metadata_file(directory):

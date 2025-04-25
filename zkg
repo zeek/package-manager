@@ -118,9 +118,9 @@ def confirmation_prompt(prompt, default_to_yes=True):
     if not choice:
         if default_to_yes:
             return True
-        else:
-            print("Abort.")
-            return False
+
+        print("Abort.")
+        return False
 
     if choice in yes:
         return True
@@ -324,8 +324,7 @@ def active_git_branch(path):
     if not rval:
         return None
 
-    rval = str(rval)
-    return rval
+    return str(rval)
 
 
 def is_local_git_repo_url(git_url) -> bool:

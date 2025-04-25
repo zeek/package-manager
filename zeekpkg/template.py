@@ -309,7 +309,7 @@ class Template:
         Returns:
             zeekpkg.template.Package instance
         """
-        return None
+        pass
 
     def features(self):
         """Provides any additional features templates supported.
@@ -483,7 +483,7 @@ class _Content(metaclass=abc.ABCMeta):
         Returns:
             str: relative path to the content directory
         """
-        return None
+        pass
 
     def needed_user_vars(self):
         """Returns a list of user vars names required by this content.
