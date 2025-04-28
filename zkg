@@ -118,9 +118,9 @@ def confirmation_prompt(prompt, default_to_yes=True):
     if not choice:
         if default_to_yes:
             return True
-        else:
-            print("Abort.")
-            return False
+
+        print("Abort.")
+        return False
 
     if choice in yes:
         return True
@@ -324,8 +324,7 @@ def active_git_branch(path):
     if not rval:
         return None
 
-    rval = str(rval)
-    return rval
+    return str(rval)
 
 
 def is_local_git_repo_url(git_url) -> bool:
@@ -1245,8 +1244,7 @@ def cmd_refresh(manager, args, config, configfile):
 
     if args.fail_on_aggregate_problems and not args.aggregate:
         print_error(
-            "warning: --fail-on-aggregate-problems without --aggregate"
-            " has no effect.",
+            "warning: --fail-on-aggregate-problems without --aggregate has no effect.",
         )
 
     had_failure = False
@@ -2432,8 +2430,7 @@ def argparser():
             type=int,
             default=None,
             metavar="SPACES",
-            help="Optional number of spaces to indent for pretty-printed"
-            " JSON output.",
+            help="Optional number of spaces to indent for pretty-printed JSON output.",
         )
 
     top_parser = top_level_parser()
