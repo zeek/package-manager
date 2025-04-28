@@ -5,9 +5,7 @@ repos:
   rev: v5.0.0
   hooks:
   - id: trailing-whitespace
-    exclude: testing/baselines
   - id: end-of-file-fixer
-    exclude: testing/baselines
   - id: check-yaml
   - id: check-added-large-files
 - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -16,3 +14,5 @@ repos:
     - id: ruff
       args: [--fix]
     - id: ruff-format
+
+exclude: testing/baselines|zeekpkg/vendor/.*

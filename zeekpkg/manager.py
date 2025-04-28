@@ -25,6 +25,7 @@ from . import (
     __version__,
 )
 from ._util import (
+    UmaskContext,
     configparser_section_dict,
     copy_over_path,
     delete_path,
@@ -41,8 +42,9 @@ from ._util import (
     make_symlink,
     normalize_version_tag,
     read_zeek_config_line,
-    safe_tarfile_extractall,
     std_encoding,
+    zkg_tarfile_create,
+    zkg_tarfile_extractall,
 )
 from .package import (
     BUILTIN_SCHEME,
@@ -264,6 +266,8 @@ class Manager:
             IOError: when a package manager state file can't be created
         """
         LOG.debug("init Manager version %s", __version__)
+        # TODO: make this umask user-configurable
+        self.zkg_umask = 0o022
         self.sources = {}
         self.installed_pkgs = {}
         self._builtin_packages = None  # Cached Zeek built-in packages.
@@ -1775,7 +1779,7 @@ class Manager:
         infos = []
 
         try:
-            safe_tarfile_extractall(bundle_file, bundle_dir)
+            zkg_tarfile_extractall(bundle_file, bundle_dir, umask=self.zkg_umask)
         except Exception as error:
             return (str(error), infos)
 
@@ -2440,7 +2444,7 @@ class Manager:
         with open(manifest_file, "w") as f:
             config.write(f)
 
-        archive = shutil.make_archive(bundle_dir, "gztar", bundle_dir)
+        archive = zkg_tarfile_create(bundle_dir)
         delete_path(bundle_file)
         shutil.move(archive, bundle_file)
         return ""
@@ -2461,7 +2465,7 @@ class Manager:
         make_dir(bundle_dir)
 
         try:
-            safe_tarfile_extractall(bundle_file, bundle_dir)
+            zkg_tarfile_extractall(bundle_file, bundle_dir, umask=self.zkg_umask)
         except Exception as error:
             return str(error)
 
@@ -2626,7 +2630,8 @@ class Manager:
                     stage.state_dir,
                 )
 
-            fail_msg = self._stage(info.package, version, clone, stage, env)
+            with UmaskContext(self.zkg_umask):
+                fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
                 return (fail_msg, False, self.state_dir)
@@ -2746,15 +2751,17 @@ class Manager:
                 build_command,
             )
             bufsize = 4096
-            build = subprocess.Popen(
-                build_command,
-                shell=True,
-                cwd=clone.working_dir,
-                env=env,
-                bufsize=bufsize,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+
+            with UmaskContext(self.zkg_umask):
+                build = subprocess.Popen(
+                    build_command,
+                    shell=True,
+                    cwd=clone.working_dir,
+                    env=env,
+                    bufsize=bufsize,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
 
             try:
                 buildlog = self.package_build_log(clone.working_dir)
@@ -3090,7 +3097,8 @@ class Manager:
         # A dummy stage that uses the actual installation folders;
         # we do not need to populate() it.
         stage = Stage(self)
-        fail_msg = self._stage(package, version, clone, stage)
+        with UmaskContext(self.zkg_umask):
+            fail_msg = self._stage(package, version, clone, stage)
         if fail_msg:
             return fail_msg
 
@@ -3238,7 +3246,7 @@ def _copy_package_dir(package, dirname, src, dst, scratch_dir):
         make_dir(tmp_dir)
 
         try:
-            safe_tarfile_extractall(src, tmp_dir)
+            zkg_tarfile_extractall(src, tmp_dir)
         except Exception as error:
             return str(error)
 

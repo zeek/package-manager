@@ -7,11 +7,30 @@ import importlib.machinery
 import os
 import shutil
 import string
-import tarfile
 import types
 
 import git
 import semantic_version as semver
+
+from .vendor import tarfile
+
+
+class UmaskContext:
+    prev_umask = None
+
+    def __init__(self, new_umask):
+        self.new_umask = new_umask
+
+    def __enter__(self):
+        if self.prev_umask is not None:
+            raise ValueError("Can't nest umask context")
+
+        self.prev_umask = os.umask(self.new_umask)
+
+    def __exit__(self, _type, value, traceback):
+        if self.prev_umask is not None:
+            os.umask(self.prev_umask)
+            self.prev_umask = None
 
 
 def make_dir(path):
@@ -70,14 +89,28 @@ def make_symlink(target_path, link_path, force=True):
             raise error
 
 
-def safe_tarfile_extractall(tfile, destdir):
-    """Wrapper to tarfile.extractall(), checking for path traversal.
+def zkg_tarfile_create(basedir):
+    """Create a tar of the bundle files at `basedir`
 
-    This adds the safeguards the Python docs for tarfile.extractall warn about:
+    Args:
+        basedir (str): the path to the bundle root
+    """
+    compression = "gz"
+    tar_name = "".join((basedir, ".tar.", compression))
 
-    Never extract archives from untrusted sources without prior inspection. It
-    is possible that files are created outside of path, e.g. members that have
-    absolute filenames starting with "/" or filenames with two dots "..".
+    with tarfile.open(tar_name, "w:" + compression) as tar:
+        tar.add(basedir, arcname=".", filter=zkg_tarfile_create_filter)
+
+    return tar_name
+
+
+def zkg_tarfile_extractall(tfile, destdir, umask=None):
+    """Wrapper to tarfile.extractall() using our filter that calls data_filter.
+
+    This adds a lot of sanity checking for the tar file.
+
+    A zeek package contains arbitrary code that will be executed with the same
+    permissions as the user running zeek. Never extract archives from untrusted sources.
 
     Args:
         tfile (str): the tar file to extract
@@ -85,22 +118,93 @@ def safe_tarfile_extractall(tfile, destdir):
         destdir (str): the destination directory into which to place contents
 
     Raises:
-        Exception: if the tarfile would extract outside destdir
+        Exception: see tarfile.data_filter, tarfile.TarFile.extractall
     """
 
-    def is_within_directory(directory, target):
-        abs_directory = os.path.abspath(directory)
-        abs_target = os.path.abspath(target)
-        prefix = os.path.commonprefix([abs_directory, abs_target])
-        return prefix == abs_directory
-
     with tarfile.open(tfile) as tar:
-        for member in tar.getmembers():
-            member_path = os.path.join(destdir, member.name)
-            if not is_within_directory(destdir, member_path):
-                raise Exception("attempted path traversal in tarfile")
+        tar.extractall(
+            destdir,
+            filter=lambda member, dest_path: zkg_tarfile_extract_filter(
+                member,
+                dest_path,
+                umask=umask,
+            ),
+        )
 
-        tar.extractall(destdir)
+
+def zkg_update_perms(member, extract, umask=None):
+    """Returns a dict of attributes that should be modified on member to result in our
+    desired permissions set. If extract is set, we set owner/group to None, otherwise
+    they are set to root/root.
+
+    Args:
+        member (tarfile.TarInfo): tarfile member info
+
+        extract (bool): whether or not we are extracting
+
+        umask (integer): optional umask to apply
+
+    Returns:
+        dict: member attributes to be replaced and their new values
+    """
+
+    new_attrs = {}
+
+    if umask is None:
+        umask = 0
+
+    # we are doing our own thing with `mode` here
+    mode = member.mode
+    if member.isreg() or member.islnk():
+        # if user has x bit
+        if mode is None or not mode & 0o100:
+            # not executable
+            mode = 0o644
+        else:
+            mode = 0o755
+    elif member.isdir():
+        mode = 0o755
+    elif member.issym():
+        mode = None
+    else:
+        raise Exception("unexpected special files in tarfile")
+
+    apply_mask = ~umask & 0o777
+    effective = mode & apply_mask
+    new_attrs["mode"] = effective
+
+    if extract:
+        new_attrs["uid"] = new_attrs["gid"] = None
+        new_attrs["uname"] = new_attrs["gname"] = None
+    else:
+        new_attrs["uid"] = new_attrs["gid"] = 0
+        new_attrs["uname"] = new_attrs["gname"] = "root"
+
+    return new_attrs
+
+
+def zkg_tarfile_create_filter(member):
+    """Filter member items during tar creation
+
+    Args:
+        member (tarfile.TarInfo): the member to inspect/normalize
+
+    Returns:
+        tarfile.TarInfo: the new member with desired permissions or None to omit
+    """
+    new_attrs = zkg_update_perms(member, extract=False)
+
+    # copy.deepcopy() can't copy a file handle
+    return member.replace(deep=False, **new_attrs)
+
+
+def zkg_tarfile_extract_filter(member, dest_path, umask=None):
+    # we are uncompressing, so do more sanity checking
+    new_member = tarfile.data_filter(member, dest_path)
+
+    new_attrs = zkg_update_perms(member, extract=True, umask=umask)
+
+    return new_member.replace(**new_attrs)
 
 
 def find_sentence_end(s):
