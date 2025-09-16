@@ -1,3 +1,12 @@
+3.1.0-13 | 2025-09-16 15:56:14 -0400
+
+  * Remove `bro-pkg.meta` reference (Evan Typanski, Corelight)
+
+  * Touchup quickstart and packages doc sections (Evan Typanski, Corelight)
+
+    Mainly removing some `bro` references that will be considered outdated
+    because versioning is different and fixing minor typos.
+
 3.1.0-10 | 2025-08-17 21:32:00 +0200
 
   * Bump pre-commit hooks (Benjamin Bannier, Corelight)

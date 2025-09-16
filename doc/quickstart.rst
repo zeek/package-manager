@@ -132,8 +132,7 @@ also automatically distribute installed package scripts/plugins to all nodes.
 
   .. code-block:: console
 
-    $ sudo chgrp $USER $(zeek-config --site_dir) $(zeek-config
-    --plugin_dir) $(zeek-config --prefix)/bin
+    $ sudo chgrp $USER $(zeek-config --site_dir) $(zeek-config --plugin_dir) $(zeek-config --prefix)/bin
     $ sudo chmod g+rwX $(zeek-config --site_dir) $(zeek-config --plugin_dir) $(zeek-config --prefix)/bin
 
 The final step is to edit your :file:`site/local.zeek`.  If you want to

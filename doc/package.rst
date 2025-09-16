@@ -22,12 +22,6 @@ This is the package's metadata file in INI file format and may contain
 :ref:`additional fields <metadata-fields>` that describe the package as well
 as how it inter-operates with Zeek, the package manager, or other packages.
 
-.. note::
-
-   :file:`zkg.meta` is the canonical metadata file name used :program:`since
-   zkg v2.0`.  The previous metadata file name of :file:`bro-pkg.meta` is also
-   accepted when no :file:`zkg.meta` exists.
-
 .. _package-shorthand-name:
 
 Note that the shorthand name for your package that may be used by :ref:`zkg
@@ -47,7 +41,7 @@ The easiest way to start a new Zeek package is via :program:`zkg`
 itself: its ``zkg create`` command lets you generate new Zeek packages
 from the command line.
 
-This functionality is available since :program:`since zkg v2.9`.  See the
+This functionality is available since :program:`zkg` v2.9.  See the
 :ref:`Walkthroughs <manual-package-creation>` section for step-by-step
 processes that show how to manually create packages (e.g. perhaps when using
 older :program:`zkg` versions).
@@ -399,8 +393,6 @@ The low-level details of the way this field operates is that, for each alias,
 it simply creates a symlink of the same name within the directory associated
 with the ``script_dir`` path in the :ref:`config file <zkg-config-file>`.
 
-Available :program:`since bro-pkg v1.5`.
-
 `credits` field
 ~~~~~~~~~~~~~~~
 
@@ -484,7 +476,7 @@ added to :file:`{<user_script_dir>}/packages/packages.zeek`.
 You may place any valid Zeek script code within :file:`__load__.zeek`, but a
 package that contains many Zeek scripts will typically have :file:`__load__.zeek`
 just contain a list of ``@load`` directives to load other Zeek scripts within the
-package.  E.g. if you have a package named **foo** installed, then it's
+package.  E.g. if you have a package named **foo** installed, then its
 :file:`__load__.zeek` will be what Zeek loads when doing ``@load foo`` or running
 ``zeek foo`` on the command-line.
 
@@ -551,8 +543,6 @@ were also building an executable ``a.out``::
 The package manager makes executables available by maintaining symbolic
 links referring from :file:`bin_dir` to the actual files.
 
-Available :program:`since bro-pkg v2.8`.
-
 `build_command` field
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -603,7 +593,7 @@ Another pre-defined config key is `package_base`, which points to the top-level
 directory where :program:`zkg` stores all installed packages (i.e.  clones of
 each package's git repository). This can be used to gain access to the content
 of another package that was installed as a dependency.  Note that
-`package_base` is only available :program:`since zkg v2.3`
+`package_base` is only available since :program:`zkg` v2.3.
 
 Internally, the value substitution and metadata parsing is handled by Python's
 `configparser interpolation`_.  See its documentation if you're interested in
@@ -666,8 +656,6 @@ located in the environment. The user may also provide `user_vars` via
 ``--user-var NAME=VAL`` command-line arguments. These arguments are given
 priority over environment variables, which in turn take precedence over any
 values in the user's :ref:`package manager config file <zkg-config-file>`.
-
-Available :program:`since bro-pkg v1.1`.
 
 `test_command` field
 ~~~~~~~~~~~~~~~~~~~~
@@ -803,8 +791,6 @@ name and version specification for an external dependency are only used
 for display purposes -- to help users understand extra pre-requisites
 that are needed for proceeding with package installation/upgrades.
 
-Available :program:`since bro-pkg v1.1`.
-
 `suggests` field
 ~~~~~~~~~~~~~~~~
 
@@ -819,8 +805,6 @@ except in the way it's presented to users in various prompts during
 :program:`zkg` operations.  Users also have the option to ignore
 suggestions by supplying an additional ``--nosuggestions`` flag to
 :program:`zkg` commands.
-
-Available :program:`since bro-pkg v1.3`.
 
 .. _package-versioning:
 
