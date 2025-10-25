@@ -3,7 +3,6 @@ A module for instantiating different types of Zeek packages.
 """
 
 import abc
-import configparser
 import os
 import re
 import shutil
@@ -15,6 +14,10 @@ import semantic_version as semver
 
 if TYPE_CHECKING:
     from zeekpkg import UserVar
+
+from zeekpkg.config import (
+    CONFIG,
+)
 
 from . import (
     LOG,
@@ -68,7 +71,6 @@ class Template:
 
     @staticmethod
     def load(
-        config: configparser.ConfigParser,
         template: str,
         version: str | None = None,
     ) -> "Template":
@@ -83,8 +85,6 @@ class Template:
         derivative that must be present in it.
 
         Args:
-            config (configparser.ConfigParser): a zkg configuration
-
             template (str): template source repo, as directory or git URL
 
             version (str): if provided, a specific version tag to use.
@@ -123,7 +123,7 @@ class Template:
             # zkg state folder's clone space and support version
             # requests.
             template_clonedir = os.path.join(
-                config.get("paths", "state_dir"),
+                CONFIG.get("paths", "state_dir"),
                 "clones",
                 "template",
             )

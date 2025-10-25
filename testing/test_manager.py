@@ -6,18 +6,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zeekpkg.config import CONFIG
 from zeekpkg.manager import Manager
 from zeekpkg.package import Package, PackageInfo
 
 
 @pytest.fixture
 def manager(tmp_path: Path) -> Manager:
+    CONFIG.read_dict(
+        {
+            "paths": {
+                "state_dir": str(tmp_path / "plugins"),
+                "script_dir": str(tmp_path / "scripts"),
+                "plugin_dir": str(tmp_path / "plugins"),
+            },
+        },
+    )
     with patch.object(Manager, "discover_builtin_packages", return_value=[]):
-        return Manager(
-            state_dir=str(tmp_path / "state"),
-            script_dir=str(tmp_path / "scripts"),
-            plugin_dir=str(tmp_path / "plugins"),
-        )
+        return Manager()
 
 
 class TestInfoCache:
@@ -84,7 +90,10 @@ class TestBuildInfoDiskCache:
         mock_stat.return_value.st_size = key["zeek_size"]
 
     def test_disk_cache_hit_skips_subprocess(self, manager: Manager) -> None:
-        cache_file = os.path.join(manager.state_dir, "zeek_build_info_cache.json")
+        cache_file = os.path.join(
+            CONFIG.state_dir(),
+            "zeek_build_info_cache.json",
+        )
 
         with open(cache_file, "w") as f:
             json.dump({"key": self._CACHE_KEY, "build_info": self._FAKE_BUILD_INFO}, f)
@@ -118,7 +127,10 @@ class TestBuildInfoDiskCache:
         mock_check_output.assert_called_once()
 
     def test_stale_mtime_reruns_subprocess(self, manager: Manager) -> None:
-        cache_file = os.path.join(manager.state_dir, "zeek_build_info_cache.json")
+        cache_file = os.path.join(
+            CONFIG.state_dir(),
+            "zeek_build_info_cache.json",
+        )
         stale_key = {**self._CACHE_KEY, "zeek_mtime": 1000.0}
 
         with open(cache_file, "w") as f:
@@ -139,7 +151,10 @@ class TestBuildInfoDiskCache:
         mock_check_output.assert_called_once()
 
     def test_different_path_reruns_subprocess(self, manager: Manager) -> None:
-        cache_file = os.path.join(manager.state_dir, "zeek_build_info_cache.json")
+        cache_file = os.path.join(
+            CONFIG.state_dir(),
+            "zeek_build_info_cache.json",
+        )
         other_key = {**self._CACHE_KEY, "zeek_path": "/opt/zeek/bin/zeek"}
 
         with open(cache_file, "w") as f:
