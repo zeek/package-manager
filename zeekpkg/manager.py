@@ -21,10 +21,7 @@ from urllib.parse import urlparse
 import git
 import semantic_version as semver
 
-from . import (
-    LOG,
-    __version__,
-)
+from . import __version__
 from ._util import (
     copy_over_path,
     delete_path,
@@ -46,6 +43,9 @@ from ._util import (
 )
 from .config import (
     CONFIG,
+)
+from .logs import (
+    LOG,
 )
 from .package import (
     BUILTIN_SCHEME,

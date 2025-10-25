@@ -21,8 +21,10 @@ from zeekpkg.config import (
 )
 
 from . import (
-    LOG,
     __version__,
+)
+from .logs import (
+    LOG,
 )
 from ._util import (
     delete_path,
