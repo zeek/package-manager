@@ -1033,13 +1033,17 @@ def cmd_refresh(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
 ) -> None:
-    if not args.sources:
-        args.sources = list(manager.sources.keys())
-
     if args.fail_on_aggregate_problems and not args.aggregate:
         print_error(
             "warning: --fail-on-aggregate-problems without --aggregate has no effect.",
         )
+
+    if args.push and not args.aggregate:
+        print_error("error: --push requires --aggregate.")
+        sys.exit(1)
+
+    if not args.sources:
+        args.sources = list(manager.sources.keys())
 
     had_failure = False
     had_aggregation_failure = False
@@ -1053,11 +1057,15 @@ def cmd_refresh(
         aggregation_issues = []
 
         if args.aggregate:
-            res = manager.aggregate_source(source, args.push)
-            error = res.refresh_error
-            aggregation_issues = res.package_issues
+            res = manager.refresh_source(source)
+            if res:
+                error = res
+            else:
+                aggres = manager.aggregate_source(source, args.push)
+                error = aggres.error
+                aggregation_issues = aggres.package_issues
         else:
-            error = manager.refresh_source(source, False, args.push)
+            error = manager.refresh_source(source)
 
         if error:
             had_failure = True
@@ -2505,7 +2513,7 @@ def argparser() -> argparse.ArgumentParser:
     sub_parser.add_argument(
         "--push",
         action="store_true",
-        help="Push all local changes to package sources to upstream repos",
+        help="Push local package source aggregations to upstream repos. Requires --aggregate.",
     )
     sub_parser.add_argument(
         "--sources",
