@@ -20,8 +20,8 @@ from zeekpkg.config import (
     CONFIG,
 )
 
-from . import (
-    __version__,
+from .consts import (
+    VERSION,
 )
 from ._util import (
     delete_path,
@@ -809,7 +809,7 @@ class Package(_Content):
         else:
             config.set(section, "version", tmpl.version() or "unversioned")
 
-        config.set(section, "zkg_version", __version__)
+        config.set(section, "zkg_version", VERSION)
 
         if self._features:
             val = ",".join(sorted([f.name() for f in self._features]))
@@ -858,7 +858,7 @@ class Package(_Content):
         repo.index.commit(
             f"""Initial commit.
 
-zkg {__version__} created this package from template "{tmpl.name()}"
+zkg {VERSION} created this package from template "{tmpl.name()}"
 using {ver_info}{features_info}.""",
         )
 
