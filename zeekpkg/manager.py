@@ -165,7 +165,7 @@ class Manager:
     track of package sources, installed packages and their statuses.
 
     Attributes:
-        sources (dict of str -> :class:`.source.Source`): dictionary package
+        sources (dict of str -> :class:`.source.Source`): dictionary of package
             sources keyed by the name given to :meth:`add_source()`
 
         installed_pkgs (dict of str -> :class:`.package.InstalledPackage`):
@@ -454,8 +454,11 @@ class Manager:
     def _read_manifest(self) -> tuple[str, str, str]:
         """Read the manifest file containing the list of installed packages.
 
+        Updates the manager's internal list of installed packages accordingly.
+
         Returns:
-            tuple: (previous script_dir, previous plugin_dir, previous bin_dir)
+            tuple: Directories as per the manifest: (previous script_dir,
+            previous plugin_dir, previous bin_dir)
 
         Raises:
             IOError: when the manifest file can't be read
@@ -530,6 +533,9 @@ class Manager:
     def add_source(self, name: str, git_url: str) -> str:
         """Add a git repository that acts as a source of packages.
 
+        This clones the source's git repo if there's no local clone in zkg's
+        internal state yet.
+
         Args:
             name (str): a short name that will be used to reference the package
                 source.
@@ -539,6 +545,7 @@ class Manager:
         Returns:
             str: empty string if the source is successfully added, else the
             reason why it failed.
+
         """
         if name == BUILTIN_SOURCE:
             return f"{name} is a reserved source name"
@@ -587,6 +594,8 @@ class Manager:
                 version=version,
             )
         except git.GitCommandError as error:
+            # XXX seems this could also error when requesting nonexisting
+            # branches/versions?
             LOG.warning("failed to clone git repo: %s", error)
             return "failed to clone git repo"
         else:
@@ -597,7 +606,7 @@ class Manager:
     def source_packages(self) -> list[Package]:
         """Return a list of :class:`.package.Package` within all sources."""
         rval = []
-
+        # XXX odd naming, perhaps available_packages or some such.
         for _, source in self.sources.items():
             rval += source.packages()
 
@@ -713,7 +722,10 @@ class Manager:
         }
 
     def loaded_packages(self) -> list[InstalledPackage]:
-        """Return list of loaded :class:`.package.InstalledPackage`."""
+        """Return list of loaded :class:`.package.InstalledPackage`.
+
+        The returned packages are ordered alphabetically by their qualified name.
+        """
         rval = []
 
         for _, ipkg in sorted(self.installed_pkgs.items()):
@@ -725,12 +737,20 @@ class Manager:
     def package_build_log(self, pkg_path: str) -> str:
         """Return the path to the package manager's build log for a package.
 
+        The build log is of the form <name>-build.log, resides in the log
+        directory of zkg's internal state, and combines stdout and stderr in
+        separate sections of the file.
+
+        The function does not check whether the log actually exists, or whether
+        the package actually requires one.
+
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
         """
         name = name_from_path(pkg_path)
         return os.path.join(self.log_dir, f"{name}-build.log")
@@ -798,6 +818,8 @@ class Manager:
         Returns:
             bool: True if the package has installed Zeek scripts.
         """
+        # XXX is this better than relying on the presence of the scripts
+        # directive in zkg.meta?
         return os.path.exists(os.path.join(self.script_dir, installed_pkg.package.name))
 
     def has_plugin(self, installed_pkg: InstalledPackage) -> bool:
@@ -810,13 +832,16 @@ class Manager:
         Returns:
             bool: True if the package has installed a Zeek plugin.
         """
+        # XXX is this better than relying on the presence of the build_command
+        # in zkg.meta?
         return os.path.exists(os.path.join(self.plugin_dir, installed_pkg.package.name))
 
     def save_temporary_config_files(
         self,
         installed_pkg: InstalledPackage,
     ) -> list[tuple[str, str]]:
-        """Return a list of temporary package config file backups.
+        """Copies any Zeek scripts the package declares as config files (i.e.,
+        not to be overwritten during updates) into internal scratchspace.
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
@@ -826,9 +851,8 @@ class Manager:
             list of (str, str): tuples that describe the config files backups.
             The first element is the config file as specified in the package
             metadata (a file path relative to the package's root directory).
-            The second element is an absolute file system path to where that
-            config file has been copied.  It should be considered temporary,
-            so make use of it before doing any further operations on packages.
+            The second element is an absolute path to the location in zkg's
+            internal scratch folder where it copied the file to.
         """
         metadata = installed_pkg.package.metadata
         config_files = re.split(r",\s*", metadata.get("config_files", ""))
@@ -856,6 +880,9 @@ class Manager:
             shutil.copy2(config_file_path, backup_file)
             rval.append((config_file, backup_file))
 
+        # XXX there's nothing temporary about the files just created, and
+        # nothing that cleans them.
+
         return rval
 
     def modified_config_files(
@@ -863,6 +890,10 @@ class Manager:
         installed_pkg: InstalledPackage,
     ) -> list[tuple[str, str]]:
         """Return a list of package config files that the user has modified.
+
+        This compares the scripts the package declares as config file in zkg's
+        internal clone state to the content of these scripts as actually
+        installed.
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
@@ -874,6 +905,7 @@ class Manager:
             metadata (a file path relative to the package's root directory).
             The second element is an absolute file system path to where that
             config file is currently installed.
+
         """
         metadata = installed_pkg.package.metadata
         config_files = re.split(r",\s*", metadata.get("config_files", ""))
@@ -975,6 +1007,13 @@ class Manager:
             shutil.copy2(install_path, backup_path)
             rval.append(backup_path)
 
+        # XXX odd to have both this method and save_temporary_config_files(),
+        # since the latter only copies what's in the clone tree?
+
+        # XXX also note that there's no restore_modified_files() because
+        # restoration isn't the point of these backups, it's to preserve the
+        # modified version for reference/review (similar to e.g. .rpmsave).
+
         return rval
 
     class SourceAggregationResults:
@@ -1063,6 +1102,9 @@ class Manager:
         """
         res = self._refresh_source(name, aggregate, push)
         return res.refresh_error
+
+    # XXX the follwing logic including SourceAggregationResults could move into
+    # the Source class?
 
     def _refresh_source(
         self,
@@ -1314,6 +1356,10 @@ class Manager:
     def upgrade(self, pkg_path: str) -> str:
         """Upgrade a package to the latest available version.
 
+        This does nothing if the package is pinned, or if the package isn't
+        outdated. The latter determination isn't made by this function, it
+        relies on the package's is_outdated flag for that purpose.
+
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
@@ -1327,6 +1373,7 @@ class Manager:
 
         Raises:
             IOError: if the manifest can't be written
+
         """
         pkg_path = canonical_url(pkg_path)
         LOG.debug('upgrading "%s"', pkg_path)
@@ -1359,12 +1406,18 @@ class Manager:
         if ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
             # The above check for whether the installed package is outdated
             # also should have already caught this situation.
+
+            # XXX This likely refers to the fact that if a package got installed
+            # to a given commit, there's only that single version, so it cannot
+            # be outdated. So this is effectively pins the package.
             return "package is not outdated"
 
         raise NotImplementedError
 
     def remove(self, pkg_path: str) -> bool:
         """Remove an installed package.
+
+        This does not consider potential dependencies/dependees.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
@@ -1543,7 +1596,7 @@ class Manager:
         return ""
 
     def loaded_package_states(self) -> dict[str, bool]:
-        """Save "loaded" state for all installed packages.
+        """Retrieves "loaded" state for all installed packages.
 
         Returns:
             dict: dictionary of "loaded" status for installed packages
@@ -1553,7 +1606,7 @@ class Manager:
         }
 
     def restore_loaded_package_states(self, saved_state: dict[str, bool]) -> None:
-        """Restores state for installed packages.
+        """Restores load-state for installed packages to the given constellation.
 
         Args:
             saved_state (dict): dictionary of saved "loaded" state for installed
@@ -1798,6 +1851,9 @@ class Manager:
     ) -> tuple[str, list[tuple[str, str, PackageInfo]]]:
         """Retrieves information on all packages contained in a bundle.
 
+        To do this, it extracts the bundle into zkg's internal scratch space and
+        parses the contained manifest's "bundle" section.
+
         Args:
             bundle_file (str): the path to the bundle to inspect.
 
@@ -1810,6 +1866,7 @@ class Manager:
             the exact git URL and version string from the bundle's manifest
             along with the package info object retrieved by inspecting git repo
             contained in the bundle.
+
         """
         LOG.debug('getting bundle info for file "%s"', bundle_file)
         bundle_dir = os.path.join(self.scratch_dir, "bundle")
@@ -2514,7 +2571,7 @@ class Manager:
         # Record the built-in packages expected by this bundle (or simply
         # installed on the source system) in a new [meta] section to aid
         # debugging. This isn't interpreted, but if unbundle produces
-        # warnings it may proof helpful.
+        # warnings it may prove helpful.
         if builtin_packages:
             config.add_section("meta")
             entries = []

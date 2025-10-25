@@ -113,6 +113,12 @@ def safe_tarfile_extractall(tfile: str, destdir: str) -> None:
 
 
 def find_sentence_end(s: str) -> int:
+    """Returns first index in given string of the end of a sentence.
+
+    A sentence end is either ". " or a "." at the end of the string.
+
+    Returns zero-based index if successful, -1 otherwise.
+    """
     beg = 0
 
     while True:

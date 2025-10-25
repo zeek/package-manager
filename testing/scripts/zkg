@@ -2,6 +2,10 @@
 
 force=""
 
+# This is brittle: any test saying e.g. "zkg -vvv install" instead of "zkg
+# install" will no longer have --force. This should either be more robustly
+# parsed or set force via an env var or dedicated command line option.
+
 case "$1" in
     install)
         force="--force"
