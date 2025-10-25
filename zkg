@@ -342,15 +342,10 @@ def cmd_test(
             print(f"{name}: all tests passed")
         else:
             all_passed = False
-            clone_dir = os.path.join(
-                os.path.join(test_dir, "clones"),
-                info.package.name,
-            )
             print_error(
                 f'error: package "{name}" tests failed, inspect'
-                f" contents of {test_dir} for details, especially"
-                ' any "zkg.test_command.{{stderr,stdout}}"'
-                f" files within {clone_dir}",
+                f' {manager.package_test_log(info.package.name)} and'
+                f' the contents of {test_dir}'
             )
 
     if not all_passed:
@@ -498,15 +493,10 @@ def cmd_install(
             if error:
                 error_msg = f"failed to run tests for {name}: {error}"
             elif not passed:
-                clone_dir = os.path.join(
-                    os.path.join(test_dir, "clones"),
-                    info.package.name,
-                )
                 error_msg = (
-                    f'"{name}" tests failed, inspect contents of'
-                    f" {test_dir} for details, especially any"
-                    ' "zkg.test_command.{{stderr,stdout}}"'
-                    f" files within {clone_dir}"
+                    f'"{name}" tests failed, inspect'
+                    f' {manager.package_test_log(info.package.name)} and'
+                    f' the contents of {test_dir}'
                 )
 
             if error_msg:
@@ -1302,15 +1292,10 @@ def cmd_upgrade(
             if error:
                 error_msg = f"failed to run tests for {name}: {error}"
             elif not passed:
-                clone_dir = os.path.join(
-                    os.path.join(test_dir, "clones"),
-                    info.package.name,
-                )
                 error_msg = (
-                    f'"{name}" tests failed, inspect contents of'
-                    f" {test_dir} for details, especially any"
-                    ' "zkg.test_command.{{stderr,stdout}}"'
-                    f" files within {clone_dir}"
+                    f'"{name}" tests failed, inspect'
+                    f' {manager.package_test_log(info.package.name)} and'
+                    f' the contents of {test_dir}'
                 )
 
             if error_msg:
