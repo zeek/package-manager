@@ -7,6 +7,10 @@
 # @TEST-EXEC: bash we_need_to_go_deeper
 # @TEST-EXEC-FAIL: zkg test rot13
 
+# Verify that the build and test logs exist afterward:
+# @TEST-EXEC: test -f state/logs/rot13-build.log
+# @TEST-EXEC: test -f state/logs/rot13-test.log
+
 echo "$(pwd)/packages/rot13" >> sources/one/bob/zkg.index
 cd sources/one
 git commit -am 'add rot13 package'

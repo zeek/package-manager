@@ -710,6 +710,27 @@ class Manager:
         name = name_from_path(pkg_path)
         return os.path.join(CONFIG.log_dir(), f"{name}-build.log")
 
+    def package_test_log(self, pkg_path: str) -> str:
+        """Return the path to the package manager's test log for a package.
+
+        The test log is of the form <name>-test.log, resides in the log
+        directory of zkg's internal state, and combines stdout and stderr in
+        separate sections of the file.
+
+        The function does not check whether the log actually exists, or whether
+        the package actually requires one.
+
+        Args:
+            pkg_path (str): the full git URL of a package or the shortened
+                path/name that refers to it within a package source.  E.g. for
+                a package source called "zeek" with package named "foo" in
+                :file:`alice/zkg.index`, the following inputs may refer
+                to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
+        """
+        name = name_from_path(pkg_path)
+        return os.path.join(CONFIG.log_dir(), f"{name}-test.log")
+
     def match_source_packages(self, pkg_path: str) -> list[Package]:
         """Return a list of :class:`.package.Package` that match a given path.
 
@@ -2564,13 +2585,10 @@ class Manager:
                 continue
 
             test_command = metadata["test_command"]
-
             cwd = os.path.join(stage.clone_dir, info.package.name)
-            outfile = os.path.join(cwd, "zkg.test_command.stdout")
-            errfile = os.path.join(cwd, "zkg.test_command.stderr")
 
             LOG.debug(
-                'running test_command for %s with cwd="%s", PATH="%s",'
+                'testing "%s": running test_command with cwd="%s", PATH="%s",'
                 ' and ZEEKPATH="%s": %s',
                 info.package.name,
                 cwd,
@@ -2579,17 +2597,59 @@ class Manager:
                 test_command,
             )
 
-            with open(outfile, "w") as test_stdout, open(errfile, "w") as test_stderr:
-                cmd = subprocess.Popen(
-                    test_command,
-                    shell=True,
-                    cwd=cwd,
-                    env=env,
-                    stdout=test_stdout,
-                    stderr=test_stderr,
+            bufsize = 4096
+            test = subprocess.Popen(
+                test_command,
+                shell=True,
+                cwd=cwd,
+                env=env,
+                bufsize=bufsize,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            testlog = self.package_test_log(info.package.name)
+            try:
+                with open(testlog, "wb") as f:
+                    LOG.info(
+                        'testing "%s" in "%s": writing test log: %s',
+                        package,
+                        cwd,
+                        testlog,
+                    )
+
+                    f.write("=== STDERR ===\n".encode(std_encoding(sys.stderr)))
+
+                    while True:
+                        assert test.stderr
+                        data = test.stderr.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
+
+                    f.write("=== STDOUT ===\n".encode(std_encoding(sys.stdout)))
+
+                    while True:
+                        assert test.stdout
+                        data = test.stdout.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
+
+            except OSError as error:
+                LOG.warning(
+                    'testing "%s": failed to write test log %s %s: %s',
+                    package,
+                    testlog,
+                    error.errno,
+                    error.strerror,
                 )
 
-            rc = cmd.wait()
+            rc = test.wait()
 
             if rc != 0:
                 assert stage.state_dir
