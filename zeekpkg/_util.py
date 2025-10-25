@@ -1,5 +1,5 @@
 """
-These are meant to be private utility methods for internal use.
+Private utility methods for zkg's internal use.
 """
 
 import configparser
@@ -10,13 +10,42 @@ import os
 import shutil
 import string
 import subprocess
+import sys
 import tarfile
 import types
 from collections.abc import Callable, Iterable
-from typing import IO, TextIO
+from typing import IO, Any, TextIO, cast
 
 import git
 import semantic_version as semver
+
+
+def print_error(*args: object, **kwargs: Any) -> None:
+    print(*args, file=sys.stderr, **kwargs)
+
+
+def confirmation_prompt(prompt: str, default_to_yes: bool = True) -> bool:
+    yes = {"y", "ye", "yes"}
+
+    if default_to_yes:
+        prompt += " [Y/n] "
+    else:
+        prompt += " [N/y] "
+
+    choice = input(prompt).lower()
+
+    if not choice:
+        if default_to_yes:
+            return True
+
+        print("Abort.")
+        return False
+
+    if choice in yes:
+        return True
+
+    print("Abort.")
+    return False
 
 
 def make_dir(path: str) -> None:
@@ -33,6 +62,10 @@ def make_dir(path: str) -> None:
 
         if os.path.isfile(path):
             raise
+
+
+def file_is_not_empty(path: str) -> bool:
+    return os.path.isfile(path) and os.path.getsize(path) > 0
 
 
 def normalize_version_tag(tag: str) -> str:

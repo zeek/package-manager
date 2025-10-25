@@ -5,7 +5,6 @@
 
 import argparse
 import configparser
-import errno
 import filecmp
 import io
 import json
@@ -47,9 +46,8 @@ except ImportError:
     pass
 
 # For Zeek-bundled installation, prepend the Python path of the Zeek
-# installation. This ensures we find the matching zeekpkg module
-# first, avoiding potential conflicts with installations elsewhere on
-# the system.
+# installation. This ensures we find the matching zeekpkg module first,
+# avoiding conflicts with installations elsewhere on the system.
 ZEEK_PYTHON_DIR: str | None = "@PY_MOD_INSTALL_DIR@"
 assert isinstance(ZEEK_PYTHON_DIR, str)
 if os.path.isdir(ZEEK_PYTHON_DIR):
@@ -57,50 +55,21 @@ if os.path.isdir(ZEEK_PYTHON_DIR):
 else:
     ZEEK_PYTHON_DIR = None
 
-# Similarly, make Zeek's binary installation path available by
-# default. This helps package installations succeed that require
-# e.g. zeek-config for their build process.
-ZEEK_BIN_DIR: str | None = "@ZEEK_BIN_DIR@"
-assert isinstance(ZEEK_BIN_DIR, str)
-if os.path.isdir(ZEEK_BIN_DIR):
-    try:
-        if ZEEK_BIN_DIR not in os.environ["PATH"].split(os.pathsep):
-            os.environ["PATH"] = ZEEK_BIN_DIR + os.pathsep + os.environ["PATH"]
-    except KeyError:
-        os.environ["PATH"] = ZEEK_BIN_DIR
-else:
-    ZEEK_BIN_DIR = None
-
-# Also when bundling with Zeek, use directories in the install tree
-# for storing the zkg configuration and its variable state. Support
-# for overrides via environment variables simplifies testing.
-ZEEK_ZKG_CONFIG_DIR: str | None = (
-    os.getenv("ZEEK_ZKG_CONFIG_DIR") or "@ZEEK_ZKG_CONFIG_DIR@"
-)
-assert isinstance(ZEEK_ZKG_CONFIG_DIR, str)
-if not os.path.isdir(ZEEK_ZKG_CONFIG_DIR):
-    ZEEK_ZKG_CONFIG_DIR = None
-
-ZEEK_ZKG_STATE_DIR: str | None = (
-    os.getenv("ZEEK_ZKG_STATE_DIR") or "@ZEEK_ZKG_STATE_DIR@"
-)
-assert isinstance(ZEEK_ZKG_STATE_DIR, str)
-if not os.path.isdir(ZEEK_ZKG_STATE_DIR):
-    ZEEK_ZKG_STATE_DIR = None
-
-# The default package source we fall back to as needed
-ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
-
-# The default package template
-ZKG_DEFAULT_TEMPLATE = "https://github.com/zeek/package-template"
-
 import zeekpkg
 from zeekpkg._util import (
+    confirmation_prompt,
     delete_path,
     find_program,
     make_dir,
+    print_error,
     read_zeek_config_line,
-    std_encoding,
+)
+from zeekpkg.config import (
+    CONFIG,
+)
+from zeekpkg.consts import (
+    ZKG_DEFAULT_SOURCE,
+    ZKG_DEFAULT_TEMPLATE,
 )
 from zeekpkg.package import (
     BUILTIN_SCHEME,
@@ -120,34 +89,8 @@ from zeekpkg.uservar import (
 )
 
 
-def confirmation_prompt(prompt: str, default_to_yes: bool = True) -> bool:
-    yes = {"y", "ye", "yes"}
-
-    if default_to_yes:
-        prompt += " [Y/n] "
-    else:
-        prompt += " [N/y] "
-
-    choice = input(prompt).lower()
-
-    if not choice:
-        if default_to_yes:
-            return True
-
-        print("Abort.")
-        return False
-
-    if choice in yes:
-        return True
-
-    print("Abort.")
-    return False
-
-
 def prompt_for_user_vars(
     manager: zeekpkg.Manager,
-    config: configparser.ConfigParser,
-    configfile: str,
     args: argparse.Namespace,
     pkg_infos: list[PackageInfo],
 ) -> None:
@@ -165,7 +108,6 @@ def prompt_for_user_vars(
             try:
                 answers[uvar.name()] = uvar.resolve(
                     name,
-                    config,
                     args.user_var,
                     args.force,
                 )
@@ -176,173 +118,16 @@ def prompt_for_user_vars(
                 )
                 sys.exit(1)
 
+    for key, value in answers.items():
+        CONFIG.set("user_vars", key, value)
+
     if not args.force and answers:
-        for key, value in answers.items():
-            if not config.has_section("user_vars"):
-                config.add_section("user_vars")
-
-            config.set("user_vars", key, value)
-
-        if configfile:
-            with open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
-                config.write(f)
-
+        configfile = CONFIG.find_configfile(args)
+        if not configfile:
+            print_error("warning: could not locate config file to save to.")
+            return
+        if CONFIG.save(configfile):
             print(f"Saved answers to config file: {configfile}")
-
-    manager.user_vars = answers
-
-
-def print_error(*args: object, **kwargs: Any) -> None:
-    print(*args, file=sys.stderr, **kwargs)
-
-
-def config_items(
-    config: configparser.ConfigParser,
-    section: str,
-) -> list[tuple[str, str]]:
-    # Same as config.items(section), but exclude default keys.
-    defaults = {key for key, _ in config.items("DEFAULT")}
-    items = sorted(config.items(section))
-    return [(key, value) for (key, value) in items if key not in defaults]
-
-
-def file_is_not_empty(path: str) -> bool:
-    return os.path.isfile(path) and os.path.getsize(path) > 0
-
-
-def find_configfile(args: argparse.Namespace) -> str | None:
-    if args.user:
-        configfile: str | None = os.path.join(home_config_dir(), "config")
-
-        if configfile and file_is_not_empty(configfile):
-            return configfile
-
-        return None
-
-    configfile = os.environ.get("ZKG_CONFIG_FILE")
-
-    if configfile and file_is_not_empty(configfile):
-        return configfile
-
-    configfile = os.path.join(default_config_dir(), "config")
-
-    if file_is_not_empty(configfile):
-        return configfile
-
-    return None
-
-
-def home_config_dir() -> str:
-    return os.path.join(os.path.expanduser("~"), ".zkg")
-
-
-def default_config_dir() -> str:
-    return ZEEK_ZKG_CONFIG_DIR or home_config_dir()
-
-
-def default_state_dir() -> str:
-    return ZEEK_ZKG_STATE_DIR or home_config_dir()
-
-
-def create_config(
-    args: argparse.Namespace,
-    configfile: str | None,
-) -> configparser.ConfigParser:
-    config = configparser.ConfigParser()
-
-    if configfile:
-        if not os.path.isfile(configfile):
-            print_error(f'error: invalid config file "{configfile}"')
-            sys.exit(1)
-
-        config.read(configfile)
-
-    if not config.has_section("sources"):
-        config.add_section("sources")
-
-    if not config.has_section("paths"):
-        config.add_section("paths")
-
-    if not config.has_section("templates"):
-        config.add_section("templates")
-
-    if not configfile:
-        default = os.getenv("ZKG_DEFAULT_SOURCE", ZKG_DEFAULT_SOURCE)
-        if default:
-            config.set("sources", "zeek", default)
-
-    if not configfile or not config.has_option("templates", "default"):
-        default = os.getenv("ZKG_DEFAULT_TEMPLATE", ZKG_DEFAULT_TEMPLATE)
-        if default:
-            config.set("templates", "default", default)
-
-    def config_option_set(
-        config: configparser.ConfigParser,
-        section: str,
-        option: str,
-    ) -> str | None:
-        if config.has_option(section, option):
-            return config.get(section, option)
-
-        return None
-
-    def get_option(
-        config: configparser.ConfigParser,
-        section: str,
-        option: str,
-        default: str,
-    ) -> str:
-        if config_option_set(config, section, option):
-            return config.get(section, option)
-
-        return default
-
-    if args.user:
-        def_state_dir = home_config_dir()
-    else:
-        def_state_dir = default_state_dir()
-
-    state_dir = get_option(config, "paths", "state_dir", os.path.join(def_state_dir))
-    script_dir = get_option(
-        config,
-        "paths",
-        "script_dir",
-        os.path.join(state_dir, "script_dir"),
-    )
-    plugin_dir = get_option(
-        config,
-        "paths",
-        "plugin_dir",
-        os.path.join(state_dir, "plugin_dir"),
-    )
-    bin_dir = get_option(config, "paths", "bin_dir", os.path.join(state_dir, "bin"))
-    zeek_dist = get_option(config, "paths", "zeek_dist", "")
-
-    config.set("paths", "state_dir", state_dir)
-    config.set("paths", "script_dir", script_dir)
-    config.set("paths", "plugin_dir", plugin_dir)
-    config.set("paths", "bin_dir", bin_dir)
-    config.set("paths", "zeek_dist", zeek_dist)
-
-    def expand_config_values(config: configparser.ConfigParser, section: str) -> None:
-        for key, value in config.items(section):
-            value = os.path.expandvars(os.path.expanduser(value))
-            config.set(section, key, value)
-
-    expand_config_values(config, "sources")
-    expand_config_values(config, "paths")
-    expand_config_values(config, "templates")
-
-    for key, value in config.items("paths"):
-        if value and not os.path.isabs(value):
-            print_error(
-                "error: invalid config file value for key"
-                f' "{key}" in section [paths]: "{value}" is not'
-                " an absolute path",
-            )
-            sys.exit(1)
-
-    return config
 
 
 def active_git_branch(path: str) -> str | None:
@@ -404,76 +189,6 @@ def check_local_git_repo(git_url: str) -> bool:
             return False
 
     return True
-
-
-def create_manager(
-    args: argparse.Namespace,
-    config: configparser.ConfigParser,
-) -> zeekpkg.Manager:
-    state_dir = config.get("paths", "state_dir")
-    script_dir = config.get("paths", "script_dir")
-    plugin_dir = config.get("paths", "plugin_dir")
-    bin_dir = config.get("paths", "bin_dir")
-    zeek_dist = config.get("paths", "zeek_dist")
-
-    try:
-        manager = zeekpkg.Manager(
-            state_dir=state_dir,
-            script_dir=script_dir,
-            plugin_dir=plugin_dir,
-            bin_dir=bin_dir,
-            zeek_dist=zeek_dist,
-        )
-    except OSError as error:
-        if error.errno == errno.EACCES:
-            print_error(f"{type(error).__name__}: {error}")
-
-            def check_permission(d: str) -> bool:
-                if os.access(d, os.W_OK):
-                    return True
-
-                print_error(f"error: user does not have write access in {d}")
-                return False
-
-            permissions_trouble = not all(
-                [
-                    check_permission(state_dir),
-                    check_permission(script_dir),
-                    check_permission(plugin_dir),
-                    check_permission(bin_dir),
-                ],
-            )
-
-            if permissions_trouble and not args.user:
-                print_error(
-                    f"Consider the --user flag to manage zkg state via {home_config_dir()}/config",
-                )
-            sys.exit(1)
-
-        raise
-
-    extra_sources = []
-
-    for key_value in args.extra_source or []:
-        if "=" not in key_value:
-            print_error(f'warning: invalid extra source: "{key_value}"')
-            continue
-
-        key, value = key_value.split("=", 1)
-
-        if not key or not value:
-            print_error(f'warning: invalid extra source: "{key_value}"')
-            continue
-
-        extra_sources.append((key, value))
-
-    for key, value in extra_sources + config_items(config, "sources"):
-        if err := manager.add_source(name=key, git_url=value):
-            print_error(
-                f'warning: skipped using package source named "{key}": {err}',
-            )
-
-    return manager
 
 
 def get_changed_state(
@@ -571,8 +286,6 @@ class InstallWorker(threading.Thread):
 def cmd_test(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if args.version and len(args.package) > 1:
         print_error('error: "test --version" may only be used for a single package')
@@ -647,8 +360,6 @@ def cmd_test(
 def cmd_install(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if args.version and len(args.package) > 1:
         print_error('error: "install --version" may only be used for a single package')
@@ -758,8 +469,6 @@ def cmd_install(
 
     prompt_for_user_vars(
         manager,
-        config,
-        configfile,
         args,
         [info for info, _, _ in package_infos],
     )
@@ -921,8 +630,6 @@ def cmd_install(
 def cmd_bundle(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     packages_to_bundle = []
     prefer_existing_clones = False
@@ -1051,8 +758,6 @@ def cmd_bundle(
 def cmd_unbundle(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     prev_load_status = {}
 
@@ -1060,7 +765,7 @@ def cmd_unbundle(
         prev_load_status[ipkg.package.git_url] = ipkg.status.is_loaded
 
     if args.replace:
-        cmd_purge(manager, args, config, configfile)
+        cmd_purge(manager, args)
 
     error, bundle_info = manager.bundle_info(args.bundle_filename)
 
@@ -1135,8 +840,6 @@ def cmd_unbundle(
 
     prompt_for_user_vars(
         manager,
-        config,
-        configfile,
         args,
         [info for _, _, info in bundle_info],
     )
@@ -1178,8 +881,6 @@ def cmd_unbundle(
 def cmd_remove(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     packages_to_remove: list[InstalledPackage] = []
 
@@ -1275,8 +976,6 @@ def cmd_remove(
 def cmd_purge(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     packages_to_remove = manager.installed_packages()
     packages_to_remove = [p for p in packages_to_remove if not p.is_builtin()]
@@ -1333,8 +1032,6 @@ def outdated(manager: zeekpkg.Manager) -> list[str]:
 def cmd_refresh(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if not args.sources:
         args.sources = list(manager.sources.keys())
@@ -1444,8 +1141,6 @@ def version_change_string(
 def cmd_upgrade(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if args.package:
         pkg_list = args.package
@@ -1561,8 +1256,6 @@ def cmd_upgrade(
 
     prompt_for_user_vars(
         manager,
-        config,
-        configfile,
         args,
         [info for info, _, _ in allpkgs],
     )
@@ -1699,8 +1392,6 @@ def cmd_upgrade(
 def cmd_load(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     had_failure = False
     load_error = False
@@ -1769,8 +1460,6 @@ def cmd_load(
 def cmd_unload(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     had_failure = False
     packages_to_unload: list[InstalledPackage] = []
@@ -1857,8 +1546,6 @@ def cmd_unload(
 def cmd_pin(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     had_failure = False
 
@@ -1893,8 +1580,6 @@ def cmd_pin(
 def cmd_unpin(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     had_failure = False
 
@@ -1987,8 +1672,6 @@ def _get_filtered_packages(
 def cmd_list(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     filtered_pkgs = _get_filtered_packages(manager, args.category)
 
@@ -2016,8 +1699,6 @@ def cmd_list(
 def cmd_search(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     src_pkgs = manager.source_packages()
     matches = set()
@@ -2071,8 +1752,6 @@ def cmd_search(
 def cmd_info(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if args.version and len(args.package) > 1:
         print_error('error: "info --version" may only be used for a single package')
@@ -2229,37 +1908,37 @@ def _fill_metadata_version(
 def cmd_config(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if args.config_param == "all":
         out = io.StringIO()
-        config.write(out)
+        CONFIG.write(out)
         print(out.getvalue())
         out.close()
     elif args.config_param == "sources":
-        for key, value in config_items(config, "sources"):
+        for key, value in CONFIG.items("sources"):
             print(f"{key} = {value}")
     elif args.config_param == "user_vars":
-        if config.has_section("user_vars"):
-            for key, value in config_items(config, "user_vars"):
-                print(f"{key} = {value}")
+        for key, value in CONFIG.items("user_vars"):
+            print(f"{key} = {value}")
     else:
-        print(config.get("paths", args.config_param))
+        print(CONFIG.get("paths", args.config_param))
 
 
 def cmd_autoconfig(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     if args.user:
-        configfile = os.path.join(home_config_dir(), "config")
-        with open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
-            config.write(f)
-        print(f"Successfully wrote config file to {configfile}")
+        configfile = os.path.join(CONFIG.home_config_dir(), "config")
+        if CONFIG.save(configfile):
+            print(f"Successfully wrote config file to {configfile}")
         return
+
+    configfile = CONFIG.find_configfile(args)
+
+    if not configfile:
+        print_error("error: unable to locate a config file")
+        sys.exit(1)
 
     zeek_config = find_program("zeek-config")
 
@@ -2284,44 +1963,19 @@ def cmd_autoconfig(
     if configfile:
         config_dir = os.path.dirname(configfile)
     else:
-        config_dir = default_config_dir()
+        config_dir = CONFIG.default_config_dir()
         configfile = os.path.join(config_dir, "config")
 
     make_dir(config_dir)
 
-    config_file_exists = os.path.isfile(configfile)
+    do_prompt = os.path.isfile(configfile) and not args.force
 
-    def change_config_value(
-        config: configparser.ConfigParser,
-        section: str,
-        option: str,
-        new_value: str,
-        use_prompt: bool,
-    ) -> None:
-        if not use_prompt:
-            config.set(section, option, new_value)
-            return
+    CONFIG.set_interactively("paths", "script_dir", script_dir, do_prompt)
+    CONFIG.set_interactively("paths", "plugin_dir", plugin_dir, do_prompt)
+    CONFIG.set_interactively("paths", "bin_dir", bin_dir, do_prompt)
+    CONFIG.set_interactively("paths", "zeek_dist", zeek_dist, do_prompt)
 
-        old_value = config.get(section, option)
-
-        if old_value == new_value:
-            return
-
-        prompt = f'Set "{option}" config option to: {new_value} ?'
-
-        if old_value:
-            prompt += f"\n(previous value: {old_value})"
-
-        if args.force or confirmation_prompt(prompt):
-            config.set(section, option, new_value)
-
-    change_config_value(config, "paths", "script_dir", script_dir, config_file_exists)
-    change_config_value(config, "paths", "plugin_dir", plugin_dir, config_file_exists)
-    change_config_value(config, "paths", "bin_dir", bin_dir, config_file_exists)
-    change_config_value(config, "paths", "zeek_dist", zeek_dist, config_file_exists)
-
-    with open(configfile, "w", encoding=std_encoding(sys.stdout)) as f:
-        config.write(f)
+    CONFIG.save(configfile)
 
     print(f"Successfully wrote config file to {configfile}")
 
@@ -2329,8 +1983,6 @@ def cmd_autoconfig(
 def cmd_env(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     zeek_config = find_program("zeek-config")
     zeekpath = os.environ.get("ZEEKPATH")
@@ -2358,8 +2010,8 @@ def cmd_env(
     zeekpaths = list(zeekpath.split(":")) if zeekpath else []
     pluginpaths = list(pluginpath.split(":")) if pluginpath else []
 
-    zeekpaths.append(manager.zeekpath())
-    pluginpaths.append(manager.zeek_plugin_path())
+    zeekpaths.append(CONFIG.zeek_path())
+    pluginpaths.append(CONFIG.zeek_plugin_path())
 
     def remove_redundant_paths(paths: list[str]) -> list[str]:
         return list(OrderedDict.fromkeys(paths))
@@ -2370,26 +2022,24 @@ def cmd_env(
     if os.environ.get("SHELL", "").endswith("csh"):
         print("setenv ZEEKPATH {}".format(":".join(zeekpaths)))
         print("setenv ZEEK_PLUGIN_PATH {}".format(":".join(pluginpaths)))
-        print(f"setenv PATH {manager.bin_dir}:$PATH")
+        print(f"setenv PATH {CONFIG.bin_dir()}:$PATH")
     else:
         print("export ZEEKPATH={}".format(":".join(zeekpaths)))
         print("export ZEEK_PLUGIN_PATH={}".format(":".join(pluginpaths)))
-        print(f"export PATH={manager.bin_dir}:$PATH")
+        print(f"export PATH={CONFIG.bin_dir()}:$PATH")
 
 
 def cmd_create(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     tmplname = (
         args.template
-        or config.get("templates", "default", fallback=None)
+        or CONFIG.get("templates", "default", fallback=None)
         or ZKG_DEFAULT_TEMPLATE
     )
     try:
-        tmpl = Template.load(config, tmplname, args.version)
+        tmpl = Template.load(tmplname, args.version)
     except LoadError as error:
         msg = f"problem while loading template {tmplname}: {error}"
         zeekpkg.LOG.exception(msg)
@@ -2435,7 +2085,7 @@ def cmd_create(
         # Resolve the variables via user input, args, etc
         for uvar in uvars:
             try:
-                uvar.resolve(tmpl.name(), config, args.user_var, args.force)
+                uvar.resolve(tmpl.name(), args.user_var, args.force)
             except ValueError:
                 print_error(
                     f'error: could not determine value of user variable "{uvar.name()}",'
@@ -2487,17 +2137,15 @@ def cmd_create(
 def cmd_template_info(
     manager: zeekpkg.Manager,
     args: argparse.Namespace,
-    config: configparser.ConfigParser,
-    configfile: str,
 ) -> None:
     tmplname = (
         args.template
-        or config.get("templates", "default", fallback=None)
+        or CONFIG.get("templates", "default", fallback=None)
         or ZKG_DEFAULT_TEMPLATE
     )
 
     try:
-        tmpl = Template.load(config, tmplname, args.version)
+        tmpl = Template.load(tmplname, args.version)
     except LoadError as error:
         msg = f"problem while loading template {tmplname}: {error}"
         zeekpkg.LOG.exception(msg)
@@ -3236,15 +2884,21 @@ def main() -> None:
 
     zeekpkg.LOG.addHandler(handler)
 
-    configfile = args.configfile
+    configfile = CONFIG.find_configfile(args)
 
-    if not configfile:
-        configfile = find_configfile(args)
+    CONFIG.reset(args)
+    CONFIG.update_from_file(configfile)
+    CONFIG.update_from_args(args)
 
-    config = create_config(args, configfile)
-    manager = create_manager(args, config)
+    manager = zeekpkg.Manager()
 
-    args.run_cmd(manager, args, config, configfile)
+    for name, url in CONFIG.items("sources"):
+        if err := manager.add_source(name, url):
+            print_error(
+                f'warning: skipped using package source named "{name}" ({url}): {err}',
+            )
+
+    args.run_cmd(manager, args)
 
 
 if __name__ == "__main__":

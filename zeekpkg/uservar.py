@@ -4,10 +4,13 @@ by packages that the user can provide in a variety of ways, including
 responses to zkg's input prompting.
 """
 
-import configparser
 import os
 import re
 import readline
+
+from zeekpkg.config import (
+    CONFIG,
+)
 
 
 def slugify(string: str) -> str:
@@ -69,7 +72,6 @@ class UserVar:
     def resolve(
         self,
         name: str,
-        config: configparser.ConfigParser,
         user_var_args: list["UserVar"] | None = None,
         force: bool = False,
     ) -> str:
@@ -80,7 +82,7 @@ class UserVar:
         (1) Use any value provided on the command line via --user-var
         (2) If force is not used, prompt the user for input
         (3) use an environment variables of the same name,
-        (4) retrieve from the provided config parser's "user_vars" section,
+        (4) retrieve from zkg's "user_vars" configuration,
         (5) use the default value of the user variable.
 
         The resolved value is stored with the instance (to be
@@ -88,8 +90,6 @@ class UserVar:
 
         Args:
             name (str): the requesting entity, e.g. a package name
-
-            config (configparser.ConfigParser): the zkg configuration
 
             user_var_args (list of UserVar): user-var instances
                 provided via command line
@@ -127,7 +127,7 @@ class UserVar:
 
         if val is None:
             # Try to re-use a cached value in the subsequent prompt
-            val = config.get("user_vars", self._name, fallback=self._default)
+            val = CONFIG.get("user_vars", self._name, fallback=self._default)
 
         if force:
             if val is None:

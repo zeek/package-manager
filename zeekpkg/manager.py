@@ -45,6 +45,9 @@ from ._util import (
     safe_tarfile_extractall,
     std_encoding,
 )
+from .config import (
+    CONFIG,
+)
 from .package import (
     BUILTIN_SCHEME,
     BUILTIN_SOURCE,
@@ -91,10 +94,10 @@ class Stage:
             # Stages not given a test directory are essentially a shortcut to
             # standard functionality; this doesn't require all directories:
             self.state_dir = None
-            self.clone_dir = manager.package_clonedir
-            self.script_dir = manager.script_dir
-            self.plugin_dir = manager.plugin_dir
-            self.bin_dir = manager.bin_dir
+            self.clone_dir = CONFIG.packages_clone_dir()
+            self.script_dir = CONFIG.packages_script_dir()
+            self.plugin_dir = CONFIG.packages_plugin_dir()
+            self.bin_dir = CONFIG.bin_dir()
 
     def populate(self) -> None:
         # If we're staging to a temporary location, blow anything existing there
@@ -114,7 +117,7 @@ class Stage:
         # real install folders into the staging one. The subsequent cloning of
         # the packages under test will remove those links as needed.
         if self.state_dir:
-            with os.scandir(self.manager.package_clonedir) as it:
+            with os.scandir(CONFIG.packages_clone_dir()) as it:
                 for entry in it:
                     if not entry.is_dir():
                         continue
@@ -172,54 +175,6 @@ class Manager:
             a dictionary of installed packaged keyed on package names (the last
             component of the package's git URL)
 
-        zeek_dist (str): path to the Zeek source code distribution.  This
-            is needed for packages that contain Zeek plugins that need to be
-            built from source code.
-
-        state_dir (str): the directory where the package manager will
-            a maintain manifest file, package/source git clones, and other
-            persistent state the manager needs in order to operate
-
-        user_vars (dict of str -> str): dictionary of key-value pairs where
-            the value will be substituted into package build commands in place
-            of the key.
-
-        backup_dir (str): a directory where the package manager will
-            store backup files (e.g. locally modified package config files)
-
-        log_dir (str): a directory where the package manager will
-            store misc. logs files (e.g. package build logs)
-
-        scratch_dir (str): a directory where the package manager performs
-            miscellaneous/temporary file operations
-
-        script_dir (str): the directory where the package manager will
-            copy each installed package's `script_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `script_dir` associated with its name.
-
-        plugin_dir (str): the directory where the package manager will
-            copy each installed package's `plugin_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `plugin_dir` associated with its name.
-
-        bin_dir (str): the directory where the package manager will link
-            executables into that are provided by an installed package through
-            `executables` (as given by its :file:`zkg.meta` or
-            :file:`bro-pkg.meta`)
-
-        source_clonedir (str): the directory where the package manager
-            will clone package sources.  Each source gets a subdirectory
-            associated with its name.
-
-        package_clonedir (str): the directory where the package manager
-            will clone installed packages.  Each package gets a subdirectory
-            associated with its name.
-
-        package_testdir (str): the directory where the package manager
-            will run tests.  Each package gets a subdirectory
-            associated with its name.
-
         manifest (str): the path to the package manager's manifest file.
             This file maintains a list of installed packages and their status.
 
@@ -235,32 +190,8 @@ class Manager:
             load all installed packages that have been marked as loaded.
     """
 
-    def __init__(
-        self,
-        state_dir: str,
-        script_dir: str,
-        plugin_dir: str,
-        zeek_dist: str = "",
-        user_vars: dict[str, str] | None = None,
-        bin_dir: str = "",
-    ) -> None:
+    def __init__(self) -> None:
         """Creates a package manager instance.
-
-        Args:
-            state_dir (str): value to set the `state_dir` attribute to
-
-            script_dir (str): value to set the `script_dir` attribute to
-
-            plugin_dir (str): value to set the `plugin_dir` attribute to
-
-            zeek_dist (str): value to set the `zeek_dist` attribute to
-
-            user_vars (dict of str -> str): key-value pair substitutions for
-                use in package build commands.
-
-            bin_dir (str): value to set the `bin_dir` attribute to.  If
-                empty/nil value, defaults to setting `bin_dir` attribute to
-                `<state_dir>/bin`.
 
         Raises:
             OSError: when a package manager state directory can't be created
@@ -273,33 +204,28 @@ class Manager:
             None  # Cached Zeek built-in packages.
         )
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
-        self.zeek_dist = zeek_dist
-        self.state_dir = state_dir
-        self.user_vars = {} if user_vars is None else user_vars
-        self.backup_dir = os.path.join(self.state_dir, "backups")
-        self.log_dir = os.path.join(self.state_dir, "logs")
-        self.scratch_dir = os.path.join(self.state_dir, "scratch")
-        self._script_dir = script_dir
-        self.script_dir = os.path.join(script_dir, "packages")
-        self._plugin_dir = plugin_dir
-        self.plugin_dir = os.path.join(plugin_dir, "packages")
-        self.bin_dir = bin_dir or os.path.join(self.state_dir, "bin")
-        self.source_clonedir = os.path.join(self.state_dir, "clones", "source")
-        self.package_clonedir = os.path.join(self.state_dir, "clones", "package")
-        self.package_testdir = os.path.join(self.state_dir, "testing")
-        self.manifest = os.path.join(self.state_dir, "manifest.json")
-        self.autoload_script = os.path.join(self.script_dir, "packages.zeek")
-        self.autoload_package = os.path.join(self.script_dir, "__load__.zeek")
-        make_dir(self.state_dir)
-        make_dir(self.log_dir)
-        make_dir(self.scratch_dir)
-        make_dir(self.source_clonedir)
-        make_dir(self.package_clonedir)
-        make_dir(self.script_dir)
-        make_dir(self.plugin_dir)
-        make_dir(self.bin_dir)
-        _create_readme(os.path.join(self.script_dir, "README"))
-        _create_readme(os.path.join(self.plugin_dir, "README"))
+
+        self.manifest = os.path.join(CONFIG.state_dir(), "manifest.json")
+        self.autoload_script = os.path.join(
+            CONFIG.packages_script_dir(),
+            "packages.zeek",
+        )
+        self.autoload_package = os.path.join(
+            CONFIG.packages_script_dir(),
+            "__load__.zeek",
+        )
+
+        make_dir(CONFIG.bin_dir())
+        make_dir(CONFIG.log_dir())
+        make_dir(CONFIG.packages_clone_dir())
+        make_dir(CONFIG.packages_script_dir())
+        make_dir(CONFIG.packages_plugin_dir())
+        make_dir(CONFIG.scratch_dir())
+        make_dir(CONFIG.sources_clone_dir())
+        make_dir(CONFIG.state_dir())
+
+        _create_readme(os.path.join(CONFIG.packages_script_dir(), "README"))
+        _create_readme(os.path.join(CONFIG.packages_plugin_dir(), "README"))
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
@@ -318,18 +244,24 @@ class Manager:
         relocating_bin_dir = False  # whether bin_dir has relocated
         need_manifest_update = False
 
-        if os.path.realpath(prev_script_dir) != os.path.realpath(self.script_dir):
-            LOG.info("relocating script_dir %s -> %s", prev_script_dir, self.script_dir)
+        if os.path.realpath(prev_script_dir) != os.path.realpath(
+            CONFIG.packages_script_dir(),
+        ):
+            LOG.info(
+                "relocating script_dir %s -> %s",
+                prev_script_dir,
+                CONFIG.packages_script_dir(),
+            )
 
             if os.path.exists(prev_script_dir):
-                delete_path(self.script_dir)
-                shutil.move(prev_script_dir, self.script_dir)
+                delete_path(CONFIG.packages_script_dir())
+                shutil.move(prev_script_dir, CONFIG.packages_script_dir())
 
             prev_zeekpath = os.path.dirname(prev_script_dir)
 
             for pkg_name in self.installed_pkgs:
                 old_link = os.path.join(prev_zeekpath, pkg_name)
-                new_link = os.path.join(self.zeekpath(), pkg_name)
+                new_link = os.path.join(CONFIG.zeek_path(), pkg_name)
 
                 if os.path.lexists(old_link):
                     LOG.info("moving package link %s -> %s", old_link, new_link)
@@ -340,26 +272,32 @@ class Manager:
             need_manifest_update = True
             refresh_bin_dir = True
 
-        if os.path.realpath(prev_plugin_dir) != os.path.realpath(self.plugin_dir):
-            LOG.info("relocating plugin_dir %s -> %s", prev_plugin_dir, self.plugin_dir)
+        if os.path.realpath(prev_plugin_dir) != os.path.realpath(
+            CONFIG.packages_plugin_dir(),
+        ):
+            LOG.info(
+                "relocating plugin_dir %s -> %s",
+                prev_plugin_dir,
+                CONFIG.packages_plugin_dir(),
+            )
 
             if os.path.exists(prev_plugin_dir):
-                delete_path(self.plugin_dir)
-                shutil.move(prev_plugin_dir, self.plugin_dir)
+                delete_path(CONFIG.packages_plugin_dir())
+                shutil.move(prev_plugin_dir, CONFIG.packages_plugin_dir())
 
             need_manifest_update = True
             refresh_bin_dir = True
 
         if prev_bin_dir and os.path.realpath(prev_bin_dir) != os.path.realpath(
-            self.bin_dir,
+            CONFIG.bin_dir(),
         ):
-            LOG.info("relocating bin_dir %s -> %s", prev_bin_dir, self.bin_dir)
+            LOG.info("relocating bin_dir %s -> %s", prev_bin_dir, CONFIG.bin_dir())
             need_manifest_update = True
             refresh_bin_dir = True
             relocating_bin_dir = True
 
         if refresh_bin_dir:
-            self._refresh_bin_dir(self.bin_dir)
+            self._refresh_bin_dir(CONFIG.bin_dir())
 
         if relocating_bin_dir:
             self._clear_bin_dir(prev_bin_dir)
@@ -414,7 +352,7 @@ class Manager:
         a fallback for recognizing the older name so that newer zkg versions
         continue to work with older Zeek versions for some time longer.
         """
-        package_dir = pathlib.Path(self.plugin_dir) / ipkg.package.name
+        package_dir = pathlib.Path(CONFIG.packages_plugin_dir()) / ipkg.package.name
 
         magic_paths_enabled = [
             package_dir / PLUGIN_MAGIC_FILE,
@@ -505,30 +443,14 @@ class Manager:
 
         data = {
             "manifest_version": 1,
-            "script_dir": self.script_dir,
-            "plugin_dir": self.plugin_dir,
-            "bin_dir": self.bin_dir,
+            "script_dir": CONFIG.packages_script_dir(),
+            "plugin_dir": CONFIG.packages_plugin_dir(),
+            "bin_dir": CONFIG.bin_dir(),
             "installed_packages": pkg_list,
         }
 
         with open(self.manifest, "w") as f:
             json.dump(data, f, indent=2, sort_keys=True)
-
-    def zeekpath(self) -> str:
-        """Return the path where installed package scripts are located.
-
-        This path can be added to :envvar:`ZEEKPATH` for interoperability with
-        Zeek.
-        """
-        return os.path.dirname(self.script_dir)
-
-    def zeek_plugin_path(self) -> str:
-        """Return the path where installed package plugins are located.
-
-        This path can be added to :envvar:`ZEEK_PLUGIN_PATH` for
-        interoperability with Zeek.
-        """
-        return os.path.dirname(self.plugin_dir)
 
     def add_source(self, name: str, git_url: str) -> str:
         """Add a git repository that acts as a source of packages.
@@ -561,7 +483,7 @@ class Manager:
                 f"source already exists with different URL: {existing_source.git_url}"
             )
 
-        clone_path = os.path.join(self.source_clonedir, name)
+        clone_path = os.path.join(CONFIG.sources_clone_dir(), name)
 
         # Support @ in the path to denote the "version" to checkout
         version = None
@@ -753,7 +675,7 @@ class Manager:
 
         """
         name = name_from_path(pkg_path)
-        return os.path.join(self.log_dir, f"{name}-build.log")
+        return os.path.join(CONFIG.log_dir(), f"{name}-build.log")
 
     def match_source_packages(self, pkg_path: str) -> list[Package]:
         """Return a list of :class:`.package.Package` that match a given path.
@@ -820,7 +742,9 @@ class Manager:
         """
         # XXX is this better than relying on the presence of the scripts
         # directive in zkg.meta?
-        return os.path.exists(os.path.join(self.script_dir, installed_pkg.package.name))
+        return os.path.exists(
+            os.path.join(CONFIG.packages_script_dir(), installed_pkg.package.name),
+        )
 
     def has_plugin(self, installed_pkg: InstalledPackage) -> bool:
         """Return whether a :class:`.package.InstalledPackage` installed a plugin.
@@ -834,7 +758,9 @@ class Manager:
         """
         # XXX is this better than relying on the presence of the build_command
         # in zkg.meta?
-        return os.path.exists(os.path.join(self.plugin_dir, installed_pkg.package.name))
+        return os.path.exists(
+            os.path.join(CONFIG.packages_plugin_dir(), installed_pkg.package.name),
+        )
 
     def save_temporary_config_files(
         self,
@@ -861,7 +787,7 @@ class Manager:
             return []
 
         pkg_name = installed_pkg.package.name
-        clone_dir = os.path.join(self.package_clonedir, pkg_name)
+        clone_dir = os.path.join(CONFIG.packages_clone_dir(), pkg_name)
         rval = []
 
         for config_file in config_files:
@@ -875,7 +801,7 @@ class Manager:
                 )
                 continue
 
-            backup_file = os.path.join(self.scratch_dir, "tmpcfg", config_file)
+            backup_file = os.path.join(CONFIG.scratch_dir(), "tmpcfg", config_file)
             make_dir(os.path.dirname(backup_file))
             shutil.copy2(config_file_path, backup_file)
             rval.append((config_file, backup_file))
@@ -914,9 +840,9 @@ class Manager:
             return []
 
         pkg_name = installed_pkg.package.name
-        script_install_dir = os.path.join(self.script_dir, pkg_name)
-        plugin_install_dir = os.path.join(self.plugin_dir, pkg_name)
-        clone_dir = os.path.join(self.package_clonedir, pkg_name)
+        script_install_dir = os.path.join(CONFIG.packages_script_dir(), pkg_name)
+        plugin_install_dir = os.path.join(CONFIG.packages_plugin_dir(), pkg_name)
+        clone_dir = os.path.join(CONFIG.packages_clone_dir(), pkg_name)
         script_dir = metadata.get("script_dir", "")
         plugin_dir = metadata.get("plugin_dir", "build")
         rval = []
@@ -1000,7 +926,11 @@ class Manager:
             config_file_dir = os.path.dirname(config_file)
             install_path = modified_file[1]
             filename = os.path.basename(install_path)
-            backup_dir = os.path.join(self.backup_dir, backup_subdir, config_file_dir)
+            backup_dir = os.path.join(
+                CONFIG.backup_dir(),
+                backup_subdir,
+                config_file_dir,
+            )
             timestamp = time.strftime(".%Y-%m-%d-%H:%M:%S")
             backup_path = os.path.join(backup_dir, filename + timestamp)
             make_dir(backup_dir)
@@ -1119,9 +1049,9 @@ class Manager:
         source = self.sources[name]
         LOG.debug('refresh "%s": pulling %s', name, source.git_url)
         aggregate_file = os.path.join(source.clone.working_dir, AGGREGATE_DATA_FILE)
-        agg_file_ours = os.path.join(self.scratch_dir, AGGREGATE_DATA_FILE)
+        agg_file_ours = os.path.join(CONFIG.scratch_dir(), AGGREGATE_DATA_FILE)
         agg_file_their_orig = os.path.join(
-            self.scratch_dir,
+            CONFIG.scratch_dir(),
             AGGREGATE_DATA_FILE + ".orig",
         )
 
@@ -1192,7 +1122,7 @@ class Manager:
 
                 for url in urls:
                     pkg_name = name_from_path(url)
-                    clonepath = os.path.join(self.scratch_dir, pkg_name)
+                    clonepath = os.path.join(CONFIG.scratch_dir(), pkg_name)
                     delete_path(clonepath)
 
                     try:
@@ -1247,7 +1177,7 @@ class Manager:
 
                     metadata = _get_package_metadata(metadata_parser)
                     index_dir = os.path.dirname(index_file)[
-                        len(self.source_clonedir) + len(name) + 2 :
+                        len(CONFIG.sources_clone_dir()) + len(name) + 2 :
                     ]
                     qualified_name = os.path.join(index_dir, pkg_name)
 
@@ -1330,7 +1260,7 @@ class Manager:
                 )
                 continue
 
-            clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
+            clonepath = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name)
             clone = git.Repo(clonepath)
             LOG.debug("fetch package %s", ipkg.package.qualified_name())
 
@@ -1391,7 +1321,7 @@ class Manager:
             LOG.info('upgrading "%s": package not outdated', pkg_path)
             return "package is not outdated"
 
-        clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
+        clonepath = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name)
         clone = git.Repo(clonepath)
 
         if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
@@ -1449,16 +1379,16 @@ class Manager:
         self.unload(pkg_path)
 
         pkg_to_remove = ipkg.package
-        delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
-        delete_path(os.path.join(self.script_dir, pkg_to_remove.name))
-        delete_path(os.path.join(self.plugin_dir, pkg_to_remove.name))
-        delete_path(os.path.join(self.zeekpath(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.packages_clone_dir(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.packages_script_dir(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.packages_plugin_dir(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.zeek_path(), pkg_to_remove.name))
 
         for alias in pkg_to_remove.aliases():
-            delete_path(os.path.join(self.zeekpath(), alias))
+            delete_path(os.path.join(CONFIG.zeek_path(), alias))
 
         for exe in self._get_executables(pkg_to_remove.metadata):
-            link = os.path.join(self.bin_dir, os.path.basename(exe))
+            link = os.path.join(CONFIG.bin_dir(), os.path.basename(exe))
             if os.path.islink(link):
                 try:
                     LOG.debug("removing link %s", link)
@@ -1575,7 +1505,7 @@ class Manager:
             return ""
 
         pkg_load_script = os.path.join(
-            self.script_dir,
+            CONFIG.packages_script_dir(),
             ipkg.package.name,
             "__load__.zeek",
         )
@@ -1869,7 +1799,7 @@ class Manager:
 
         """
         LOG.debug('getting bundle info for file "%s"', bundle_file)
-        bundle_dir = os.path.join(self.scratch_dir, "bundle")
+        bundle_dir = os.path.join(CONFIG.scratch_dir(), "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         infos: list[tuple[str, str, PackageInfo]] = []
@@ -1958,7 +1888,7 @@ class Manager:
         if prefer_installed and ipkg:
             status = ipkg.status
             pkg_name = ipkg.package.name
-            clonepath = os.path.join(self.package_clonedir, pkg_name)
+            clonepath = os.path.join(CONFIG.packages_clone_dir(), pkg_name)
             clone = git.Repo(clonepath)
             return _info_from_clone(clone, ipkg.package, status, status.current_version)
 
@@ -2023,7 +1953,7 @@ class Manager:
         Raises:
             git.GitCommandError: when failing to clone the package repo
         """
-        clonepath = os.path.join(self.scratch_dir, package.name)
+        clonepath = os.path.join(CONFIG.scratch_dir(), package.name)
         clone = _clone_package(package, clonepath, version, update_submodules)
         versions = git_version_tags(clone)
 
@@ -2054,7 +1984,7 @@ class Manager:
         """
         name = installed_package.package.name
         assert name
-        clonepath = os.path.join(self.package_clonedir, name)
+        clonepath = os.path.join(CONFIG.packages_clone_dir(), name)
         clone = git.Repo(clonepath)
         return git_version_tags(clone)
 
@@ -2510,7 +2440,7 @@ class Manager:
             str: empty string if the bundle is successfully created,
             else an error string explaining what failed.
         """
-        bundle_dir = os.path.join(self.scratch_dir, "bundle")
+        bundle_dir = os.path.join(CONFIG.scratch_dir(), "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         manifest_file = os.path.join(bundle_dir, "manifest.txt")
@@ -2551,7 +2481,7 @@ class Manager:
                 ipkg = match_package_url_and_version(git_url, version)
 
                 if ipkg:
-                    src = os.path.join(self.package_clonedir, ipkg.package.name)
+                    src = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name)
                     shutil.copytree(src, clonepath, symlinks=True)
                     clone = git.Repo(clonepath)
                     clone.git.reset(hard=True)
@@ -2599,7 +2529,7 @@ class Manager:
             message indicated what went wrong.
         """
         LOG.debug('unbundle "%s"', bundle_file)
-        bundle_dir = os.path.join(self.scratch_dir, "bundle")
+        bundle_dir = os.path.join(CONFIG.scratch_dir(), "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
 
@@ -2628,7 +2558,7 @@ class Manager:
             )
 
             # Prepare the clonepath with the contents from the bundle.
-            clonepath = os.path.join(self.package_clonedir, package.name)
+            clonepath = os.path.join(CONFIG.packages_clone_dir(), package.name)
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)
 
@@ -2719,7 +2649,7 @@ class Manager:
             version = pkg_info.metadata_version
 
         package = pkg_info.package
-        stage = Stage(self, os.path.join(self.package_testdir, package.name))
+        stage = Stage(self, os.path.join(CONFIG.testing_dir(), package.name))
         stage.populate()
 
         request = [(package.qualified_name(), version)]
@@ -2783,7 +2713,7 @@ class Manager:
             fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
-                return (fail_msg, False, self.state_dir)
+                return (fail_msg, False, CONFIG.state_dir())
 
         # Finally, run tests (with correct environment set)
         if test_dependencies:
@@ -3007,7 +2937,7 @@ class Manager:
                 "script_dir",
                 script_dir_src,
                 script_dir_dst,
-                self.scratch_dir,
+                CONFIG.scratch_dir(),
             ):
                 return err
         else:
@@ -3041,7 +2971,7 @@ class Manager:
             "plugin_dir",
             plugin_dir_src,
             plugin_dir_dst,
-            self.scratch_dir,
+            CONFIG.scratch_dir(),
         ):
             return err
 
@@ -3094,7 +3024,7 @@ class Manager:
 
             if conflict.qualified_name().endswith(pkg_path):
                 LOG.debug('installing "%s": re-install: %s', pkg_path, conflict)
-                clonepath = os.path.join(self.package_clonedir, conflict.name)
+                clonepath = os.path.join(CONFIG.packages_clone_dir(), conflict.name)
                 _clone_package(conflict, clonepath, version)
                 return self._install(conflict, version)
 
@@ -3206,7 +3136,7 @@ class Manager:
             git.GitCommandError: if the git repo is invalid
             IOError: if the package manifest file can't be written
         """
-        clonepath = os.path.join(self.package_clonedir, package.name)
+        clonepath = os.path.join(CONFIG.packages_clone_dir(), package.name)
         ipkg = self.find_installed_package(package.name)
 
         if use_existing_clone or ipkg:
@@ -3284,7 +3214,7 @@ class Manager:
         package.metadata = raw_metadata
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()
-        self._refresh_bin_dir(self.bin_dir)
+        self._refresh_bin_dir(CONFIG.bin_dir())
         LOG.debug('installed "%s"', package)
         return ""
 
@@ -3302,11 +3232,13 @@ class Manager:
             return None, "package has malformed 'user_vars' metadata field"
 
         substitutions = {
-            "zeek_dist": self.zeek_dist,
             "package_base": stage.clone_dir,
         }
 
-        substitutions.update(self.user_vars)
+        if CONFIG.zeek_dist() is not None:
+            substitutions["zeek_dist"] = CONFIG.zeek_dist()
+
+        substitutions.update(CONFIG.user_vars())
 
         for uvar in requested_user_vars:
             val_from_env = os.environ.get(uvar.name())
@@ -3331,7 +3263,7 @@ class Manager:
         for ipkg in self.installed_pkgs.values():
             for exe in self._get_executables(ipkg.package.metadata):
                 # Put symlinks in place that are missing in current directory
-                src = os.path.join(self.package_clonedir, ipkg.package.name, exe)
+                src = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name, exe)
                 dst = os.path.join(bin_dir, os.path.basename(exe))
 
                 if (
