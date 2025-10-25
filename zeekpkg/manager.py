@@ -23,7 +23,6 @@ from urllib.parse import urlparse
 import git
 import semantic_version as semver
 
-from . import __version__
 from ._util import (
     copy_over_path,
     delete_path,
@@ -45,6 +44,9 @@ from ._util import (
 )
 from .config import (
     CONFIG,
+)
+from .consts import (
+    VERSION,
 )
 from .logs import (
     LOG,
@@ -201,7 +203,7 @@ class Manager:
             OSError: when a package manager state directory can't be created
             IOError: when a package manager state file can't be created
         """
-        LOG.debug("init Manager version %s", __version__)
+        LOG.debug("init Manager version %s", VERSION)
         self.sources: dict[str, Source] = {}
         self.installed_pkgs: dict[str, InstalledPackage] = {}
         self._builtin_packages: list[PackageInfo] | None = (
@@ -2028,7 +2030,7 @@ class Manager:
             node = Node("zkg")
             node.installed_version = PackageVersion(
                 TRACKING_METHOD_VERSION,
-                __version__,
+                VERSION,
             )
             graph["zkg"] = node
 

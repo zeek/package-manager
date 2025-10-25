@@ -18,10 +18,10 @@ if TYPE_CHECKING:
 from zeekpkg.config import (
     CONFIG,
 )
-
-from . import (
-    __version__,
+from zeekpkg.consts import (
+    VERSION,
 )
+
 from ._util import (
     delete_path,
     git_checkout,
@@ -794,7 +794,7 @@ class Package(_Content):
 
         commit_msg = f"""Initial commit.
 
-zkg {__version__} created this package from template "{tmpl_source}"
+zkg {VERSION} created this package from template "{tmpl_source}"
 using {ver_info}."""
 
         if self._features:
