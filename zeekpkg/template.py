@@ -20,7 +20,6 @@ from zeekpkg.config import (
 )
 
 from . import (
-    LOG,
     __version__,
 )
 from ._util import (
@@ -33,6 +32,9 @@ from ._util import (
     git_version_tags,
     load_source,
     make_dir,
+)
+from .logs import (
+    LOG,
 )
 from .package import (
     name_from_path,
