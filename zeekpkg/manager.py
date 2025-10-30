@@ -2740,7 +2740,6 @@ class Manager:
                 "script_dir",
                 script_dir_src,
                 script_dir_dst,
-                CONFIG.scratch_dir(),
             ):
                 return err
         else:
@@ -2774,7 +2773,6 @@ class Manager:
             "plugin_dir",
             plugin_dir_src,
             plugin_dir_dst,
-            CONFIG.scratch_dir(),
         ):
             return err
 
@@ -3145,7 +3143,6 @@ def _copy_package_dir(
     dirname: str,
     src: str,
     dst: str,
-    scratch_dir: str,
 ) -> str:
     """Copy a directory from a package to its installation location.
 
@@ -3156,8 +3153,12 @@ def _copy_package_dir(
     if not os.path.exists(src):
         return ""
 
+    # XXX instead of magic handling of tarfiles, it'd be nicer
+    # to have separate keywords for shipping archives.
+    # Since it only seems to make sense for pre-built plugins
+    # and their dependencies, perhaps plugin_archive.
     if os.path.isfile(src) and tarfile.is_tarfile(src):
-        tmp_dir = os.path.join(scratch_dir, "untar")
+        tmp_dir = os.path.join(CONFIG.scratch_dir(), "untar")
         delete_path(tmp_dir)
         make_dir(tmp_dir)
 
