@@ -3,7 +3,6 @@
 # https://pypi.org/project/argcomplete/#global-completion
 # PYTHON_ARGCOMPLETE_OK
 
-import logging
 import os
 import sys
 
@@ -51,19 +50,7 @@ def main() -> None:
     parser = zeekpkg.cli.argparser()
     args = parser.parse_args()
 
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)-8s %(message)s",
-        "%Y-%m-%d %H:%M:%S",
-    )
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-
-    if args.verbose == 1:
-        zeekpkg.LOG.setLevel(logging.INFO)
-    elif args.verbose >= 2:
-        zeekpkg.LOG.setLevel(logging.DEBUG)
-
-    zeekpkg.LOG.addHandler(handler)
+    zeekpkg.logs.configure(args.verbose)
 
     configfile = zeekpkg.CONFIG.find_configfile(args)
 
