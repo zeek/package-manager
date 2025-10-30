@@ -83,7 +83,11 @@ def canonical_url(path: str) -> str:
 
 
 def is_valid_name(name: str) -> bool:
-    """Returns True if name is a valid package name, else False."""
+    """Returns True if name is a valid package name, else False.
+
+    A name is valid if it doesn't contain spaces, slashes, dots, or reserved
+    words.
+    """
     if name != name.strip():
         # Reject names with leading/trailing whitespace
         return False
