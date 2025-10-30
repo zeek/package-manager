@@ -2122,7 +2122,7 @@ def _top_level_parser() -> argparse.ArgumentParser:
         "-v",
         action="count",
         default=0,
-        help="Increase program output for debugging."
+        help="Increase program output to stderr."
         " Use multiple times for more output (e.g. -vv).",
     )
     top_parser.add_argument(
