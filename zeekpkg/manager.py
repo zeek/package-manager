@@ -95,7 +95,7 @@ class Stage:
             self.plugin_dir = os.path.join(self.state_dir, "plugins", "packages")
             self.bin_dir = os.path.join(self.state_dir, "bin")
         else:
-            # Stages not given a test directory are essentially a shortcut to
+            # Stages not given a state directory are essentially a shortcut to
             # standard functionality; this doesn't require all directories:
             self.state_dir = None
             self.clone_dir = CONFIG.packages_clone_dir()
@@ -697,6 +697,8 @@ class Manager:
         """
         rval = []
         canon_url = canonical_url(pkg_path)
+
+        # XXX This is the right place to populate a package source on-demand.
 
         for pkg in self.source_packages():
             if pkg.matches_path(canon_url):
@@ -2710,12 +2712,16 @@ class Manager:
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
         script_dir_dst = os.path.join(stage.script_dir, package.name)
 
+        # XXX what if the package has only a plugin, no script_dir?
+        # Seems conceivable and not an error.
         if not os.path.exists(script_dir_src):
             return f"package's 'script_dir' does not exist: {pkg_script_dir}"
 
         pkgload = os.path.join(script_dir_src, "__load__.zeek")
 
         if os.path.isfile(pkgload):
+            # In script_dir (share/zeek/site/ in a Zeek install), symlink
+            # <package> -> packages/<package>/. Similarly for any aliases.
             symlink_path = os.path.join(
                 os.path.dirname(stage.script_dir),
                 package.name,
@@ -3005,6 +3011,9 @@ class Manager:
         if not package.source:
             # If installing directly from git URL, see if it actually is found
             # in a package source and fill in those details.
+            #
+            # XXX This seems strange -- what if this is ambiguous across
+            # sources?  Also we overwrite the metdata below anyway.
             for pkg in self.source_packages():
                 if pkg.git_url == package.git_url:
                     package.source = pkg.source
