@@ -3,15 +3,15 @@ Installing "one/alice/foo"
 Installed "one/alice/foo" (main)
 Loaded "one/alice/foo"
 Installing "one/alice/bar"
-error: incomplete installation, the follow packages failed to be installed:
+Error: incomplete installation, the follow packages failed to be installed:
   one/alice/bar (master)
 Failed installing "one/alice/bar": name "bar" conflicts with alias from "one/alice/foo"
 Installing "one/alice/baz"
-error: incomplete installation, the follow packages failed to be installed:
+Error: incomplete installation, the follow packages failed to be installed:
   one/alice/baz (master)
 Failed installing "one/alice/baz": alias "foo" conflicts with name of installed package "one/alice/foo"
 Installing "one/bob/corge"
-error: incomplete installation, the follow packages failed to be installed:
+Error: incomplete installation, the follow packages failed to be installed:
   one/bob/corge (master)
 Failed installing "one/bob/corge": alias "bar" conflicts with alias of installed package "one/alice/foo"
 Removed "one/alice/foo"
@@ -22,6 +22,6 @@ Installing "one/bob/corge"
 Installed "one/bob/corge" (master)
 Loaded "one/bob/corge"
 Installing "one/alice/foo"
-error: incomplete installation, the follow packages failed to be installed:
+Error: incomplete installation, the follow packages failed to be installed:
   one/alice/foo (main)
 Failed installing "one/alice/foo": name "foo" conflicts with alias from "one/alice/baz"

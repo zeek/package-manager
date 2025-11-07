@@ -13,18 +13,15 @@ import re
 import shutil
 import subprocess
 import sys
-import threading
 from collections import OrderedDict
-from typing import Any, TextIO
+from typing import Any
 
 from ._util import (
     active_git_branch,
     check_local_git_repo,
-    confirmation_prompt,
     delete_path,
     find_program,
     make_dir,
-    print_error,
     read_zeek_config_line,
 )
 from .config import (
@@ -51,6 +48,9 @@ from .template import (
     OutputError,
     Template,
 )
+from .ui import (
+    UI,
+)
 from .uservar import (
     UserVar,
 )
@@ -68,7 +68,7 @@ def prompt_for_user_vars(
         requested_user_vars = info.user_vars()
 
         if requested_user_vars is None:
-            print_error(f'error: malformed user_vars in "{name}"')
+            UI.error(f'malformed user_vars in "{name}"')
             sys.exit(1)
 
         for uvar in requested_user_vars:
@@ -79,8 +79,8 @@ def prompt_for_user_vars(
                     args.force,
                 )
             except ValueError:
-                print_error(
-                    f'error: could not determine value of user variable "{uvar.name()}",'
+                UI.error(
+                    f'could not determine value of user variable "{uvar.name()}",'
                     " provide via environment or --user-var",
                 )
                 sys.exit(1)
@@ -91,10 +91,10 @@ def prompt_for_user_vars(
     if not args.force and answers:
         configfile = CONFIG.find_configfile(args)
         if not configfile:
-            print_error("warning: could not find config file to save to.")
+            UI.warning("could not find config file to save to.")
             return
         if CONFIG.save(configfile):
-            print(f"Saved answers to config file: {configfile}")
+            UI.info(f"Saved answers to config file: {configfile}")
 
 
 def get_changed_state(
@@ -131,70 +131,12 @@ def get_changed_state(
     return dep_listing
 
 
-class InstallWorker(threading.Thread):
-    def __init__(
-        self,
-        manager: Manager,
-        package_name: str,
-        package_version: str,
-    ) -> None:
-        super().__init__()
-        self.manager = manager
-        self.package_name = package_name
-        self.package_version = package_version
-        self.error = ""
-
-    def run(self) -> None:
-        self.error = self.manager.install(self.package_name, self.package_version)
-
-    def wait(
-        self,
-        msg: str | None = None,
-        out: TextIO | Any = sys.stdout,
-        tty_only: bool = True,
-    ) -> None:
-        """Blocks until this thread ends, optionally writing liveness indicators.
-
-        This never returns until this thread dies (i.e., is_alive() is False).
-        When an output file object is provided, the method also indicates
-        progress by writing a dot character to it once per second. This happens
-        only when the file is a TTY, unless ``tty_only`` is False. When a
-        message is given, it gets written out first, regardless of TTY
-        status. Any output always terminates with a newline.
-
-        Args:
-            msg (str): a message to write first.
-
-            out (file-like object): the destination to write to.
-
-            tty_only (bool): whether to write progress dots also to non-TTYs.
-        """
-        if out is not None and msg:
-            out.write(msg)
-            out.flush()
-
-        is_tty = hasattr(out, "isatty") and out.isatty()
-
-        while True:
-            self.join(1.0)
-            if not self.is_alive():
-                break
-
-            if out is not None and (is_tty or not tty_only):
-                out.write(".")
-                out.flush()
-
-        if out is not None and (msg or is_tty or not tty_only):
-            out.write("\n")
-            out.flush()
-
-
 def cmd_test(
     manager: Manager,
     args: argparse.Namespace,
 ) -> None:
     if args.version and len(args.package) > 1:
-        print_error('error: "test --version" may only be used for a single package')
+        UI.error('test --version" may only be used for a single package')
         sys.exit(1)
 
     package_infos: list[tuple[PackageInfo, str]] = []
@@ -207,16 +149,14 @@ def cmd_test(
         # to run tests due to the potential of conflicts.
         bpkg_info = manager.find_builtin_package(name)
         if bpkg_info is not None:
-            print_error(f'cannot run tests for "{name}": built-in package')
+            UI.warning(f'cannot run tests for "{name}": built-in package')
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
         package_info = manager.info(name, version=version, prefer_installed=False)
 
         if package_info.invalid_reason:
-            print_error(
-                f'error: invalid package "{name}": {package_info.invalid_reason}',
-            )
+            UI.error(f'invalid package "{name}": {package_info.invalid_reason}')
             sys.exit(1)
 
         if not version:
@@ -230,7 +170,7 @@ def cmd_test(
         name = info.package.qualified_name()
 
         if "test_command" not in info.metadata:
-            print(f"{name}: no test_command found in metadata, skipping")
+            UI.info(f"{name}: no test_command found in metadata, skipping")
             continue
 
         error_msg, passed, test_dir = manager.test(
@@ -241,14 +181,14 @@ def cmd_test(
 
         if error_msg:
             all_passed = False
-            print_error(f'error: failed to run tests for "{name}": {error_msg}')
+            UI.error(f'failed to run tests for "{name}": {error_msg}')
             continue
 
         if passed:
-            print(f"{name}: all tests passed")
+            UI.info(f"{name}: all tests passed")
         else:
             all_passed = False
-            print_error(
+            UI.error(
                 f'error: package "{name}" tests failed, inspect'
                 f" {manager.package_test_log(info.package.name)} and"
                 f" the contents of {test_dir}",
@@ -263,7 +203,7 @@ def cmd_install(
     args: argparse.Namespace,
 ) -> None:
     if args.version and len(args.package) > 1:
-        print_error('error: "install --version" may only be used for a single package')
+        UI.error('"install --version" may only be used for a single package')
         sys.exit(1)
 
     package_infos: list[tuple[PackageInfo, str, bool]] = []
@@ -277,16 +217,14 @@ def cmd_install(
         # Outright prevent installing a package that Zeek has built-in.
         bpkg_info = manager.find_builtin_package(name)
         if bpkg_info is not None:
-            print_error(f'cannot install "{name}": built-in package')
+            UI.warning(f'cannot install "{name}": built-in package')
             sys.exit(1)
 
         version = args.version if args.version else active_git_branch(name)
         package_info = manager.info(name, version=version, prefer_installed=False)
 
         if package_info.invalid_reason:
-            print_error(
-                f'error: invalid package "{name}": {package_info.invalid_reason}',
-            )
+            UI.error(f'invalid package "{name}": {package_info.invalid_reason}')
             sys.exit(1)
 
         if not version:
@@ -310,7 +248,7 @@ def cmd_install(
         )
 
         if invalid_reason:
-            print_error("error: failed to resolve dependencies:", invalid_reason)
+            UI.error("failed to resolve dependencies:", invalid_reason)
             sys.exit(1)
 
     # Report what we're about to do and obtain confirmation, unless suppressed.
@@ -321,8 +259,8 @@ def cmd_install(
             name = info.package.qualified_name()
             package_listing += f"  {name} ({version})\n"
 
-        print("The following packages will be INSTALLED:")
-        print(package_listing)
+        UI.info("The following packages will be INSTALLED:")
+        UI.info(package_listing)
 
         if new_pkgs:
             dependency_listing = ""
@@ -339,8 +277,8 @@ def cmd_install(
 
                 dependency_listing += "\n"
 
-            print("The following dependencies will be INSTALLED:")
-            print(dependency_listing)
+            UI.info("The following dependencies will be INSTALLED:")
+            UI.info(dependency_listing)
 
         allpkgs = package_infos + new_pkgs
         extdep_listing = ""
@@ -360,14 +298,14 @@ def cmd_install(
                     extdep_listing += f"    {extdep} {semver}\n"
 
         if extdep_listing:
-            print(
+            UI.info(
                 "Verify the following REQUIRED external dependencies:\n"
                 "(Ensure their installation on all relevant systems before"
                 " proceeding):",
             )
-            print(extdep_listing)
+            UI.info(extdep_listing)
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             return
 
     package_infos += new_pkgs
@@ -393,7 +331,7 @@ def cmd_install(
                 )
                 continue
 
-            print(f'Running unit tests for "{name}"')
+            UI.info(f'Running unit tests for "{name}"')
             error_msg = ""
             # For testing we always process dependencies, since the tests might
             # well fail without them. If the user wants --nodeps and the tests
@@ -413,12 +351,12 @@ def cmd_install(
                 )
 
             if error_msg:
-                print_error(f"error: {error_msg}")
+                UI.error(error_msg)
 
                 if args.force:
                     sys.exit(1)
 
-                if not confirmation_prompt(
+                if not UI.confirmation_prompt(
                     "Proceed to install anyway?",
                     default_to_yes=False,
                 ):
@@ -444,27 +382,27 @@ def cmd_install(
             backup_files = manager.backup_modified_files(name, modifications)
             prev_upstream_config_files = manager.save_temporary_config_files(ipkg)
 
-        worker = InstallWorker(manager, name, version)
-        worker.start()
-        worker.wait(f'Installing "{name}"')
+        UI.info(f'Installing "{name}"', flush=True)
+        # Use default arguments here to avoid late-binding closure:
+        err = UI.call_activity(lambda n=name, v=version: manager.install(n, v))
 
-        if worker.error:
-            print(f'Failed installing "{name}": {worker.error}')
+        if err:
+            UI.info(f'Failed installing "{name}": {err}')
             installs_failed.append((name, version))
             continue
 
         ipkg = manager.find_installed_package(name)
-        print(f'Installed "{name}" ({ipkg.status.current_version if ipkg else ""})')
+        UI.info(f'Installed "{name}" ({ipkg.status.current_version if ipkg else ""})')
 
         if is_overwriting:
             for i, mf in enumerate(modifications):
                 next_upstream_config_file = mf[1]
 
                 if not os.path.isfile(next_upstream_config_file):
-                    print("\tConfig file no longer exists:")
-                    print("\t\t" + next_upstream_config_file)
-                    print("\tPrevious, locally modified version backed up to:")
-                    print("\t\t" + backup_files[i])
+                    UI.info("\tConfig file no longer exists:")
+                    UI.info("\t\t" + next_upstream_config_file)
+                    UI.info("\tPrevious, locally modified version backed up to:")
+                    UI.info("\t\t" + backup_files[i])
                     continue
 
                 prev_upstream_config_file = prev_upstream_config_files[i][1]
@@ -474,18 +412,18 @@ def cmd_install(
                     shutil.copy2(backup_files[i], next_upstream_config_file)
                     continue
 
-                print("\tConfig file has been overwritten with a different version:")
-                print("\t\t" + next_upstream_config_file)
-                print("\tPrevious, locally modified version backed up to:")
-                print("\t\t" + backup_files[i])
+                UI.info("\tConfig file has been overwritten with a different version:")
+                UI.info("\t\t" + next_upstream_config_file)
+                UI.info("\tPrevious, locally modified version backed up to:")
+                UI.info("\t\t" + backup_files[i])
 
         if ipkg and manager.has_scripts(ipkg):
             load_error = manager.load(name)
 
             if load_error:
-                print(f'Failed loading "{name}": {load_error}')
+                UI.info(f'Failed loading "{name}": {load_error}')
             else:
-                print(f'Loaded "{name}"')
+                UI.info(f'Loaded "{name}"')
 
     if not args.nodeps:
         # Now load runtime dependencies after all dependencies and suggested
@@ -506,28 +444,27 @@ def cmd_install(
                 dep_listing = get_changed_state(manager, saved_state, [name])
 
                 if dep_listing:
-                    print(
+                    UI.info(
                         "The following installed packages were additionally "
                         "loaded to satisfy runtime dependencies",
                     )
-                    print(dep_listing)
+                    UI.info(dep_listing)
 
             else:
-                print(
+                UI.info(
                     "The following installed packages could NOT be loaded "
                     f'to satisfy runtime dependencies for "{name}"',
                 )
-                print(_listing)
+                UI.info(_listing)
                 manager.restore_loaded_package_states(saved_state)
 
     if installs_failed:
-        print_error(
-            "error: incomplete installation, the follow packages"
-            " failed to be installed:",
+        UI.error(
+            "incomplete installation, the follow packages failed to be installed:",
         )
 
         for n, v in installs_failed:
-            print_error(f"  {n} ({v})")
+            UI.error(f"  {n} ({v})", prefix="")
 
         sys.exit(1)
 
@@ -547,7 +484,7 @@ def cmd_bundle(
             if config.read(args.manifest[0]) and config.has_section("bundle"):
                 packages = config.items("bundle")
             else:
-                print_error(f'error: "{args.manifest[0]}" is not a valid manifest file')
+                UI.error(f'"{args.manifest[0]}" is not a valid manifest file')
                 sys.exit(1)
 
         else:
@@ -567,7 +504,7 @@ def cmd_bundle(
             info = manager.info(name, version=version, prefer_installed=False)
 
             if info.invalid_reason:
-                print_error(f'error: invalid package "{name}": {info.invalid_reason}')
+                UI.error(f'invalid package "{name}": {info.invalid_reason}')
                 sys.exit(1)
 
             if not version:
@@ -592,7 +529,7 @@ def cmd_bundle(
             )
 
             if invalid_reason:
-                print_error("error: failed to resolve dependencies:", invalid_reason)
+                UI.error("failed to resolve dependencies:", invalid_reason)
                 sys.exit(1)
 
         for info, version, suggested in new_pkgs:
@@ -621,7 +558,7 @@ def cmd_bundle(
             )
 
     if not packages_to_bundle:
-        print_error("error: no packages to put in bundle")
+        UI.error("no packages to put in bundle")
         sys.exit(1)
 
     if not args.force:
@@ -640,10 +577,10 @@ def cmd_bundle(
 
             package_listing += "\n"
 
-        print(f"The following packages will be BUNDLED into {args.bundle_filename}:")
-        print(package_listing)
+        UI.info(f"The following packages will be BUNDLED into {args.bundle_filename}:")
+        UI.info(package_listing)
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             return
 
     git_urls = [(git_url, version) for _, git_url, version, _, _ in packages_to_bundle]
@@ -654,10 +591,10 @@ def cmd_bundle(
     )
 
     if error:
-        print_error(f"error: failed to create bundle: {error}")
+        UI.error("failed to create bundle: {error}")
         sys.exit(1)
 
-    print(f"Bundle successfully written: {args.bundle_filename}")
+    UI.info(f"Bundle successfully written: {args.bundle_filename}")
 
 
 def cmd_unbundle(
@@ -675,19 +612,19 @@ def cmd_unbundle(
     error, bundle_info = manager.bundle_info(args.bundle_filename)
 
     if error:
-        print_error(f"error: failed to unbundle {args.bundle_filename}: {error}")
+        UI.error("failed to unbundle {args.bundle_filename}: {error}")
         sys.exit(1)
 
     for git_url, _, pkg_info in bundle_info:
         if pkg_info.invalid_reason:
             name = pkg_info.package.qualified_name()
-            print_error(
-                f"error: bundle {args.bundle_filename} contains invalid package {git_url} ({name}): {pkg_info.invalid_reason}",
+            UI.error(
+                f"bundle {args.bundle_filename} contains invalid package {git_url} ({name}): {pkg_info.invalid_reason}",
             )
             sys.exit(1)
 
     if not bundle_info:
-        print("No packages in bundle.")
+        UI.info("No packages in bundle.")
         return
 
     if not args.force:
@@ -707,8 +644,8 @@ def cmd_unbundle(
 
             package_listing += f"  {name} ({version})\n"
 
-        print("The following packages will be INSTALLED:")
-        print(package_listing)
+        UI.info("The following packages will be INSTALLED:")
+        UI.info(package_listing)
 
         extdep_listing = ""
 
@@ -733,14 +670,14 @@ def cmd_unbundle(
                     extdep_listing += f"    {extdep} {semver}\n"
 
         if extdep_listing:
-            print(
+            UI.info(
                 "Verify the following REQUIRED external dependencies:\n"
                 "(Ensure their installation on all relevant systems before"
                 " proceeding):",
             )
-            print(extdep_listing)
+            UI.info(extdep_listing)
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             return
 
     prompt_for_user_vars(
@@ -752,7 +689,7 @@ def cmd_unbundle(
     error = manager.unbundle(args.bundle_filename)
 
     if error:
-        print_error(f"error: failed to unbundle {args.bundle_filename}: {error}")
+        UI.error("failed to unbundle {args.bundle_filename}: {error}")
         sys.exit(1)
 
     for git_url, _, _ in bundle_info:
@@ -764,23 +701,23 @@ def cmd_unbundle(
         ipkg2 = manager.find_installed_package(git_url)
 
         if not ipkg2:
-            print(f'Skipped loading "{git_url}": failed to install')
+            UI.info(f'Skipped loading "{git_url}": failed to install')
             continue
 
         name = ipkg2.package.qualified_name()
 
         if not need_load:
-            print(f'Skipped loading "{name}"')
+            UI.info(f'Skipped loading "{name}"')
             continue
 
         load_error = manager.load(name)
 
         if load_error:
-            print(f'Failed loading "{name}": {load_error}')
+            UI.info(f'Failed loading "{name}": {load_error}')
         else:
-            print(f'Loaded "{name}"')
+            UI.info(f'Loaded "{name}"')
 
-    print("Unbundling complete.")
+    UI.info("Unbundling complete.")
 
 
 def cmd_remove(
@@ -800,11 +737,11 @@ def cmd_remove(
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
-            print_error(f'error: package "{name}" is not installed')
+            UI.error(f'package "{name}" is not installed')
             sys.exit(1)
 
         if ipkg.is_builtin():
-            print_error(f'cannot remove "{name}": built-in package')
+            UI.info(f'cannot remove "{name}": built-in package')
             sys.exit(1)
 
         packages_to_remove.append(ipkg)
@@ -821,24 +758,24 @@ def cmd_remove(
                         dependers_to_unload.add(ipkg.package.name)
 
     if not args.force:
-        print("The following packages will be REMOVED:")
+        UI.info("The following packages will be REMOVED:")
 
         for ipkg in packages_to_remove:
-            print(f"  {ipkg.package.qualified_name()}")
+            UI.info(f"  {ipkg.package.qualified_name()}")
 
-        print()
+        UI.info()
 
         if dependers_to_unload:
-            print("The following dependent packages will be UNLOADED:")
+            UI.info("The following dependent packages will be UNLOADED:")
 
             for pkg_name in sorted(dependers_to_unload):
                 ipkg = manager.find_installed_package(pkg_name)
                 assert ipkg
-                print(f"  {ipkg.package.qualified_name()}")
+                UI.info(f"  {ipkg.package.qualified_name()}")
 
-            print()
+            UI.info()
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             return
 
     for pkg_name in sorted(dependers_to_unload):
@@ -847,12 +784,12 @@ def cmd_remove(
         name = ipkg.package.qualified_name()
 
         if manager.unload(name):
-            print(f'Unloaded "{name}"')
+            UI.info(f'Unloaded "{name}"')
         else:
             # Weird that it failed, but if it's not installed and there's
             # nothing to unload, not worth using a non-zero exit-code to
             # reflect an overall failure of the package removal operation
-            print(f'Failed unloading "{name}": no such package installed')
+            UI.info(f'Failed unloading "{name}": no such package installed')
 
     had_failure = False
 
@@ -862,16 +799,16 @@ def cmd_remove(
         backup_files = manager.backup_modified_files(name, modifications)
 
         if manager.remove(name):
-            print(f'Removed "{name}"')
+            UI.info(f'Removed "{name}"')
 
             if backup_files:
-                print("\tCreated backups of locally modified config files:")
+                UI.info("\tCreated backups of locally modified config files:")
 
                 for backup_file in backup_files:
-                    print("\t" + backup_file)
+                    UI.info("\t" + backup_file)
 
         else:
-            print(f'Failed removing "{name}": no such package installed')
+            UI.info(f'Failed removing "{name}": no such package installed')
             had_failure = True
 
     if had_failure:
@@ -886,7 +823,7 @@ def cmd_purge(
     packages_to_remove = [p for p in packages_to_remove if not p.is_builtin()]
 
     if not packages_to_remove:
-        print("No packages to remove.")
+        UI.info("No packages to remove.")
         return
 
     if not args.force:
@@ -896,10 +833,10 @@ def cmd_purge(
         for name in names_to_remove:
             package_listing += f"  {name}\n"
 
-        print("The following packages will be REMOVED:")
-        print(package_listing)
+        UI.info("The following packages will be REMOVED:")
+        UI.info(package_listing)
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             return
 
     had_failure = False
@@ -910,16 +847,16 @@ def cmd_purge(
         backup_files = manager.backup_modified_files(name, modifications)
 
         if manager.remove(name):
-            print(f'Removed "{name}"')
+            UI.info(f'Removed "{name}"')
 
             if backup_files:
-                print("\tCreated backups of locally modified config files:")
+                UI.info("\tCreated backups of locally modified config files:")
 
                 for backup_file in backup_files:
-                    print("\t" + backup_file)
+                    UI.info("\t" + backup_file)
 
         else:
-            print(f'Unknown error removing "{name}"')
+            UI.info(f'Unknown error removing "{name}"')
             had_failure = True
 
     if had_failure:
@@ -939,12 +876,12 @@ def cmd_refresh(
     args: argparse.Namespace,
 ) -> None:
     if args.fail_on_aggregate_problems and not args.aggregate:
-        print_error(
-            "warning: --fail-on-aggregate-problems without --aggregate has no effect.",
+        UI.warning(
+            "--fail-on-aggregate-problems without --aggregate has no effect.",
         )
 
     if args.push and not args.aggregate:
-        print_error("error: --push requires --aggregate.")
+        UI.error("--push requires --aggregate.")
         sys.exit(1)
 
     if not args.sources:
@@ -954,7 +891,7 @@ def cmd_refresh(
     had_aggregation_failure = False
 
     for source in args.sources:
-        print(f"Refresh package source: {source}")
+        UI.info(f"Refresh package source: {source}")
 
         src_pkgs_before = {i.qualified_name() for i in manager.source_packages()}
 
@@ -974,47 +911,47 @@ def cmd_refresh(
 
         if error:
             had_failure = True
-            print_error(f'error: failed to refresh "{source}": {error}')
+            UI.error(f'failed to refresh "{source}": {error}')
             continue
 
         src_pkgs_after = {i.qualified_name() for i in manager.source_packages()}
 
         if src_pkgs_before == src_pkgs_after:
-            print("\tNo membership changes")
+            UI.info("\tNo membership changes")
         else:
-            print("\tChanges:")
+            UI.info("\tChanges:")
             diff = src_pkgs_before.symmetric_difference(src_pkgs_after)
 
             for name in diff:
                 change = "Added" if name in src_pkgs_after else "Removed"
-                print(f"\t\t{change} {name}")
+                UI.info(f"\t\t{change} {name}")
 
         if args.aggregate:
             if aggregation_issues:
-                print(
+                UI.info(
                     "\tWARNING: Metadata aggregated, but excludes the "
                     "following packages due to described problems:",
                 )
 
                 for url, issue in aggregation_issues:
-                    print(f"\t\t{url}: {issue}")
+                    UI.info(f"\t\t{url}: {issue}")
                 if args.fail_on_aggregate_problems:
                     had_aggregation_failure = True
             else:
-                print("\tMetadata aggregated")
+                UI.info("\tMetadata aggregated")
 
         if args.push:
-            print("\tPushed aggregated metadata")
+            UI.info("\tPushed aggregated metadata")
 
     outdated_before = set(outdated(manager))
-    print("Refresh installed packages")
+    UI.info("Refresh installed packages")
     manager.refresh_installed_packages()
     outdated_after = set(outdated(manager))
 
     if outdated_before == outdated_after:
-        print("\tNo new outdated packages")
+        UI.info("\tNo new outdated packages")
     else:
-        print("\tNew outdated packages:")
+        UI.info("\tNew outdated packages:")
         diff = outdated_before.symmetric_difference(outdated_after)
 
         for name in diff:
@@ -1022,7 +959,7 @@ def cmd_refresh(
             if not ipkg:
                 continue
             version_change = version_change_string(manager, ipkg)
-            print(f"\t\t{name} {version_change}")
+            UI.info(f"\t\t{name} {version_change}")
 
     if had_failure:
         sys.exit(1)
@@ -1067,7 +1004,7 @@ def cmd_upgrade(
         ipkg = manager.find_installed_package(name)
 
         if not ipkg:
-            print_error(f'error: package "{name}" is not installed')
+            UI.error(f'package "{name}" is not installed')
             sys.exit(1)
 
         name = ipkg.package.qualified_name()
@@ -1085,7 +1022,7 @@ def cmd_upgrade(
         )
 
         if info.invalid_reason:
-            print_error(f'error: invalid package "{name}": {info.invalid_reason}')
+            UI.error(f'invalid package "{name}": {info.invalid_reason}')
             sys.exit(1)
 
         next_version = ipkg.status.current_version
@@ -1100,7 +1037,7 @@ def cmd_upgrade(
         package_listing += f"  {name} {version_change}\n"
 
     if not outdated_packages:
-        print("All packages already up-to-date.")
+        UI.info("All packages already up-to-date.")
         return
 
     new_pkgs: list[tuple[PackageInfo, str, bool]] = []
@@ -1116,14 +1053,14 @@ def cmd_upgrade(
         )
 
         if invalid_reason:
-            print_error("error: failed to resolve dependencies:", invalid_reason)
+            UI.error("failed to resolve dependencies:", invalid_reason)
             sys.exit(1)
 
     allpkgs = outdated_packages + new_pkgs
 
     if not args.force:
-        print("The following packages will be UPGRADED:")
-        print(package_listing)
+        UI.info("The following packages will be UPGRADED:")
+        UI.info(package_listing)
 
         if new_pkgs:
             dependency_listing = ""
@@ -1137,8 +1074,8 @@ def cmd_upgrade(
 
                 dependency_listing += "\n"
 
-            print("The following dependencies will be INSTALLED:")
-            print(dependency_listing)
+            UI.info("The following dependencies will be INSTALLED:")
+            UI.info(dependency_listing)
 
         extdep_listing = ""
 
@@ -1157,14 +1094,14 @@ def cmd_upgrade(
                     extdep_listing += f"    {extdep} {semver}\n"
 
         if extdep_listing:
-            print(
+            UI.info(
                 "Verify the following REQUIRED external dependencies:\n"
                 "(Ensure their installation on all relevant systems before"
                 " proceeding):",
             )
-            print(extdep_listing)
+            UI.info(extdep_listing)
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             return
 
     prompt_for_user_vars(
@@ -1181,8 +1118,8 @@ def cmd_upgrade(
             # test_command added during the upgrade.
             next_info = manager.info(name, version=version3, prefer_installed=False)
             if next_info.invalid_reason:
-                print_error(
-                    f'error: invalid package "{name}": {next_info.invalid_reason}',
+                UI.error(
+                    f'invalid package "{name}": {next_info.invalid_reason}',
                 )
                 sys.exit(1)
 
@@ -1193,7 +1130,7 @@ def cmd_upgrade(
                 )
                 continue
 
-            print(f'Running unit tests for "{name}"')
+            UI.info(f'Running unit tests for "{name}"')
             error_msg = ""
             # As in cmd_install, we always process dependencies since the tests
             # might well fail without them. If the user wants --nodeps and the
@@ -1214,12 +1151,12 @@ def cmd_upgrade(
                 )
 
             if error_msg:
-                print_error(f"error: {error_msg}")
+                UI.error(error_msg)
 
                 if args.force:
                     sys.exit(1)
 
-                if not confirmation_prompt(
+                if not UI.confirmation_prompt(
                     "Proceed to install anyway?",
                     default_to_yes=False,
                 ):
@@ -1227,25 +1164,26 @@ def cmd_upgrade(
 
     for info, version, _ in reversed(new_pkgs):
         name = info.package.qualified_name()
-        worker = InstallWorker(manager, name, version)
-        worker.start()
-        worker.wait(f'Installing "{name}"')
 
-        if worker.error:
-            print(f'Failed installing "{name}": {worker.error}')
+        UI.info(f'Installing "{name}"', flush=True)
+        # Use default arguments here to avoid late-binding closure:
+        err = UI.call_activity(lambda n=name, v=version: manager.install(n, v))
+
+        if err:
+            UI.info(f'Failed installing "{name}": {err}')
             continue
 
         ipkg = manager.find_installed_package(name)
         assert ipkg
-        print(f'Installed "{name}" ({ipkg.status.current_version})')
+        UI.info(f'Installed "{name}" ({ipkg.status.current_version})')
 
         if manager.has_scripts(ipkg):
             load_error = manager.load(name)
 
             if load_error:
-                print(f'Failed loading "{name}": {load_error}')
+                UI.info(f'Failed loading "{name}": {load_error}')
             else:
-                print(f'Loaded "{name}"')
+                UI.info(f'Loaded "{name}"')
 
     had_failure = False
 
@@ -1264,21 +1202,21 @@ def cmd_upgrade(
         res = manager.upgrade(name)
 
         if res:
-            print(f'Failed upgrading "{name}": {res}')
+            UI.info(f'Failed upgrading "{name}": {res}')
             had_failure = True
         else:
             ipkg = manager.find_installed_package(name)
             assert ipkg
-            print(f'Upgraded "{name}" ({ipkg.status.current_version})')
+            UI.info(f'Upgraded "{name}" ({ipkg.status.current_version})')
 
         for i, mf in enumerate(modifications):
             next_upstream_config_file = mf[1]
 
             if not os.path.isfile(next_upstream_config_file):
-                print("\tConfig file no longer exists:")
-                print("\t\t" + next_upstream_config_file)
-                print("\tPrevious, locally modified version backed up to:")
-                print("\t\t" + backup_files[i])
+                UI.info("\tConfig file no longer exists:")
+                UI.info("\t\t" + next_upstream_config_file)
+                UI.info("\tPrevious, locally modified version backed up to:")
+                UI.info("\t\t" + backup_files[i])
                 continue
 
             prev_upstream_config_file = prev_upstream_config_files[i][1]
@@ -1288,10 +1226,10 @@ def cmd_upgrade(
                 shutil.copy2(backup_files[i], next_upstream_config_file)
                 continue
 
-            print("\tConfig file has been updated to a newer version:")
-            print("\t\t" + next_upstream_config_file)
-            print("\tPrevious, locally modified version backed up to:")
-            print("\t\t" + backup_files[i])
+            UI.info("\tConfig file has been updated to a newer version:")
+            UI.info("\t\t" + next_upstream_config_file)
+            UI.info("\tPrevious, locally modified version backed up to:")
+            UI.info("\t\t" + backup_files[i])
 
     if had_failure:
         sys.exit(1)
@@ -1310,11 +1248,11 @@ def cmd_load(
 
         if not ipkg:
             had_failure = True
-            print(f'Failed to load "{name}": no such package installed')
+            UI.info(f'Failed to load "{name}": no such package installed')
             continue
 
         if not manager.has_scripts(ipkg):
-            print(f'The package "{name}" does not contain scripts to load.')
+            UI.info(f'The package "{name}" does not contain scripts to load.')
             continue
 
         name = ipkg.package.qualified_name()
@@ -1340,26 +1278,26 @@ def cmd_load(
                 dep_listing = get_changed_state(manager, saved_state, [name])
 
                 if dep_listing:
-                    print(
+                    UI.info(
                         "The following installed packages were additionally loaded to satisfy"
                         f' runtime dependencies for "{name}".',
                     )
-                    print(dep_listing)
+                    UI.info(dep_listing)
 
         if load_error:
             had_failure = True
 
             if not args.nodeps:
                 if dep_error_listing:
-                    print(
+                    UI.info(
                         f'The following installed dependencies could not be loaded for "{name}".',
                     )
-                    print(dep_error_listing)
+                    UI.info(dep_error_listing)
                     manager.restore_loaded_package_states(saved_state)
 
-            print(f'Failed to load "{name}": {load_error}')
+            UI.info(f'Failed to load "{name}": {load_error}')
         else:
-            print(f'Loaded "{name}"')
+            UI.info(f'Loaded "{name}"')
 
     if had_failure:
         sys.exit(1)
@@ -1385,7 +1323,7 @@ def cmd_unload(
 
         if not ipkg:
             had_failure = True
-            print(f'Failed to unload "{name}": no such package installed')
+            UI.info(f'Failed to unload "{name}": no such package installed')
             continue
 
         if not ipkg.status.is_loaded:
@@ -1395,7 +1333,7 @@ def cmd_unload(
         # packages are really built-in plugins and there is not a way
         # to unload them.
         if ipkg.is_builtin():
-            print_error(f'cannot unload "{name}": built-in package')
+            UI.info(f'cannot unload "{name}": built-in package')
             sys.exit(1)
 
         packages_to_unload.append(ipkg)
@@ -1410,24 +1348,24 @@ def cmd_unload(
                         dependers_to_unload.add(ipkg.package.name)
 
     if packages_to_unload and not args.force:
-        print("The following packages will be UNLOADED:")
+        UI.info("The following packages will be UNLOADED:")
 
         for ipkg in packages_to_unload:
-            print(f"  {ipkg.package.qualified_name()}")
+            UI.info(f"  {ipkg.package.qualified_name()}")
 
-        print()
+        UI.info()
 
         if dependers_to_unload:
-            print("The following dependent packages will be UNLOADED:")
+            UI.info("The following dependent packages will be UNLOADED:")
 
             for pkg_name in sorted(dependers_to_unload):
                 ipkg = manager.find_installed_package(pkg_name)
                 assert ipkg
-                print(f"  {ipkg.package.qualified_name()}")
+                UI.info(f"  {ipkg.package.qualified_name()}")
 
-            print()
+            UI.info()
 
-        if not confirmation_prompt("Proceed?"):
+        if not UI.confirmation_prompt("Proceed?"):
             if had_failure:
                 sys.exit(1)
             else:
@@ -1442,10 +1380,10 @@ def cmd_unload(
         name = ipkg.package.qualified_name()
 
         if manager.unload(name):
-            print(f'Unloaded "{name}"')
+            UI.info(f'Unloaded "{name}"')
         else:
             had_failure = True
-            print(f'Failed unloading "{name}": no such package installed')
+            UI.info(f'Failed unloading "{name}": no such package installed')
 
     if had_failure:
         sys.exit(1)
@@ -1462,24 +1400,24 @@ def cmd_pin(
 
         if not ipkg:
             had_failure = True
-            print(f'Failed to pin "{name}": no such package installed')
+            UI.info(f'Failed to pin "{name}": no such package installed')
             continue
 
         if ipkg.is_builtin():
             had_failure = True
-            print_error(f'cannot pin "{name}": built-in package')
+            UI.info(f'cannot pin "{name}": built-in package')
             continue
 
         name = ipkg.package.qualified_name()
         ipkg = manager.pin(name)
 
         if ipkg:
-            print(
+            UI.info(
                 f'Pinned "{name}" at version: {ipkg.status.current_version} ({ipkg.status.current_hash})',
             )
         else:
             had_failure = True
-            print(f'Failed pinning "{name}": no such package installed')
+            UI.info(f'Failed pinning "{name}": no such package installed')
 
     if had_failure:
         sys.exit(1)
@@ -1496,24 +1434,24 @@ def cmd_unpin(
 
         if not ipkg:
             had_failure = True
-            print(f'Failed to unpin "{name}": no such package installed')
+            UI.info(f'Failed to unpin "{name}": no such package installed')
             continue
 
         if ipkg.is_builtin():
             had_failure = True
-            print_error(f'cannot unpin "{name}": built-in package')
+            UI.info(f'cannot unpin "{name}": built-in package')
             continue
 
         name = ipkg.package.qualified_name()
         ipkg = manager.unpin(name)
 
         if ipkg:
-            print(
+            UI.info(
                 f'Unpinned "{name}" from version: {ipkg.status.current_version} ({ipkg.status.current_hash})',
             )
         else:
             had_failure = True
-            print(f'Failed unpinning "{name}": no such package installed')
+            UI.info(f'Failed unpinning "{name}": no such package installed')
 
     if had_failure:
         sys.exit(1)
@@ -1600,7 +1538,7 @@ def cmd_list(
             if desc:
                 out += " - " + desc
 
-        print(out)
+        UI.info(out)
 
 
 def cmd_search(
@@ -1615,7 +1553,7 @@ def cmd_search(
             try:
                 regex = re.compile(search_text[1:-1])
             except re.error as error:
-                print(f"invalid regex: {error}")
+                UI.info(f"invalid regex: {error}")
                 sys.exit(1)
             else:
                 for pkg in src_pkgs:
@@ -1650,10 +1588,10 @@ def cmd_search(
             if desc:
                 out += " - " + desc
 
-            print(out)
+            UI.info(out)
 
     else:
-        print("no matches")
+        UI.info("no matches")
 
 
 def cmd_info(
@@ -1661,7 +1599,7 @@ def cmd_info(
     args: argparse.Namespace,
 ) -> None:
     if args.version and len(args.package) > 1:
-        print_error('error: "info --version" may only be used for a single package')
+        UI.error('"info --version" may only be used for a single package')
         sys.exit(1)
 
     # Dictionary for storing package info to output as JSON
@@ -1699,13 +1637,13 @@ def cmd_info(
             pkginfo[name] = {}
             pkginfo[name]["metadata"] = {}
         else:
-            print(f'"{name}" info:')
+            UI.info(f'"{name}" info:')
 
         if info2.invalid_reason:
             if args.json:
                 pkginfo[name]["invalid"] = info2.invalid_reason
             else:
-                print(f"\tinvalid package: {info2.invalid_reason}\n")
+                UI.info(f"\tinvalid package: {info2.invalid_reason}\n")
 
             had_invalid_package = True
             continue
@@ -1714,8 +1652,8 @@ def cmd_info(
             pkginfo[name]["url"] = info2.package.git_url
             pkginfo[name]["versions"] = info2.versions
         else:
-            print(f"\turl: {info2.package.git_url}")
-            print(f"\tversions: {info2.versions}")
+            UI.info(f"\turl: {info2.package.git_url}")
+            UI.info(f"\tversions: {info2.versions}")
 
         if info2.status:
             if args.json:
@@ -1724,10 +1662,10 @@ def cmd_info(
                 for key, value in sorted(info2.status.__dict__.items()):
                     pkginfo[name]["install_status"][key] = value
             else:
-                print("\tinstall status:")
+                UI.info("\tinstall status:")
 
                 for key, value in sorted(info2.status.__dict__.items()):
-                    print(f"\t\t{key} = {value}")
+                    UI.info(f"\t\t{key} = {value}")
 
         if args.json:
             if info2.metadata_file:
@@ -1735,12 +1673,12 @@ def cmd_info(
             pkginfo[name]["metadata"][info2.metadata_version] = {}
         else:
             if info2.metadata_file:
-                print(f"\tmetadata file: {info2.metadata_file}")
-            print(f'\tmetadata (from version "{info2.metadata_version}"):')
+                UI.info(f"\tmetadata file: {info2.metadata_file}")
+            UI.info(f'\tmetadata (from version "{info2.metadata_version}"):')
 
         if len(info2.metadata) == 0:
             if not args.json:
-                print("\t\t<empty metadata file>")
+                UI.info("\t\t<empty metadata file>")
         elif args.json:
             _fill_metadata_version(
                 pkginfo[name]["metadata"][info2.metadata_version],
@@ -1749,7 +1687,7 @@ def cmd_info(
         else:
             for key, value in sorted(info2.metadata.items()):
                 value = value.replace("\n", "\n\t\t\t")
-                print(f"\t\t{key} = {value}")
+                UI.info(f"\t\t{key} = {value}")
 
         # If --json and --allvers given, check for multiple versions and
         # add the metadata for each version to the pkginfo.
@@ -1772,10 +1710,10 @@ def cmd_info(
                     )
 
         if not args.json:
-            print()
+            UI.info()
 
     if args.json:
-        print(json.dumps(pkginfo, indent=args.jsonpretty, sort_keys=True))
+        UI.info(json.dumps(pkginfo, indent=args.jsonpretty, sort_keys=True))
 
     if had_invalid_package:
         sys.exit(1)
@@ -1819,16 +1757,16 @@ def cmd_config(
     if args.config_param == "all":
         out = io.StringIO()
         CONFIG.write(out)
-        print(out.getvalue())
+        UI.info(out.getvalue())
         out.close()
     elif args.config_param == "sources":
         for key, value in CONFIG.items("sources"):
-            print(f"{key} = {value}")
+            UI.info(f"{key} = {value}")
     elif args.config_param == "user_vars":
         for key, value in CONFIG.items("user_vars"):
-            print(f"{key} = {value}")
+            UI.info(f"{key} = {value}")
     else:
-        print(CONFIG.get("paths", args.config_param))
+        UI.info(CONFIG.get("paths", args.config_param))
 
 
 def cmd_autoconfig(
@@ -1838,14 +1776,14 @@ def cmd_autoconfig(
     if args.user:
         configfile = os.path.join(CONFIG.home_config_dir(), "config")
         if CONFIG.save(configfile):
-            print(f"Successfully wrote config file to {configfile}")
+            UI.info(f"Successfully wrote config file to {configfile}")
         return
 
     configfile = CONFIG.find_configfile(args)
     zeek_config = find_program("zeek-config")
 
     if not zeek_config:
-        print_error('error: no "zeek-config" in PATH')
+        UI.error('no "zeek-config" in PATH')
         sys.exit(1)
 
     cmd = subprocess.Popen(
@@ -1879,7 +1817,7 @@ def cmd_autoconfig(
 
     CONFIG.save(configfile)
 
-    print(f"Successfully wrote config file to {configfile}")
+    UI.info(f"Successfully wrote config file to {configfile}")
 
 
 def cmd_env(
@@ -1922,13 +1860,13 @@ def cmd_env(
     pluginpaths = remove_redundant_paths(pluginpaths)
 
     if os.environ.get("SHELL", "").endswith("csh"):
-        print("setenv ZEEKPATH {}".format(":".join(zeekpaths)))
-        print("setenv ZEEK_PLUGIN_PATH {}".format(":".join(pluginpaths)))
-        print(f"setenv PATH {CONFIG.bin_dir()}:$PATH")
+        UI.info("setenv ZEEKPATH {}".format(":".join(zeekpaths)))
+        UI.info("setenv ZEEK_PLUGIN_PATH {}".format(":".join(pluginpaths)))
+        UI.info(f"setenv PATH {CONFIG.bin_dir()}:$PATH")
     else:
-        print("export ZEEKPATH={}".format(":".join(zeekpaths)))
-        print("export ZEEK_PLUGIN_PATH={}".format(":".join(pluginpaths)))
-        print(f"export PATH={CONFIG.bin_dir()}:$PATH")
+        UI.info("export ZEEKPATH={}".format(":".join(zeekpaths)))
+        UI.info("export ZEEK_PLUGIN_PATH={}".format(":".join(pluginpaths)))
+        UI.info(f"export PATH={CONFIG.bin_dir()}:$PATH")
 
 
 def cmd_create(
@@ -1945,7 +1883,7 @@ def cmd_create(
     except LoadError as error:
         msg = f"problem while loading template {tmplname}: {error}"
         LOG.exception(msg)
-        print_error("error: " + msg)
+        UI.error(msg)
         sys.exit(1)
 
     try:
@@ -1971,8 +1909,8 @@ def cmd_create(
                 # Alert if the user requested an unknown feature.
                 knowns = ", ".join([f'"{f.name()}"' for f in features])
                 unknowns = ", ".join([f'"{name}"' for name in fnames])
-                print_error(
-                    "error: the following features are unknown: {}."
+                UI.error(
+                    "the following features are unknown: {}."
                     ' Template "{}" offers {}.'.format(
                         unknowns,
                         tmpl.name(),
@@ -1989,8 +1927,8 @@ def cmd_create(
             try:
                 uvar.resolve(tmpl.name(), args.user_var, args.force)
             except ValueError:
-                print_error(
-                    f'error: could not determine value of user variable "{uvar.name()}",'
+                UI.error(
+                    f'could not determine value of user variable "{uvar.name()}",'
                     " provide via environment or --user-var",
                 )
                 sys.exit(1)
@@ -2003,15 +1941,15 @@ def cmd_create(
         try:
             package.do_validate(tmpl)
         except InputError as error:
-            print_error("error: template input invalid, " + str(error))
+            UI.error("template input invalid, " + str(error))
             sys.exit(1)
 
         # And finally, instantiate the package.
         try:
             if os.path.isdir(args.packagedir):
                 if not args.force:
-                    print(f"Package directory {args.packagedir} already exists.")
-                    if not confirmation_prompt("Delete?"):
+                    UI.info(f"Package directory {args.packagedir} already exists.")
+                    if not UI.confirmation_prompt("Delete?"):
                         sys.exit(1)
                 try:
                     delete_path(args.packagedir)
@@ -2020,19 +1958,19 @@ def cmd_create(
                         args.packagedir,
                     )
                 except OSError as err:
-                    print_error(
-                        f"error: could not remove package directory {args.packagedir}: {err}",
+                    UI.error(
+                        f"could not remove package directory {args.packagedir}: {err}",
                     )
                     sys.exit(1)
 
             package.do_instantiate(tmpl, args.packagedir, args.force)
         except OutputError as error:
-            print_error("error: template instantiation failed, " + str(error))
+            UI.error("template instantiation failed, " + str(error))
             sys.exit(1)
     except Exception as error:
         msg = f"problem during template instantiation: {error}"
         LOG.exception(msg)
-        print_error("error: " + msg)
+        UI.error(msg)
         sys.exit(1)
 
 
@@ -2051,21 +1989,21 @@ def cmd_template_info(
     except LoadError as error:
         msg = f"problem while loading template {tmplname}: {error}"
         LOG.exception(msg)
-        print_error("error: " + msg)
+        UI.error(msg)
         sys.exit(1)
 
     tmplinfo = tmpl.info()
 
     if args.json:
-        print(json.dumps(tmplinfo, indent=args.jsonpretty, sort_keys=True))
+        UI.info(json.dumps(tmplinfo, indent=args.jsonpretty, sort_keys=True))
     else:
-        print("API version: " + tmplinfo["api_version"])
-        print("features: " + ", ".join(tmplinfo["features"]))
-        print("origin: " + tmplinfo["origin"])
-        print("provides package: " + str(tmplinfo["provides_package"]).lower())
-        print("user vars:")
+        UI.info("API version: " + tmplinfo["api_version"])
+        UI.info("features: " + ", ".join(tmplinfo["features"]))
+        UI.info("origin: " + tmplinfo["origin"])
+        UI.info("provides package: " + str(tmplinfo["provides_package"]).lower())
+        UI.info("user vars:")
         for uvar_name, uvar_info in tmplinfo["user_vars"].items():
-            print(
+            UI.info(
                 "\t{}: {}, {}, used by {}".format(
                     uvar_name,
                     uvar_info["description"],
@@ -2073,7 +2011,7 @@ def cmd_template_info(
                     ", ".join(uvar_info["used_by"]) or "not used",
                 ),
             )
-        print("versions: " + ", ".join(tmplinfo["versions"]))
+        UI.info("versions: " + ", ".join(tmplinfo["versions"]))
 
 
 class BundleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
