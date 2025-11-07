@@ -10,42 +10,17 @@ import os
 import shutil
 import string
 import subprocess
-import sys
 import tarfile
 import types
 from collections.abc import Callable, Iterable
-from typing import IO, Any, TextIO
+from typing import IO, TextIO
 
 import git
 import semantic_version as semver
 
-
-def print_error(*args: object, **kwargs: Any) -> None:
-    print(*args, file=sys.stderr, **kwargs)
-
-
-def confirmation_prompt(prompt: str, default_to_yes: bool = True) -> bool:
-    yes = {"y", "ye", "yes"}
-
-    if default_to_yes:
-        prompt += " [Y/n] "
-    else:
-        prompt += " [N/y] "
-
-    choice = input(prompt).lower()
-
-    if not choice:
-        if default_to_yes:
-            return True
-
-        print("Abort.")
-        return False
-
-    if choice in yes:
-        return True
-
-    print("Abort.")
-    return False
+from .ui import (
+    UI,
+)
 
 
 def make_dir(path: str) -> None:
@@ -393,10 +368,10 @@ def is_local_git_repo_dirty(git_url: str) -> bool:
 def check_local_git_repo(git_url: str) -> bool:
     if is_local_git_repo_url(git_url):
         if not is_local_git_repo(git_url):
-            print_error(f"error: path {git_url} is not a git repository")
+            UI.error(f"path {git_url} is not a git repository")
             return False
         if is_local_git_repo_dirty(git_url):
-            print_error(f"error: local git clone at {git_url} is dirty")
+            UI.error(f"local git clone at {git_url} is dirty")
             return False
 
     return True

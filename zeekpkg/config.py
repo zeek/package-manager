@@ -9,14 +9,15 @@ import sys
 from collections import OrderedDict
 
 from ._util import (
-    confirmation_prompt,
     file_is_not_empty,
-    print_error,
     std_encoding,
 )
 from .consts import (
     ZKG_DEFAULT_SOURCE,
     ZKG_DEFAULT_TEMPLATE,
+)
+from .ui import (
+    UI,
 )
 
 
@@ -112,8 +113,8 @@ class Config(configparser.ConfigParser):
         # Paths must be absolute:
         for key, val in self.items("paths"):
             if val and not os.path.isabs(val):
-                print_error(
-                    "error: invalid config file value for key"
+                UI.error(
+                    "invalid config file value for key"
                     f' "{key}" in section [paths]: "{val}" is not'
                     " an absolute path",
                 )
@@ -127,7 +128,7 @@ class Config(configparser.ConfigParser):
         if not configfile:
             return
         if not os.path.isfile(configfile):
-            print_error(f'error: invalid config file "{configfile}"')
+            UI.error(f'invalid config file "{configfile}"')
             sys.exit(1)
 
         self.read(configfile)
@@ -142,13 +143,13 @@ class Config(configparser.ConfigParser):
         """
         for key_val in args.extra_source or []:
             if "=" not in key_val:
-                print_error(f'warning: invalid extra source: "{key_val}"')
+                UI.warning(f'invalid extra source: "{key_val}"')
                 continue
 
             key, val = key_val.split("=", 1)
 
             if not key or not val:
-                print_error(f'warning: invalid extra source: "{key_val}"')
+                UI.warning(f'invalid extra source: "{key_val}"')
                 continue
 
             self.set("sources", key, val)
@@ -193,7 +194,7 @@ class Config(configparser.ConfigParser):
         if old_val:
             msg += f"\n(previous value: {old_val})"
 
-        if confirmation_prompt(msg):
+        if UI.confirmation_prompt(msg):
             self.set(section, option, val)
 
     def bin_dir(self) -> str:
