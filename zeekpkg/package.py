@@ -128,6 +128,10 @@ def short_description(metadata_dict: dict[str, str]) -> str:
         return ""
 
     description = metadata_dict["description"]
+
+    # Strip any quotes and whitespace around the whole description.
+    description = description.strip(' "')
+
     lines = description.split("\n")
     rval = ""
 
