@@ -3259,7 +3259,7 @@ class Manager:
 
             if uvar.name() not in substitutions:
                 val = uvar.val()
-                assert val
+                assert val is not None
                 substitutions[uvar.name()] = val
 
         # Now apply the substitutions via a new config parser:
