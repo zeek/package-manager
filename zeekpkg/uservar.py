@@ -122,7 +122,7 @@ class UserVar:
                 f'"{name}" will use value of "{self._name}" ({self._desc}) from {source}: {val}',
             )
             self._val = val
-            assert val
+            assert val is not None
             return val
 
         if val is None:

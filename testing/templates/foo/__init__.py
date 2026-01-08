@@ -44,7 +44,7 @@ class Template(zeekpkg.template.Template):
     def apply_user_vars(self, user_vars: list[zeekpkg.uservar.UserVar]) -> None:
         for uvar in user_vars:
             val = uvar.val()
-            assert val
+            assert val is not None
 
             if uvar.name() == "name":
                 self.define_param("name", val)
