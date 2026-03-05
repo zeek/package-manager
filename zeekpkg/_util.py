@@ -100,7 +100,7 @@ def safe_tarfile_extractall(tfile: str, destdir: str) -> None:
     def is_within_directory(directory: str, target: str) -> bool:
         abs_directory = os.path.abspath(directory)
         abs_target = os.path.abspath(target)
-        prefix = os.path.commonprefix([abs_directory, abs_target])
+        prefix = os.path.commonpath([abs_directory, abs_target])
         return prefix == abs_directory
 
     with tarfile.open(tfile) as tar:
