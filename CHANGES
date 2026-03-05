@@ -1,3 +1,15 @@
+3.1.0-18 | 2026-03-05 09:28:30 +0100
+
+  * Bump and freeze pre-commit hooks (Benjamin Bannier, Corelight)
+
+  * Fix path handling bug in `safe_tarfile_extractall` (Benjamin Bannier, Corelight)
+
+    The helper function `is_within_directory` could return false positives
+    which might have lead to incorrect tarball extraction. This was
+    triggered by
+    https://sethmlarson.dev/deprecate-confusing-apis-like-os-path-commonprefix;
+    we run into the same issue as mentioned there.
+
 3.1.0-15 | 2026-01-08 10:02:32 +0100
 
   * Do not require that user vars are non-empty (Benjamin Bannier, Corelight)
