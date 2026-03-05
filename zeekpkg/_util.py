@@ -13,7 +13,7 @@ import subprocess
 import tarfile
 import types
 from collections.abc import Callable, Iterable
-from typing import IO, TextIO, cast
+from typing import IO, TextIO
 
 import git
 import semantic_version as semver
@@ -220,13 +220,13 @@ def git_default_branch(repo: git.Repo) -> str:
     if remote:
         # Technically possible that remote has no HEAD, so guard against that.
         try:
-            ref = cast(git.Reference, repo.head.ref)
+            ref_name = repo.head.ref.name
             remote_prefix = "origin/"
 
-            if ref.name.startswith(remote_prefix):
-                return ref.name[len(remote_prefix) :]
+            if ref_name.startswith(remote_prefix):
+                return ref_name[len(remote_prefix) :]
 
-            return ref.name
+            return ref_name
         except Exception:
             ...
 
@@ -239,9 +239,8 @@ def git_default_branch(repo: git.Repo) -> str:
         return "master"
 
     try:
-        # See if there's a branch currently checked out
-        ref = cast(git.Reference, repo.head.ref)
-        return ref.name
+        # This throws if no branch is currently checked out.
+        return repo.head.ref.name
     except TypeError:
         # No branch checked out, return commit hash
         return repo.head.object.hexsha
