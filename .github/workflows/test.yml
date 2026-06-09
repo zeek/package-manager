@@ -39,6 +39,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends cmake g++ libssl-dev libpcap-dev make
+
       - name: Remove zkg installation
         # Rule out confusion between test environment and pre-existing zkg:
         run: |
@@ -47,8 +48,16 @@ jobs:
           rm -r $ZEEKROOT/lib/zeek/python/zeekpkg
           rm -r $ZEEKROOT/var/lib/zkg
       - uses: actions/checkout@v4
-      - name: Run unit tests
-        run: btest -j -A -d -c testing/btest.cfg
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run tests
+        run: uv run pytest
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

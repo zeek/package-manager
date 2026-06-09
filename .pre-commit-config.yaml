@@ -28,4 +28,5 @@ repos:
       - "semantic_version>=2.10.0"
       - "types-docutils>=0.21.0.20250809"
       - "types-setuptools>=80.9.0.20250809"
+      - "pytest>=9.0.3"
     exclude: "doc/.*"
