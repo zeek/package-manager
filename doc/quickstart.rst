@@ -249,7 +249,7 @@ file which contains a snapshot of all currently installed packages:
 Then transfer :file:`zeek-packages.bundle` to the Zeek deployment
 management host.  For Zeek clusters using ZeekControl_, this will
 be the system acting as the "manager" node.  Then on that system
-(assuming it already as :program:`zkg` installed and configured):
+(assuming it already has :program:`zkg` installed and configured):
 
 .. code-block:: console
 
