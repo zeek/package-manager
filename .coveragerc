@@ -1,0 +1,7 @@
+# We configure coverage in `.coveragerc` instead of `pyproject.toml` so we can
+# set up coverage for processes spawned in tests via `COVERAGE_PROCESS_START`.
+[run]
+parallel = true
+include =
+    **/zeekpkg/*
+    zkg
