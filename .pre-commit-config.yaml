@@ -11,14 +11,14 @@ repos:
   - id: check-yaml
   - id: check-added-large-files
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: a27a2e47c7751b639d2b5badf0ef6ff11fee893f  # frozen: v0.15.4
+  rev: 3b3f7c3f57fe9925356faf5fe6230835138be230  # frozen: v0.15.17
   hooks:
-    - id: ruff
+    - id: ruff-check
       args: [--fix]
     - id: ruff-format
 
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: a66e98df7b4aeeb3724184b332785976d062b92e  # frozen: v1.19.1
+  rev: d2823d321df3af8f878f7ee3414dc94d037145b9  # frozen: v2.1.0
   hooks:
   - id: mypy
     args: [--strict]
