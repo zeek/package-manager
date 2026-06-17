@@ -226,7 +226,7 @@ Offline Usage
 ~~~~~~~~~~~~~
 
 It's common to have limited network/internet access on the systems where
-Zeek is deployed.  To accomodate those scenarios, :program:`zkg` can
+Zeek is deployed.  To accommodate those scenarios, :program:`zkg` can
 be used as normally on a system that *does* have network access to
 create bundles of its package installation environment. Those bundles
 can then be transferred to the deployment systems via whatever means are
