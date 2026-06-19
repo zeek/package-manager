@@ -19,14 +19,8 @@ import threading
 from collections import OrderedDict
 from typing import Any, TextIO
 
+import argcomplete
 import git
-
-try:
-    # Argcomplete provides command-line completion for users of argparse.
-    # We support it if available, but don't complain when it isn't.
-    import argcomplete  # noqa: F401
-except ImportError:
-    pass
 
 # For Zeek-bundled installation, prepend the Python path of the Zeek
 # installation. This ensures we find the matching zeekpkg module
@@ -3195,8 +3189,7 @@ def argparser() -> argparse.ArgumentParser:
     )
     sub_parser.set_defaults(run_cmd=cmd_template_info)
 
-    if argcomplete_ := sys.modules.get("argcomplete"):
-        argcomplete_.autocomplete(top_parser)
+    argcomplete.autocomplete(top_parser)
 
     return top_parser
 

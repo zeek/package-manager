@@ -23,7 +23,7 @@ repos:
   - id: mypy
     args: [--strict]
     additional_dependencies:
-      - "argcomplete>=3.6.2"
+      - "argcomplete>=3.6.3"
       - "GitPython>=3.1.43"
       - "semantic_version>=2.10.0"
       - "types-docutils>=0.21.0.20250809"
