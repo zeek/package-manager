@@ -56,7 +56,12 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run tests
-        run: uv run pytest
+        run: uv run pytest --cov --cov-report=xml
+
+      - uses: Affanmir/diff-cover-action@v2
+        if: github.event_name == 'pull_request'
+        with:
+          coverage-files: coverage.xml
 
       - uses: actions/upload-artifact@v4
         if: failure()
