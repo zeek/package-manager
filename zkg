@@ -19,25 +19,7 @@ import threading
 from collections import OrderedDict
 from typing import Any, TextIO
 
-try:
-    import git
-    import semantic_version  # noqa: F401
-except ImportError as error:
-    print(
-        "error: zkg failed to import one or more dependencies:\n"
-        "\n"
-        "* GitPython:        https://pypi.org/project/GitPython\n"
-        "* semantic-version: https://pypi.org/project/semantic-version\n"
-        "\n"
-        "If you use 'pip', they can be installed like:\n"
-        "\n"
-        "     pip3 install GitPython semantic-version\n"
-        "\n"
-        "Also check the following exception output for possible alternate explanations:\n\n"
-        f"{type(error).__name__}: {error}",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+import git
 
 try:
     # Argcomplete provides command-line completion for users of argparse.
