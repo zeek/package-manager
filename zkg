@@ -2871,7 +2871,7 @@ def argparser() -> argparse.ArgumentParser:
     sub_parser = command_parser.add_parser(
         "upgrade",
         help="Upgrade installed packages to latest versions.",
-        description="Uprades the specified package(s) to latest available"
+        description="Upgrades the specified package(s) to latest available"
         " version.  If no specific packages are specified, then all installed"
         " packages that are outdated and not pinned are upgraded.  For packages"
         " that are installed with ``--version`` using a git branch name, the"

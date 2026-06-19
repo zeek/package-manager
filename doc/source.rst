@@ -53,7 +53,7 @@ Adding Packages
 
 Adding packages is as simple as adding new :ref:`Package Index Files
 <package-index-file>` or extending existing ones with new URLs and then
-commiting/pushing those changes to the package source git repository.
+committing/pushing those changes to the package source git repository.
 
 :ref:`zkg <zkg>` will see new packages listed the next time it uses
 the :ref:`refresh command <refresh-command>`.
