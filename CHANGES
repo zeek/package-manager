@@ -1,3 +1,34 @@
+3.1.0-24 | 2026-06-19 14:06:24 +0200
+
+  * Bump pre-commit hooks (Benjamin Bannier, Corelight)
+
+  * GH-221: Collect coverage information in tests (Benjamin Bannier, Corelight)
+
+    This turned out to be slightly tricky since currently the majority of
+    the test suite consists of pytest-wrapped btests, so we need to thread
+    the configuration of `coverage` through into the eventual invocation of
+    `zkg` in the tests.
+
+    With this patch we should now collect coverage information for tests.
+    The one test we do not collect coverage from is `tests.bundled-zkg`
+    since it copies `zkg` around and checks that the copy works; since it
+    only performs a basic smoke test that is probably fine.
+
+    Closes #221.
+
+  * Add pytest wrapper around btest (Benjamin Bannier, Corelight)
+
+    This patch exposes the existing BTest test suite as pytest tests. This
+    will make it easier to add unit tests in the future while keeping the
+    existing system tests written for BTest. We might migrate some existing
+    BTest tests over to pytest in the future, but don't need to migrate
+    everything.
+
+    This patch enables pytest-xdist which enables running tests in parallel;
+    by default we run one BTest test per CPU.
+
+  * Fix zkg quickstart grammar (Julio)
+
 3.1.0-18 | 2026-03-05 09:28:30 +0100
 
   * Bump and freeze pre-commit hooks (Benjamin Bannier, Corelight)

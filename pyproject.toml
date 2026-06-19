@@ -45,6 +45,9 @@ dependencies = [
 dev = [
     "Sphinx>=7.2.6",
     "sphinx_rtd_theme>=2.0.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.8.0",
 ]
 
 [project.license]
@@ -72,3 +75,12 @@ ignore_missing_imports = true
 [tool.ruff.lint]
 select = ["A", "B", "C4", "COM", "F", "I", "ISC", "N", "PL", "RUF", "RET", "UP"]
 ignore = ["PLR0912", "PLR0915", "PLR0911", "PLR0913", "PLR2004", "PLW2901"]
+
+[tool.pytest.ini_options]
+# Tweak pytest behavior:
+#
+# - run tests in parallel (`-n auto`)
+# - generate coverage summary (`--cov-report term`), and also automatically
+#   emit a HTML report (`--cov-report html`)
+# - suppress warnings when no coverage information could be collected
+addopts = "-n auto --cov --cov-config=.coveragerc --cov-report term --cov-report html -W ignore::coverage.exceptions.CoverageWarning"
