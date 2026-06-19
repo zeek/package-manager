@@ -58,6 +58,7 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov --cov-report=xml
 
+      - uses: actions/setup-python@v6
       - uses: Affanmir/diff-cover-action@v2
         if: github.event_name == 'pull_request'
         with:
