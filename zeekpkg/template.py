@@ -32,7 +32,6 @@ from ._util import (
     make_dir,
 )
 from .package import (
-    METADATA_FILENAME,
     name_from_path,
 )
 
@@ -762,66 +761,10 @@ class Package(_Content):
     ) -> None:
         self._prepare_packagedir(packagedir)
         super().do_instantiate(tmpl, packagedir, use_force)
-        self._update_metadata(tmpl)
         self._git_init(tmpl)
 
     def _prepare_packagedir(self, packagedir: str) -> None:
         os.makedirs(packagedir, exist_ok=True)
-
-    def _update_metadata(self, tmpl: Template) -> None:
-        """Updates the package's zkg.meta with template information.
-
-        This information allows re-running template instantiation with
-        identical inputs at a later time.
-        """
-        config = configparser.ConfigParser(delimiters="=")
-        config.optionxform = str  # type: ignore
-        assert self._packagedir
-        manifest_file = os.path.join(self._packagedir, METADATA_FILENAME)
-
-        # Best-effort: if the template populated the file, adopt the
-        # content, otherwise create with just our metadata.
-        config.read(manifest_file)
-
-        section = "template"
-        config.remove_section(section)
-        config.add_section(section)
-        config.set(section, "source", tmpl.name())
-
-        if tmpl.has_repo():
-            tmplinfo = tmpl.info()
-            if tmplinfo["origin"] != "unavailable":
-                config.set(section, "source", tmplinfo["origin"])
-
-        if tmpl.version():
-            # If we're on a branch, disambiguate the version by also mentioning
-            # the exact commit.
-            if tmpl.version_branch():
-                config.set(section, "version", tmpl.version_branch())
-                sha = tmpl.version_sha()
-                assert sha
-                config.set(section, "commit", sha[:8])
-            else:
-                config.set(section, "version", tmpl.version())
-        else:
-            config.set(section, "version", tmpl.version() or "unversioned")
-
-        config.set(section, "zkg_version", __version__)
-
-        if self._features:
-            val = ",".join(sorted([f.name() for f in self._features]))
-            config.set(section, "features", val)
-
-        section = "template_vars"
-        config.remove_section(section)
-        config.add_section(section)
-
-        for uvar in tmpl._get_user_vars():
-            if uvar.val() is not None:
-                config.set(section, uvar.name(), uvar.val())
-
-        with open(manifest_file, "w") as hdl:
-            config.write(hdl)
 
     def _git_init(self, tmpl: Template) -> None:
         """Initialize git repo and commit instantiated content."""
