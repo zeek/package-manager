@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-project(zkg)
+project(zkg NONE)
 
 find_package(
   Python3
