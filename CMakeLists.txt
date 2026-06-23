@@ -41,8 +41,8 @@ configure_file(zkg.sh.in "${CMAKE_CURRENT_BINARY_DIR}/zkg" @ONLY)
 install(FILES "${ZKG_PYZ}" DESTINATION "share/${PROJECT_NAME}/lib")
 install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/zkg" DESTINATION bin)
 
-if (NOT ZEEK_MAN_INSTALL_PATH)
-    set(ZEEK_MAN_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/share/man)
-endif ()
+if(NOT ZEEK_MAN_INSTALL_PATH)
+  set(ZEEK_MAN_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/share/man)
+endif()
 
 install(FILES doc/man/zkg.1 DESTINATION ${ZEEK_MAN_INSTALL_PATH}/man1)
