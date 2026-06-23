@@ -7,11 +7,7 @@ Quickstart Guide
 Dependencies
 ------------
 
-* Python 3.6+
 * git: https://git-scm.com
-* GitPython: https://pypi.python.org/pypi/GitPython
-* semantic_version: https://pypi.python.org/pypi/semantic_version
-* btest: https://pypi.python.org/pypi/btest
 
 Note that following the :program:`zkg` `Installation`_ process via
 :program:`pip3` will automatically install its dependencies for you.
