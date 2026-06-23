@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -eu
+
+WRAPPER_DIR="$(dirname "$0")"
+ZKG_PYZ="${WRAPPER_DIR}/../share/zkg/lib/zkg.pyz"
+
+# Location where shiv will unpack the pyz. We overwrite the default value of
+# `~/.shiv` to make it clear that this is ephemeral information which can be
+# garbage-collected.
+SHIV_ROOT=$HOME/.cache/zkg
+export SHIV_ROOT
+
+exec "@Python3_EXECUTABLE@" "${ZKG_PYZ}" "$@"
