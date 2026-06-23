@@ -26,14 +26,6 @@ Installation
   directions to build and install Zeek from source are here:
   https://docs.zeek.org/en/current/install/install.html
 
-  Note that this method does require independent installation of
-  :program:`zkg`'s dependencies, which is usually easiest to do via
-  :program:`pip3`:
-
-  .. code-block:: console
-
-    $ pip3 install gitpython semantic-version
-
 * To install the latest release of :program:`zkg` on PyPI_:
 
   .. code-block:: console

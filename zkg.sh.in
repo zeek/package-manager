@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eu
+
+WRAPPER_DIR="$(dirname "$0")"
+ZKG_PYZ="${WRAPPER_DIR}/../share/zkg/lib/zkg.pyz"
+
+exec "@Python3_EXECUTABLE@" "${ZKG_PYZ}" "$@"
