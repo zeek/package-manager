@@ -35,7 +35,7 @@ add_custom_target(
   DEPENDS "${ZKG_PYZ}")
 
 # Bake discovered Python interpreter into wrapper invoking created zkg.pyz.
-configure_file(zkg.sh.in "${CMAKE_CURRENT_BINARY_DIR}/zkg")
+configure_file(zkg.sh.in "${CMAKE_CURRENT_BINARY_DIR}/zkg" @ONLY)
 
 # Install both the bundle as well as the generated wrapper.
 install(FILES "${ZKG_PYZ}" DESTINATION "share/${PROJECT_NAME}/lib")
