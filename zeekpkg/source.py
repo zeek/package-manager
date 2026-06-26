@@ -1,9 +1,9 @@
 """
 A module containing the definition of a "package source": a git repository
-containing a collection of :file:`zkg.index` (or legacy :file:`bro-pkg.index`)
-files.  These are simple INI files that can describe many Zeek packages.  Each
-section of the file names a Zeek package along with the git URL where it is
-located and metadata tags that help classify/describe it.
+containing a collection of :file:`zkg.index` files. These are simple INI files
+that can describe many Zeek packages.  Each section of the file names a Zeek
+package along with the git URL where it is located and metadata tags that help
+classify/describe it.
 """
 
 import configparser
@@ -18,7 +18,6 @@ from .package import Package, name_from_path
 
 #: The name of package index files.
 INDEX_FILENAME = "zkg.index"
-LEGACY_INDEX_FILENAME = "bro-pkg.index"
 #: The name of the package source file where package metadata gets aggregated.
 AGGREGATE_DATA_FILE = "aggregate.meta"
 
@@ -112,8 +111,8 @@ class Source:
                 pass
 
             for filename in files:
-                if filename in {INDEX_FILENAME, LEGACY_INDEX_FILENAME}:
-                    rval.append(os.path.join(root, filename))
+                if filename == INDEX_FILENAME:
+                    rval.append(os.path.join(root, INDEX_FILENAME))
 
         return sorted(rval)
 

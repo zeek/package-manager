@@ -48,9 +48,6 @@ from ._util import (
 from .package import (
     BUILTIN_SCHEME,
     BUILTIN_SOURCE,
-    LEGACY_METADATA_FILENAME,
-    LEGACY_PLUGIN_MAGIC_FILE,
-    LEGACY_PLUGIN_MAGIC_FILE_DISABLED,
     METADATA_FILENAME,
     PLUGIN_MAGIC_FILE,
     PLUGIN_MAGIC_FILE_DISABLED,
@@ -195,18 +192,17 @@ class Manager:
 
         script_dir (str): the directory where the package manager will
             copy each installed package's `script_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `script_dir` associated with its name.
+            :file:`zkg.meta`). Each package gets a subdirectory within
+            `script_dir` associated with its name.
 
         plugin_dir (str): the directory where the package manager will
             copy each installed package's `plugin_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `plugin_dir` associated with its name.
+            :file:`zkg.meta`). Each package gets a subdirectory within
+            `plugin_dir` associated with its name.
 
         bin_dir (str): the directory where the package manager will link
             executables into that are provided by an installed package through
-            `executables` (as given by its :file:`zkg.meta` or
-            :file:`bro-pkg.meta`)
+            `executables` (as given by its :file:`zkg.meta`)
 
         source_clonedir (str): the directory where the package manager
             will clone package sources.  Each source gets a subdirectory
@@ -409,22 +405,12 @@ class Manager:
         When the package doesn't include a plugin, or when the plugin
         directory already contains a correctly named magic file, this
         function does nothing.
-
-        Until Zeek 6.1, the magic file was named __bro_plugin__. zkg implements
-        a fallback for recognizing the older name so that newer zkg versions
-        continue to work with older Zeek versions for some time longer.
         """
         package_dir = pathlib.Path(self.plugin_dir) / ipkg.package.name
 
-        magic_paths_enabled = [
-            package_dir / PLUGIN_MAGIC_FILE,
-            package_dir / LEGACY_PLUGIN_MAGIC_FILE,
-        ]
+        magic_paths_enabled = [package_dir / PLUGIN_MAGIC_FILE]
 
-        magic_paths_disabled = [
-            package_dir / PLUGIN_MAGIC_FILE_DISABLED,
-            package_dir / LEGACY_PLUGIN_MAGIC_FILE_DISABLED,
-        ]
+        magic_paths_disabled = [package_dir / PLUGIN_MAGIC_FILE_DISABLED]
 
         for path_enabled, path_disabled in zip(
             magic_paths_enabled,
@@ -3396,7 +3382,7 @@ def _copy_package_dir(
         rval = []
 
         for f in files:
-            if f in {".git", "bro-pkg.meta", "zkg.meta"}:
+            if f in {".git", "zkg.meta"}:
                 rval.append(f)
 
         return rval
@@ -3451,12 +3437,7 @@ def _get_package_metadata(parser: configparser.ConfigParser) -> dict[str, str]:
 
 
 def _pick_metadata_file(directory: str) -> str:
-    rval = os.path.join(directory, METADATA_FILENAME)
-
-    if os.path.exists(rval):
-        return rval
-
-    return os.path.join(directory, LEGACY_METADATA_FILENAME)
+    return os.path.join(directory, METADATA_FILENAME)
 
 
 def _parse_package_metadata(
@@ -3466,9 +3447,7 @@ def _parse_package_metadata(
     """Return string explaining why metadata is invalid, or '' if valid."""
     if not parser.read(metadata_file):
         LOG.warning("%s: missing metadata file", metadata_file)
-        return (
-            f"missing {METADATA_FILENAME} (or {LEGACY_METADATA_FILENAME}) metadata file"
-        )
+        return f"missing {METADATA_FILENAME} metadata file"
 
     if not parser.has_section("package"):
         LOG.warning("%s: metadata missing [package]", metadata_file)
@@ -3520,19 +3499,6 @@ def _info_from_clone(
             metadata_file=metadata_file,
             default_branch=default_branch,
         )
-
-    if (
-        os.path.basename(metadata_file) == LEGACY_METADATA_FILENAME
-        and package.qualified_name() not in _legacy_metadata_warnings
-    ):
-        LOG.warning(
-            "Package %s is using the legacy bro-pkg.meta metadata file. "
-            "While bro-pkg.meta still functions, it is recommended to "
-            "use zkg.meta instead for future-proofing. Please report this "
-            "to the package maintainers.",
-            package.qualified_name(),
-        )
-        _legacy_metadata_warnings.add(package.qualified_name())
 
     metadata = _get_package_metadata(metadata_parser)
 
