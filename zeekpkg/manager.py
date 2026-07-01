@@ -2507,9 +2507,15 @@ class Manager:
                     continue
 
             try:
-                git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
+                clone = git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
             except git.GitCommandError as error:
                 return f"failed to clone {git_url}: {error}"
+
+            if version and not is_sha1(version):
+                try:
+                    git_checkout(clone, version)
+                except git.GitCommandError as error:
+                    return f"failed to checkout {version} of {git_url}: {error}"
 
         # Record the built-in packages expected by this bundle (or simply
         # installed on the source system) in a new [meta] section to aid

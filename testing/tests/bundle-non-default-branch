@@ -1,0 +1,38 @@
+# Regression test: bundle() must check out the requested non-default branch
+# when doing a fresh clone (i.e. when bundling via --manifest).
+#
+# Previously, git_clone() was called but git_checkout() was never called in
+# bundle(), so the working tree inside the bundle always reflected the remote
+# default branch HEAD regardless of the requested version.
+#
+# We test by inspecting the raw bundle archive contents, which is not affected
+# by the git_checkout() call in unbundle() -> _install().
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: $TEST_BASE/../zkg --configfile=config bundle --force --manifest manifest.ini -- test.bundle
+# @TEST-EXEC: tar -xzf test.bundle foo/__load__.zeek
+# @TEST-EXEC: btest-diff foo/__load__.zeek
+
+# Create a non-default branch on foo with distinct content.
+# foo uses 'main' as default branch (see testing/scripts/initializer).
+cd packages/foo
+export FOO_URL=$(pwd)
+echo 'print "main content";' > __load__.zeek
+git commit -am 'main content'
+
+git checkout -b feature-branch
+echo 'print "feature branch content";' > __load__.zeek
+git commit -am 'feature branch content'
+
+# Advance main past feature-branch so they are clearly distinct.
+git checkout main
+echo 'print "main advanced content";' > __load__.zeek
+git commit -am 'advance main'
+
+cd -
+
+# Write manifest INI referencing foo by local path and the non-default branch.
+cat > manifest.ini <<EOF
+[bundle]
+${FOO_URL} = feature-branch
+EOF
