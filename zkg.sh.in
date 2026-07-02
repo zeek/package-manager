@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -eu
+
+ZEEK_BIN_DIR="@ZEEK_BIN_DIR@"
+if [ -d "$ZEEK_BIN_DIR" ]; then
+  export PATH="$ZEEK_BIN_DIR:$PATH"
+fi
+
+ZEEK_ZKG_CONFIG_DIR=${ZEEK_ZKG_CONFIG_DIR:-@ZEEK_ZKG_CONFIG_DIR@}
+if [ -d "$ZEEK_ZKG_CONFIG_DIR" ]; then
+  export ZEEK_ZKG_CONFIG_DIR
+fi
+
+ZEEK_ZKG_STATE_DIR=${ZEEK_ZKG_STATE_DIR:-@ZEEK_ZKG_STATE_DIR@}
+if [ -d "$ZEEK_ZKG_STATE_DIR" ]; then
+  export ZEEK_ZKG_STATE_DIR
+fi
+
+WRAPPER_DIR="$(dirname "$0")"
+ZKG_PYZ="${WRAPPER_DIR}/../share/zkg/lib/zkg.pyz"
+
+exec "@Python3_EXECUTABLE@" "${ZKG_PYZ}" "$@"
