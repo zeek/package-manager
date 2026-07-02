@@ -8,15 +8,17 @@
 # We test by inspecting the raw bundle archive contents, which is not affected
 # by the git_checkout() call in unbundle() -> _install().
 #
-# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: bash -euo pipefail %INPUT
+# @TEST-EXEC: cat manifest.ini
 # @TEST-EXEC: $TEST_BASE/../zkg --configfile=config bundle --force --manifest manifest.ini -- test.bundle
+# @TEST-EXEC: tar -tzf test.bundle
 # @TEST-EXEC: tar -xzf test.bundle foo/__load__.zeek
 # @TEST-EXEC: btest-diff foo/__load__.zeek
 
 # Create a non-default branch on foo with distinct content.
 # foo uses 'main' as default branch (see testing/scripts/initializer).
 cd packages/foo
-export FOO_URL=$(pwd)
+FOO_URL=$(pwd)
 echo 'print "main content";' > __load__.zeek
 git commit -am 'main content'
 
