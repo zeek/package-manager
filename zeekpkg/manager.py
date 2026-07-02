@@ -1140,11 +1140,8 @@ class Manager:
 
             agg_adds = []
             agg_mods = []
-            agg_dels = []
 
             for index_file in source.package_index_files():
-                urls = []
-
                 with open(index_file) as f:
                     urls = [line.rstrip("\n") for line in f]
 
