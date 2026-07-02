@@ -772,16 +772,6 @@ class Package(_Content):
         for fname in repo.untracked_files:
             repo.index.add(fname)
 
-        features_info = ""
-        if self._features:
-            names = sorted(['"' + f.name() + '"' for f in self._features])
-            if len(names) == 1:
-                features_info = f", with feature {names[0]}"
-            else:
-                features_info = ", with features "
-                features_info += ", ".join(names[:-1])
-                features_info += " and " + names[-1]
-
         ver_info = tmpl.version()
         ver_sha = tmpl.version_sha()
 
@@ -795,12 +785,22 @@ class Package(_Content):
             if ver_sha:
                 ver_info += " (" + ver_sha[:8] + ")"
 
-        repo.index.commit(
-            f"""Initial commit.
+        commit_msg = f"""Initial commit.
 
 zkg {__version__} created this package from template "{tmpl.name()}"
-using {ver_info}{features_info}.""",
-        )
+using {ver_info}."""
+
+        if self._features:
+            features = "\n".join(sorted([f"- {f.name()}" for f in self._features]))
+            commit_msg += f"""\n\nFeatures:\n\n{features}"""
+
+        if user_vars := tmpl._get_user_vars():
+            set_vars = filter(lambda v: v is not None, user_vars)
+            uvars = "\n".join([f"- {v.name()}: {v.val()}" for v in set_vars])
+
+            commit_msg += f"""\n\nVariables:\n\n{uvars}"""
+
+        repo.index.commit(commit_msg)
 
 
 class Feature(_Content):
