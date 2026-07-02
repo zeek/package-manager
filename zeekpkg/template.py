@@ -785,9 +785,14 @@ class Package(_Content):
             if ver_sha:
                 ver_info += " (" + ver_sha[:8] + ")"
 
+        tmpl_source = tmpl.name()
+        if tmpl.has_repo():
+            if (source := tmpl.info()["origin"]) != "unavailable":
+                tmpl_source = source
+
         commit_msg = f"""Initial commit.
 
-zkg {__version__} created this package from template "{tmpl.name()}"
+zkg {__version__} created this package from template "{tmpl_source}"
 using {ver_info}."""
 
         if self._features:
