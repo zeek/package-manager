@@ -3,13 +3,4 @@
 script_dir = scripts
 summary = TODO: A summary of test4 in one line
 description = TODO: A more detailed description of test4.
-	It can span multiple lines, with this indentation.
-
-[template]
-source = https://example.com/zeek/package-template
-version = master
-commit = xxxxxxxx
-
-[template_vars]
-name = test4
-
+    It can span multiple lines, with this indentation.
