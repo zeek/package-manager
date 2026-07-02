@@ -1894,22 +1894,24 @@ class Manager:
 
         ipkg = self.find_installed_package(pkg_path)
 
-        status: PackageStatus | None = None
         if prefer_installed and ipkg:
-            status = ipkg.status
             pkg_name = ipkg.package.name
             clonepath = os.path.join(self.package_clonedir, pkg_name)
             clone = git.Repo(clonepath)
-            return _info_from_clone(clone, ipkg.package, status, status.current_version)
+            return _info_from_clone(
+                clone,
+                ipkg.package,
+                ipkg.status,
+                ipkg.status.current_version,
+            )
 
-        status = None
         matches = self.match_source_packages(pkg_path)
 
         if not matches:
             package = Package(git_url=pkg_path)
 
             try:
-                return self._info(package, status, version, update_submodules)
+                return self._info(package, None, version, update_submodules)
             except git.GitCommandError as error:
                 LOG.info(
                     'getting info on "%s": invalid git repo path: %s',
@@ -1923,7 +1925,7 @@ class Manager:
                 " not a usable git URL (invalid or inaccessible,"
                 " use -vvv for details)"
             )
-            return PackageInfo(package=package, invalid_reason=reason, status=status)
+            return PackageInfo(package=package, invalid_reason=reason, status=None)
 
         if len(matches) > 1:
             matches_string = [match.qualified_name() for match in matches]
@@ -1942,11 +1944,11 @@ class Manager:
         package = matches[0]
 
         try:
-            return self._info(package, status, version, update_submodules)
+            return self._info(package, None, version, update_submodules)
         except git.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s', pkg_path, error)
             reason = "git repository is either invalid or unreachable"
-            return PackageInfo(package=package, invalid_reason=reason, status=status)
+            return PackageInfo(package=package, invalid_reason=reason, status=None)
 
     def _info(
         self,
