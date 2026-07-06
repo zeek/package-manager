@@ -20,9 +20,6 @@ from zeekpkg.config import (
     CONFIG,
 )
 
-from .consts import (
-    VERSION,
-)
 from ._util import (
     delete_path,
     git_checkout,
@@ -33,6 +30,9 @@ from ._util import (
     git_version_tags,
     load_source,
     make_dir,
+)
+from .consts import (
+    VERSION,
 )
 from .logs import (
     LOG,
