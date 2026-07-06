@@ -14,7 +14,7 @@ import git
 import semantic_version as semver
 
 if TYPE_CHECKING:
-    from zeekpkg import UserVar
+    from zeekpkg.uservar import UserVar
 
 from zeekpkg.config import (
     CONFIG,
