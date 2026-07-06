@@ -7,7 +7,22 @@ This package provides a logger named ``LOG`` to which logging stream handlers
 may be added in order to help log/debug applications.
 """
 
-__all__ = [  # noqa: F405
+from . import (
+    cli,
+    config,
+    consts,
+    logs,
+    manager,
+    package,
+    source,
+    template,
+    uservar,
+)
+
+__all__ = [
+    "CONFIG",
+    "LOG",
+    "cli",
     "config",
     "consts",
     "logs",
@@ -18,12 +33,7 @@ __all__ = [  # noqa: F405
     "uservar",
 ]
 
-from .config import *  # noqa: F403
-from .consts import *  # noqa: F403
-from .logs import *  # noqa: F403
-from .manager import *  # noqa: F403
-from .package import *  # noqa: F403
-from .source import *  # noqa: F403
-from .uservar import *  # noqa: F403
+__version__ = consts.VERSION
 
-__version__ = VERSION  # noqa: F405
+from .config import CONFIG
+from .logs import LOG

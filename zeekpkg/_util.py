@@ -341,6 +341,67 @@ def git_remote_urls(repo: git.Repo) -> dict[str, str]:
     return remotes
 
 
+def active_git_branch(path: str) -> str | None:
+    try:
+        repo = git.Repo(path)
+    except git.NoSuchPathError:
+        return None
+
+    if not repo.working_tree_dir:
+        return None
+
+    try:
+        rval = repo.active_branch
+    except TypeError:
+        # return detached commit
+        rval = repo.head.commit
+
+    if not rval:
+        return None
+
+    return str(rval)
+
+
+def is_local_git_repo_url(git_url: str) -> bool:
+    return (
+        git_url.startswith(".") or git_url.startswith("/") or is_local_git_repo(git_url)
+    )
+
+
+def is_local_git_repo(git_url: str) -> bool:
+    try:
+        # The Repo class takes a file system path as first arg. This
+        # can fail in two ways: (1) the path doesn't exist or isn't
+        # accessible, (2) it's not the root directory of a git repo.
+        git.Repo(git_url)
+        return True
+    except (git.InvalidGitRepositoryError, git.NoSuchPathError):
+        return False
+
+
+def is_local_git_repo_dirty(git_url: str) -> bool:
+    if not is_local_git_repo(git_url):
+        return False
+    try:
+        repo = git.Repo(git_url)
+    except git.NoSuchPathError:
+        return False
+
+    return repo.is_dirty(untracked_files=True)
+
+
+def check_local_git_repo(git_url: str) -> bool:
+    if is_local_git_repo_url(git_url):
+        if not is_local_git_repo(git_url):
+            print_error(f"error: path {git_url} is not a git repository")
+            return False
+        if is_local_git_repo_dirty(git_url):
+            print_error(f"error: local git clone at {git_url} is dirty")
+            return False
+
+    return True
+
+
 def is_sha1(s: str) -> bool:
     if len(s) != 40:
         return False

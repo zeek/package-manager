@@ -10,8 +10,8 @@ from functools import total_ordering
 
 import semantic_version as semver
 
-from . import LOG
 from ._util import find_sentence_end, normalize_version_tag
+from .logs import LOG
 from .uservar import UserVar
 
 #: The name of files used by packages to store their metadata.
