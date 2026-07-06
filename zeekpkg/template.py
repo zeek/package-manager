@@ -14,12 +14,12 @@ import git
 import semantic_version as semver
 
 if TYPE_CHECKING:
-    from zeekpkg import UserVar
+    from zeekpkg.uservar import UserVar
 
-from . import (
-    LOG,
-    __version__,
+from zeekpkg.config import (
+    CONFIG,
 )
+
 from ._util import (
     delete_path,
     git_checkout,
@@ -30,6 +30,12 @@ from ._util import (
     git_version_tags,
     load_source,
     make_dir,
+)
+from .consts import (
+    VERSION,
+)
+from .logs import (
+    LOG,
 )
 from .package import (
     METADATA_FILENAME,
@@ -69,7 +75,6 @@ class Template:
 
     @staticmethod
     def load(
-        config: configparser.ConfigParser,
         template: str,
         version: str | None = None,
     ) -> "Template":
@@ -84,8 +89,6 @@ class Template:
         derivative that must be present in it.
 
         Args:
-            config (configparser.ConfigParser): a zkg configuration
-
             template (str): template source repo, as directory or git URL
 
             version (str): if provided, a specific version tag to use.
@@ -124,7 +127,7 @@ class Template:
             # zkg state folder's clone space and support version
             # requests.
             template_clonedir = os.path.join(
-                config.get("paths", "state_dir"),
+                CONFIG.get("paths", "state_dir"),
                 "clones",
                 "template",
             )
@@ -806,7 +809,7 @@ class Package(_Content):
         else:
             config.set(section, "version", tmpl.version() or "unversioned")
 
-        config.set(section, "zkg_version", __version__)
+        config.set(section, "zkg_version", VERSION)
 
         if self._features:
             val = ",".join(sorted([f.name() for f in self._features]))
@@ -855,7 +858,7 @@ class Package(_Content):
         repo.index.commit(
             f"""Initial commit.
 
-zkg {__version__} created this package from template "{tmpl.name()}"
+zkg {VERSION} created this package from template "{tmpl.name()}"
 using {ver_info}{features_info}.""",
         )
 

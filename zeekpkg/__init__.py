@@ -7,15 +7,37 @@ This package provides a logger named ``LOG`` to which logging stream handlers
 may be added in order to help log/debug applications.
 """
 
-import logging
+from . import (
+    cli,
+    config,
+    consts,
+    logs,
+    manager,
+    package,
+    source,
+    template,
+    ui,
+    uservar,
+)
 
-__version__ = "3.1.0-24"
-__all__ = ["manager", "package", "source", "template", "uservar"]  # noqa: F405
+__all__ = [
+    "CONFIG",
+    "LOG",
+    "UI",
+    "cli",
+    "config",
+    "consts",
+    "logs",
+    "manager",
+    "package",
+    "source",
+    "template",
+    "ui",
+    "uservar",
+]
 
-LOG: logging.Logger = logging.getLogger(__name__)
-LOG.addHandler(logging.NullHandler())
+__version__ = consts.VERSION
 
-from .manager import *  # noqa: F403
-from .package import *  # noqa: F403
-from .source import *  # noqa: F403
-from .uservar import *  # noqa: F403
+from .config import CONFIG
+from .logs import LOG
+from .ui import UI

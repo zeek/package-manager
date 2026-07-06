@@ -1,7 +1,7 @@
 
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC-FAIL: zkg install foo
-# @TEST-EXEC: TEST_DIFF_CANONIFIER='grep ^error' btest-diff .stderr
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='grep ^Error' btest-diff .stderr
 
 cd packages/foo
 echo 'aliases = ../../../../../../../../bad' >> zkg.meta

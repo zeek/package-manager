@@ -21,12 +21,7 @@ from urllib.parse import urlparse
 import git
 import semantic_version as semver
 
-from . import (
-    LOG,
-    __version__,
-)
 from ._util import (
-    configparser_section_dict,
     copy_over_path,
     delete_path,
     find_program,
@@ -45,13 +40,21 @@ from ._util import (
     safe_tarfile_extractall,
     std_encoding,
 )
+from .config import (
+    CONFIG,
+)
+from .consts import (
+    VERSION,
+)
+from .logs import (
+    LOG,
+)
 from .package import (
     BUILTIN_SCHEME,
     BUILTIN_SOURCE,
     LEGACY_METADATA_FILENAME,
     LEGACY_PLUGIN_MAGIC_FILE,
     LEGACY_PLUGIN_MAGIC_FILE_DISABLED,
-    METADATA_FILENAME,
     PLUGIN_MAGIC_FILE,
     PLUGIN_MAGIC_FILE_DISABLED,
     TRACKING_METHOD_BRANCH,
@@ -64,13 +67,17 @@ from .package import (
     PackageVersion,
     aliases,
     canonical_url,
+    get_package_metadata,
+    is_valid_name,
     make_builtin_package,
     name_from_path,
+    parse_package_metadata,
+    pick_metadata_file,
 )
-from .package import (
-    is_valid_name as is_valid_package_name,
+from .source import (
+    AggregationResults,
+    Source,
 )
-from .source import AGGREGATE_DATA_FILE, Source
 from .uservar import (
     UserVar,
 )
@@ -88,13 +95,13 @@ class Stage:
             self.plugin_dir = os.path.join(self.state_dir, "plugins", "packages")
             self.bin_dir = os.path.join(self.state_dir, "bin")
         else:
-            # Stages not given a test directory are essentially a shortcut to
+            # Stages not given a state directory are essentially a shortcut to
             # standard functionality; this doesn't require all directories:
             self.state_dir = None
-            self.clone_dir = manager.package_clonedir
-            self.script_dir = manager.script_dir
-            self.plugin_dir = manager.plugin_dir
-            self.bin_dir = manager.bin_dir
+            self.clone_dir = CONFIG.packages_clone_dir()
+            self.script_dir = CONFIG.packages_script_dir()
+            self.plugin_dir = CONFIG.packages_plugin_dir()
+            self.bin_dir = CONFIG.bin_dir()
 
     def populate(self) -> None:
         # If we're staging to a temporary location, blow anything existing there
@@ -114,7 +121,7 @@ class Stage:
         # real install folders into the staging one. The subsequent cloning of
         # the packages under test will remove those links as needed.
         if self.state_dir:
-            with os.scandir(self.manager.package_clonedir) as it:
+            with os.scandir(CONFIG.packages_clone_dir()) as it:
                 for entry in it:
                     if not entry.is_dir():
                         continue
@@ -165,60 +172,12 @@ class Manager:
     track of package sources, installed packages and their statuses.
 
     Attributes:
-        sources (dict of str -> :class:`.source.Source`): dictionary package
+        sources (dict of str -> :class:`.source.Source`): dictionary of package
             sources keyed by the name given to :meth:`add_source()`
 
         installed_pkgs (dict of str -> :class:`.package.InstalledPackage`):
             a dictionary of installed packaged keyed on package names (the last
             component of the package's git URL)
-
-        zeek_dist (str): path to the Zeek source code distribution.  This
-            is needed for packages that contain Zeek plugins that need to be
-            built from source code.
-
-        state_dir (str): the directory where the package manager will
-            a maintain manifest file, package/source git clones, and other
-            persistent state the manager needs in order to operate
-
-        user_vars (dict of str -> str): dictionary of key-value pairs where
-            the value will be substituted into package build commands in place
-            of the key.
-
-        backup_dir (str): a directory where the package manager will
-            store backup files (e.g. locally modified package config files)
-
-        log_dir (str): a directory where the package manager will
-            store misc. logs files (e.g. package build logs)
-
-        scratch_dir (str): a directory where the package manager performs
-            miscellaneous/temporary file operations
-
-        script_dir (str): the directory where the package manager will
-            copy each installed package's `script_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `script_dir` associated with its name.
-
-        plugin_dir (str): the directory where the package manager will
-            copy each installed package's `plugin_dir` (as given by its
-            :file:`zkg.meta` or :file:`bro-pkg.meta`).  Each package gets a
-            subdirectory within `plugin_dir` associated with its name.
-
-        bin_dir (str): the directory where the package manager will link
-            executables into that are provided by an installed package through
-            `executables` (as given by its :file:`zkg.meta` or
-            :file:`bro-pkg.meta`)
-
-        source_clonedir (str): the directory where the package manager
-            will clone package sources.  Each source gets a subdirectory
-            associated with its name.
-
-        package_clonedir (str): the directory where the package manager
-            will clone installed packages.  Each package gets a subdirectory
-            associated with its name.
-
-        package_testdir (str): the directory where the package manager
-            will run tests.  Each package gets a subdirectory
-            associated with its name.
 
         manifest (str): the path to the package manager's manifest file.
             This file maintains a list of installed packages and their status.
@@ -235,71 +194,42 @@ class Manager:
             load all installed packages that have been marked as loaded.
     """
 
-    def __init__(
-        self,
-        state_dir: str,
-        script_dir: str,
-        plugin_dir: str,
-        zeek_dist: str = "",
-        user_vars: dict[str, str] | None = None,
-        bin_dir: str = "",
-    ) -> None:
+    def __init__(self) -> None:
         """Creates a package manager instance.
-
-        Args:
-            state_dir (str): value to set the `state_dir` attribute to
-
-            script_dir (str): value to set the `script_dir` attribute to
-
-            plugin_dir (str): value to set the `plugin_dir` attribute to
-
-            zeek_dist (str): value to set the `zeek_dist` attribute to
-
-            user_vars (dict of str -> str): key-value pair substitutions for
-                use in package build commands.
-
-            bin_dir (str): value to set the `bin_dir` attribute to.  If
-                empty/nil value, defaults to setting `bin_dir` attribute to
-                `<state_dir>/bin`.
 
         Raises:
             OSError: when a package manager state directory can't be created
             IOError: when a package manager state file can't be created
         """
-        LOG.debug("init Manager version %s", __version__)
+        LOG.debug("init Manager version %s", VERSION)
         self.sources: dict[str, Source] = {}
         self.installed_pkgs: dict[str, InstalledPackage] = {}
         self._builtin_packages: list[PackageInfo] | None = (
             None  # Cached Zeek built-in packages.
         )
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
-        self.zeek_dist = zeek_dist
-        self.state_dir = state_dir
-        self.user_vars = {} if user_vars is None else user_vars
-        self.backup_dir = os.path.join(self.state_dir, "backups")
-        self.log_dir = os.path.join(self.state_dir, "logs")
-        self.scratch_dir = os.path.join(self.state_dir, "scratch")
-        self._script_dir = script_dir
-        self.script_dir = os.path.join(script_dir, "packages")
-        self._plugin_dir = plugin_dir
-        self.plugin_dir = os.path.join(plugin_dir, "packages")
-        self.bin_dir = bin_dir or os.path.join(self.state_dir, "bin")
-        self.source_clonedir = os.path.join(self.state_dir, "clones", "source")
-        self.package_clonedir = os.path.join(self.state_dir, "clones", "package")
-        self.package_testdir = os.path.join(self.state_dir, "testing")
-        self.manifest = os.path.join(self.state_dir, "manifest.json")
-        self.autoload_script = os.path.join(self.script_dir, "packages.zeek")
-        self.autoload_package = os.path.join(self.script_dir, "__load__.zeek")
-        make_dir(self.state_dir)
-        make_dir(self.log_dir)
-        make_dir(self.scratch_dir)
-        make_dir(self.source_clonedir)
-        make_dir(self.package_clonedir)
-        make_dir(self.script_dir)
-        make_dir(self.plugin_dir)
-        make_dir(self.bin_dir)
-        _create_readme(os.path.join(self.script_dir, "README"))
-        _create_readme(os.path.join(self.plugin_dir, "README"))
+
+        self.manifest = os.path.join(CONFIG.state_dir(), "manifest.json")
+        self.autoload_script = os.path.join(
+            CONFIG.packages_script_dir(),
+            "packages.zeek",
+        )
+        self.autoload_package = os.path.join(
+            CONFIG.packages_script_dir(),
+            "__load__.zeek",
+        )
+
+        make_dir(CONFIG.bin_dir())
+        make_dir(CONFIG.log_dir())
+        make_dir(CONFIG.packages_clone_dir())
+        make_dir(CONFIG.packages_script_dir())
+        make_dir(CONFIG.packages_plugin_dir())
+        make_dir(CONFIG.scratch_dir())
+        make_dir(CONFIG.sources_clone_dir())
+        make_dir(CONFIG.state_dir())
+
+        _create_readme(os.path.join(CONFIG.packages_script_dir(), "README"))
+        _create_readme(os.path.join(CONFIG.packages_plugin_dir(), "README"))
 
         if not os.path.exists(self.manifest):
             self._write_manifest()
@@ -318,18 +248,24 @@ class Manager:
         relocating_bin_dir = False  # whether bin_dir has relocated
         need_manifest_update = False
 
-        if os.path.realpath(prev_script_dir) != os.path.realpath(self.script_dir):
-            LOG.info("relocating script_dir %s -> %s", prev_script_dir, self.script_dir)
+        if os.path.realpath(prev_script_dir) != os.path.realpath(
+            CONFIG.packages_script_dir(),
+        ):
+            LOG.info(
+                "relocating script_dir %s -> %s",
+                prev_script_dir,
+                CONFIG.packages_script_dir(),
+            )
 
             if os.path.exists(prev_script_dir):
-                delete_path(self.script_dir)
-                shutil.move(prev_script_dir, self.script_dir)
+                delete_path(CONFIG.packages_script_dir())
+                shutil.move(prev_script_dir, CONFIG.packages_script_dir())
 
             prev_zeekpath = os.path.dirname(prev_script_dir)
 
             for pkg_name in self.installed_pkgs:
                 old_link = os.path.join(prev_zeekpath, pkg_name)
-                new_link = os.path.join(self.zeekpath(), pkg_name)
+                new_link = os.path.join(CONFIG.zeek_path(), pkg_name)
 
                 if os.path.lexists(old_link):
                     LOG.info("moving package link %s -> %s", old_link, new_link)
@@ -340,26 +276,32 @@ class Manager:
             need_manifest_update = True
             refresh_bin_dir = True
 
-        if os.path.realpath(prev_plugin_dir) != os.path.realpath(self.plugin_dir):
-            LOG.info("relocating plugin_dir %s -> %s", prev_plugin_dir, self.plugin_dir)
+        if os.path.realpath(prev_plugin_dir) != os.path.realpath(
+            CONFIG.packages_plugin_dir(),
+        ):
+            LOG.info(
+                "relocating plugin_dir %s -> %s",
+                prev_plugin_dir,
+                CONFIG.packages_plugin_dir(),
+            )
 
             if os.path.exists(prev_plugin_dir):
-                delete_path(self.plugin_dir)
-                shutil.move(prev_plugin_dir, self.plugin_dir)
+                delete_path(CONFIG.packages_plugin_dir())
+                shutil.move(prev_plugin_dir, CONFIG.packages_plugin_dir())
 
             need_manifest_update = True
             refresh_bin_dir = True
 
         if prev_bin_dir and os.path.realpath(prev_bin_dir) != os.path.realpath(
-            self.bin_dir,
+            CONFIG.bin_dir(),
         ):
-            LOG.info("relocating bin_dir %s -> %s", prev_bin_dir, self.bin_dir)
+            LOG.info("relocating bin_dir %s -> %s", prev_bin_dir, CONFIG.bin_dir())
             need_manifest_update = True
             refresh_bin_dir = True
             relocating_bin_dir = True
 
         if refresh_bin_dir:
-            self._refresh_bin_dir(self.bin_dir)
+            self._refresh_bin_dir(CONFIG.bin_dir())
 
         if relocating_bin_dir:
             self._clear_bin_dir(prev_bin_dir)
@@ -414,7 +356,7 @@ class Manager:
         a fallback for recognizing the older name so that newer zkg versions
         continue to work with older Zeek versions for some time longer.
         """
-        package_dir = pathlib.Path(self.plugin_dir) / ipkg.package.name
+        package_dir = pathlib.Path(CONFIG.packages_plugin_dir()) / ipkg.package.name
 
         magic_paths_enabled = [
             package_dir / PLUGIN_MAGIC_FILE,
@@ -454,8 +396,11 @@ class Manager:
     def _read_manifest(self) -> tuple[str, str, str]:
         """Read the manifest file containing the list of installed packages.
 
+        Updates the manager's internal list of installed packages accordingly.
+
         Returns:
-            tuple: (previous script_dir, previous plugin_dir, previous bin_dir)
+            tuple: Directories as per the manifest: (previous script_dir,
+            previous plugin_dir, previous bin_dir)
 
         Raises:
             IOError: when the manifest file can't be read
@@ -502,33 +447,20 @@ class Manager:
 
         data = {
             "manifest_version": 1,
-            "script_dir": self.script_dir,
-            "plugin_dir": self.plugin_dir,
-            "bin_dir": self.bin_dir,
+            "script_dir": CONFIG.packages_script_dir(),
+            "plugin_dir": CONFIG.packages_plugin_dir(),
+            "bin_dir": CONFIG.bin_dir(),
             "installed_packages": pkg_list,
         }
 
         with open(self.manifest, "w") as f:
             json.dump(data, f, indent=2, sort_keys=True)
 
-    def zeekpath(self) -> str:
-        """Return the path where installed package scripts are located.
-
-        This path can be added to :envvar:`ZEEKPATH` for interoperability with
-        Zeek.
-        """
-        return os.path.dirname(self.script_dir)
-
-    def zeek_plugin_path(self) -> str:
-        """Return the path where installed package plugins are located.
-
-        This path can be added to :envvar:`ZEEK_PLUGIN_PATH` for
-        interoperability with Zeek.
-        """
-        return os.path.dirname(self.plugin_dir)
-
     def add_source(self, name: str, git_url: str) -> str:
         """Add a git repository that acts as a source of packages.
+
+        This clones the source's git repo if there's no local clone in zkg's
+        internal state yet.
 
         Args:
             name (str): a short name that will be used to reference the package
@@ -539,6 +471,7 @@ class Manager:
         Returns:
             str: empty string if the source is successfully added, else the
             reason why it failed.
+
         """
         if name == BUILTIN_SOURCE:
             return f"{name} is a reserved source name"
@@ -554,7 +487,7 @@ class Manager:
                 f"source already exists with different URL: {existing_source.git_url}"
             )
 
-        clone_path = os.path.join(self.source_clonedir, name)
+        clone_path = os.path.join(CONFIG.sources_clone_dir(), name)
 
         # Support @ in the path to denote the "version" to checkout
         version = None
@@ -587,6 +520,8 @@ class Manager:
                 version=version,
             )
         except git.GitCommandError as error:
+            # XXX seems this could also error when requesting nonexisting
+            # branches/versions?
             LOG.warning("failed to clone git repo: %s", error)
             return "failed to clone git repo"
         else:
@@ -597,7 +532,7 @@ class Manager:
     def source_packages(self) -> list[Package]:
         """Return a list of :class:`.package.Package` within all sources."""
         rval = []
-
+        # XXX odd naming, perhaps available_packages or some such.
         for _, source in self.sources.items():
             rval += source.packages()
 
@@ -713,7 +648,10 @@ class Manager:
         }
 
     def loaded_packages(self) -> list[InstalledPackage]:
-        """Return list of loaded :class:`.package.InstalledPackage`."""
+        """Return list of loaded :class:`.package.InstalledPackage`.
+
+        The returned packages are ordered alphabetically by their qualified name.
+        """
         rval = []
 
         for _, ipkg in sorted(self.installed_pkgs.items()):
@@ -725,15 +663,27 @@ class Manager:
     def package_build_log(self, pkg_path: str) -> str:
         """Return the path to the package manager's build log for a package.
 
+        The build log is of the form <name>-build.log, resides in the log
+        directory of zkg's internal state, and combines stdout and stderr in
+        separate sections of the file.
+
+        The function does not check whether the log actually exists, or whether
+        the package actually requires one.
+
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
                 a package source called "zeek" with package named "foo" in
                 :file:`alice/zkg.index`, the following inputs may refer
                 to the package: "foo", "alice/foo", or "zeek/alice/foo".
+
         """
         name = name_from_path(pkg_path)
-        return os.path.join(self.log_dir, f"{name}-build.log")
+        return os.path.join(CONFIG.log_dir(), f"{name}-build.log")
+
+    def package_test_log(self, pkg_path: str) -> str:
+        name = name_from_path(pkg_path)
+        return os.path.join(CONFIG.log_dir(), f"{name}-test.log")
 
     def match_source_packages(self, pkg_path: str) -> list[Package]:
         """Return a list of :class:`.package.Package` that match a given path.
@@ -747,6 +697,8 @@ class Manager:
         """
         rval = []
         canon_url = canonical_url(pkg_path)
+
+        # XXX This is the right place to populate a package source on-demand.
 
         for pkg in self.source_packages():
             if pkg.matches_path(canon_url):
@@ -798,7 +750,11 @@ class Manager:
         Returns:
             bool: True if the package has installed Zeek scripts.
         """
-        return os.path.exists(os.path.join(self.script_dir, installed_pkg.package.name))
+        # XXX is this better than relying on the presence of the scripts
+        # directive in zkg.meta?
+        return os.path.exists(
+            os.path.join(CONFIG.packages_script_dir(), installed_pkg.package.name),
+        )
 
     def has_plugin(self, installed_pkg: InstalledPackage) -> bool:
         """Return whether a :class:`.package.InstalledPackage` installed a plugin.
@@ -810,13 +766,18 @@ class Manager:
         Returns:
             bool: True if the package has installed a Zeek plugin.
         """
-        return os.path.exists(os.path.join(self.plugin_dir, installed_pkg.package.name))
+        # XXX is this better than relying on the presence of the build_command
+        # in zkg.meta?
+        return os.path.exists(
+            os.path.join(CONFIG.packages_plugin_dir(), installed_pkg.package.name),
+        )
 
     def save_temporary_config_files(
         self,
         installed_pkg: InstalledPackage,
     ) -> list[tuple[str, str]]:
-        """Return a list of temporary package config file backups.
+        """Copies any Zeek scripts the package declares as config files (i.e.,
+        not to be overwritten during updates) into internal scratchspace.
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
@@ -826,9 +787,8 @@ class Manager:
             list of (str, str): tuples that describe the config files backups.
             The first element is the config file as specified in the package
             metadata (a file path relative to the package's root directory).
-            The second element is an absolute file system path to where that
-            config file has been copied.  It should be considered temporary,
-            so make use of it before doing any further operations on packages.
+            The second element is an absolute path to the location in zkg's
+            internal scratch folder where it copied the file to.
         """
         metadata = installed_pkg.package.metadata
         config_files = re.split(r",\s*", metadata.get("config_files", ""))
@@ -837,7 +797,7 @@ class Manager:
             return []
 
         pkg_name = installed_pkg.package.name
-        clone_dir = os.path.join(self.package_clonedir, pkg_name)
+        clone_dir = os.path.join(CONFIG.packages_clone_dir(), pkg_name)
         rval = []
 
         for config_file in config_files:
@@ -851,10 +811,13 @@ class Manager:
                 )
                 continue
 
-            backup_file = os.path.join(self.scratch_dir, "tmpcfg", config_file)
+            backup_file = os.path.join(CONFIG.scratch_dir(), "tmpcfg", config_file)
             make_dir(os.path.dirname(backup_file))
             shutil.copy2(config_file_path, backup_file)
             rval.append((config_file, backup_file))
+
+        # XXX there's nothing temporary about the files just created, and
+        # nothing that cleans them.
 
         return rval
 
@@ -863,6 +826,10 @@ class Manager:
         installed_pkg: InstalledPackage,
     ) -> list[tuple[str, str]]:
         """Return a list of package config files that the user has modified.
+
+        This compares the scripts the package declares as config file in zkg's
+        internal clone state to the content of these scripts as actually
+        installed.
 
         Args:
             installed_pkg(:class:`.package.InstalledPackage`): the installed
@@ -874,6 +841,7 @@ class Manager:
             metadata (a file path relative to the package's root directory).
             The second element is an absolute file system path to where that
             config file is currently installed.
+
         """
         metadata = installed_pkg.package.metadata
         config_files = re.split(r",\s*", metadata.get("config_files", ""))
@@ -882,9 +850,9 @@ class Manager:
             return []
 
         pkg_name = installed_pkg.package.name
-        script_install_dir = os.path.join(self.script_dir, pkg_name)
-        plugin_install_dir = os.path.join(self.plugin_dir, pkg_name)
-        clone_dir = os.path.join(self.package_clonedir, pkg_name)
+        script_install_dir = os.path.join(CONFIG.packages_script_dir(), pkg_name)
+        plugin_install_dir = os.path.join(CONFIG.packages_plugin_dir(), pkg_name)
+        clone_dir = os.path.join(CONFIG.packages_clone_dir(), pkg_name)
         script_dir = metadata.get("script_dir", "")
         plugin_dir = metadata.get("plugin_dir", "build")
         rval = []
@@ -968,54 +936,38 @@ class Manager:
             config_file_dir = os.path.dirname(config_file)
             install_path = modified_file[1]
             filename = os.path.basename(install_path)
-            backup_dir = os.path.join(self.backup_dir, backup_subdir, config_file_dir)
+            backup_dir = os.path.join(
+                CONFIG.backup_dir(),
+                backup_subdir,
+                config_file_dir,
+            )
             timestamp = time.strftime(".%Y-%m-%d-%H:%M:%S")
             backup_path = os.path.join(backup_dir, filename + timestamp)
             make_dir(backup_dir)
             shutil.copy2(install_path, backup_path)
             rval.append(backup_path)
 
+        # XXX odd to have both this method and save_temporary_config_files(),
+        # since the latter only copies what's in the clone tree?
+
+        # XXX also note that there's no restore_modified_files() because
+        # restoration isn't the point of these backups, it's to preserve the
+        # modified version for reference/review (similar to e.g. .rpmsave).
+
         return rval
-
-    class SourceAggregationResults:
-        """The return value of a call to :meth:`.Manager.aggregate_source()`.
-
-        Attributes:
-            refresh_error (str): an empty string if no overall error
-                occurred in the "refresh" operation, else a description of
-                what wrong
-
-            package_issues (list of (str, str)): a list of reasons for
-                failing to collect metadata per packages/repository.
-                The first tuple element gives the repository URL in which
-                the problem occurred and the second tuple element describes
-                the failure.
-        """
-
-        def __init__(
-            self,
-            refresh_error: str = "",
-            package_issues: list[tuple[str, str]] | None = None,
-        ) -> None:
-            self.refresh_error = refresh_error
-            self.package_issues = package_issues if package_issues else []
 
     def aggregate_source(
         self,
         name: str,
         push: bool = False,
-    ) -> SourceAggregationResults:
+    ) -> AggregationResults:
         """Pull latest git info from a package source and aggregate metadata.
 
-        This is like calling :meth:`refresh_source()` with the *aggregate*
-        arguments set to True.
-
-        This makes the latest pre-aggregated package metadata available or
-        performs the aggregation locally in order to push it to the actual
-        package source.  Locally aggregated data also takes precedence over
-        the source's pre-aggregated data, so it can be useful in the case
-        the operator of the source does not update their pre-aggregated data
-        at a frequent enough interval.
+        This performs package aggregation locally in order to push it to the
+        selected package source.  Locally aggregated data also takes precedence
+        over the source's pre-aggregated data, so it can be useful in the case
+        the operator of the source does not update their pre-aggregated data at
+        a frequent enough interval.
 
         Args:
             name(str): the name of the package source.  E.g. the same name
@@ -1025,251 +977,37 @@ class Manager:
                 metadata to the remote package source.
 
         Returns:
-            :class:`.Manager.SourceAggregationResults`: the results of the
+            :class:`AggregationResults`: the results of the
                 refresh/aggregation.
+
         """
-        return self._refresh_source(name, True, push)
+        if name not in self.sources:
+            return AggregationResults("source name does not exist")
+
+        return self.sources[name].aggregate(push)
 
     def refresh_source(
         self,
         name: str,
-        aggregate: bool = False,
-        push: bool = False,
     ) -> str:
         """Pull latest git information from a package source.
 
-        This makes the latest pre-aggregated package metadata available or
-        performs the aggregation locally in order to push it to the actual
-        package source.  Locally aggregated data also takes precedence over
-        the source's pre-aggregated data, so it can be useful in the case
-        the operator of the source does not update their pre-aggregated data
-        at a frequent enough interval.
+        This makes the latest package metadata, including pre-aggregated
+        information, available locally.
 
         Args:
             name(str): the name of the package source.  E.g. the same name
                 used as a key to :meth:`add_source()`.
 
-            aggregate (bool): whether to perform a local metadata aggregation
-                by crawling all packages listed in the source's index files.
-
-            push (bool): whether to push local changes to the aggregated
-                metadata to the remote package source.  If the `aggregate`
-                flag is set, the data will be pushed after the aggregation
-                is finished.
-
         Returns:
             str: an empty string if no errors occurred, else a description
             of what went wrong.
+
         """
-        res = self._refresh_source(name, aggregate, push)
-        return res.refresh_error
-
-    def _refresh_source(
-        self,
-        name: str,
-        aggregate: bool = False,
-        push: bool = False,
-    ) -> SourceAggregationResults:
-        """Used by :meth:`refresh_source()` and :meth:`aggregate_source()`."""
         if name not in self.sources:
-            return self.SourceAggregationResults("source name does not exist")
+            return "source name does not exist"
 
-        source = self.sources[name]
-        LOG.debug('refresh "%s": pulling %s', name, source.git_url)
-        aggregate_file = os.path.join(source.clone.working_dir, AGGREGATE_DATA_FILE)
-        agg_file_ours = os.path.join(self.scratch_dir, AGGREGATE_DATA_FILE)
-        agg_file_their_orig = os.path.join(
-            self.scratch_dir,
-            AGGREGATE_DATA_FILE + ".orig",
-        )
-
-        delete_path(agg_file_ours)
-        delete_path(agg_file_their_orig)
-
-        if os.path.isfile(aggregate_file):
-            shutil.copy2(aggregate_file, agg_file_ours)
-
-        source.clone.git.reset(hard=True)
-        source.clone.git.clean("-f", "-x", "-d")
-
-        if os.path.isfile(aggregate_file):
-            shutil.copy2(aggregate_file, agg_file_their_orig)
-
-        try:
-            source.clone.git.fetch("--recurse-submodules=yes")
-            git_pull(source.clone)
-        except git.GitCommandError as error:
-            LOG.error("failed to pull source %s: %s", name, error)
-            return self.SourceAggregationResults(
-                f"failed to pull from remote source: {error}",
-            )
-
-        if os.path.isfile(agg_file_ours):
-            if os.path.isfile(aggregate_file):
-                # There's a tracked version of the file after pull.
-                if os.path.isfile(agg_file_their_orig):
-                    # We had local modifications to the file.
-                    if filecmp.cmp(aggregate_file, agg_file_their_orig):
-                        # Their file hasn't changed, use ours.
-                        shutil.copy2(agg_file_ours, aggregate_file)
-                        LOG.debug(
-                            "aggegrate file in source unchanged, restore local one",
-                        )
-                    else:
-                        # Their file changed, use theirs.
-                        LOG.debug("aggegrate file in source changed, discard local one")
-                else:
-                    # File was untracked before pull and tracked after,
-                    # use their version.
-                    LOG.debug("new aggegrate file in source, discard local one")
-            else:
-                # They don't have the file after pulling, so restore ours.
-                shutil.copy2(agg_file_ours, aggregate_file)
-                LOG.debug("no aggegrate file in source, restore local one")
-
-        aggregation_issues = []
-
-        if aggregate:
-            parser = configparser.ConfigParser(interpolation=None)
-            prev_parser = configparser.ConfigParser(interpolation=None)
-            prev_packages = set()
-
-            if os.path.isfile(aggregate_file):
-                prev_parser.read(aggregate_file)
-                prev_packages = set(prev_parser.sections())
-
-            agg_adds = []
-            agg_mods = []
-            agg_dels = []
-
-            for index_file in source.package_index_files():
-                urls = []
-
-                with open(index_file) as f:
-                    urls = [line.rstrip("\n") for line in f]
-
-                for url in urls:
-                    pkg_name = name_from_path(url)
-                    clonepath = os.path.join(self.scratch_dir, pkg_name)
-                    delete_path(clonepath)
-
-                    try:
-                        clone = git_clone(url, clonepath, shallow=True)
-                    except git.GitCommandError as error:
-                        LOG.warning(
-                            "failed to clone %s, skipping aggregation: %s",
-                            url,
-                            error,
-                        )
-                        aggregation_issues.append((url, repr(error)))
-                        continue
-
-                    version_tags = git_version_tags(clone)
-
-                    if len(version_tags):
-                        version = version_tags[-1]
-                    else:
-                        version = git_default_branch(clone)
-
-                    try:
-                        git_checkout(clone, version)
-                    except git.GitCommandError as error:
-                        LOG.warning(
-                            'failed to checkout branch/version "%s" of %s, '
-                            "skipping aggregation: %s",
-                            version,
-                            url,
-                            error,
-                        )
-                        msg = (
-                            f'failed to checkout branch/version "{version}": {error!r}'
-                        )
-                        aggregation_issues.append((url, msg))
-                        continue
-
-                    metadata_file = _pick_metadata_file(str(clone.working_dir))
-                    metadata_parser = configparser.ConfigParser(interpolation=None)
-                    invalid_reason = _parse_package_metadata(
-                        metadata_parser,
-                        metadata_file,
-                    )
-
-                    if invalid_reason:
-                        LOG.warning(
-                            "skipping aggregation of %s: bad metadata: %s",
-                            url,
-                            invalid_reason,
-                        )
-                        aggregation_issues.append((url, invalid_reason))
-                        continue
-
-                    metadata = _get_package_metadata(metadata_parser)
-                    index_dir = os.path.dirname(index_file)[
-                        len(self.source_clonedir) + len(name) + 2 :
-                    ]
-                    qualified_name = os.path.join(index_dir, pkg_name)
-
-                    parser.add_section(qualified_name)
-
-                    for key, value in sorted(metadata.items()):
-                        parser.set(qualified_name, key, value)
-
-                    parser.set(qualified_name, "url", url)
-                    parser.set(qualified_name, "version", version)
-
-                    if qualified_name not in prev_packages:
-                        agg_adds.append(qualified_name)
-                    else:
-                        prev_meta = configparser_section_dict(
-                            prev_parser,
-                            qualified_name,
-                        )
-                        new_meta = configparser_section_dict(parser, qualified_name)
-                        if prev_meta != new_meta:
-                            agg_mods.append(qualified_name)
-
-            with open(aggregate_file, "w") as f:
-                parser.write(f)
-
-            agg_dels = list(prev_packages.difference(set(parser.sections())))
-
-            adds_str = " (" + ", ".join(sorted(agg_adds)) + ")" if agg_adds else ""
-            mods_str = " (" + ", ".join(sorted(agg_mods)) + ")" if agg_mods else ""
-            dels_str = " (" + ", ".join(sorted(agg_dels)) + ")" if agg_dels else ""
-
-            LOG.debug(
-                "metadata refresh: %d additions%s, %d changes%s, %d removals%s",
-                len(agg_adds),
-                adds_str,
-                len(agg_mods),
-                mods_str,
-                len(agg_dels),
-                dels_str,
-            )
-
-        if push:
-            if os.path.isfile(
-                os.path.join(source.clone.working_dir, AGGREGATE_DATA_FILE),
-            ):
-                source.clone.git.add(AGGREGATE_DATA_FILE)
-
-            if source.clone.is_dirty():
-                # There's an assumption here that the dirty state is
-                # due to a metadata refresh. This could be incorrect
-                # if somebody makes local modifications and then runs
-                # the refresh without --aggregate, but it's not clear
-                # why one would use zkg for this as opposed to git
-                # itself.
-                source.clone.git.commit(
-                    "--no-verify",
-                    "--message",
-                    "Update aggregated metadata.",
-                )
-                LOG.info('committed package source "%s" metadata update', name)
-
-            source.clone.git.push("--no-verify")
-
-        return self.SourceAggregationResults("", aggregation_issues)
+        return self.sources[name].refresh()
 
     def refresh_installed_packages(self) -> None:
         """Fetch latest git information for installed packages.
@@ -1288,7 +1026,7 @@ class Manager:
                 )
                 continue
 
-            clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
+            clonepath = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name)
             clone = git.Repo(clonepath)
             LOG.debug("fetch package %s", ipkg.package.qualified_name())
 
@@ -1314,6 +1052,10 @@ class Manager:
     def upgrade(self, pkg_path: str) -> str:
         """Upgrade a package to the latest available version.
 
+        This does nothing if the package is pinned, or if the package isn't
+        outdated. The latter determination isn't made by this function, it
+        relies on the package's is_outdated flag for that purpose.
+
         Args:
             pkg_path (str): the full git URL of a package or the shortened
                 path/name that refers to it within a package source.  E.g. for
@@ -1327,6 +1069,7 @@ class Manager:
 
         Raises:
             IOError: if the manifest can't be written
+
         """
         pkg_path = canonical_url(pkg_path)
         LOG.debug('upgrading "%s"', pkg_path)
@@ -1344,7 +1087,7 @@ class Manager:
             LOG.info('upgrading "%s": package not outdated', pkg_path)
             return "package is not outdated"
 
-        clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
+        clonepath = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name)
         clone = git.Repo(clonepath)
 
         if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
@@ -1359,12 +1102,18 @@ class Manager:
         if ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
             # The above check for whether the installed package is outdated
             # also should have already caught this situation.
+
+            # XXX This likely refers to the fact that if a package got installed
+            # to a given commit, there's only that single version, so it cannot
+            # be outdated. So this is effectively pins the package.
             return "package is not outdated"
 
         raise NotImplementedError
 
     def remove(self, pkg_path: str) -> bool:
         """Remove an installed package.
+
+        This does not consider potential dependencies/dependees.
 
         Args:
             pkg_path (str): the full git URL of a package or the shortened
@@ -1396,16 +1145,16 @@ class Manager:
         self.unload(pkg_path)
 
         pkg_to_remove = ipkg.package
-        delete_path(os.path.join(self.package_clonedir, pkg_to_remove.name))
-        delete_path(os.path.join(self.script_dir, pkg_to_remove.name))
-        delete_path(os.path.join(self.plugin_dir, pkg_to_remove.name))
-        delete_path(os.path.join(self.zeekpath(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.packages_clone_dir(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.packages_script_dir(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.packages_plugin_dir(), pkg_to_remove.name))
+        delete_path(os.path.join(CONFIG.zeek_path(), pkg_to_remove.name))
 
         for alias in pkg_to_remove.aliases():
-            delete_path(os.path.join(self.zeekpath(), alias))
+            delete_path(os.path.join(CONFIG.zeek_path(), alias))
 
         for exe in self._get_executables(pkg_to_remove.metadata):
-            link = os.path.join(self.bin_dir, os.path.basename(exe))
+            link = os.path.join(CONFIG.bin_dir(), os.path.basename(exe))
             if os.path.islink(link):
                 try:
                     LOG.debug("removing link %s", link)
@@ -1522,7 +1271,7 @@ class Manager:
             return ""
 
         pkg_load_script = os.path.join(
-            self.script_dir,
+            CONFIG.packages_script_dir(),
             ipkg.package.name,
             "__load__.zeek",
         )
@@ -1543,7 +1292,7 @@ class Manager:
         return ""
 
     def loaded_package_states(self) -> dict[str, bool]:
-        """Save "loaded" state for all installed packages.
+        """Retrieves "loaded" state for all installed packages.
 
         Returns:
             dict: dictionary of "loaded" status for installed packages
@@ -1553,7 +1302,7 @@ class Manager:
         }
 
     def restore_loaded_package_states(self, saved_state: dict[str, bool]) -> None:
-        """Restores state for installed packages.
+        """Restores load-state for installed packages to the given constellation.
 
         Args:
             saved_state (dict): dictionary of saved "loaded" state for installed
@@ -1798,6 +1547,9 @@ class Manager:
     ) -> tuple[str, list[tuple[str, str, PackageInfo]]]:
         """Retrieves information on all packages contained in a bundle.
 
+        To do this, it extracts the bundle into zkg's internal scratch space and
+        parses the contained manifest's "bundle" section.
+
         Args:
             bundle_file (str): the path to the bundle to inspect.
 
@@ -1810,9 +1562,10 @@ class Manager:
             the exact git URL and version string from the bundle's manifest
             along with the package info object retrieved by inspecting git repo
             contained in the bundle.
+
         """
         LOG.debug('getting bundle info for file "%s"', bundle_file)
-        bundle_dir = os.path.join(self.scratch_dir, "bundle")
+        bundle_dir = os.path.join(CONFIG.scratch_dir(), "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         infos: list[tuple[str, str, PackageInfo]] = []
@@ -1883,7 +1636,7 @@ class Manager:
         pkg_path = canonical_url(pkg_path)
         name = name_from_path(pkg_path)
 
-        if not is_valid_package_name(name):
+        if not is_valid_name(name):
             reason = f"Package name {name!r} is not valid."
             return PackageInfo(Package(git_url=pkg_path), invalid_reason=reason)
 
@@ -1901,7 +1654,7 @@ class Manager:
         if prefer_installed and ipkg:
             status = ipkg.status
             pkg_name = ipkg.package.name
-            clonepath = os.path.join(self.package_clonedir, pkg_name)
+            clonepath = os.path.join(CONFIG.packages_clone_dir(), pkg_name)
             clone = git.Repo(clonepath)
             return _info_from_clone(clone, ipkg.package, status, status.current_version)
 
@@ -1966,7 +1719,7 @@ class Manager:
         Raises:
             git.GitCommandError: when failing to clone the package repo
         """
-        clonepath = os.path.join(self.scratch_dir, package.name)
+        clonepath = os.path.join(CONFIG.scratch_dir(), package.name)
         clone = _clone_package(package, clonepath, version, update_submodules)
         versions = git_version_tags(clone)
 
@@ -1997,7 +1750,7 @@ class Manager:
         """
         name = installed_package.package.name
         assert name
-        clonepath = os.path.join(self.package_clonedir, name)
+        clonepath = os.path.join(CONFIG.packages_clone_dir(), name)
         clone = git.Repo(clonepath)
         return git_version_tags(clone)
 
@@ -2204,7 +1957,7 @@ class Manager:
             node = Node("zkg")
             node.installed_version = PackageVersion(
                 TRACKING_METHOD_VERSION,
-                __version__,
+                VERSION,
             )
             graph["zkg"] = node
 
@@ -2453,7 +2206,7 @@ class Manager:
             str: empty string if the bundle is successfully created,
             else an error string explaining what failed.
         """
-        bundle_dir = os.path.join(self.scratch_dir, "bundle")
+        bundle_dir = os.path.join(CONFIG.scratch_dir(), "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
         manifest_file = os.path.join(bundle_dir, "manifest.txt")
@@ -2494,7 +2247,7 @@ class Manager:
                 ipkg = match_package_url_and_version(git_url, version)
 
                 if ipkg:
-                    src = os.path.join(self.package_clonedir, ipkg.package.name)
+                    src = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name)
                     shutil.copytree(src, clonepath, symlinks=True)
                     clone = git.Repo(clonepath)
                     clone.git.reset(hard=True)
@@ -2514,7 +2267,7 @@ class Manager:
         # Record the built-in packages expected by this bundle (or simply
         # installed on the source system) in a new [meta] section to aid
         # debugging. This isn't interpreted, but if unbundle produces
-        # warnings it may proof helpful.
+        # warnings it may prove helpful.
         if builtin_packages:
             config.add_section("meta")
             entries = []
@@ -2542,7 +2295,7 @@ class Manager:
             message indicated what went wrong.
         """
         LOG.debug('unbundle "%s"', bundle_file)
-        bundle_dir = os.path.join(self.scratch_dir, "bundle")
+        bundle_dir = os.path.join(CONFIG.scratch_dir(), "bundle")
         delete_path(bundle_dir)
         make_dir(bundle_dir)
 
@@ -2571,7 +2324,7 @@ class Manager:
             )
 
             # Prepare the clonepath with the contents from the bundle.
-            clonepath = os.path.join(self.package_clonedir, package.name)
+            clonepath = os.path.join(CONFIG.packages_clone_dir(), package.name)
             delete_path(clonepath)
             shutil.move(os.path.join(bundle_dir, package.name), clonepath)
 
@@ -2662,7 +2415,7 @@ class Manager:
             version = pkg_info.metadata_version
 
         package = pkg_info.package
-        stage = Stage(self, os.path.join(self.package_testdir, package.name))
+        stage = Stage(self, os.path.join(CONFIG.testing_dir(), package.name))
         stage.populate()
 
         request = [(package.qualified_name(), version)]
@@ -2726,7 +2479,7 @@ class Manager:
             fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
-                return (fail_msg, False, self.state_dir)
+                return (fail_msg, False, CONFIG.state_dir())
 
         # Finally, run tests (with correct environment set)
         if test_dependencies:
@@ -2754,13 +2507,10 @@ class Manager:
                 continue
 
             test_command = metadata["test_command"]
-
             cwd = os.path.join(stage.clone_dir, info.package.name)
-            outfile = os.path.join(cwd, "zkg.test_command.stdout")
-            errfile = os.path.join(cwd, "zkg.test_command.stderr")
 
             LOG.debug(
-                'running test_command for %s with cwd="%s", PATH="%s",'
+                'testing "%s": running test_command with cwd="%s", PATH="%s",'
                 ' and ZEEKPATH="%s": %s',
                 info.package.name,
                 cwd,
@@ -2769,17 +2519,59 @@ class Manager:
                 test_command,
             )
 
-            with open(outfile, "w") as test_stdout, open(errfile, "w") as test_stderr:
-                cmd = subprocess.Popen(
-                    test_command,
-                    shell=True,
-                    cwd=cwd,
-                    env=env,
-                    stdout=test_stdout,
-                    stderr=test_stderr,
+            bufsize = 4096
+            test = subprocess.Popen(
+                test_command,
+                shell=True,
+                cwd=cwd,
+                env=env,
+                bufsize=bufsize,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            testlog = self.package_test_log(info.package.name)
+            try:
+                with open(testlog, "wb") as f:
+                    LOG.info(
+                        'testing "%s" in "%s": writing test log: %s',
+                        package,
+                        cwd,
+                        testlog,
+                    )
+
+                    f.write("=== STDERR ===\n".encode(std_encoding(sys.stderr)))
+
+                    while True:
+                        assert test.stderr
+                        data = test.stderr.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
+
+                    f.write("=== STDOUT ===\n".encode(std_encoding(sys.stdout)))
+
+                    while True:
+                        assert test.stdout
+                        data = test.stdout.read(bufsize)
+
+                        if data:
+                            f.write(data)
+                        else:
+                            break
+
+            except OSError as error:
+                LOG.warning(
+                    'testing "%s": failed to write test log %s %s: %s',
+                    package,
+                    testlog,
+                    error.errno,
+                    error.strerror,
                 )
 
-            rc = cmd.wait()
+            rc = test.wait()
 
             if rc != 0:
                 assert stage.state_dir
@@ -2835,16 +2627,16 @@ class Manager:
 
         """
         LOG.debug('staging "%s": version %s', package, version)
-        metadata_file = _pick_metadata_file(str(clone.working_dir))
+        metadata_file = pick_metadata_file(str(clone.working_dir))
         metadata_parser = configparser.ConfigParser(interpolation=None)
-        invalid_reason: str | None = _parse_package_metadata(
+        invalid_reason: str | None = parse_package_metadata(
             metadata_parser,
             metadata_file,
         )
         if invalid_reason:
             return invalid_reason
 
-        metadata = _get_package_metadata(metadata_parser)
+        metadata = get_package_metadata(metadata_parser)
         interpolated_metadata, invalid_reason = self._interpolate_package_metadata(
             metadata,
             stage,
@@ -2920,12 +2712,16 @@ class Manager:
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
         script_dir_dst = os.path.join(stage.script_dir, package.name)
 
+        # XXX what if the package has only a plugin, no script_dir?
+        # Seems conceivable and not an error.
         if not os.path.exists(script_dir_src):
             return f"package's 'script_dir' does not exist: {pkg_script_dir}"
 
         pkgload = os.path.join(script_dir_src, "__load__.zeek")
 
         if os.path.isfile(pkgload):
+            # In script_dir (share/zeek/site/ in a Zeek install), symlink
+            # <package> -> packages/<package>/. Similarly for any aliases.
             symlink_path = os.path.join(
                 os.path.dirname(stage.script_dir),
                 package.name,
@@ -2950,7 +2746,6 @@ class Manager:
                 "script_dir",
                 script_dir_src,
                 script_dir_dst,
-                self.scratch_dir,
             ):
                 return err
         else:
@@ -2984,7 +2779,6 @@ class Manager:
             "plugin_dir",
             plugin_dir_src,
             plugin_dir_dst,
-            self.scratch_dir,
         ):
             return err
 
@@ -3037,7 +2831,7 @@ class Manager:
 
             if conflict.qualified_name().endswith(pkg_path):
                 LOG.debug('installing "%s": re-install: %s', pkg_path, conflict)
-                clonepath = os.path.join(self.package_clonedir, conflict.name)
+                clonepath = os.path.join(CONFIG.packages_clone_dir(), conflict.name)
                 _clone_package(conflict, clonepath, version)
                 return self._install(conflict, version)
 
@@ -3149,7 +2943,7 @@ class Manager:
             git.GitCommandError: if the git repo is invalid
             IOError: if the package manifest file can't be written
         """
-        clonepath = os.path.join(self.package_clonedir, package.name)
+        clonepath = os.path.join(CONFIG.packages_clone_dir(), package.name)
         ipkg = self.find_installed_package(package.name)
 
         if use_existing_clone or ipkg:
@@ -3193,14 +2987,14 @@ class Manager:
         status.current_hash = clone.head.object.hexsha
         status.is_outdated = _is_clone_outdated(clone, version, status.tracking_method)
 
-        metadata_file = _pick_metadata_file(str(clone.working_dir))
+        metadata_file = pick_metadata_file(str(clone.working_dir))
         metadata_parser = configparser.ConfigParser(interpolation=None)
-        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
+        invalid_reason = parse_package_metadata(metadata_parser, metadata_file)
 
         if invalid_reason:
             return invalid_reason
 
-        raw_metadata = _get_package_metadata(metadata_parser)
+        raw_metadata = get_package_metadata(metadata_parser)
 
         invalid_reason = self._validate_alias_conflict(package, raw_metadata)
 
@@ -3217,6 +3011,9 @@ class Manager:
         if not package.source:
             # If installing directly from git URL, see if it actually is found
             # in a package source and fill in those details.
+            #
+            # XXX This seems strange -- what if this is ambiguous across
+            # sources?  Also we overwrite the metdata below anyway.
             for pkg in self.source_packages():
                 if pkg.git_url == package.git_url:
                     package.source = pkg.source
@@ -3227,7 +3024,7 @@ class Manager:
         package.metadata = raw_metadata
         self.installed_pkgs[package.name] = InstalledPackage(package, status)
         self._write_manifest()
-        self._refresh_bin_dir(self.bin_dir)
+        self._refresh_bin_dir(CONFIG.bin_dir())
         LOG.debug('installed "%s"', package)
         return ""
 
@@ -3245,11 +3042,13 @@ class Manager:
             return None, "package has malformed 'user_vars' metadata field"
 
         substitutions = {
-            "zeek_dist": self.zeek_dist,
             "package_base": stage.clone_dir,
         }
 
-        substitutions.update(self.user_vars)
+        if CONFIG.zeek_dist() is not None:
+            substitutions["zeek_dist"] = CONFIG.zeek_dist()
+
+        substitutions.update(CONFIG.user_vars())
 
         for uvar in requested_user_vars:
             val_from_env = os.environ.get(uvar.name())
@@ -3266,7 +3065,7 @@ class Manager:
         metadata_parser = configparser.ConfigParser(defaults=substitutions)
         metadata_parser.read_dict({"package": metadata})
 
-        return _get_package_metadata(metadata_parser), None
+        return get_package_metadata(metadata_parser), None
 
     # Ensure we have links in bin_dir for all executables coming with any of
     # the currently installed packages.
@@ -3274,7 +3073,7 @@ class Manager:
         for ipkg in self.installed_pkgs.values():
             for exe in self._get_executables(ipkg.package.metadata):
                 # Put symlinks in place that are missing in current directory
-                src = os.path.join(self.package_clonedir, ipkg.package.name, exe)
+                src = os.path.join(CONFIG.packages_clone_dir(), ipkg.package.name, exe)
                 dst = os.path.join(bin_dir, os.path.basename(exe))
 
                 if (
@@ -3353,7 +3152,6 @@ def _copy_package_dir(
     dirname: str,
     src: str,
     dst: str,
-    scratch_dir: str,
 ) -> str:
     """Copy a directory from a package to its installation location.
 
@@ -3364,8 +3162,12 @@ def _copy_package_dir(
     if not os.path.exists(src):
         return ""
 
+    # XXX instead of magic handling of tarfiles, it'd be nicer
+    # to have separate keywords for shipping archives.
+    # Since it only seems to make sense for pre-built plugins
+    # and their dependencies, perhaps plugin_archive.
     if os.path.isfile(src) and tarfile.is_tarfile(src):
-        tmp_dir = os.path.join(scratch_dir, "untar")
+        tmp_dir = os.path.join(CONFIG.scratch_dir(), "untar")
         delete_path(tmp_dir)
         make_dir(tmp_dir)
 
@@ -3446,41 +3248,6 @@ def _clone_package(
     return git_clone(package.git_url, clonepath, shallow=shallow, recursive=recursive)
 
 
-def _get_package_metadata(parser: configparser.ConfigParser) -> dict[str, str]:
-    return {item[0]: item[1] for item in parser.items("package")}
-
-
-def _pick_metadata_file(directory: str) -> str:
-    rval = os.path.join(directory, METADATA_FILENAME)
-
-    if os.path.exists(rval):
-        return rval
-
-    return os.path.join(directory, LEGACY_METADATA_FILENAME)
-
-
-def _parse_package_metadata(
-    parser: configparser.ConfigParser,
-    metadata_file: str,
-) -> str:
-    """Return string explaining why metadata is invalid, or '' if valid."""
-    if not parser.read(metadata_file):
-        LOG.warning("%s: missing metadata file", metadata_file)
-        return (
-            f"missing {METADATA_FILENAME} (or {LEGACY_METADATA_FILENAME}) metadata file"
-        )
-
-    if not parser.has_section("package"):
-        LOG.warning("%s: metadata missing [package]", metadata_file)
-        return f"{os.path.basename(metadata_file)} is missing [package] section"
-
-    for a in aliases(_get_package_metadata(parser)):
-        if not is_valid_package_name(a):
-            return f'invalid alias "{a}"'
-
-    return ""
-
-
 _legacy_metadata_warnings: set[str] = set()
 
 
@@ -3505,9 +3272,9 @@ def _info_from_clone(
     else:
         version_type = TRACKING_METHOD_BRANCH
 
-    metadata_file = _pick_metadata_file(str(clone.working_dir))
+    metadata_file = pick_metadata_file(str(clone.working_dir))
     metadata_parser = configparser.ConfigParser(interpolation=None)
-    invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
+    invalid_reason = parse_package_metadata(metadata_parser, metadata_file)
 
     if invalid_reason:
         return PackageInfo(
@@ -3534,7 +3301,7 @@ def _info_from_clone(
         )
         _legacy_metadata_warnings.add(package.qualified_name())
 
-    metadata = _get_package_metadata(metadata_parser)
+    metadata = get_package_metadata(metadata_parser)
 
     return PackageInfo(
         package=package,
