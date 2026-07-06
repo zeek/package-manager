@@ -344,8 +344,8 @@ def cmd_test(
             all_passed = False
             print_error(
                 f'error: package "{name}" tests failed, inspect'
-                f' {manager.package_test_log(info.package.name)} and'
-                f' the contents of {test_dir}'
+                f" {manager.package_test_log(info.package.name)} and"
+                f" the contents of {test_dir}",
             )
 
     if not all_passed:
@@ -495,8 +495,8 @@ def cmd_install(
             elif not passed:
                 error_msg = (
                     f'"{name}" tests failed, inspect'
-                    f' {manager.package_test_log(info.package.name)} and'
-                    f' the contents of {test_dir}'
+                    f" {manager.package_test_log(info.package.name)} and"
+                    f" the contents of {test_dir}"
                 )
 
             if error_msg:
@@ -1294,8 +1294,8 @@ def cmd_upgrade(
             elif not passed:
                 error_msg = (
                     f'"{name}" tests failed, inspect'
-                    f' {manager.package_test_log(info.package.name)} and'
-                    f' the contents of {test_dir}'
+                    f" {manager.package_test_log(info.package.name)} and"
+                    f" the contents of {test_dir}"
                 )
 
             if error_msg:
