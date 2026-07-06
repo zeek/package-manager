@@ -14,7 +14,7 @@ import sys
 import tarfile
 import types
 from collections.abc import Callable, Iterable
-from typing import IO, Any, TextIO, cast
+from typing import IO, Any, TextIO
 
 import git
 import semantic_version as semver
