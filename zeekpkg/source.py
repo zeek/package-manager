@@ -13,7 +13,6 @@ import shutil
 
 import git
 
-from . import LOG
 from ._util import (
     configparser_section_dict,
     delete_path,
@@ -26,6 +25,7 @@ from ._util import (
 from .config import (
     CONFIG,
 )
+from .logs import LOG
 from .package import (
     Package,
     get_package_metadata,
