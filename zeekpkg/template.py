@@ -23,9 +23,6 @@ from zeekpkg.config import (
 from . import (
     __version__,
 )
-from .logs import (
-    LOG,
-)
 from ._util import (
     delete_path,
     git_checkout,
@@ -36,6 +33,9 @@ from ._util import (
     git_version_tags,
     load_source,
     make_dir,
+)
+from .logs import (
+    LOG,
 )
 from .package import (
     METADATA_FILENAME,
