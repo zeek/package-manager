@@ -1,3 +1,32 @@
+3.1.0-30 | 2026-07-07 11:47:37 +0200
+
+  * Record full template source info in initial commit (Benjamin Bannier, Corelight)
+
+    We previously would only mention the name of the template in the initial
+    commit, but not its URI. Since we dropped emitting the URI from
+    `zkg.meta`, record it in the initial commit as well.
+
+  * Record features and user vars in initial commit (Benjamin Bannier, Corelight)
+
+    We would previously record these in the generated `zkg.meta`, but
+    stopped doing that. Keep a record of them in the initial Git commit
+    where we also already record some information on the template.
+
+  * GH-220: Stop emitting `[template]` and `[template_vars]` sections in `zkg.meta` (Benjamin Bannier, Corelight)
+
+    These sections were always informational, and we never implemented the
+    functionality to update the instantiated template on template updates.
+    It is unlikely that we will ever be able to reliably implement this with
+    the current loosly defined template. The sections were also potentially
+    confusing to whoever looked at them since they referred to the state at
+    template instantiation, but never reflected subsequent edits.
+
+    This commit drops them without replacement.
+
+    Closes #220.
+
+  * docs: fix typos (Julio)
+
 3.1.0-24 | 2026-06-19 14:06:24 +0200
 
   * Bump pre-commit hooks (Benjamin Bannier, Corelight)

@@ -102,27 +102,7 @@ existing package. When the requested output directory exists, it will
 prompt for permission to delete the existing directory.
 
 After instantiation, the package is immediately installable via
-:program:`zkg`. You'll see details of how it got generated in its
-initial commit, and the newly minted ``zkg.meta`` has details of the
-provided user variables:
-
-.. code-block:: console
-
-    $ cat foobar/zkg.meta
-    ...
-    [template]
-    source = package-template
-    version = master
-    zkg_version = 2.8.0
-    features = plugin
-
-    [template_vars]
-    name = Foobar
-    namespace = MyOrg
-
-This information is currently informational only, but in the future
-will enable baselining changes in package templates to assist with
-package modernization.
+:program:`zkg`.
 
 To keep templates in sync with :program:`zkg` versions, templates
 employ semantic API versioning. An incompatible template will refuse

@@ -3,14 +3,4 @@
 script_dir = scripts
 summary = TODO: A summary of test3 in one line
 description = TODO: A more detailed description of test3.
-	It can span multiple lines, with this indentation.
-
-[template]
-source = foo
-version = unversioned
-features = readme
-
-[template_vars]
-name = test3
-readme = This is a README.
-
+    It can span multiple lines, with this indentation.
