@@ -1,3 +1,26 @@
+3.1.0-35 | 2026-07-07 11:47:49 +0200
+
+  * Enable `argcomplete` support unconditionally (Benjamin Bannier, Corelight)
+
+    There really is no reason to make this conditional if we assume that
+    users install zkg correctly. We also never declared an optional
+    dependency on `argcomplete`.
+
+  * Remove workaround for ancient sphinx-1.7 (Benjamin Bannier, Corelight)
+
+  * Drop `requirements.txt` (Benjamin Bannier, Corelight)
+
+    We already maintain dependencies in `pyproject.toml` which is supported
+    by modern developer tooling and also RTD.
+
+  * GH-5553: Drop check whether dependencies are available (Benjamin Bannier, Corelight)
+
+    This is a proper package which declares its dependencies, so this should
+    not add value anymore. It likely was also outdated, or at least hard to
+    maintain. The main use case of this was probably to catch incomplete
+    postinstallation by the user when zkg was shipped as part of Zeek; since
+    with zeek/zeek#5553 we do not do this anymore this is unneeded.
+
 3.1.0-30 | 2026-07-07 11:47:37 +0200
 
   * Record full template source info in initial commit (Benjamin Bannier, Corelight)

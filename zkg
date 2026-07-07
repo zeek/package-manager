@@ -19,32 +19,8 @@ import threading
 from collections import OrderedDict
 from typing import Any, TextIO
 
-try:
-    import git
-    import semantic_version  # noqa: F401
-except ImportError as error:
-    print(
-        "error: zkg failed to import one or more dependencies:\n"
-        "\n"
-        "* GitPython:        https://pypi.org/project/GitPython\n"
-        "* semantic-version: https://pypi.org/project/semantic-version\n"
-        "\n"
-        "If you use 'pip', they can be installed like:\n"
-        "\n"
-        "     pip3 install GitPython semantic-version\n"
-        "\n"
-        "Also check the following exception output for possible alternate explanations:\n\n"
-        f"{type(error).__name__}: {error}",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-try:
-    # Argcomplete provides command-line completion for users of argparse.
-    # We support it if available, but don't complain when it isn't.
-    import argcomplete  # noqa: F401
-except ImportError:
-    pass
+import argcomplete
+import git
 
 # For Zeek-bundled installation, prepend the Python path of the Zeek
 # installation. This ensures we find the matching zeekpkg module
@@ -3213,8 +3189,7 @@ def argparser() -> argparse.ArgumentParser:
     )
     sub_parser.set_defaults(run_cmd=cmd_template_info)
 
-    if argcomplete_ := sys.modules.get("argcomplete"):
-        argcomplete_.autocomplete(top_parser)
+    argcomplete.autocomplete(top_parser)
 
     return top_parser
 

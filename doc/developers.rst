@@ -42,13 +42,13 @@ Dependencies
 ~~~~~~~~~~~~
 
 To build documentation locally, find the requirements in
-:file:`requirements.txt`:
-
-  .. literalinclude:: ../requirements.txt
+:file:`pyproject.toml`:
 
 They can be installed like::
 
-  pip3 install -r requirements.txt
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip3 install -e '.[dev]'
 
 Local Build/Preview
 ~~~~~~~~~~~~~~~~~~~
