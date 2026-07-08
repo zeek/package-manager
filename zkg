@@ -2817,8 +2817,8 @@ def argparser() -> argparse.ArgumentParser:
         "--aggregate",
         action="store_true",
         help="Crawls the urls listed in package source zkg.index files and"
-        " aggregates the metadata found in their zkg.meta (or legacy"
-        " bro-pkg.meta) files.  The aggregated metadata is stored in the local"
+        " aggregates the metadata found in their zkg.meta"
+        " files. The aggregated metadata is stored in the local"
         " clone of the package source that zkg uses internally for locating"
         " package metadata."
         " For each package, the metadata is taken from the highest available"
