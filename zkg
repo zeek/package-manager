@@ -22,7 +22,6 @@ from typing import Any, TextIO
 import argcomplete
 import git
 
-
 # The default package source we fall back to as needed
 ZKG_DEFAULT_SOURCE = "https://github.com/zeek/packages"
 
