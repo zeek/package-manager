@@ -1,3 +1,57 @@
+3.1.0-42 | 2026-07-14 08:21:26 +0200
+
+  * Clean up documentation of dependencies (Benjamin Bannier, Corelight)
+
+    We would previously document dependencies which are already expressed
+    programmatically in `pyproject.toml`, so this added information not
+    useful for readers, but also introduced potential for things to get out
+    of sync (which they had already). Just drop anything already expressed
+    in the project config.
+
+  * Add pre-commit hooks to lint and format CMake files (Benjamin Bannier, Corelight)
+
+  * Bump minimum required CMake version (Benjamin Bannier, Corelight)
+
+    This bumps the minimum CMake version to the one required by e.g., Zeek.
+
+  * Remove redundant check for C compiler in CMake setup (Benjamin Bannier, Corelight)
+
+    This project does not do any compilation, so checking for a C compiler
+    (which is the default if no language was specified in `project`) is just
+    doing busywork.
+
+  * Move detection of containing Zeek CMake build into generated script (Benjamin Bannier, Corelight)
+
+    We would previously potentially leave CMake variables in the zkg script
+    since they would only get expanded by a CMake build, but not by e.g.,
+    `pip`. The CMake install rewrite in the previous patch also did not
+    expand them anymore.
+
+    This patch adds that lost functionality back into the wrapper script
+    which we now have and which is only used by a CMake install.
+
+  * Install actually working version of the project (Benjamin Bannier, Corelight)
+
+    While this project has a perfectly fine `pyproject.toml` which allows
+    installing it with `pip`/`pipx`, we also shipped a `CMakeLists.txt` to
+    make the project installable when shipped as part of a bigger CMake
+    project like Zeek. The `install` rules we had were bare bones since they
+    only installed the top-level `zkg` script and the `zeekpkg` module it
+    depends on, but e.g., not any dependencies. It likely would also have
+    broken for potential future tweaks to `pyproject.toml` like switching to
+    another build backend.
+
+    This patch reworks our CMake install rules to install a fully
+    functioning version of this project instead. This allows users to use it
+    directly without having to install and manage dependencies themself.
+    This removes potential for user error (e.g., version mismatches) and
+    should also allow us to use dependency more freely/aggressively.
+
+    We accomplish this with `shiv` which leverages PEP441 to create
+    self-contained environments in zip files which can be loaded by any
+    Python interpreter >=python-3.4. Users invoke a small wrapper we create
+    which forwards to the top-level `zkg` script.
+
 3.1.0-35 | 2026-07-07 11:47:49 +0200
 
   * Enable `argcomplete` support unconditionally (Benjamin Bannier, Corelight)

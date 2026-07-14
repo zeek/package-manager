@@ -7,11 +7,7 @@ Quickstart Guide
 Dependencies
 ------------
 
-* Python 3.6+
 * git: https://git-scm.com
-* GitPython: https://pypi.python.org/pypi/GitPython
-* semantic_version: https://pypi.python.org/pypi/semantic_version
-* btest: https://pypi.python.org/pypi/btest
 
 Note that following the :program:`zkg` `Installation`_ process via
 :program:`pip3` will automatically install its dependencies for you.
@@ -25,14 +21,6 @@ Installation
   installation and some `Basic Configuration`_ steps can be skipped.  The
   directions to build and install Zeek from source are here:
   https://docs.zeek.org/en/current/install/install.html
-
-  Note that this method does require independent installation of
-  :program:`zkg`'s dependencies, which is usually easiest to do via
-  :program:`pip3`:
-
-  .. code-block:: console
-
-    $ pip3 install gitpython semantic-version
 
 * To install the latest release of :program:`zkg` on PyPI_:
 
