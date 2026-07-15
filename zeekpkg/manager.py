@@ -16,6 +16,7 @@ import sys
 import tarfile
 import time
 from collections import deque
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import git
@@ -2712,16 +2713,13 @@ class Manager:
                 )
 
             try:
-                git_checkout(clone, version)
-            except git.GitCommandError as error:
-                LOG.warning("failed to checkout git repo version: %s", error)
+                resolution = _resolve_git_version(clone, version)
+            except Exception as error:
+                LOG.warning("failed to resolve git version: %s", error)
                 assert stage.state_dir
-                return (
-                    f"failed to checkout {version} of {info.package.git_url}",
-                    False,
-                    stage.state_dir,
-                )
+                return (str(error), False, stage.state_dir)
 
+            version = resolution.version
             fail_msg = self._stage(info.package, version, clone, stage, env)
 
             if fail_msg:
@@ -3160,37 +3158,16 @@ class Manager:
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
         status.is_pinned = ipkg.status.is_pinned if ipkg else False
 
-        version_tags = git_version_tags(clone)
+        try:
+            resolution = _resolve_git_version(clone, version)
+        except Exception as e:
+            return str(e)
 
-        if version:
-            if _is_commit_hash(clone, version):
-                status.tracking_method = TRACKING_METHOD_COMMIT
-            elif version in version_tags:
-                status.tracking_method = TRACKING_METHOD_VERSION
-            else:
-                branches = _get_branch_names(clone)
-
-                if version in branches:
-                    status.tracking_method = TRACKING_METHOD_BRANCH
-                else:
-                    LOG.info(
-                        'branch "%s" not in available branches: %s',
-                        version,
-                        branches,
-                    )
-                    return f'no such branch or version tag: "{version}"'
-
-        elif len(version_tags):
-            version = version_tags[-1]
-            status.tracking_method = TRACKING_METHOD_VERSION
-        else:
-            version = git_default_branch(clone)
-            status.tracking_method = TRACKING_METHOD_BRANCH
-
-        status.current_version = version
-        git_checkout(clone, version)
-        status.current_hash = clone.head.object.hexsha
-        status.is_outdated = _is_clone_outdated(clone, version, status.tracking_method)
+        version = resolution.version
+        status.tracking_method = resolution.tracking_method
+        status.current_version = resolution.version
+        status.current_hash = resolution.current_hash
+        status.is_outdated = resolution.is_outdated
 
         metadata_file = _pick_metadata_file(str(clone.working_dir))
         metadata_parser = configparser.ConfigParser(interpolation=None)
@@ -3298,6 +3275,56 @@ class Manager:
                         LOG.debug("removed link %s", old)
                     except Exception:
                         LOG.warning("failed to remove link %s", old)
+
+
+@dataclass
+class GitResolution:
+    """The resolved Git state for a package after checkout."""
+
+    version: str
+    tracking_method: str
+    current_hash: str
+    is_outdated: bool
+
+
+def _resolve_git_version(clone: git.Repo, version: str) -> GitResolution:
+    """Resolve *version* against *clone*, check out the ref, and return a
+    :class:`GitResolution`.
+
+    Raises:
+        ValueError: if *version* does not match any tag, branch, or commit.
+        git.GitCommandError: if the checkout fails.
+    """
+    version_tags = git_version_tags(clone)
+
+    if version:
+        if _is_commit_hash(clone, version):
+            tracking_method = TRACKING_METHOD_COMMIT
+        elif version in version_tags:
+            tracking_method = TRACKING_METHOD_VERSION
+        else:
+            branches = _get_branch_names(clone)
+            if version in branches:
+                tracking_method = TRACKING_METHOD_BRANCH
+            else:
+                LOG.info(
+                    'branch "%s" not in available branches: %s',
+                    version,
+                    branches,
+                )
+                raise ValueError(f'no such branch or version tag: "{version}"')
+    elif version_tags:
+        version = version_tags[-1]
+        tracking_method = TRACKING_METHOD_VERSION
+    else:
+        version = git_default_branch(clone)
+        tracking_method = TRACKING_METHOD_BRANCH
+
+    git_checkout(clone, version)
+    current_hash = clone.head.object.hexsha
+    is_outdated = _is_clone_outdated(clone, version, tracking_method)
+
+    return GitResolution(version, tracking_method, current_hash, is_outdated)
 
 
 def _get_branch_names(clone: git.Repo) -> list[str]:
