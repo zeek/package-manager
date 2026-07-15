@@ -450,15 +450,21 @@ class InstallWorker(threading.Thread):
         manager: zeekpkg.Manager,
         package_name: str,
         package_version: str,
+        skip_version_validation: bool = False,
     ) -> None:
         super().__init__()
         self.manager = manager
         self.package_name = package_name
         self.package_version = package_version
+        self.skip_version_validation = skip_version_validation
         self.error = ""
 
     def run(self) -> None:
-        self.error = self.manager.install(self.package_name, self.package_version)
+        self.error = self.manager.install(
+            self.package_name,
+            self.package_version,
+            skip_version_validation=self.skip_version_validation,
+        )
 
     def wait(
         self,
@@ -764,7 +770,12 @@ def cmd_install(
             backup_files = manager.backup_modified_files(name, modifications)
             prev_upstream_config_files = manager.save_temporary_config_files(ipkg)
 
-        worker = InstallWorker(manager, name, version)
+        worker = InstallWorker(
+            manager,
+            name,
+            version,
+            skip_version_validation=args.skip_version_validation,
+        )
         worker.start()
         worker.wait(f'Installing "{name}"')
 
@@ -2637,6 +2648,12 @@ def argparser() -> argparse.ArgumentParser:
         " The default for other cases is to use"
         " the latest version tag, or if a package has none,"
         ' the default branch, like "main" or "master".',
+    )
+    sub_parser.add_argument(
+        "--skip-version-validation",
+        action="store_true",
+        help="Downgrade a mismatch between the zkg.meta ``version`` field and"
+        " the found Git tag from an error to a warning.",
     )
     add_uservar_args(sub_parser)
 

@@ -1,0 +1,23 @@
+# @TEST-DOC: Test that `--skip-version-validation` downgrades a version mismatch from error to warning.
+
+# Set up a git repo with a tag/version mismatch: tag is `v1.0.1`, `zkg.meta` says `v9.9.9`.
+# @TEST-EXEC: bash %INPUT
+#
+# @TEST-EXEC-FAIL: zkg install ./mypkg --version=v1.0.1 2>error
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff error
+# @TEST-EXEC: zkg install ./mypkg --version=v1.0.1 --skip-version-validation 2>warning
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff warning
+
+mkdir mypkg
+cd mypkg
+git init
+cat > zkg.meta << 'EOF'
+[package]
+version = v9.9.9
+EOF
+cat > __load__.zeek << 'EOF'
+event zeek_init() { print "loaded"; }
+EOF
+git add zkg.meta __load__.zeek
+git commit -m "init"
+git tag -a v1.0.1 -m v1.0.1
