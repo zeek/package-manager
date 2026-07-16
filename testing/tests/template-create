@@ -2,11 +2,11 @@
 
 # Provide variable via --user-var and ensure resulting package installs
 # @TEST-EXEC: zkg create --packagedir out1 --template $TEMPLATES/foo --user-var name=test1 >output
-# @TEST-EXEC: zkg install ./out1
+# @TEST-EXEC: zkg install file://$(pwd)/out1
 
 # Provide variable via environment and ensure resulting package installs.
 # @TEST-EXEC: name=test2 zkg create --packagedir out2 --template $TEMPLATES/foo >>output
-# @TEST-EXEC: zkg install ./out2
+# @TEST-EXEC: zkg install file://$(pwd)/out2
 #
 # Verify the README does not exist -- it's provided by a template feature
 # @TEST-EXEC: test ! -f out2/README
@@ -15,7 +15,7 @@
 # --force to suppress user input, making user var resolution fall back
 # to the default for the readme parameter.
 # @TEST-EXEC: zkg create --force --packagedir out3 --template $TEMPLATES/foo --feature readme --user-var name=test3 >>output
-# @TEST-EXEC: zkg install ./out3
+# @TEST-EXEC: zkg install file://$(pwd)/out3
 # @TEST-EXEC: btest-diff out3/README
 # @TEST-EXEC: btest-diff out3/scripts/main.zeek
 #
@@ -38,6 +38,6 @@
 
 # Provide non-ASCII characters variable via --user-var and ensure resulting package installs
 # @TEST-EXEC: zkg create --packagedir out6 --template $TEMPLATES/foo --user-var name=你こ안مγПनสXש😊©GBCDČM >>output
-# @TEST-EXEC: zkg install ./out6
+# @TEST-EXEC: zkg install file://$(pwd)/out6
 
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff output

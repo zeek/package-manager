@@ -13,14 +13,18 @@ from zeekpkg.manager import (
     GitResolution,
     Manager,
     _info_from_snapshot,
+    _is_directory_package,
     _is_git_package,
+    _prepare_snapshot,
     _resolve_git_version,
+    _snapshot_from_directory,
     _snapshot_from_git_repo,
 )
 from zeekpkg.package import (
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_BUILTIN,
     TRACKING_METHOD_COMMIT,
+    TRACKING_METHOD_DIRECTORY,
     TRACKING_METHOD_VERSION,
     InstalledPackage,
     Package,
@@ -186,6 +190,24 @@ class TestSnapshotFromGitRepo:
             _snapshot_from_git_repo(repo, resolution)
 
 
+class TestSnapshotFromDirectory:
+    def test_snapshot_from_directory(self, pkg_dir: pathlib.Path) -> None:
+        snapshot = _snapshot_from_directory(str(pkg_dir))
+        assert isinstance(snapshot, PackageSnapshot)
+        assert snapshot.version == "1.0.0"
+        assert snapshot.meta["description"] == "test"
+        assert snapshot.working_dir == str(pkg_dir)
+
+    def test_missing_metadata_raises(self, tmp_path: pathlib.Path) -> None:
+        with pytest.raises(ValueError, match="missing"):
+            _snapshot_from_directory(str(tmp_path))
+
+    def test_missing_version_raises(self, tmp_path: pathlib.Path) -> None:
+        (tmp_path / "zkg.meta").write_text("[package]\ndescription = test\n")
+        with pytest.raises(ValueError, match="version"):
+            _snapshot_from_directory(str(tmp_path))
+
+
 class TestIsGitPackage:
     @pytest.mark.parametrize(
         "method,expected",
@@ -194,11 +216,58 @@ class TestIsGitPackage:
             (TRACKING_METHOD_BRANCH, True),
             (TRACKING_METHOD_COMMIT, True),
             (TRACKING_METHOD_BUILTIN, False),
+            (TRACKING_METHOD_DIRECTORY, False),
             (None, False),
         ],
     )
     def test_is_git_package(self, method: str | None, expected: bool) -> None:
         assert _is_git_package(PackageStatus(tracking_method=method)) is expected
+
+
+class TestIsDirectoryPackage:
+    def test_plain_dir_is_directory_package(
+        self,
+        pkg_dir: pathlib.Path,
+        repo: git.Repo,
+    ) -> None:
+        # Any local directory is a directory package, even if it contains .git.
+        assert _is_directory_package(str(pkg_dir)) is True
+        assert _is_directory_package(str(repo.working_dir)) is True
+
+
+class TestPrepareSnapshot:
+    def test_directory(
+        self,
+        pkg_dir: pathlib.Path,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        # _prepare_snapshot on a plain directory returns a directory-backed snapshot.
+        package = Package(git_url=str(pkg_dir), canonical=True)
+        snapshot = _prepare_snapshot(package, None, str(tmp_path / "dest"))
+        assert snapshot.version == "1.0.0"
+        assert snapshot.tracking_method == TRACKING_METHOD_DIRECTORY
+        assert snapshot.current_hash is None
+        assert snapshot.is_outdated is False
+
+    def test_git(self, repo: git.Repo, tmp_path: pathlib.Path) -> None:
+        # _prepare_snapshot on a Git repo resolves version and tracking method.
+        # Use a file:// URL to force the Git backend for a local path.
+        meta_file = pathlib.Path(repo.working_dir) / "zkg.meta"
+        meta_file.write_text("[package]\ndescription = test\n")
+        repo.index.add(["zkg.meta"])
+        repo.index.commit("add meta")
+        package = Package(
+            git_url=f"file://{repo.working_dir}",
+            canonical=True,
+        )
+        snapshot = _prepare_snapshot(
+            package,
+            None,
+            str(tmp_path / "dest"),
+            existing_clone=repo,
+        )
+        assert snapshot.tracking_method == TRACKING_METHOD_BRANCH
+        assert snapshot.current_hash is not None
 
 
 class TestManagerInfo:
@@ -249,6 +318,17 @@ class TestManagerInfo:
         info = manager.info(f"https://example.com/{pkg_name}", prefer_installed=True)
         assert info.invalid_reason != ""
 
+    def test_directory_backend(
+        self,
+        manager: Manager,
+        pkg_dir: pathlib.Path,
+    ) -> None:
+        # manager.info() on a plain directory must return valid package info.
+        info = manager.info(str(pkg_dir))
+        assert info.invalid_reason == ""
+        assert info.metadata_version == "1.0.0"
+        assert info.version_type == TRACKING_METHOD_DIRECTORY
+
 
 class TestManagerInstall:
     def test_git_unknown_version(
@@ -264,6 +344,99 @@ class TestManagerInstall:
         # A Git repo with no zkg.meta must fail with an error.
         result = manager.install(str(repo.working_dir))
         assert result != ""
+
+    def test_directory_backend(
+        self,
+        manager: Manager,
+        pkg_dir: pathlib.Path,
+    ) -> None:
+        result = manager.install(str(pkg_dir))
+        assert result == ""
+        ipkg = manager.find_installed_package("mypkg")
+        assert ipkg is not None
+        assert ipkg.status.tracking_method == TRACKING_METHOD_DIRECTORY
+        assert ipkg.status.current_version == "1.0.0"
+
+    def test_directory_missing_metadata(
+        self,
+        manager: Manager,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        # A plain directory with no zkg.meta must fail with an error.
+        pkg_dir = tmp_path / "mypkg"
+        pkg_dir.mkdir()
+        result = manager.install(str(pkg_dir))
+        assert result != ""
+
+
+class TestManagerRefresh:
+    def test_skips_non_git_packages(self, manager: Manager) -> None:
+        # A directory package must not trigger _open_package_clone (which would
+        # fail with NoSuchPathError).
+        _make_installed(
+            manager,
+            "mypkg",
+            tracking_method=TRACKING_METHOD_DIRECTORY,
+            current_version="1.0.0",
+        )
+        # Should complete without raising.
+        manager.refresh_installed_packages()
+
+
+class TestManagerUpgrade:
+    def test_not_installed(self, manager: Manager) -> None:
+        assert manager.upgrade("nonexistent") == "no such package installed"
+
+    def test_pinned(self, manager: Manager) -> None:
+        _make_installed(manager, "mypkg", is_pinned=True, is_outdated=True)
+        assert manager.upgrade("https://example.com/mypkg") == "package is pinned"
+
+    def test_not_outdated(self, manager: Manager) -> None:
+        _make_installed(manager, "mypkg", is_outdated=False)
+        assert manager.upgrade("https://example.com/mypkg") == "package is not outdated"
+
+    def test_directory_package(
+        self,
+        manager: Manager,
+        pkg_dir: pathlib.Path,
+    ) -> None:
+        # A directory package is never outdated, so upgrade must be a no-op.
+        assert manager.install(str(pkg_dir)) == ""
+        assert manager.upgrade(str(pkg_dir)) == "package is not outdated"
+
+
+class TestPackageVersions:
+    def test_package_versions(self, manager: Manager) -> None:
+        pkg_dir = pathlib.Path(manager.package_clonedir) / "mypkg"
+        r = git.Repo.init(pkg_dir)
+        r.config_writer().set_value("user", "name", "Test").release()
+        r.config_writer().set_value("user", "email", "test@test").release()
+        (pkg_dir / "file.txt").write_text("hi")
+        r.index.add(["file.txt"])
+        r.index.commit("init")
+        r.create_tag("v1.0.0")
+        r.create_tag("v2.0.0")
+
+        package = Package(git_url=str(pkg_dir), name="mypkg", canonical=True)
+        ipkg = InstalledPackage(package, PackageStatus())
+        assert manager.package_versions(ipkg) == ["v1.0.0", "v2.0.0"]
+
+
+class TestOpenPackageClone:
+    def test_open_package_clone(self, manager: Manager) -> None:
+        # Create a bare git repo in the manager's package clone directory.
+        pkg_dir = pathlib.Path(manager.package_clonedir) / "mypkg"
+        r = git.Repo.init(pkg_dir)
+        r.config_writer().set_value("user", "name", "Test").release()
+        r.config_writer().set_value("user", "email", "test@test").release()
+        (pkg_dir / "file.txt").write_text("hi")
+        r.index.add(["file.txt"])
+        r.index.commit("init")
+
+        package = Package(git_url=str(pkg_dir), name="mypkg", canonical=True)
+        clone = manager._open_package_clone(package)
+        assert isinstance(clone, git.Repo)
+        assert clone.working_dir == str(pkg_dir)
 
 
 class TestManagerTest:
@@ -284,10 +457,21 @@ class TestManagerTest:
             side_effect=ValueError("bad version"),
         ):
             error, passed, _ = manager.test(
-                str(pkg_repo_with_test_command.working_dir),
+                f"file://{pkg_repo_with_test_command.working_dir}",
             )
         assert not passed
         assert "bad version" in error
+
+    def test_directory_package(
+        self,
+        manager: Manager,
+        pkg_dir: pathlib.Path,
+    ) -> None:
+        # test() on a directory package without a test_command must report the
+        # absence as an error.
+        error, passed, _ = manager.test(str(pkg_dir))
+        assert not passed
+        assert "test_command" in error
 
 
 class TestInfoCache:
