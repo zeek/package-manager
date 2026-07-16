@@ -3029,7 +3029,12 @@ class Manager:
 
         return ""
 
-    def install(self, pkg_path: str, version: str = "") -> str:
+    def install(
+        self,
+        pkg_path: str,
+        version: str = "",
+        skip_version_validation: bool = False,
+    ) -> str:
         """Install a package.
 
         Args:
@@ -3043,6 +3048,10 @@ class Manager:
                 installed (or if no version tags exist, the default branch like
                 "main" or "master" is installed).  If given, it may be either a
                 git version tag, a git branch name, or a git commit hash.
+
+            skip_version_validation (bool): if True, a mismatch between the
+                ``version`` field in ``zkg.meta`` and the installed Git tag is
+                logged as a warning instead of failing the installation.
 
         Returns:
             str: empty string if package installation succeeded else an error
@@ -3062,7 +3071,11 @@ class Manager:
                 LOG.debug('installing "%s": re-install: %s', pkg_path, conflict)
                 clonepath = os.path.join(self.package_clonedir, conflict.name)
                 _clone_package(conflict, clonepath, version)
-                return self._install(conflict, version)
+                return self._install(
+                    conflict,
+                    version,
+                    skip_version_validation=skip_version_validation,
+                )
 
             LOG.info(
                 'installing "%s": matched already installed package: %s',
@@ -3078,7 +3091,11 @@ class Manager:
         if not matches:
             try:
                 package = Package(git_url=pkg_path)
-                return self._install(package, version)
+                return self._install(
+                    package,
+                    version,
+                    skip_version_validation=skip_version_validation,
+                )
             except git.GitCommandError as error:
                 LOG.info('installing "%s": invalid git repo path: %s', pkg_path, error)
 
@@ -3099,7 +3116,11 @@ class Manager:
             )
 
         try:
-            return self._install(matches[0], version)
+            return self._install(
+                matches[0],
+                version,
+                skip_version_validation=skip_version_validation,
+            )
         except git.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid', pkg_path)
             return f'failed to clone package "{pkg_path}": {error}'
@@ -3161,6 +3182,7 @@ class Manager:
         package: Package,
         version: str,
         use_existing_clone: bool = False,
+        skip_version_validation: bool = False,
     ) -> str:
         """Install a :class:`.package.Package`.
 
@@ -3197,6 +3219,20 @@ class Manager:
         status.current_version = snapshot.version
         status.current_hash = snapshot.current_hash
         status.is_outdated = snapshot.is_outdated
+
+        # When installing a tagged version, require that the optional zkg.meta
+        # `version` field, if present, matches the Git tag.
+        meta_version = snapshot.meta.get("version")
+        if (
+            snapshot.tracking_method == TRACKING_METHOD_VERSION
+            and meta_version
+            and meta_version != snapshot.version
+        ):
+            msg = f"zkg.meta version '{meta_version}' does not match Git tag '{snapshot.version}'"
+            if skip_version_validation:
+                LOG.warning("%s", msg)
+            else:
+                return msg
 
         raw_metadata = snapshot.meta
 
