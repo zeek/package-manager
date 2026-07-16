@@ -2537,10 +2537,13 @@ class Manager:
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
 
+            if _is_directory_package(git_url):
+                return f"cannot bundle directory package {git_url}: bundling requires a Git repository"
+
             if prefer_existing_clones:
                 ipkg = match_package_url_and_version(git_url, version)
 
-                if ipkg:
+                if ipkg and _is_git_package(ipkg.status):
                     src = os.path.join(self.package_clonedir, ipkg.package.name)
                     shutil.copytree(src, clonepath, symlinks=True)
                     clone = git.Repo(clonepath)

@@ -474,6 +474,43 @@ def test_install_no_version_field_passes(manager: Manager, pkg_repo: git.Repo) -
     assert result == ""
 
 
+def test_bundle_skips_non_git_existing_clone(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # A directory package must not be used as an existing clone source;
+    # bundle() should fall through to cloning from the URL (which will fail
+    # for a bogus URL, but must not crash trying to open a git.Repo).
+    _make_installed(
+        manager,
+        "mypkg",
+        tracking_method=TRACKING_METHOD_DIRECTORY,
+        current_version="1.0.0",
+    )
+    bundle_file = str(tmp_path / "out.tar.gz")
+    result = manager.bundle(
+        bundle_file,
+        [("https://example.com/mypkg", "1.0.0")],
+        prefer_existing_clones=True,
+    )
+    # Fails because the URL is not a real git repo, not because of a git.Repo crash.
+    assert "failed to clone" in result
+
+
+def test_bundle_directory_package(
+    manager: Manager,
+    pkg_dir: pathlib.Path,
+    tmp_path: pathlib.Path,
+) -> None:
+    # bundle() must report that bundling is unsupported for directory packages.
+    bundle_file = str(tmp_path / "out.tar.gz")
+    result = manager.bundle(
+        bundle_file,
+        [(str(pkg_dir), "")],
+    )
+    assert "cannot bundle directory package" in result
+
+
 def test_upgrade_directory_package(
     manager: Manager,
     pkg_dir: pathlib.Path,
