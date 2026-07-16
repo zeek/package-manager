@@ -9,10 +9,11 @@ cp zkg.meta clonetest/zkg.meta
 
 pushd clonetest
 
-git add zkg.meta && gitcommit -v -m "Update zkg.meta"
+git add zkg.meta && git commit -v -m "Update zkg.meta"
 
 git submodule add "../$(basename $(realpath .))"
-sed 's~url.*$~url = http://github.com/zeek/A-REPO-WHICH-SHOULD-NOT-EXIST~' .gitmodules > modules && mv modules .gitmodules
+# Use a full URI so we go through the same Git machinery as a remote repo.
+sed 's~url.*$~url = file:///dev/null/A-REPO-WHICH-SHOULD-NOT-EXIST~' .gitmodules > modules && mv modules .gitmodules
 git add .gitmodules && git commit -v -m 'Add submodule'
 
 # @TEST-START-FILE zkg.meta
