@@ -2601,21 +2601,23 @@ class Manager:
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
 
-            if prefer_existing_clones:
-                ipkg = match_package_url_and_version(git_url, version)
+            ipkg = match_package_url_and_version(git_url, version)
 
-                if ipkg:
-                    src = os.path.join(self.package_clonedir, ipkg.package.name)
-                    shutil.copytree(src, clonepath, symlinks=True)
-                    clone = git.Repo(clonepath)
-                    clone.git.reset(hard=True)
-                    clone.git.clean("-f", "-x", "-d")
+            if ipkg and not _is_git_package(ipkg.status):
+                return f"cannot bundle directory package {git_url}: bundling requires a Git repository"
 
-                    for modified_config in self.modified_config_files(ipkg):
-                        dst = os.path.join(clonepath, modified_config[0])
-                        shutil.copy2(modified_config[1], dst)
+            if prefer_existing_clones and ipkg and _is_git_package(ipkg.status):
+                src = os.path.join(self.package_clonedir, ipkg.package.name)
+                shutil.copytree(src, clonepath, symlinks=True)
+                clone = git.Repo(clonepath)
+                clone.git.reset(hard=True)
+                clone.git.clean("-f", "-x", "-d")
 
-                    continue
+                for modified_config in self.modified_config_files(ipkg):
+                    dst = os.path.join(clonepath, modified_config[0])
+                    shutil.copy2(modified_config[1], dst)
+
+                continue
 
             try:
                 git_clone(git_url, clonepath, shallow=(not is_sha1(version)))
