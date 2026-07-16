@@ -337,7 +337,7 @@ class TestManagerInstall:
         pkg_repo: git.Repo,
     ) -> None:
         # Requesting a version tag that does not exist must fail.
-        result = manager.install(str(pkg_repo.working_dir), "v99.0.0")
+        result = manager.install(f"file://{pkg_repo.working_dir}", "v99.0.0")
         assert result != ""
 
     def test_git_missing_metadata(self, manager: Manager, repo: git.Repo) -> None:
@@ -367,6 +367,45 @@ class TestManagerInstall:
         pkg_dir.mkdir()
         result = manager.install(str(pkg_dir))
         assert result != ""
+
+    @pytest.mark.parametrize(
+        "skip,expected",
+        [
+            (False, "does not match"),
+            (True, ""),
+        ],
+        ids=["fails", "skip_validation"],
+    )
+    def test_version_field_mismatch(
+        self,
+        manager: Manager,
+        pkg_repo: git.Repo,
+        skip: bool,
+        expected: str,
+    ) -> None:
+        # A zkg.meta version field that does not match the Git tag must fail;
+        # with skip_version_validation the mismatch is only a warning.
+        (pathlib.Path(pkg_repo.working_dir) / "zkg.meta").write_text(
+            "[package]\ndescription = test\nversion = v9.9.9\n",
+        )
+        pkg_repo.index.add(["zkg.meta"])
+        pkg_repo.index.commit("wrong version")
+        pkg_repo.create_tag("v1.0.1")
+        result = manager.install(
+            f"file://{pkg_repo.working_dir}",
+            "v1.0.1",
+            skip_version_validation=skip,
+        )
+        assert expected in result
+
+    def test_no_version_field_passes(
+        self,
+        manager: Manager,
+        pkg_repo: git.Repo,
+    ) -> None:
+        # No version field in zkg.meta is fine; validation only applies when the field is present.
+        result = manager.install(f"file://{pkg_repo.working_dir}", "v1.0.0")
+        assert result == ""
 
 
 class TestManagerRefresh:
@@ -442,7 +481,10 @@ class TestOpenPackageClone:
 class TestManagerTest:
     def test_unknown_version(self, manager: Manager, pkg_repo: git.Repo) -> None:
         # manager.test() on a package with a non-existent version must return an error.
-        error, passed, _ = manager.test(str(pkg_repo.working_dir), version="v99.0.0")
+        error, passed, _ = manager.test(
+            f"file://{pkg_repo.working_dir}",
+            version="v99.0.0",
+        )
         assert not passed
         assert error != ""
 
