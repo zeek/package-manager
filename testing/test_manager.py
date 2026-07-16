@@ -516,6 +516,48 @@ class TestManagerTest:
         assert "test_command" in error
 
 
+class TestManagerBundle:
+    def test_skips_non_git_existing_clone(
+        self,
+        manager: Manager,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        # An installed directory package must be rejected by bundle().
+        _make_installed(
+            manager,
+            "mypkg",
+            tracking_method=TRACKING_METHOD_DIRECTORY,
+            current_version="1.0.0",
+        )
+        bundle_file = str(tmp_path / "out.tar.gz")
+        result = manager.bundle(
+            bundle_file,
+            [("https://example.com/mypkg", "1.0.0")],
+            prefer_existing_clones=True,
+        )
+        assert "cannot bundle directory package" in result
+
+    def test_directory_package(
+        self,
+        manager: Manager,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        # bundle() must reject installed directory packages.
+        _make_installed(
+            manager,
+            "mypkg",
+            tracking_method=TRACKING_METHOD_DIRECTORY,
+            current_version="1.0.0",
+        )
+        bundle_file = str(tmp_path / "out.tar.gz")
+        result = manager.bundle(
+            bundle_file,
+            [("https://example.com/mypkg", "1.0.0")],
+            prefer_existing_clones=True,
+        )
+        assert "cannot bundle directory package" in result
+
+
 class TestInfoCache:
     """Manager.info() should return cached results on repeated calls."""
 
