@@ -1953,7 +1953,7 @@ class Manager:
                     invalid_reason=str(e),
                     status=ipkg.status,
                 )
-            return _info_from_clone(
+            return _info_from_snapshot(
                 snapshot,
                 ipkg.package,
                 ipkg.status,
@@ -2048,7 +2048,7 @@ class Manager:
                 package,
                 resolution.version,
             )
-            return _info_from_clone(
+            return _info_from_snapshot(
                 snapshot,
                 package,
                 status,
@@ -2062,7 +2062,7 @@ class Manager:
         except ValueError as e:
             return PackageInfo(package=package, status=status, invalid_reason=str(e))
 
-        return _info_from_clone(
+        return _info_from_snapshot(
             snapshot,
             package,
             status,
@@ -3703,7 +3703,7 @@ def _parse_package_metadata(
 _legacy_metadata_warnings: set[str] = set()
 
 
-def _info_from_clone(
+def _info_from_snapshot(
     snapshot: PackageSnapshot,
     package: Package,
     status: PackageStatus | None,
