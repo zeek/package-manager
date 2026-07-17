@@ -8,7 +8,7 @@
 		is_loaded = True
 		is_outdated = False
 		is_pinned = True
-		tracking_method = builtin
+		tracking_method = None
 	metadata (from version ""):
 		<empty metadata file>
 
