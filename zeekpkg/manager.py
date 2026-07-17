@@ -17,7 +17,6 @@ import tarfile
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Literal, TypeGuard
 from urllib.parse import urlparse
 
 import git
@@ -1308,7 +1307,7 @@ class Manager:
                 )
 
             assert ipkg.status.current_version
-            assert _is_git_tracking_method(ipkg.status.tracking_method)
+            assert ipkg.status.tracking_method
             ipkg.status.is_outdated = _is_clone_outdated(
                 clone,
                 ipkg.status.current_version,
@@ -1352,7 +1351,6 @@ class Manager:
 
         clone = self._open_package_clone(ipkg.package)
 
-        assert _is_git_tracking_method(ipkg.status.tracking_method)
         match ipkg.status.tracking_method:
             case TrackingMethod.VERSION:
                 version_tags = git_version_tags(clone)
@@ -1365,6 +1363,8 @@ class Manager:
                 # The above check for whether the installed package is outdated
                 # also should have already caught this situation.
                 return "package is not outdated"
+            case _:
+                raise NotImplementedError
 
     def remove(self, pkg_path: str) -> bool:
         """Remove an installed package.
@@ -3337,37 +3337,17 @@ class Manager:
                         LOG.warning("failed to remove link %s", old)
 
 
-_GitTrackingMethod = Literal[
-    TrackingMethod.VERSION,
-    TrackingMethod.BRANCH,
-    TrackingMethod.COMMIT,
-]
-
-
-def _is_git_tracking_method(
-    method: TrackingMethod | None,
-) -> TypeGuard[_GitTrackingMethod]:
-    return method in (
-        TrackingMethod.VERSION,
-        TrackingMethod.BRANCH,
-        TrackingMethod.COMMIT,
-    )
-
-
 @dataclass
 class GitResolution:
     """The resolved Git state for a package after checkout."""
 
     version: str
-    tracking_method: _GitTrackingMethod
+    tracking_method: TrackingMethod
     current_hash: str
     is_outdated: bool
 
 
-def _pick_version(
-    clone: git.Repo,
-    version: str | None,
-) -> tuple[str, _GitTrackingMethod]:
+def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, TrackingMethod]:
     """Return (resolved_version, tracking_method) for *version* in *clone*.
 
     When *version* is ``None`` or empty, the best available version is chosen
@@ -3529,7 +3509,11 @@ def _is_git_package(status: PackageStatus) -> bool:
     Non-git package sources (e.g. local directories) will use a different
     tracking method; this predicate guards operations that require a git clone.
     """
-    return _is_git_tracking_method(status.tracking_method)
+    return status.tracking_method in (
+        TrackingMethod.VERSION,
+        TrackingMethod.BRANCH,
+        TrackingMethod.COMMIT,
+    )
 
 
 def _is_version_outdated(clone: git.Repo, version: str) -> bool:
@@ -3547,7 +3531,7 @@ def _is_branch_outdated(clone: git.Repo, branch: str) -> bool:
 def _is_clone_outdated(
     clone: git.Repo,
     ref_name: str,
-    tracking_method: _GitTrackingMethod,
+    tracking_method: TrackingMethod,
 ) -> bool:
     match tracking_method:
         case TrackingMethod.VERSION:
@@ -3556,6 +3540,8 @@ def _is_clone_outdated(
             return _is_branch_outdated(clone, ref_name)
         case TrackingMethod.COMMIT:
             return False
+        case _:
+            raise NotImplementedError
 
 
 def _is_commit_hash(clone: git.Repo, text: str) -> bool:
