@@ -66,6 +66,7 @@ def test_explicit_branch(repo: git.Repo) -> None:
     # Create branch in origin and fetch so it's visible as origin/feature.
     git.Repo(repo.remotes.origin.url).create_head("feature")
     repo.remotes.origin.fetch()
+    repo.git.checkout("feature")
     resolution = _resolve_git_version(repo, "feature")
     assert resolution.tracking_method == TRACKING_METHOD_BRANCH
     assert resolution.version == "feature"

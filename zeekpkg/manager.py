@@ -2713,6 +2713,7 @@ class Manager:
                 )
 
             try:
+                git_checkout(clone, version)
                 resolution = _resolve_git_version(clone, version)
             except Exception as error:
                 LOG.warning("failed to resolve git version: %s", error)
@@ -3159,6 +3160,7 @@ class Manager:
         status.is_pinned = ipkg.status.is_pinned if ipkg else False
 
         try:
+            git_checkout(clone, version)
             resolution = _resolve_git_version(clone, version)
         except Exception as e:
             return str(e)
@@ -3287,40 +3289,48 @@ class GitResolution:
     is_outdated: bool
 
 
-def _resolve_git_version(clone: git.Repo, version: str) -> GitResolution:
-    """Resolve *version* against *clone*, check out the ref, and return a
-    :class:`GitResolution`.
+def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, str]:
+    """Return (resolved_version, tracking_method) for *version* in *clone*.
+
+    When *version* is ``None`` or empty, the best available version is chosen
+    automatically: the latest semver tag if any exist, otherwise the default
+    branch.
 
     Raises:
         ValueError: if *version* does not match any tag, branch, or commit.
-        git.GitCommandError: if the checkout fails.
     """
     version_tags = git_version_tags(clone)
 
     if version:
         if _is_commit_hash(clone, version):
-            tracking_method = TRACKING_METHOD_COMMIT
-        elif version in version_tags:
-            tracking_method = TRACKING_METHOD_VERSION
-        else:
-            branches = _get_branch_names(clone)
-            if version in branches:
-                tracking_method = TRACKING_METHOD_BRANCH
-            else:
-                LOG.info(
-                    'branch "%s" not in available branches: %s',
-                    version,
-                    branches,
-                )
-                raise ValueError(f'no such branch or version tag: "{version}"')
-    elif version_tags:
-        version = version_tags[-1]
-        tracking_method = TRACKING_METHOD_VERSION
-    else:
-        version = git_default_branch(clone)
-        tracking_method = TRACKING_METHOD_BRANCH
+            return version, TRACKING_METHOD_COMMIT
+        if version in version_tags:
+            return version, TRACKING_METHOD_VERSION
+        branches = _get_branch_names(clone)
+        if version in branches:
+            return version, TRACKING_METHOD_BRANCH
+        LOG.info(
+            'branch "%s" not in available branches: %s',
+            version,
+            branches,
+        )
+        raise ValueError(f'no such branch or version tag: "{version}"')
 
-    git_checkout(clone, version)
+    if version_tags:
+        return version_tags[-1], TRACKING_METHOD_VERSION
+    return git_default_branch(clone), TRACKING_METHOD_BRANCH
+
+
+def _resolve_git_version(clone: git.Repo, version: str | None) -> GitResolution:
+    """Read the current HEAD of *clone* and return a :class:`GitResolution`.
+
+    The caller must check out the desired ref before calling this function;
+    the hash and outdated flag reflect the current HEAD state of *clone*.
+
+    Raises:
+        ValueError: if *version* does not match any tag, branch, or commit.
+    """
+    version, tracking_method = _pick_version(clone, version)
     current_hash = clone.head.object.hexsha
     is_outdated = _is_clone_outdated(clone, version, tracking_method)
 
