@@ -20,13 +20,11 @@ LEGACY_METADATA_FILENAME = "bro-pkg.meta"
 
 
 class TrackingMethod(str, Enum):
-    """How a package tracks upstream changes."""
+    """How a Git-backed package tracks upstream changes."""
 
     VERSION = "version"
     BRANCH = "branch"
     COMMIT = "commit"
-    BUILTIN = "builtin"
-    DIRECTORY = "directory"
 
     def __str__(self) -> str:
         return self.value
@@ -221,7 +219,7 @@ class PackageVersion:
         if self.method == TrackingMethod.BRANCH:
             return "tracking method branch and commit", False
 
-        # TrackingMethod.BRANCH / TrackingMethod.BUILTIN
+        # TrackingMethod.VERSION / None (builtin or directory)
         if version_spec.startswith("branch="):
             branch = version_spec[len("branch=") :]
             return (
@@ -325,8 +323,13 @@ class PackageStatus:
         self.is_loaded = is_loaded
         self.is_pinned = is_pinned
         self.is_outdated = is_outdated
+        # Non-Git sources have no tracking method; map their legacy string
+        # values to None for backward compatibility with older manifests.
+        _non_git = {"builtin", "directory"}
         self.tracking_method = (
-            TrackingMethod(tracking_method)
+            None
+            if isinstance(tracking_method, str) and tracking_method in _non_git
+            else TrackingMethod(tracking_method)
             if isinstance(tracking_method, str)
             else tracking_method
         )
@@ -660,7 +663,7 @@ def make_builtin_package(
         is_loaded=True,  # May not hold in the future?
         is_outdated=False,
         is_pinned=True,
-        tracking_method=TrackingMethod.BUILTIN,
+        tracking_method=None,
         current_version=current_version,
         current_hash=current_hash,
     )

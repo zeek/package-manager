@@ -230,8 +230,6 @@ def _make_installed(
         (TrackingMethod.VERSION, True),
         (TrackingMethod.BRANCH, True),
         (TrackingMethod.COMMIT, True),
-        (TrackingMethod.BUILTIN, False),
-        (TrackingMethod.DIRECTORY, False),
         (None, False),
     ],
 )
@@ -274,7 +272,7 @@ def test_prepare_snapshot_directory(
     package = Package(git_url=str(pkg_dir), canonical=True)
     snapshot = _prepare_snapshot(package, None, str(tmp_path / "dest"))
     assert snapshot.version == "1.0.0"
-    assert snapshot.tracking_method == TrackingMethod.DIRECTORY
+    assert snapshot.tracking_method == None
     assert snapshot.current_hash is None
     assert snapshot.is_outdated is False
 
@@ -303,7 +301,7 @@ def test_info_directory_backend(manager: Manager, pkg_dir: pathlib.Path) -> None
     info = manager.info(str(pkg_dir))
     assert info.invalid_reason == ""
     assert info.metadata_version == "1.0.0"
-    assert info.version_type == TrackingMethod.DIRECTORY
+    assert info.version_type == None
 
 
 def test_install_directory_backend(manager: Manager, pkg_dir: pathlib.Path) -> None:
@@ -311,7 +309,7 @@ def test_install_directory_backend(manager: Manager, pkg_dir: pathlib.Path) -> N
     assert result == ""
     ipkg = manager.find_installed_package("mypkg")
     assert ipkg is not None
-    assert ipkg.status.tracking_method == TrackingMethod.DIRECTORY
+    assert ipkg.status.tracking_method == None
     assert ipkg.status.current_version == "1.0.0"
 
 
@@ -381,7 +379,7 @@ def test_refresh_skips_non_git_packages(manager: Manager) -> None:
     _make_installed(
         manager,
         "mypkg",
-        tracking_method=TrackingMethod.DIRECTORY,
+        tracking_method=None,
         current_version="1.0.0",
     )
     # Should complete without raising.
@@ -480,7 +478,7 @@ def test_bundle_skips_non_git_existing_clone(
     _make_installed(
         manager,
         "mypkg",
-        tracking_method=TrackingMethod.DIRECTORY,
+        tracking_method=None,
         current_version="1.0.0",
     )
     bundle_file = str(tmp_path / "out.tar.gz")
