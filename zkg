@@ -38,11 +38,10 @@ from zeekpkg._util import (
 )
 from zeekpkg.package import (
     BUILTIN_SCHEME,
-    TRACKING_METHOD_DIRECTORY,
-    TRACKING_METHOD_VERSION,
     InstalledPackage,
     Package,
     PackageInfo,
+    TrackingMethod,
 )
 from zeekpkg.template import (
     InputError,
@@ -919,7 +918,7 @@ def cmd_bundle(
                 print_error(f'error: invalid package "{name}": {info.invalid_reason}')
                 sys.exit(1)
 
-            if info.version_type == TRACKING_METHOD_DIRECTORY:
+            if info.version_type == TrackingMethod.DIRECTORY:
                 print_error(
                     f'error: cannot bundle directory package "{name}":'
                     " bundling requires a Git repository",
@@ -1396,7 +1395,7 @@ def version_change_string(
     new_version = old_version
     version_change = ""
 
-    if installed_package.status.tracking_method == TRACKING_METHOD_VERSION:
+    if installed_package.status.tracking_method == TrackingMethod.VERSION:
         versions = manager.package_versions(installed_package)
 
         if len(versions):
@@ -1450,7 +1449,7 @@ def cmd_upgrade(
 
         next_version = ipkg.status.current_version
 
-        if ipkg.status.tracking_method == TRACKING_METHOD_VERSION and info.versions:
+        if ipkg.status.tracking_method == TrackingMethod.VERSION and info.versions:
             next_version = info.versions[-1]
 
         assert next_version

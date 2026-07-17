@@ -6,6 +6,7 @@ the properties and status of Zeek packages.
 import os
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 from functools import total_ordering
 
 import semantic_version as semver
@@ -17,11 +18,19 @@ from .uservar import UserVar
 METADATA_FILENAME = "zkg.meta"
 LEGACY_METADATA_FILENAME = "bro-pkg.meta"
 
-TRACKING_METHOD_VERSION = "version"
-TRACKING_METHOD_BRANCH = "branch"
-TRACKING_METHOD_COMMIT = "commit"
-TRACKING_METHOD_BUILTIN = "builtin"
-TRACKING_METHOD_DIRECTORY = "directory"
+
+class TrackingMethod(str, Enum):
+    """How a package tracks upstream changes."""
+
+    VERSION = "version"
+    BRANCH = "branch"
+    COMMIT = "commit"
+    BUILTIN = "builtin"
+    DIRECTORY = "directory"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 BUILTIN_SOURCE = "zeek-builtin"
 BUILTIN_SCHEME = "zeek-builtin://"
@@ -170,8 +179,8 @@ class PackageSnapshot:
         working_dir: path to the package directory
         meta: parsed contents of the ``zkg.meta`` file
         version: resolved version string, or ``None`` if unavailable
-        tracking_method: how the package version is tracked (e.g.
-            ``TRACKING_METHOD_VERSION``); ``None`` if not yet determined
+        tracking_method: how the package version is tracked; ``None`` if not
+            yet determined
         current_hash: Git commit hash at the time of snapshot, or ``None``
             for non-Git sources
         is_outdated: whether a newer version is available; always ``False``
@@ -181,7 +190,7 @@ class PackageSnapshot:
     working_dir: str
     meta: dict[str, str] = field(default_factory=dict)
     version: str | None = None
-    tracking_method: str | None = None
+    tracking_method: "TrackingMethod | None" = None
     current_hash: str | None = None
     is_outdated: bool = False
 
@@ -191,7 +200,7 @@ class PackageVersion:
     Helper class to compare package versions with version specs.
     """
 
-    def __init__(self, method: str | None, version: str | None) -> None:
+    def __init__(self, method: "TrackingMethod | None", version: str | None) -> None:
         self.method = method
         self.version = version
         self.req_semver = None
@@ -206,13 +215,13 @@ class PackageVersion:
         if version_spec == "*":  # anything goes
             return "", True
 
-        if self.method == TRACKING_METHOD_COMMIT:
+        if self.method == TrackingMethod.COMMIT:
             return f'tracking method commit not compatible with "{version_spec}"', False
 
-        if self.method == TRACKING_METHOD_BRANCH:
+        if self.method == TrackingMethod.BRANCH:
             return "tracking method branch and commit", False
 
-        # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
+        # TrackingMethod.BRANCH / TrackingMethod.BUILTIN
         if version_spec.startswith("branch="):
             branch = version_spec[len("branch=") :]
             return (
@@ -292,8 +301,7 @@ class PackageStatus:
 
         is_outdated (bool): whether a newer version of the package exists.
 
-        tracking_method (str): either "branch", "version", "commit", or
-            "builtin" to indicate (respectively) whether package upgrades
+        tracking_method (TrackingMethod): indicates whether package upgrades
             should stick to a git branch, use git version tags, do nothing
             because the package is to always use a specific git commit hash,
             or do nothing because the package is built into Zeek.
@@ -310,14 +318,18 @@ class PackageStatus:
         is_loaded: bool = False,
         is_pinned: bool = False,
         is_outdated: bool = False,
-        tracking_method: str | None = None,
+        tracking_method: "TrackingMethod | str | None" = None,
         current_version: str | None = None,
         current_hash: str | None = None,
     ) -> None:
         self.is_loaded = is_loaded
         self.is_pinned = is_pinned
         self.is_outdated = is_outdated
-        self.tracking_method = tracking_method
+        self.tracking_method = (
+            TrackingMethod(tracking_method)
+            if isinstance(tracking_method, str)
+            else tracking_method
+        )
         self.current_version = current_version
         self.current_hash = current_hash
 
@@ -345,9 +357,9 @@ class PackageInfo:
 
         metadata_version: the package version that the metadata is from
 
-        version_type: either 'version', 'branch', or 'commit' to
-            indicate whether the package info/metadata was taken from a release
-            version tag, a branch, or a specific commit hash.
+        version_type: a :class:`TrackingMethod` indicating whether the package
+            info/metadata was taken from a release version tag, a branch, or a
+            specific commit hash.
 
         invalid_reason (str): this attribute is set when there is a problem
             with gathering package information and explains what went wrong.
@@ -366,7 +378,7 @@ class PackageInfo:
         versions: list[str] | None = None,
         metadata_version: str | None = "",
         invalid_reason: str = "",
-        version_type: str = "",
+        version_type: "TrackingMethod | None" = None,
         metadata_file: str | None = None,
         default_branch: str | None = None,
     ) -> None:
@@ -648,7 +660,7 @@ def make_builtin_package(
         is_loaded=True,  # May not hold in the future?
         is_outdated=False,
         is_pinned=True,
-        tracking_method=TRACKING_METHOD_BUILTIN,
+        tracking_method=TrackingMethod.BUILTIN,
         current_version=current_version,
         current_hash=current_hash,
     )
