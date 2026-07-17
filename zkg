@@ -282,7 +282,7 @@ def create_config(
 def active_git_branch(path: str) -> str | None:
     try:
         repo = git.Repo(path)
-    except git.NoSuchPathError:
+    except (git.NoSuchPathError, git.InvalidGitRepositoryError):
         return None
 
     if not repo.working_tree_dir:
@@ -328,14 +328,30 @@ def is_local_git_repo_dirty(git_url: str) -> bool:
     return repo.is_dirty(untracked_files=True)
 
 
-def check_local_git_repo(git_url: str) -> bool:
-    if is_local_git_repo_url(git_url):
-        if not is_local_git_repo(git_url):
-            print_error(f"error: path {git_url} is not a git repository")
-            return False
-        if is_local_git_repo_dirty(git_url):
-            print_error(f"error: local git clone at {git_url} is dirty")
-            return False
+def check_local_git_repo(path: str) -> bool:
+    """Check whether *path* is a usable local package source.
+
+    Local paths starting with '.' or '/' must either be a clean Git repo or a
+    plain directory; everything else (URLs, SCP addresses, package source
+    names) is accepted without checks.
+    """
+    # TODO: refactor this function and its callers into a factory that maps a
+    # path to a backend kind (Git repo, plain directory, remote URL), so
+    # routing and validation are co-located and backends can be extended
+    # without touching each call site.
+    if not is_local_git_repo_url(path):
+        return True
+
+    if os.path.isdir(path) and not is_local_git_repo(path):
+        return True
+
+    if not is_local_git_repo(path):
+        print_error(f"error: path {path} is not a git repository or a directory")
+        return False
+
+    if is_local_git_repo_dirty(path):
+        print_error(f"error: local git clone at {path} is dirty")
+        return False
 
     return True
 
@@ -541,7 +557,7 @@ def cmd_test(
             sys.exit(1)
 
         if not version:
-            version = package_info.best_version()
+            version = package_info.metadata_version or package_info.best_version()
 
         package_infos.append((package_info, version))
 
@@ -616,7 +632,7 @@ def cmd_install(
             sys.exit(1)
 
         if not version:
-            version = package_info.best_version()
+            version = package_info.metadata_version or package_info.best_version()
 
         package_infos.append((package_info, version, False))
 
@@ -904,7 +920,7 @@ def cmd_bundle(
                 sys.exit(1)
 
             if not version:
-                version = info.best_version()
+                version = info.metadata_version or info.best_version()
 
             to_validate.append((info.package.qualified_name(), version))
             packages_to_bundle.append(
