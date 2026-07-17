@@ -328,7 +328,7 @@ def is_local_git_repo_dirty(git_url: str) -> bool:
     return repo.is_dirty(untracked_files=True)
 
 
-def check_local_git_repo(path: str) -> bool:
+def check_local_package_path(path: str) -> bool:
     """Check whether *path* is a usable local package source.
 
     Local paths starting with '.' or '/' must either be a clean Git repo or a
@@ -537,7 +537,7 @@ def cmd_test(
     package_infos: list[tuple[PackageInfo, str]] = []
 
     for name in args.package:
-        if not check_local_git_repo(name):
+        if not check_local_package_path(name):
             sys.exit(1)
 
         # If the package to be tested is included with Zeek, don't allow
@@ -613,7 +613,7 @@ def cmd_install(
     package_infos: list[tuple[PackageInfo, str, bool]] = []
 
     for name in args.package:
-        if not check_local_git_repo(name):
+        if not check_local_package_path(name):
             sys.exit(1)
 
         # Outright prevent installing a package that Zeek has built-in.
@@ -906,7 +906,7 @@ def cmd_bundle(
         new_pkgs: list[tuple[PackageInfo, str, bool]] = []
 
         for name, version in packages:
-            if not check_local_git_repo(name):
+            if not check_local_package_path(name):
                 sys.exit(1)
 
             if not version:
