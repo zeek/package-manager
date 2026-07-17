@@ -21,16 +21,12 @@ from zeekpkg.manager import (
     _snapshot_from_git_repo,
 )
 from zeekpkg.package import (
-    TRACKING_METHOD_BRANCH,
-    TRACKING_METHOD_BUILTIN,
-    TRACKING_METHOD_COMMIT,
-    TRACKING_METHOD_DIRECTORY,
-    TRACKING_METHOD_VERSION,
     InstalledPackage,
     Package,
     PackageInfo,
     PackageSnapshot,
     PackageStatus,
+    TrackingMethod,
 )
 
 
@@ -124,21 +120,21 @@ class TestResolveGitVersion:
     def test_defaults_to_branch_when_no_tags(self, repo: git.Repo) -> None:
         resolution = _resolve_git_version(repo, "")
         assert isinstance(resolution, GitResolution)
-        assert resolution.tracking_method == TRACKING_METHOD_BRANCH
+        assert resolution.tracking_method == TrackingMethod.BRANCH
         assert resolution.version == "main"
 
     def test_defaults_to_latest_tag(self, repo: git.Repo) -> None:
         repo.create_tag("v1.0.0")
         repo.create_tag("v2.0.0")
         resolution = _resolve_git_version(repo, "")
-        assert resolution.tracking_method == TRACKING_METHOD_VERSION
+        assert resolution.tracking_method == TrackingMethod.VERSION
         assert resolution.version == "v2.0.0"
 
     def test_explicit_version_tag(self, repo: git.Repo) -> None:
         repo.create_tag("v1.0.0")
         repo.create_tag("v2.0.0")
         resolution = _resolve_git_version(repo, "v1.0.0")
-        assert resolution.tracking_method == TRACKING_METHOD_VERSION
+        assert resolution.tracking_method == TrackingMethod.VERSION
         assert resolution.version == "v1.0.0"
 
     def test_explicit_branch(self, repo: git.Repo) -> None:
@@ -147,13 +143,13 @@ class TestResolveGitVersion:
         repo.remotes.origin.fetch()
         repo.git.checkout("feature")
         resolution = _resolve_git_version(repo, "feature")
-        assert resolution.tracking_method == TRACKING_METHOD_BRANCH
+        assert resolution.tracking_method == TrackingMethod.BRANCH
         assert resolution.version == "feature"
 
     def test_explicit_commit_hash(self, repo: git.Repo) -> None:
         hexsha = repo.head.object.hexsha
         resolution = _resolve_git_version(repo, hexsha)
-        assert resolution.tracking_method == TRACKING_METHOD_COMMIT
+        assert resolution.tracking_method == TrackingMethod.COMMIT
         assert resolution.current_hash == hexsha
 
     def test_unknown_version_raises(self, repo: git.Repo) -> None:
@@ -212,11 +208,11 @@ class TestIsGitPackage:
     @pytest.mark.parametrize(
         "method,expected",
         [
-            (TRACKING_METHOD_VERSION, True),
-            (TRACKING_METHOD_BRANCH, True),
-            (TRACKING_METHOD_COMMIT, True),
-            (TRACKING_METHOD_BUILTIN, False),
-            (TRACKING_METHOD_DIRECTORY, False),
+            (TrackingMethod.VERSION, True),
+            (TrackingMethod.BRANCH, True),
+            (TrackingMethod.COMMIT, True),
+            (TrackingMethod.BUILTIN, False),
+            (TrackingMethod.DIRECTORY, False),
             (None, False),
         ],
     )
@@ -245,7 +241,7 @@ class TestPrepareSnapshot:
         package = Package(git_url=str(pkg_dir), canonical=True)
         snapshot = _prepare_snapshot(package, None, str(tmp_path / "dest"))
         assert snapshot.version == "1.0.0"
-        assert snapshot.tracking_method == TRACKING_METHOD_DIRECTORY
+        assert snapshot.tracking_method == TrackingMethod.DIRECTORY
         assert snapshot.current_hash is None
         assert snapshot.is_outdated is False
 
@@ -266,7 +262,7 @@ class TestPrepareSnapshot:
             str(tmp_path / "dest"),
             existing_clone=repo,
         )
-        assert snapshot.tracking_method == TRACKING_METHOD_BRANCH
+        assert snapshot.tracking_method == TrackingMethod.BRANCH
         assert snapshot.current_hash is not None
 
 
@@ -294,7 +290,7 @@ class TestManagerInfo:
         assert info.metadata["description"] == "hello"
         assert info.versions == ["v1.0.0"]
         assert info.default_branch == "main"
-        assert info.version_type == TRACKING_METHOD_VERSION
+        assert info.version_type == TrackingMethod.VERSION
         assert info.invalid_reason == ""
 
     def test_installed_missing_metadata(self, manager: Manager) -> None:
@@ -311,7 +307,7 @@ class TestManagerInfo:
         _make_installed(
             manager,
             pkg_name,
-            tracking_method=TRACKING_METHOD_BRANCH,
+            tracking_method=TrackingMethod.BRANCH,
             current_version="main",
         )
         info = manager.info(f"https://example.com/{pkg_name}", prefer_installed=True)
@@ -326,7 +322,7 @@ class TestManagerInfo:
         info = manager.info(str(pkg_dir))
         assert info.invalid_reason == ""
         assert info.metadata_version == "1.0.0"
-        assert info.version_type == TRACKING_METHOD_DIRECTORY
+        assert info.version_type == TrackingMethod.DIRECTORY
 
 
 class TestManagerInstall:
@@ -353,7 +349,7 @@ class TestManagerInstall:
         assert result == ""
         ipkg = manager.find_installed_package("mypkg")
         assert ipkg is not None
-        assert ipkg.status.tracking_method == TRACKING_METHOD_DIRECTORY
+        assert ipkg.status.tracking_method == TrackingMethod.DIRECTORY
         assert ipkg.status.current_version == "1.0.0"
 
     def test_directory_missing_metadata(
@@ -414,7 +410,7 @@ class TestManagerRefresh:
         _make_installed(
             manager,
             "mypkg",
-            tracking_method=TRACKING_METHOD_DIRECTORY,
+            tracking_method=TrackingMethod.DIRECTORY,
             current_version="1.0.0",
         )
         # Should complete without raising.
@@ -456,7 +452,7 @@ class TestPackageVersions:
         r.create_tag("v2.0.0")
 
         package = Package(git_url=str(pkg_dir), name="mypkg", canonical=True)
-        status = PackageStatus(tracking_method=TRACKING_METHOD_VERSION)
+        status = PackageStatus(tracking_method=TrackingMethod.VERSION)
         ipkg = InstalledPackage(package, status)
         assert manager.package_versions(ipkg) == ["v1.0.0", "v2.0.0"]
 
@@ -526,7 +522,7 @@ class TestManagerBundle:
         _make_installed(
             manager,
             "mypkg",
-            tracking_method=TRACKING_METHOD_DIRECTORY,
+            tracking_method=TrackingMethod.DIRECTORY,
             current_version="1.0.0",
         )
         bundle_file = str(tmp_path / "out.tar.gz")
@@ -546,7 +542,7 @@ class TestManagerBundle:
         _make_installed(
             manager,
             "mypkg",
-            tracking_method=TRACKING_METHOD_DIRECTORY,
+            tracking_method=TrackingMethod.DIRECTORY,
             current_version="1.0.0",
         )
         bundle_file = str(tmp_path / "out.tar.gz")
