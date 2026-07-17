@@ -1383,6 +1383,7 @@ class Manager:
 
         clone = self._open_package_clone(ipkg.package)
 
+        assert ipkg.status.tracking_method
         match ipkg.status.tracking_method:
             case TrackingMethod.VERSION:
                 version_tags = git_version_tags(clone)
@@ -2071,7 +2072,7 @@ class Manager:
             status,
             versions=[],
             default_branch="",
-            version_type=TrackingMethod.DIRECTORY,
+            version_type=None,
         )
 
     def package_versions(self, installed_package: InstalledPackage) -> list[str]:
@@ -3547,7 +3548,7 @@ def _snapshot_from_directory(path: str) -> PackageSnapshot:
         working_dir=path,
         meta=meta,
         version=version,
-        tracking_method=TrackingMethod.DIRECTORY,
+        tracking_method=None,
     )
 
 
@@ -3577,14 +3578,10 @@ def _is_directory_package(path: str) -> bool:
 def _is_git_package(status: PackageStatus) -> bool:
     """Return True if *status* represents a git-backed package.
 
-    Non-git package sources (e.g. local directories) will use a different
-    tracking method; this predicate guards operations that require a git clone.
+    Non-git package sources (e.g. local directories) have no tracking method;
+    this predicate guards operations that require a git clone.
     """
-    return status.tracking_method in (
-        TrackingMethod.VERSION,
-        TrackingMethod.BRANCH,
-        TrackingMethod.COMMIT,
-    )
+    return status.tracking_method is not None
 
 
 def _is_version_outdated(clone: git.Repo, version: str) -> bool:
