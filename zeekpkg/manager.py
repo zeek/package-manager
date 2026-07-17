@@ -16,6 +16,7 @@ import sys
 import tarfile
 import time
 from collections import deque
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import git
@@ -56,10 +57,12 @@ from .package import (
     PLUGIN_MAGIC_FILE_DISABLED,
     TRACKING_METHOD_BRANCH,
     TRACKING_METHOD_COMMIT,
+    TRACKING_METHOD_DIRECTORY,
     TRACKING_METHOD_VERSION,
     InstalledPackage,
     Package,
     PackageInfo,
+    PackageSnapshot,
     PackageStatus,
     PackageVersion,
     aliases,
@@ -480,6 +483,10 @@ class Manager:
                 self.installed_pkgs[pkg_name] = InstalledPackage(pkg, status)
 
             return data["script_dir"], data["plugin_dir"], data.get("bin_dir", None)
+
+    def _open_package_clone(self, package: Package) -> git.Repo:
+        """Open the on-disk git clone for an installed package."""
+        return git.Repo(os.path.join(self.package_clonedir, package.name))
 
     def _write_manifest(self) -> None:
         """Writes the manifest file containing the list of installed packages.
@@ -1285,8 +1292,12 @@ class Manager:
                 )
                 continue
 
-            clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
-            clone = git.Repo(clonepath)
+            if not _is_git_package(ipkg.status):
+                continue
+
+            # Deliberate git entry point: fetch requires network access and
+            # must operate on a live git.Repo.
+            clone = self._open_package_clone(ipkg.package)
             LOG.debug("fetch package %s", ipkg.package.qualified_name())
 
             try:
@@ -1341,8 +1352,7 @@ class Manager:
             LOG.info('upgrading "%s": package not outdated', pkg_path)
             return "package is not outdated"
 
-        clonepath = os.path.join(self.package_clonedir, ipkg.package.name)
-        clone = git.Repo(clonepath)
+        clone = self._open_package_clone(ipkg.package)
 
         if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
             version_tags = git_version_tags(clone)
@@ -1895,14 +1905,25 @@ class Manager:
         ipkg = self.find_installed_package(pkg_path)
 
         if prefer_installed and ipkg:
-            pkg_name = ipkg.package.name
-            clonepath = os.path.join(self.package_clonedir, pkg_name)
-            clone = git.Repo(clonepath)
-            return _info_from_clone(
-                clone,
+            clone = self._open_package_clone(ipkg.package)
+            versions = git_version_tags(clone)
+            default_branch = git_default_branch(clone)
+            try:
+                resolution = _resolve_git_version(clone, ipkg.status.current_version)
+                snapshot = _snapshot_from_git_repo(clone, resolution)
+            except ValueError as e:
+                return PackageInfo(
+                    package=ipkg.package,
+                    invalid_reason=str(e),
+                    status=ipkg.status,
+                )
+            return _info_from_snapshot(
+                snapshot,
                 ipkg.package,
                 ipkg.status,
-                ipkg.status.current_version,
+                versions,
+                default_branch,
+                resolution.tracking_method,
             )
 
         matches = self.match_source_packages(pkg_path)
@@ -1966,23 +1987,53 @@ class Manager:
             git.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
-        clone = _clone_package(package, clonepath, version, update_submodules)
-        versions = git_version_tags(clone)
 
-        if not version:
-            if len(versions):
-                version = versions[-1]
-            else:
-                version = git_default_branch(clone)
+        if not _is_directory_package(package.git_url):
+            clone = _clone_package(package, clonepath, version, update_submodules)
+            versions = git_version_tags(clone)
+            default_branch = git_default_branch(clone)
+
+            if not version:
+                version = versions[-1] if versions else default_branch
+
+            try:
+                git_checkout(clone, version, update_submodules)
+                resolution = _resolve_git_version(clone, version)
+                snapshot = _snapshot_from_git_repo(clone, resolution)
+            except (ValueError, git.GitCommandError) as e:
+                return PackageInfo(
+                    package=package,
+                    status=status,
+                    invalid_reason=str(e),
+                )
+
+            LOG.debug(
+                'checked out "%s", branch/version "%s"',
+                package,
+                resolution.version,
+            )
+            return _info_from_snapshot(
+                snapshot,
+                package,
+                status,
+                versions,
+                default_branch,
+                resolution.tracking_method,
+            )
 
         try:
-            git_checkout(clone, version, update_submodules)
-        except git.GitCommandError:
-            reason = f'no such commit, branch, or version tag: "{version}"'
-            return PackageInfo(package=package, status=status, invalid_reason=reason)
+            snapshot = _snapshot_from_directory(package.git_url)
+        except ValueError as e:
+            return PackageInfo(package=package, status=status, invalid_reason=str(e))
 
-        LOG.debug('checked out "%s", branch/version "%s"', package, version)
-        return _info_from_clone(clone, package, status, version)
+        return _info_from_snapshot(
+            snapshot,
+            package,
+            status,
+            versions=[],
+            default_branch="",
+            version_type=TRACKING_METHOD_DIRECTORY,
+        )
 
     def package_versions(self, installed_package: InstalledPackage) -> list[str]:
         """Returns a list of version number tags available for a package.
@@ -1994,11 +2045,8 @@ class Manager:
         Returns:
             list of str: the version number tags.
         """
-        name = installed_package.package.name
-        assert name
-        clonepath = os.path.join(self.package_clonedir, name)
-        clone = git.Repo(clonepath)
-        return git_version_tags(clone)
+        assert installed_package.package.name
+        return git_version_tags(self._open_package_clone(installed_package.package))
 
     def validate_dependencies(
         self,
@@ -2489,10 +2537,13 @@ class Manager:
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
 
+            if _is_directory_package(git_url):
+                return f"cannot bundle directory package {git_url}: bundling requires a Git repository"
+
             if prefer_existing_clones:
                 ipkg = match_package_url_and_version(git_url, version)
 
-                if ipkg:
+                if ipkg and _is_git_package(ipkg.status):
                     src = os.path.join(self.package_clonedir, ipkg.package.name)
                     shutil.copytree(src, clonepath, symlinks=True)
                     clone = git.Repo(clonepath)
@@ -2701,28 +2752,15 @@ class Manager:
                 delete_path(clonepath)
 
             try:
-                clone = _clone_package(info.package, clonepath, version)
-            except git.GitCommandError as error:
-                LOG.warning("failed to clone git repo: %s", error)
+                snapshot = _prepare_snapshot(info.package, version, clonepath)
+            except Exception as error:
+                LOG.warning("failed to prepare package: %s", error)
                 assert stage.state_dir
-                return (
-                    f"failed to clone {info.package.git_url}",
-                    False,
-                    stage.state_dir,
-                )
+                return (str(error), False, stage.state_dir)
 
-            try:
-                git_checkout(clone, version)
-            except git.GitCommandError as error:
-                LOG.warning("failed to checkout git repo version: %s", error)
-                assert stage.state_dir
-                return (
-                    f"failed to checkout {version} of {info.package.git_url}",
-                    False,
-                    stage.state_dir,
-                )
-
-            fail_msg = self._stage(info.package, version, clone, stage, env)
+            assert snapshot.version is not None
+            version = snapshot.version
+            fail_msg = self._stage(info.package, version, snapshot, stage, env)
 
             if fail_msg:
                 return (fail_msg, False, self.state_dir)
@@ -2798,7 +2836,7 @@ class Manager:
         self,
         package: Package,
         version: str,
-        clone: git.Repo,
+        snapshot: PackageSnapshot,
         stage: Stage,
         env: dict[str, str] | None = None,
     ) -> str:
@@ -2808,18 +2846,17 @@ class Manager:
         location in the file system, called a "stage". The stage may be the
         actual installation folders for the system's Zeek distribution, or one
         purely internal to zkg's stage management when testing a package. The
-        steps involved in staging include cloning and checking out the package
-        at the desired version, building it if it features a build_command, and
-        installing script & plugin folders inside the requested stage.
+        steps involved in staging include building the package if it features a
+        build_command, and installing script & plugin folders inside the
+        requested stage.
 
         Args:
             package (:class:`.package.Package`): the package to stage
 
-            version (str): the git tag, branch name, or commit hash of the
-                package version to stage
+            version (str): the resolved version of the package to stage
 
-            clone (:class:`git.Repo`): the on-disk clone of the package's
-                git repository.
+            snapshot (:class:`.package.PackageSnapshot`): snapshot of the
+                package's on-disk state at the point it entered processing.
 
             stage (:class:`Stage`): the staging object describing the disk
                 locations for installation.
@@ -2834,18 +2871,8 @@ class Manager:
 
         """
         LOG.debug('staging "%s": version %s', package, version)
-        metadata_file = _pick_metadata_file(str(clone.working_dir))
-        metadata_parser = configparser.ConfigParser(interpolation=None)
-        invalid_reason: str | None = _parse_package_metadata(
-            metadata_parser,
-            metadata_file,
-        )
-        if invalid_reason:
-            return invalid_reason
-
-        metadata = _get_package_metadata(metadata_parser)
         interpolated_metadata, invalid_reason = self._interpolate_package_metadata(
-            metadata,
+            snapshot.meta,
             stage,
         )
         if invalid_reason:
@@ -2863,14 +2890,14 @@ class Manager:
             build = subprocess.Popen(
                 build_command,
                 shell=True,
-                cwd=clone.working_dir,
+                cwd=snapshot.working_dir,
                 env=env,
                 bufsize=bufsize,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
 
-            buildlog = self.package_build_log(str(clone.working_dir))
+            buildlog = self.package_build_log(str(snapshot.working_dir))
             try:
                 with open(buildlog, "wb") as f:
                     LOG.info(
@@ -2916,7 +2943,7 @@ class Manager:
                 return f"package build_command failed, see log in {buildlog}"
 
         pkg_script_dir = interpolated_metadata.get("script_dir", "")
-        script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
+        script_dir_src = os.path.join(snapshot.working_dir, pkg_script_dir)
         script_dir_dst = os.path.join(stage.script_dir, package.name)
 
         if not os.path.exists(script_dir_src):
@@ -2963,7 +2990,7 @@ class Manager:
             )
 
         pkg_plugin_dir = interpolated_metadata.get("plugin_dir", "build")
-        plugin_dir_src = os.path.join(clone.working_dir, pkg_plugin_dir)
+        plugin_dir_src = os.path.join(snapshot.working_dir, pkg_plugin_dir)
         plugin_dir_dst = os.path.join(stage.plugin_dir, package.name)
 
         if not os.path.exists(plugin_dir_src):
@@ -2989,7 +3016,7 @@ class Manager:
 
         # Ensure any listed executables exist as advertised.
         for p in self._get_executables(interpolated_metadata):
-            full_path = os.path.join(clone.working_dir, p)
+            full_path = os.path.join(snapshot.working_dir, p)
             if not os.path.isfile(full_path):
                 return f"executable '{p}' is missing"
 
@@ -3005,7 +3032,12 @@ class Manager:
 
         return ""
 
-    def install(self, pkg_path: str, version: str = "") -> str:
+    def install(
+        self,
+        pkg_path: str,
+        version: str = "",
+        skip_version_validation: bool = False,
+    ) -> str:
         """Install a package.
 
         Args:
@@ -3019,6 +3051,10 @@ class Manager:
                 installed (or if no version tags exist, the default branch like
                 "main" or "master" is installed).  If given, it may be either a
                 git version tag, a git branch name, or a git commit hash.
+
+            skip_version_validation (bool): if True, a mismatch between the
+                ``version`` field in ``zkg.meta`` and the installed Git tag is
+                logged as a warning instead of failing the installation.
 
         Returns:
             str: empty string if package installation succeeded else an error
@@ -3038,7 +3074,11 @@ class Manager:
                 LOG.debug('installing "%s": re-install: %s', pkg_path, conflict)
                 clonepath = os.path.join(self.package_clonedir, conflict.name)
                 _clone_package(conflict, clonepath, version)
-                return self._install(conflict, version)
+                return self._install(
+                    conflict,
+                    version,
+                    skip_version_validation=skip_version_validation,
+                )
 
             LOG.info(
                 'installing "%s": matched already installed package: %s',
@@ -3054,7 +3094,11 @@ class Manager:
         if not matches:
             try:
                 package = Package(git_url=pkg_path)
-                return self._install(package, version)
+                return self._install(
+                    package,
+                    version,
+                    skip_version_validation=skip_version_validation,
+                )
             except git.GitCommandError as error:
                 LOG.info('installing "%s": invalid git repo path: %s', pkg_path, error)
 
@@ -3075,7 +3119,11 @@ class Manager:
             )
 
         try:
-            return self._install(matches[0], version)
+            return self._install(
+                matches[0],
+                version,
+                skip_version_validation=skip_version_validation,
+            )
         except git.GitCommandError as error:
             LOG.warning('installing "%s": source package git repo is invalid', pkg_path)
             return f'failed to clone package "{pkg_path}": {error}'
@@ -3137,6 +3185,7 @@ class Manager:
         package: Package,
         version: str,
         use_existing_clone: bool = False,
+        skip_version_validation: bool = False,
     ) -> str:
         """Install a :class:`.package.Package`.
 
@@ -3148,58 +3197,47 @@ class Manager:
             git.GitCommandError: if the git repo is invalid
             IOError: if the package manifest file can't be written
         """
-        clonepath = os.path.join(self.package_clonedir, package.name)
         ipkg = self.find_installed_package(package.name)
-
-        if use_existing_clone or ipkg:
-            clone = git.Repo(clonepath)
-        else:
-            clone = _clone_package(package, clonepath, version)
 
         status = PackageStatus()
         status.is_loaded = ipkg.status.is_loaded if ipkg else False
         status.is_pinned = ipkg.status.is_pinned if ipkg else False
 
-        version_tags = git_version_tags(clone)
+        clonepath = os.path.join(self.package_clonedir, package.name)
+        existing_clone = (
+            self._open_package_clone(package) if use_existing_clone or ipkg else None
+        )
 
-        if version:
-            if _is_commit_hash(clone, version):
-                status.tracking_method = TRACKING_METHOD_COMMIT
-            elif version in version_tags:
-                status.tracking_method = TRACKING_METHOD_VERSION
+        try:
+            snapshot = _prepare_snapshot(
+                package,
+                version,
+                clonepath,
+                existing_clone=existing_clone,
+            )
+        except Exception as e:
+            return str(e)
+
+        status.tracking_method = snapshot.tracking_method
+        status.current_version = snapshot.version
+        status.current_hash = snapshot.current_hash
+        status.is_outdated = snapshot.is_outdated
+
+        # When installing a tagged version, require that the optional zkg.meta
+        # `version` field, if present, matches the Git tag.
+        meta_version = snapshot.meta.get("version")
+        if (
+            snapshot.tracking_method == TRACKING_METHOD_VERSION
+            and meta_version
+            and meta_version != snapshot.version
+        ):
+            msg = f"zkg.meta version '{meta_version}' does not match Git tag '{snapshot.version}'"
+            if skip_version_validation:
+                LOG.warning("%s", msg)
             else:
-                branches = _get_branch_names(clone)
+                return msg
 
-                if version in branches:
-                    status.tracking_method = TRACKING_METHOD_BRANCH
-                else:
-                    LOG.info(
-                        'branch "%s" not in available branches: %s',
-                        version,
-                        branches,
-                    )
-                    return f'no such branch or version tag: "{version}"'
-
-        elif len(version_tags):
-            version = version_tags[-1]
-            status.tracking_method = TRACKING_METHOD_VERSION
-        else:
-            version = git_default_branch(clone)
-            status.tracking_method = TRACKING_METHOD_BRANCH
-
-        status.current_version = version
-        git_checkout(clone, version)
-        status.current_hash = clone.head.object.hexsha
-        status.is_outdated = _is_clone_outdated(clone, version, status.tracking_method)
-
-        metadata_file = _pick_metadata_file(str(clone.working_dir))
-        metadata_parser = configparser.ConfigParser(interpolation=None)
-        invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
-
-        if invalid_reason:
-            return invalid_reason
-
-        raw_metadata = _get_package_metadata(metadata_parser)
+        raw_metadata = snapshot.meta
 
         invalid_reason = self._validate_alias_conflict(package, raw_metadata)
 
@@ -3209,7 +3247,10 @@ class Manager:
         # A dummy stage that uses the actual installation folders;
         # we do not need to populate() it.
         stage = Stage(self)
-        fail_msg = self._stage(package, version, clone, stage)
+        # `_prepare_snapshot` guarantees `version` is set for both directory
+        # and Git sources.
+        assert snapshot.version is not None
+        fail_msg = self._stage(package, snapshot.version, snapshot, stage)
         if fail_msg:
             return fail_msg
 
@@ -3300,6 +3341,153 @@ class Manager:
                         LOG.warning("failed to remove link %s", old)
 
 
+@dataclass
+class GitResolution:
+    """The resolved Git state for a package after checkout."""
+
+    version: str
+    tracking_method: str
+    current_hash: str
+    is_outdated: bool
+
+
+def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, str]:
+    """Return (resolved_version, tracking_method) for *version* in *clone*.
+
+    When *version* is ``None`` or empty, the best available version is chosen
+    automatically: the latest semver tag if any exist, otherwise the default
+    branch.
+
+    Raises:
+        ValueError: if *version* does not match any tag, branch, or commit.
+    """
+    version_tags = git_version_tags(clone)
+
+    if version:
+        if _is_commit_hash(clone, version):
+            return version, TRACKING_METHOD_COMMIT
+        if version in version_tags:
+            return version, TRACKING_METHOD_VERSION
+        branches = _get_branch_names(clone)
+        if version in branches:
+            return version, TRACKING_METHOD_BRANCH
+        LOG.info(
+            'branch "%s" not in available branches: %s',
+            version,
+            branches,
+        )
+        raise ValueError(f'no such branch or version tag: "{version}"')
+
+    if version_tags:
+        return version_tags[-1], TRACKING_METHOD_VERSION
+    return git_default_branch(clone), TRACKING_METHOD_BRANCH
+
+
+def _resolve_git_version(clone: git.Repo, version: str | None) -> GitResolution:
+    """Read the current HEAD of *clone* and return a :class:`GitResolution`.
+
+    The caller must check out the desired ref before calling this function;
+    the hash and outdated flag reflect the current HEAD state of *clone*.
+
+    Raises:
+        ValueError: if *version* does not match any tag, branch, or commit.
+    """
+    version, tracking_method = _pick_version(clone, version)
+    current_hash = clone.head.object.hexsha
+    is_outdated = _is_clone_outdated(clone, version, tracking_method)
+
+    return GitResolution(version, tracking_method, current_hash, is_outdated)
+
+
+def _prepare_snapshot(
+    package: Package,
+    version: str | None,
+    dest_path: str,
+    *,
+    existing_clone: git.Repo | None = None,
+) -> PackageSnapshot:
+    """Resolve *package* to a :class:`.package.PackageSnapshot`.
+
+    For plain directories (a path that exists and has no ``.git`` sub-directory)
+    the snapshot is built directly from ``zkg.meta`` in the directory.  For all
+    other sources a Git clone is obtained (reusing *existing_clone* when
+    provided, otherwise cloning into *dest_path*), the requested *version* is
+    resolved and checked out, and the snapshot is built from the clone.
+
+    Raises:
+        ValueError: if metadata is missing, invalid, or (for directory sources)
+            has no ``version`` field.
+        git.GitCommandError: if cloning or checkout fails.
+    """
+    if _is_directory_package(package.git_url):
+        make_symlink(package.git_url, dest_path)
+        return _snapshot_from_directory(dest_path)
+
+    clone = existing_clone or _clone_package(package, dest_path, version)
+    resolved_version, _ = _pick_version(clone, version)
+    git_checkout(clone, resolved_version)
+    resolution = _resolve_git_version(clone, version)
+    return _snapshot_from_git_repo(clone, resolution)
+
+
+def _snapshot_from_git_repo(
+    clone: git.Repo,
+    resolution: GitResolution,
+) -> PackageSnapshot:
+    """Construct a :class:`.package.PackageSnapshot` from an already-resolved
+    git clone.
+
+    The clone must already be checked out at the desired ref (i.e.
+    :func:`_resolve_git_version` has been called).  Metadata is read once and
+    stored in the snapshot; no git objects are needed after this point.
+
+    Raises:
+        ValueError: if the metadata file is missing or invalid.
+    """
+    metadata_file = _pick_metadata_file(str(clone.working_dir))
+    metadata_parser = configparser.ConfigParser(interpolation=None)
+    invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
+    if invalid_reason:
+        raise ValueError(invalid_reason)
+    return PackageSnapshot(
+        working_dir=str(clone.working_dir),
+        meta=_get_package_metadata(metadata_parser),
+        version=resolution.version,
+        tracking_method=resolution.tracking_method,
+        current_hash=resolution.current_hash,
+        is_outdated=resolution.is_outdated,
+    )
+
+
+def _snapshot_from_directory(path: str) -> PackageSnapshot:
+    """Construct a :class:`.package.PackageSnapshot` from a plain directory.
+
+    The ``version`` field in ``zkg.meta`` is mandatory since there is no
+    version control history to derive it from.
+
+    Raises:
+        ValueError: if the metadata file is missing, invalid, or has no
+            ``version`` field.
+    """
+    metadata_file = _pick_metadata_file(path)
+    metadata_parser = configparser.ConfigParser(interpolation=None)
+    invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
+    if invalid_reason:
+        raise ValueError(invalid_reason)
+    meta = _get_package_metadata(metadata_parser)
+    version = meta.get("version")
+    if not version:
+        raise ValueError(
+            "zkg.meta is missing a required 'version' field for directory-backed packages",
+        )
+    return PackageSnapshot(
+        working_dir=path,
+        meta=meta,
+        version=version,
+        tracking_method=TRACKING_METHOD_DIRECTORY,
+    )
+
+
 def _get_branch_names(clone: git.Repo) -> list[str]:
     rval = []
 
@@ -3312,6 +3500,24 @@ def _get_branch_names(clone: git.Repo) -> list[str]:
         rval.append(branch_name.split("origin/")[1])
 
     return rval
+
+
+def _is_directory_package(path: str) -> bool:
+    """Return True if *path* should be handled as a directory-backed package."""
+    return os.path.isdir(path) and not os.path.isdir(os.path.join(path, ".git"))
+
+
+def _is_git_package(status: PackageStatus) -> bool:
+    """Return True if *status* represents a git-backed package.
+
+    Non-git package sources (e.g. local directories) will use a different
+    tracking method; this predicate guards operations that require a git clone.
+    """
+    return status.tracking_method in (
+        TRACKING_METHOD_VERSION,
+        TRACKING_METHOD_BRANCH,
+        TRACKING_METHOD_COMMIT,
+    )
 
 
 def _is_version_outdated(clone: git.Repo, version: str) -> bool:
@@ -3483,42 +3689,20 @@ def _parse_package_metadata(
 _legacy_metadata_warnings: set[str] = set()
 
 
-def _info_from_clone(
-    clone: git.Repo,
+def _info_from_snapshot(
+    snapshot: PackageSnapshot,
     package: Package,
     status: PackageStatus | None,
-    version: str | None,
+    versions: list[str],
+    default_branch: str,
+    version_type: str,
 ) -> PackageInfo:
-    """Retrieves information about a package.
+    """Build a :class:`.package.PackageInfo` from a :class:`.package.PackageSnapshot`.
 
-    Returns:
-        A :class:`.package.PackageInfo` object.
+    All git-specific resolution (version tags, default branch, version type)
+    must be performed by the caller before constructing the snapshot.
     """
-    versions = git_version_tags(clone)
-    default_branch = git_default_branch(clone)
-
-    if version and _is_commit_hash(clone, version):
-        version_type = TRACKING_METHOD_COMMIT
-    elif version in versions:
-        version_type = TRACKING_METHOD_VERSION
-    else:
-        version_type = TRACKING_METHOD_BRANCH
-
-    metadata_file = _pick_metadata_file(str(clone.working_dir))
-    metadata_parser = configparser.ConfigParser(interpolation=None)
-    invalid_reason = _parse_package_metadata(metadata_parser, metadata_file)
-
-    if invalid_reason:
-        return PackageInfo(
-            package=package,
-            invalid_reason=invalid_reason,
-            status=status,
-            versions=versions,
-            metadata_version=version,
-            version_type=version_type,
-            metadata_file=metadata_file,
-            default_branch=default_branch,
-        )
+    metadata_file = _pick_metadata_file(snapshot.working_dir)
 
     if (
         os.path.basename(metadata_file) == LEGACY_METADATA_FILENAME
@@ -3533,15 +3717,12 @@ def _info_from_clone(
         )
         _legacy_metadata_warnings.add(package.qualified_name())
 
-    metadata = _get_package_metadata(metadata_parser)
-
     return PackageInfo(
         package=package,
-        invalid_reason=invalid_reason,
         status=status,
-        metadata=metadata,
+        metadata=snapshot.meta,
         versions=versions,
-        metadata_version=version,
+        metadata_version=snapshot.version,
         version_type=version_type,
         metadata_file=metadata_file,
         default_branch=default_branch,

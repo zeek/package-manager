@@ -1,6 +1,6 @@
 # Test invalid package names and paths
 # @TEST-EXEC-FAIL: bash %INPUT 2>output
-# @TEST-EXEC: btest-diff output
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff output
 
 CONFIG=$(pwd)/config
 mkdir -p invalid
