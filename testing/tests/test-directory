@@ -1,0 +1,12 @@
+# @TEST-DOC: Test that "zkg test" works on a plain directory package.
+#
+# @TEST-REQUIRES: type zeek
+# @TEST-EXEC: touch mypkg/__load__.zeek
+# @TEST-EXEC: zkg test ./mypkg >output 2>&1
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff output
+
+@TEST-START-FILE mypkg/zkg.meta
+[package]
+version = 1.0.0
+test_command = echo "tests passed"
+@TEST-END-FILE
