@@ -1,3 +1,31 @@
+3.1.0-47 | 2026-07-17 11:17:40 +0200
+
+  * Rework `tests.info-submodules` to avoid reaching out to the internet (Benjamin Bannier, Corelight)
+
+    This test was hardcoding the URI of a supposedly non-existent repo on
+    github.com. This not only caused the test to reach out to the internet
+    just to find nothing, but on some systems it also could have lead to the
+    test hanging while waiting for a user password prompt to unlock their
+    keychain.
+
+    With this patch we now use an definitely non-existing repo which can be
+    validated without reaching out to expensive external APIs.
+
+    While touching the file we also fix a mispelling of `git commit` as
+    `gitcommit`; this only failed silently and had no effect on the test
+    outcome since the changes were committed with another `git commit`
+    later.
+
+  * Drop unnecessary shared state (Benjamin Bannier, Corelight)
+
+    We previously reused the same variable `status` to store different
+    values without really sharing them. This made the code harder to follow,
+    so this patch just gets rid of that sharing.
+
+  * Drop unused variables (Benjamin Bannier, Corelight)
+
+  * Fix formatting of code (Benjamin Bannier, Corelight)
+
 3.1.0-42 | 2026-07-14 08:21:26 +0200
 
   * Clean up documentation of dependencies (Benjamin Bannier, Corelight)
