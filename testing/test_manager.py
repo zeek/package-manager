@@ -9,7 +9,7 @@ import pytest
 from zeekpkg.manager import (
     GitResolution,
     Manager,
-    _info_from_clone,
+    _info_from_snapshot,
     _is_git_package,
     _resolve_git_version,
     _snapshot_from_git_repo,
@@ -238,8 +238,8 @@ def test_is_git_package(method: str | None, expected: bool) -> None:
     assert _is_git_package(PackageStatus(tracking_method=method)) is expected
 
 
-def test_info_from_clone(repo: git.Repo) -> None:
-    # `_info_from_clone` must propagate metadata, versions, default branch,
+def test_info_from_snapshot(repo: git.Repo) -> None:
+    # `_info_from_snapshot` must propagate metadata, versions, default branch,
     # and `version_type` from the snapshot and its arguments into `PackageInfo`.
     meta_file = pathlib.Path(repo.working_dir) / "zkg.meta"
     meta_file.write_text("[package]\ndescription = hello\n")
@@ -250,7 +250,7 @@ def test_info_from_clone(repo: git.Repo) -> None:
     resolution = _resolve_git_version(repo, "v1.0.0")
     snapshot = _snapshot_from_git_repo(repo, resolution)
     package = Package(git_url=str(repo.working_dir), canonical=True)
-    info = _info_from_clone(
+    info = _info_from_snapshot(
         snapshot,
         package,
         status=None,
