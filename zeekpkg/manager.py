@@ -1289,7 +1289,7 @@ class Manager:
                 )
                 continue
 
-            if not _is_git_package(ipkg.status):
+            if ipkg.status.tracking_method is None:
                 continue
 
             # Deliberate git entry point: fetch requires network access and
@@ -2540,7 +2540,9 @@ class Manager:
             if prefer_existing_clones:
                 ipkg = match_package_url_and_version(git_url, version)
 
-                if ipkg and _is_git_package(ipkg.status):
+                # Only reuse the existing clone if the installed package is
+                # git-backed; directory packages have no clone to copy.
+                if ipkg and ipkg.status.tracking_method is not None:
                     src = os.path.join(self.package_clonedir, ipkg.package.name)
                     shutil.copytree(src, clonepath, symlinks=True)
                     clone = git.Repo(clonepath)
@@ -3502,15 +3504,6 @@ def _get_branch_names(clone: git.Repo) -> list[str]:
 def _is_directory_package(path: str) -> bool:
     """Return True if *path* should be handled as a directory-backed package."""
     return os.path.isdir(path) and not os.path.isdir(os.path.join(path, ".git"))
-
-
-def _is_git_package(status: PackageStatus) -> bool:
-    """Return True if *status* represents a git-backed package.
-
-    Non-git package sources (e.g. local directories) have no tracking method;
-    this predicate guards operations that require a git clone.
-    """
-    return status.tracking_method is not None
 
 
 def _is_version_outdated(clone: git.Repo, version: str) -> bool:

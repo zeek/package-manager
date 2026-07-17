@@ -11,7 +11,6 @@ from zeekpkg.manager import (
     Manager,
     _info_from_snapshot,
     _is_directory_package,
-    _is_git_package,
     _prepare_snapshot,
     _resolve_git_version,
     _snapshot_from_directory,
@@ -222,19 +221,6 @@ def _make_installed(
         current_hash=current_hash,
     )
     manager.installed_pkgs[name] = InstalledPackage(pkg, status)
-
-
-@pytest.mark.parametrize(
-    "method,expected",
-    [
-        (TrackingMethod.VERSION, True),
-        (TrackingMethod.BRANCH, True),
-        (TrackingMethod.COMMIT, True),
-        (None, False),
-    ],
-)
-def test_is_git_package(method: str | None, expected: bool) -> None:
-    assert _is_git_package(PackageStatus(tracking_method=method)) is expected
 
 
 def test_snapshot_from_directory(pkg_dir: pathlib.Path) -> None:
