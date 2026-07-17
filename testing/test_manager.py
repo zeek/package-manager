@@ -6,11 +6,24 @@ from unittest.mock import patch
 import git
 import pytest
 
-from zeekpkg.manager import GitResolution, Manager, _resolve_git_version
+from zeekpkg.manager import (
+    GitResolution,
+    Manager,
+    _info_from_clone,
+    _is_git_package,
+    _resolve_git_version,
+    _snapshot_from_git_repo,
+)
 from zeekpkg.package import (
     TRACKING_METHOD_BRANCH,
+    TRACKING_METHOD_BUILTIN,
     TRACKING_METHOD_COMMIT,
     TRACKING_METHOD_VERSION,
+    InstalledPackage,
+    Package,
+    PackageInfo,
+    PackageSnapshot,
+    PackageStatus,
 )
 
 
@@ -165,3 +178,110 @@ def test_test_resolve_version_error(
         error, passed, _ = manager.test(str(pkg_repo_with_test_command.working_dir))
     assert not passed
     assert "bad version" in error
+
+
+def test__snapshot_from_git_repo(repo: git.Repo) -> None:
+    meta_file = pathlib.Path(repo.working_dir) / "zkg.meta"
+    meta_file.write_text("[package]\ndescription = test pkg\n")
+    repo.index.add(["zkg.meta"])
+    repo.index.commit("add zkg.meta")
+    resolution = _resolve_git_version(repo, None)
+    snapshot = _snapshot_from_git_repo(repo, resolution)
+    assert isinstance(snapshot, PackageSnapshot)
+    assert snapshot.meta["description"] == "test pkg"
+    assert snapshot.version == resolution.version
+    assert snapshot.tracking_method == resolution.tracking_method
+    assert snapshot.current_hash == resolution.current_hash
+    assert snapshot.working_dir == repo.working_dir
+
+
+def test__snapshot_from_git_repo_missing_metadata_raises(repo: git.Repo) -> None:
+    resolution = _resolve_git_version(repo, None)
+    with pytest.raises(ValueError, match="missing"):
+        _snapshot_from_git_repo(repo, resolution)
+
+
+def _make_installed(
+    manager: Manager,
+    name: str,
+    is_loaded: bool = False,
+    is_pinned: bool = False,
+    is_outdated: bool = False,
+    tracking_method: str | None = None,
+    current_version: str | None = None,
+    current_hash: str | None = None,
+) -> None:
+    """Register a fake installed package in *manager*."""
+    pkg = Package(git_url=f"https://example.com/{name}", name=name, canonical=True)
+    status = PackageStatus(
+        is_loaded=is_loaded,
+        is_pinned=is_pinned,
+        is_outdated=is_outdated,
+        tracking_method=tracking_method,
+        current_version=current_version,
+        current_hash=current_hash,
+    )
+    manager.installed_pkgs[name] = InstalledPackage(pkg, status)
+
+
+@pytest.mark.parametrize(
+    "method,expected",
+    [
+        (TRACKING_METHOD_VERSION, True),
+        (TRACKING_METHOD_BRANCH, True),
+        (TRACKING_METHOD_COMMIT, True),
+        (TRACKING_METHOD_BUILTIN, False),
+        (None, False),
+    ],
+)
+def test_is_git_package(method: str | None, expected: bool) -> None:
+    assert _is_git_package(PackageStatus(tracking_method=method)) is expected
+
+
+def test_info_from_clone(repo: git.Repo) -> None:
+    # `_info_from_clone` must propagate metadata, versions, default branch,
+    # and `version_type` from the snapshot and its arguments into `PackageInfo`.
+    meta_file = pathlib.Path(repo.working_dir) / "zkg.meta"
+    meta_file.write_text("[package]\ndescription = hello\n")
+    repo.index.add(["zkg.meta"])
+    repo.index.commit("add meta")
+    repo.create_tag("v1.0.0")
+
+    resolution = _resolve_git_version(repo, "v1.0.0")
+    snapshot = _snapshot_from_git_repo(repo, resolution)
+    package = Package(git_url=str(repo.working_dir), canonical=True)
+    info = _info_from_clone(
+        snapshot,
+        package,
+        status=None,
+        versions=["v1.0.0"],
+        default_branch="main",
+        version_type=TRACKING_METHOD_VERSION,
+    )
+    assert isinstance(info, PackageInfo)
+    assert info.metadata["description"] == "hello"
+    assert info.versions == ["v1.0.0"]
+    assert info.default_branch == "main"
+    assert info.version_type == TRACKING_METHOD_VERSION
+    assert info.invalid_reason == ""
+
+
+def test_info_installed_missing_metadata(manager: Manager) -> None:
+    # An installed package with no zkg.meta must be reported as invalid.
+    pkg_name = "mypkg"
+    pkg_dir = pathlib.Path(manager.package_clonedir) / pkg_name
+    r = git.Repo.init(pkg_dir, initial_branch="main")
+    r.config_writer().set_value("user", "name", "Test").release()
+    r.config_writer().set_value("user", "email", "test@test").release()
+    (pkg_dir / "file.txt").write_text("hi")
+    r.index.add(["file.txt"])
+    r.index.commit("init")
+
+    _make_installed(
+        manager,
+        pkg_name,
+        tracking_method=TRACKING_METHOD_BRANCH,
+        current_version="main",
+    )
+    info = manager.info(f"https://example.com/{pkg_name}", prefer_installed=True)
+    assert info.invalid_reason != ""
