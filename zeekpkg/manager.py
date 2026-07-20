@@ -273,7 +273,7 @@ class Manager:
             None  # Cached Zeek built-in packages.
         )
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
-        self._info_cache: dict[tuple[str, str | None, bool, bool], PackageInfo] = {}
+        self._info_cache: dict[tuple[str, str | None, bool], PackageInfo] = {}
         self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
@@ -1874,7 +1874,6 @@ class Manager:
         pkg_path: str,
         version: str | None = "",
         prefer_installed: bool = True,
-        update_submodules: bool = True,
     ) -> PackageInfo:
         """Retrieves information about a package.
 
@@ -1896,14 +1895,11 @@ class Manager:
                 The `version` parameter is also ignored when this is set as
                 it uses whatever version of the package is currently installed.
 
-            update_submodules (bool): if this is set, git checkout will update
-                the submodules for the repository.
-
         Returns:
             A :class:`.package.PackageInfo` object.
         """
         pkg_path = canonical_url(pkg_path)
-        cache_key = (pkg_path, version, prefer_installed, update_submodules)
+        cache_key = (pkg_path, version, prefer_installed)
 
         if cache_key in self._info_cache:
             return self._info_cache[cache_key]
@@ -1916,12 +1912,7 @@ class Manager:
 
         LOG.debug('getting info on "%s"', pkg_path)
 
-        result = self._info_lookup(
-            pkg_path,
-            version,
-            prefer_installed,
-            update_submodules,
-        )
+        result = self._info_lookup(pkg_path, version, prefer_installed)
         self._info_cache[cache_key] = result
         return result
 
@@ -1930,7 +1921,6 @@ class Manager:
         pkg_path: str,
         version: str | None,
         prefer_installed: bool,
-        update_submodules: bool,
     ) -> PackageInfo:
         # Handle built-in packages like installed packages
         # but avoid looking up the repository information.
@@ -1957,7 +1947,7 @@ class Manager:
             package = Package(git_url=pkg_path)
 
             try:
-                return self._info(package, None, version, update_submodules)
+                return self._info(package, None, version)
             except git.GitCommandError as error:
                 LOG.info(
                     'getting info on "%s": invalid git repo path: %s',
@@ -1990,7 +1980,7 @@ class Manager:
         package = matches[0]
 
         try:
-            return self._info(package, None, version, update_submodules)
+            return self._info(package, None, version)
         except git.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s', pkg_path, error)
             reason = "git repository is either invalid or unreachable"
@@ -2001,7 +1991,6 @@ class Manager:
         package: Package,
         status: PackageStatus | None,
         version: str | None,
-        update_submodules: bool,
     ) -> PackageInfo:
         """Retrieves information about a package.
 
@@ -2012,7 +2001,7 @@ class Manager:
             git.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
-        clone = _clone_package(package, clonepath, version, update_submodules)
+        clone = _clone_package(package, clonepath, version, recursive=False)
         versions = git_version_tags(clone)
 
         if not version:
@@ -2022,7 +2011,7 @@ class Manager:
                 version = git_default_branch(clone)
 
         try:
-            git_checkout(clone, version, update_submodules)
+            git_checkout(clone, version, update_submodules=False)
         except git.GitCommandError:
             reason = f'no such commit, branch, or version tag: "{version}"'
             return PackageInfo(package=package, status=status, invalid_reason=reason)
