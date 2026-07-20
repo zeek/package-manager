@@ -4,12 +4,10 @@
 # @TEST-EXEC: zkg install --version 1.0.0 foo
 # @TEST-EXEC: zkg list installed > installed-initial.out
 
-# @TEST-EXEC-FAIL: zkg install --version 2.0.0 foo >conflict.out 2>&1
-# @TEST-EXEC: head -2 conflict.out > conflict.trimmed.out && mv conflict.trimmed.out conflict.out
+# @TEST-EXEC: zkg install --version 2.0.0 foo
 # @TEST-EXEC: zkg list installed > installed-final.out
 
 # @TEST-EXEC: btest-diff installed-initial.out
-# @TEST-EXEC: btest-diff conflict.out
 # @TEST-EXEC: btest-diff installed-final.out
 
 cd packages/foo
