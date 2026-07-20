@@ -6,6 +6,7 @@ from unittest.mock import patch
 import git
 import pytest
 
+from zeekpkg._util import _semver_versions
 from zeekpkg.manager import (
     GitResolution,
     Manager,
@@ -564,3 +565,29 @@ def test_deps_at_version_returns_empty_when_no_depends_field(
     r = _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
     result = _deps_at_version(r, "v1.0.0")
     assert result == {}
+
+
+def test_semver_versions_filters_invalid() -> None:
+    tags = ["v1.0.0", "not-a-version", "v2.3.4", "branch-name"]
+    result = _semver_versions(tags)
+    assert result == [("v1.0.0", "1.0.0"), ("v2.3.4", "2.3.4")]
+
+
+def test_semver_versions_strips_v_prefix() -> None:
+    result = _semver_versions(["v1.2.3"])
+    assert result == [("v1.2.3", "1.2.3")]
+
+
+def test_semver_versions_coerces_partial() -> None:
+    result = _semver_versions(["1.2"])
+    assert result == [("1.2", "1.2")]
+
+
+def test_semver_versions_drops_branch_names() -> None:
+    result = _semver_versions(["main", "feature/foo"])
+    assert result == []
+
+
+def test_semver_versions_drops_sha_hashes() -> None:
+    result = _semver_versions(["a" * 40])
+    assert result == []
