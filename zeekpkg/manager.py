@@ -21,6 +21,9 @@ from urllib.parse import urlparse
 
 import git
 import semantic_version as semver
+from nab_resolver.errors import ResolutionError
+from nab_resolver.ranges import Range
+from nab_resolver.resolver import Resolver
 
 from . import (
     LOG,
@@ -31,6 +34,7 @@ from ._resolver import (
     _get_branch_names,
     _Node,
     _normalize_constraint,
+    _ZkgProvider,
 )
 from ._util import (
     configparser_section_dict,
@@ -2258,211 +2262,278 @@ class Manager:
                 graph[node.name] = node
                 to_process[node.name] = node
 
-        # 2. Fill in the edges of the graph with dependency information.
-        for name, node in graph.items():
-            if name == "zeek":
+        info_cache: dict[str, PackageInfo] = {}
+
+        def _cached_info(pkg_path: str) -> PackageInfo:
+            key = canonical_url(pkg_path)
+            if key not in info_cache:
+                info_cache[key] = self.info(pkg_path, prefer_installed=False)
+            return info_cache[key]
+
+        def _is_versioned_package(v: str) -> bool:
+            """Return True if *v* is a semver-coercible version the solver can use."""
+            if is_sha1(v):
+                return False
+            try:
+                semver.Version.coerce(v)
+                return True
+            except ValueError:
+                return False
+
+        # Identify branch-constrained packages across all graph nodes (including
+        # suggests when not ignore_suggestions).
+        branch_pkgs: list[tuple[PackageInfo, str, bool]] = []
+        branch_pkg_names: set[str] = set()
+
+        for src_node in list(graph.values()):
+            if src_node.info is None:
                 continue
-
-            if name == "zkg":
-                continue
-
-            assert node.info
-            dd = node.info.dependencies(field="depends")
-            ds = node.info.dependencies(field="suggests")
-
-            if dd is None:
-                return (
-                    f'package "{node.name}" has malformed "depends" field',
-                    [],
-                )
-
-            all_deps = dd.copy()
-
+            src_deps: dict[str, str] = src_node.info.dependencies(field="depends") or {}
             if not ignore_suggestions:
-                if ds is None:
+                src_deps = {
+                    **src_deps,
+                    **(src_node.info.dependencies(field="suggests") or {}),
+                }
+            for dep_name, spec in src_deps.items():
+                if not spec.startswith("branch="):
+                    continue
+                branch_name = spec[len("branch=") :]
+                dep_info = self.find_builtin_package(dep_name)
+                if dep_info is None:
+                    dep_info = _cached_info(dep_name)
+                if dep_info.invalid_reason:
                     return (
-                        f'package "{node.name}" has malformed "suggests" field',
+                        f'package "{src_node.name}" has invalid dependency "{dep_name}":'
+                        f" {dep_info.invalid_reason}",
                         [],
                     )
-
-                all_deps.update(ds)
-
-            for dep_name, dep_version in all_deps.items():
-                if dep_name == "zeek":
-                    if "zeek" in graph:
-                        graph["zeek"].dependers[name] = dep_version
-                        node.dependees["zeek"] = dep_version
-                elif dep_name == "zkg":
-                    if "zkg" in graph:
-                        graph["zkg"].dependers[name] = dep_version
-                        node.dependees["zkg"] = dep_version
-                else:
-                    for _, dependency_node in graph.items():
-                        if dependency_node.name == "zeek":
-                            continue
-
-                        if dependency_node.name == "zkg":
-                            continue
-
-                        assert dependency_node.info
-                        if dependency_node.info.package.matches_path(dep_name):
-                            dependency_node.dependers[name] = dep_version
-                            node.dependees[dependency_node.name] = dep_version
-                            break
-
-        # 3. Try to solve for a connected graph with no edge conflicts.
-
-        # Traverse graph in breadth-first order, starting from artificial root
-        # with all nodes requested by caller as child nodes.
-        nodes_todo = requests
-
-        # The resulting list of packages required to satisfy dependencies,
-        # in depender -> dependent (i.e., root -> leaves in dependency tree)
-        # order.
-        new_pkgs: list[tuple[PackageInfo, str, bool]] = []
-
-        while nodes_todo:
-            node = nodes_todo.pop(0)
-            for name in node.dependees:
-                nodes_todo.append(graph[name])
-
-            # Avoid cyclic dependencies: ensure we traverse these edges only
-            # once. (The graph may well be a dag, so it's okay to encounter
-            # specific nodes repeatedly.)
-            node.dependees = {}
-
-            if not node.dependers:
-                if node.installed_version:
-                    # We can ignore packages alreaday installed if nothing else
-                    # depends on them.
-                    continue
-
-                if node.requested_version:
-                    # Only the packges requested by the caller have a requested
-                    # version. We skip those too if nothing depends on them.
-                    continue
-
-                # A new package nothing depends on -- odd?
-                assert node.info
-                new_pkgs.append(
-                    (node.info, node.info.best_version(), node.is_suggestion),
-                )
-                continue
-
-            if node.requested_version:
-                # Check that requested version doesn't conflict with dependers.
-                for depender_name, version_spec in node.dependers.items():
-                    msg, fullfills = node.requested_version.fullfills(version_spec)
-                    if not fullfills:
+                qn = dep_info.package.qualified_name()
+                if graph.get(qn) and graph[qn].installed_version:
+                    iv = graph[qn].installed_version
+                    assert iv
+                    msg, ok = iv.fullfills(spec)
+                    if not ok:
                         return (
-                            f'unsatisfiable dependency: requested "{node.name}" ({node.requested_version.version}),'
-                            f' but "{depender_name}" requires {version_spec} ({msg})',
-                            new_pkgs,
+                            f'unsatisfiable dependency: "{qn}" ({iv.version}) is'
+                            f' installed, but "{src_node.name}" requires {spec} ({msg})',
+                            [],
                         )
+                elif qn not in branch_pkg_names:
+                    branch_pkgs.append(
+                        (dep_info, branch_name, src_node.is_suggestion),
+                    )
+                    branch_pkg_names.add(qn)
 
-            elif node.installed_version:
-                # Check that installed version doesn't conflict with dependers.
-                # track_method, required_version = node.installed_version
-
-                for depender_name, version_spec in node.dependers.items():
-                    msg, fullfills = node.installed_version.fullfills(version_spec)
-                    if not fullfills:
-                        return (
-                            f'unsatisfiable dependency: "{node.name}" ({node.installed_version.version}) is installed,'
-                            f' but "{depender_name}" requires {version_spec} ({msg})',
-                            new_pkgs,
-                        )
-            else:
-                # Choose best version that satisfies constraints
-                best_version = None
-                need_branch = False
-                need_version = False
-
-                def no_best_version_string(node: _Node) -> str:
-                    rval = f'"{node.name}" has no version satisfying dependencies:\n'
-
-                    for depender_name, version_spec in node.dependers.items():
-                        rval += f'\t"{depender_name}" requires: "{version_spec}"\n'
-
-                    return rval
-
-                for _, version_spec in node.dependers.items():
-                    if version_spec.startswith("branch="):
-                        need_branch = True
-                    elif version_spec != "*":
-                        need_version = True
-
-                if need_branch and need_version:
-                    return (no_best_version_string(node), new_pkgs)
-
-                if need_branch:
-                    branch_name = None
-
-                    for _, version_spec in node.dependers.items():
-                        if version_spec == "*":
-                            continue
-
-                        if not branch_name:
-                            branch_name = version_spec[len("branch=") :]
-                            continue
-
-                        if branch_name != version_spec[len("branch=") :]:
-                            return (no_best_version_string(node), new_pkgs)
-
-                    if branch_name:
-                        best_version = branch_name
+        # hard_pinned: builtins, directory packages, zeek, zkg -- cannot be upgraded.
+        # soft_pinned: git-backed installed packages -- solver may upgrade them.
+        hard_pinned: dict[str, str] = {}
+        soft_pinned: dict[str, str] = {}
+        installed_qnames: set[str] = set()
+        if not ignore_installed_packages:
+            zeek_v = get_zeek_version()
+            if zeek_v:
+                hard_pinned["zeek"] = normalize_version_tag(zeek_v)
+            hard_pinned["zkg"] = normalize_version_tag(__version__)
+            for ipkg in self.installed_packages():
+                iname = ipkg.package.qualified_name()
+                installed_qnames.add(iname)
+                installed_ver = ipkg.status.current_version
+                if installed_ver:
+                    norm = normalize_version_tag(installed_ver)
+                    if _is_directory_package(ipkg.package.git_url):
+                        hard_pinned[iname] = norm
                     else:
-                        assert node.info
-                        best_version = node.info.default_branch
-                elif need_version:
-                    assert node.info
-                    for version in node.info.versions[::-1]:
-                        normal_version = normalize_version_tag(version)
-                        req_semver = semver.Version.coerce(normal_version)
+                        soft_pinned[iname] = norm
 
-                        satisfied = True
+        explicitly_requested: set[str] = {
+            node.name for node in requests if node.info is not None
+        }
 
-                        for depender_name, version_spec in node.dependers.items():
-                            try:
-                                semver_spec = semver.SimpleSpec(
-                                    _normalize_constraint(version_spec),
-                                )
-                            except ValueError:
-                                return (
-                                    f'package "{depender_name}" has invalid semver spec: {version_spec}',
-                                    new_pkgs,
-                                )
+        provider = _ZkgProvider(self, graph)
+        resolver: Resolver[str, semver.Version] = Resolver(
+            provider,
+            range_type=Range,
+            root_version=semver.Version("0.0.0"),
+        )
 
-                            if req_semver not in semver_spec:
-                                satisfied = False
-                                break
+        requirements: dict[str, Range[semver.Version]] = {}
+        requested_qnames: set[str] = set()
+        for req_node in requests:
+            assert req_node.info
+            qname = req_node.name
+            requested_qnames.add(qname)
+            rv = req_node.requested_version
+            if rv and rv.version:
+                norm = normalize_version_tag(rv.version)
+                if _is_versioned_package(norm):
+                    requirements[qname] = Range.singleton(semver.Version.coerce(norm))
+                    continue
+            # Branch-tracked or no semver version: any version satisfies.
+            requirements[qname] = Range.full()
+        for binfo, _, _ in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            if bqn not in requirements and bqn not in hard_pinned:
+                requirements[bqn] = Range.singleton(semver.Version("0.0.0"))
 
-                        if satisfied:
-                            best_version = version
-                            break
-
-                    if not best_version:
-                        return (no_best_version_string(node), new_pkgs)
-                else:
-                    # Must have been all '*' wildcards or no dependers
-                    assert node.info
-                    best_version = node.info.best_version()
-
-                assert node.info
-                assert best_version
-                new_pkgs.append((node.info, best_version, node.is_suggestion))
-
-        # Remove duplicate new nodes, preserving their latest (i.e. deepest-in-
-        # tree) occurrences. Traversing the resulting list right-to-left guarantees
-        # that we never visit a node before we've visited all of its dependees.
-        seen_nodes = set()
-        res: list[tuple[PackageInfo, str, bool]] = []
-
-        for it in reversed(new_pkgs):
-            if it[0].package.name in seen_nodes:
+        constraints: dict[str, Range[semver.Version]] = {}
+        for qname, norm in hard_pinned.items():
+            if qname in explicitly_requested:
                 continue
-            seen_nodes.add(it[0].package.name)
-            res.insert(0, it)
+            if _is_versioned_package(norm):
+                constraints[qname] = Range.singleton(semver.Version.coerce(norm))
+        for qname, norm in soft_pinned.items():
+            if qname in explicitly_requested:
+                continue
+            if _is_versioned_package(norm):
+                constraints[qname] = Range.singleton(semver.Version.coerce(norm))
+
+        # Branch packages are installed at a specific branch ref, not a semver
+        # tag.  Register only the synthetic 0.0.0 version and pre-populate the
+        # cache with their current deps (including suggests when applicable).
+        for binfo, _, _ in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            synth_v = semver.Version("0.0.0")
+            provider._versions[bqn] = [synth_v]
+            raw_bdeps: dict[str, str] = binfo.dependencies(field="depends") or {}
+            if not ignore_suggestions:
+                raw_bdeps = {
+                    **raw_bdeps,
+                    **(binfo.dependencies(field="suggests") or {}),
+                }
+            bsynth_deps: dict[str, str] = {}
+            for dep_s, dep_spec in raw_bdeps.items():
+                if dep_s in ("zeek", "zkg") or dep_spec.startswith("branch="):
+                    continue
+                di = self.find_builtin_package(dep_s)
+                if di is None:
+                    di = _cached_info(dep_s)
+                if not di.invalid_reason:
+                    bsynth_deps[di.package.qualified_name()] = _normalize_constraint(
+                        dep_spec,
+                    )
+            provider._cache[(bqn, synth_v)] = (binfo.best_version(), bsynth_deps)
+
+        try:
+            resolved: dict[str, semver.Version] = resolver.resolve(
+                requirements,
+                constraints=constraints,
+            )
+        except ResolutionError as e:
+            return (str(e).split("\n")[0], [])
+
+        suggestion_names: set[str] = {
+            name for name, node in graph.items() if node.is_suggestion
+        }
+
+        def _pkg_deps(qn: str) -> list[str]:
+            """Return dep qualified names for *qn* from provider cache or node info."""
+            result_d: list[str] = []
+            rv = resolved.get(qn)
+            if rv is not None:
+                cache_entry = provider._cache.get((qn, rv))
+                if cache_entry:
+                    _, d = cache_entry
+                    result_d = list(d)
+                    if not ignore_suggestions:
+                        nd = graph.get(qn)
+                        if nd and nd.info:
+                            raw_sug = nd.info.dependencies(field="suggests") or {}
+                            for dep_s in raw_sug:
+                                if dep_s in ("zeek", "zkg"):
+                                    continue
+                                di = self.find_builtin_package(dep_s)
+                                if di is None:
+                                    di = _cached_info(dep_s)
+                                if not di.invalid_reason:
+                                    dqn = di.package.qualified_name()
+                                    if dqn not in result_d:
+                                        result_d.append(dqn)
+                    return sorted(result_d)
+            nd = graph.get(qn)
+            if nd and nd.info:
+                raw: dict[str, str] = nd.info.dependencies(field="depends") or {}
+                if not ignore_suggestions:
+                    raw = {**raw, **(nd.info.dependencies(field="suggests") or {})}
+                for dep_s in raw:
+                    if dep_s in ("zeek", "zkg"):
+                        continue
+                    di = self.find_builtin_package(dep_s)
+                    if di is None:
+                        di = _cached_info(dep_s)
+                    if not di.invalid_reason:
+                        result_d.append(di.package.qualified_name())
+            return sorted(result_d)
+
+        dfs_visited: set[str] = set()
+        dfs_in_stack: set[str] = set()
+
+        def _dfs_emit(start: str) -> list[tuple[str, str, bool]]:
+            result: list[tuple[str, str, bool]] = []
+            stack: list[tuple[str, bool]] = [(start, False)]
+            while stack:
+                qn, post = stack.pop()
+                if post:
+                    dfs_in_stack.discard(qn)
+                    is_upgraded = (
+                        qn in soft_pinned
+                        and qn in resolved
+                        and _is_versioned_package(soft_pinned[qn])
+                        and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
+                    )
+                    if (
+                        qn in requested_qnames
+                        or (qn in installed_qnames and not is_upgraded)
+                        or qn in branch_pkg_names
+                    ):
+                        continue
+                    node = graph.get(qn)
+                    if node is None or node.info is None:
+                        continue
+                    is_sug = qn in suggestion_names
+                    rv = resolved.get(qn)
+                    if rv is not None:
+                        cache_entry = provider._cache.get((qn, rv))
+                        raw_tag = (
+                            cache_entry[0] if cache_entry else node.info.best_version()
+                        )
+                    else:
+                        raw_tag = node.info.best_version()
+                    result.append((qn, raw_tag, is_sug))
+                else:
+                    if qn in dfs_visited or qn in dfs_in_stack:
+                        continue
+                    dfs_visited.add(qn)
+                    dfs_in_stack.add(qn)
+                    stack.append((qn, True))
+                    for dep_qn in reversed(_pkg_deps(qn)):
+                        if dep_qn not in dfs_visited and dep_qn not in dfs_in_stack:
+                            stack.append((dep_qn, False))
+            return result
+
+        seeds = list(requested_qnames) + [
+            binfo.package.qualified_name() for binfo, _, _ in branch_pkgs
+        ]
+        post_order: list[tuple[str, str, bool]] = []
+        for seed in seeds:
+            post_order.extend(_dfs_emit(seed))
+
+        # post_order is leaves-first; reverse to get root-first for the return
+        # value (caller reverses again when installing, so leaves end up first).
+        seen_res: set[str] = set()
+        res: list[tuple[PackageInfo, str, bool]] = []
+        for qn, raw_tag, is_sug in reversed(post_order):
+            if qn in seen_res:
+                continue
+            seen_res.add(qn)
+            res_node = graph.get(qn)
+            if res_node is None or res_node.info is None:
+                continue
+            res.append((res_node.info, raw_tag, is_sug))
+
+        for binfo, bversion, bsug in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            if bqn not in installed_qnames and bqn not in requested_qnames:
+                res.append((binfo, bversion, bsug))
 
         return ("", res)
 

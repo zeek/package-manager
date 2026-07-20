@@ -10,6 +10,7 @@ from nab_resolver.ranges import Range
 
 from zeekpkg._resolver import (
     _constraint_to_range,
+    _fmt_range,
     _Node,
     _normalize_constraint,
     _ZkgProvider,
@@ -292,6 +293,90 @@ def test_fetch_deps_no_metadata_file(
     assert deps == {}
 
 
+def test_provider_init_version_from_versions_list(manager: Manager) -> None:
+    # No metadata_version; fall back to the last entry in info.versions.
+    info = MagicMock(spec=PackageInfo)
+    info.metadata_file = None
+    info.metadata_version = None
+    info.installed_version = None
+    info.versions = ["1.1.0", "1.2.0"]
+    info.invalid_reason = None
+    node = _Node("org/pkg")
+    node.info = info
+    provider = _ZkgProvider(manager, {"org/pkg": node})
+    assert semver.Version("1.2.0") in provider._versions.get("org/pkg", [])
+
+
+def test_provider_init_falls_back_to_zero_version(manager: Manager) -> None:
+    # No version inferable from any source -- provider must register 0.0.0 so
+    # the solver can still attempt resolution.
+    info = MagicMock(spec=PackageInfo)
+    info.metadata_file = None
+    info.metadata_version = None
+    info.installed_version = None
+    info.versions = []
+    info.invalid_reason = None
+    node = _Node("org/pkg")
+    node.info = info
+    provider = _ZkgProvider(manager, {"org/pkg": node})
+    assert provider._versions.get("org/pkg") == [semver.Version("0.0.0")]
+
+
+def test_fetch_deps_non_git_directory(manager: Manager, tmp_path: pathlib.Path) -> None:
+    # metadata_file points inside a plain directory (not a git repo) --
+    # _fetch_deps must fall through to the InvalidGitRepositoryError handler.
+    plain_dir = tmp_path / "plain"
+    plain_dir.mkdir()
+    meta_file = plain_dir / "zkg.meta"
+    meta_file.write_text("[package]\ndescription = plain\n")
+    info = MagicMock(spec=PackageInfo)
+    info.metadata_file = str(meta_file)
+    info.metadata_version = "1.0.0"
+    info.best_version.return_value = "1.0.0"
+    info.dependencies.return_value = {}
+    info.invalid_reason = None
+    info.versions = []
+    node = _Node("org/plain")
+    node.info = info
+    provider = _ZkgProvider(manager, {"org/plain": node})
+    provider._versions["org/plain"] = [semver.Version("1.0.0")]
+    deps = provider.get_dependencies("org/plain", semver.Version("1.0.0"))
+    assert deps == {}
+
+
+def test_fetch_deps_synthetic_version(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # Version 9.9.9 has no matching tag -- _fetch_deps takes the synthetic
+    # version branch and reads current HEAD metadata instead.
+    repo = _make_tagged_repo(tmp_path, "synth", [("v1.0.0", "")])
+    info = MagicMock(spec=PackageInfo)
+    info.metadata_file = str(pathlib.Path(str(repo.working_dir)) / "zkg.meta")
+    info.metadata_version = "9.9.9"
+    info.best_version.return_value = "9.9.9"
+    info.dependencies.return_value = {}
+    info.invalid_reason = None
+    info.versions = []
+    node = _Node("org/synth")
+    node.info = info
+    provider = _ZkgProvider(manager, {"org/synth": node})
+    provider._versions["org/synth"] = [semver.Version("9.9.9")]
+    deps = provider.get_dependencies("org/synth", semver.Version("9.9.9"))
+    assert deps == {}
+
+
+def test_narrow_for_display_wraps_in_fmt_range(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    provider, _ = _provider_with_repo(manager, tmp_path, "org/pkg", [("v1.0.0", "")])
+    raw = Range.at_least(semver.Version("1.0.0"))
+    result = provider.narrow_for_display("org/pkg", raw)
+    assert isinstance(result, _FmtRange)
+    assert "inf" not in str(result)
+
+
 # ---------------------------------------------------------------------------
 # _fmt_range -- tests focus on cases where nab-resolver's raw interval
 # notation would expose sentinel strings like "(-inf, X) | (X, +inf)"
@@ -316,6 +401,11 @@ def test_fmt_range_excluded_version_no_inf() -> None:
     result = _fmt_range(r)
     assert "inf" not in result
     assert result == "<1.0.0 | >1.0.0"
+
+
+def test_fmt_range_exact_point() -> None:
+    r = Range.singleton(semver.Version("1.2.3"))
+    assert _fmt_range(r) == "=1.2.3"
 
 
 def test_fmt_range_full_is_wildcard() -> None:

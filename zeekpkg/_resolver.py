@@ -11,7 +11,7 @@ from __future__ import annotations
 import configparser
 import os
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import git
 import semantic_version as semver
@@ -19,7 +19,7 @@ from nab_resolver.ranges import Range
 from nab_resolver.resolver import ResolverProvider
 from nab_resolver.types import Incompatibility, RangeProtocol
 
-from ._util import _semver_versions, git_version_tags
+from ._util import _semver_versions, git_version_tags, is_sha1
 from .package import (
     LEGACY_METADATA_FILENAME,
     METADATA_FILENAME,
@@ -93,6 +93,35 @@ def _constraint_to_range(constraint: str) -> Range[semver.Version]:
     return result
 
 
+def _fmt_range(r: Range[semver.Version]) -> str:
+    """Format a Range as a user-friendly constraint string.
+
+    Replaces nab-resolver's default ``(-inf, X) | (X, +inf)`` notation with
+    operator-prefixed semver strings such as ``<1.0.0 | >1.0.0``.
+    """
+    parts = []
+    for lo, lo_inc, hi, hi_inc in r._intervals:
+        lo_inf = not isinstance(lo, semver.Version)
+        hi_inf = not isinstance(hi, semver.Version)
+        if lo_inf and hi_inf:
+            parts.append("*")
+        elif lo_inf:
+            parts.append(("<=" if hi_inc else "<") + str(hi))
+        elif hi_inf:
+            parts.append((">=" if lo_inc else ">") + str(lo))
+        elif lo == hi and lo_inc and hi_inc:
+            parts.append("=" + str(lo))
+        else:
+            parts.append(
+                (">=" if lo_inc else ">")
+                + str(lo)
+                + ", "
+                + ("<=" if hi_inc else "<")
+                + str(hi),
+            )
+    return " | ".join(parts) if parts else "none"
+
+
 class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
     """nab-resolver `ResolverProvider` backed by zkg package metadata.
 
@@ -122,6 +151,25 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
                     ]
                 except Exception:
                     pass
+            if not self._versions.get(qname) and node.info:
+                # No git tags: try a concrete version from metadata, installed
+                # state, or versions list; fall back to 0.0.0 so the solver can
+                # still resolve packages with no semver release history.
+                registered = False
+                for raw in (
+                    node.info.metadata_version,
+                    node.installed_version.version if node.installed_version else None,
+                    node.info.versions[-1] if node.info.versions else None,
+                ):
+                    if raw and not is_sha1(raw):
+                        try:
+                            self._versions[qname] = [semver.Version.coerce(raw)]
+                            registered = True
+                        except ValueError:
+                            pass
+                        break
+                if not registered:
+                    self._versions[qname] = [semver.Version("0.0.0")]
 
     def choose_version(
         self,
@@ -157,6 +205,19 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
                 pass
         return result
 
+    def _qualify_deps(self, raw_deps: dict[str, str]) -> dict[str, str]:
+        result: dict[str, str] = {}
+        for dep, spec in raw_deps.items():
+            if dep in ("zeek", "zkg") or spec.startswith("branch="):
+                continue
+            di = self._manager.find_builtin_package(dep)
+            if di is None:
+                di = self._manager.info(dep, prefer_installed=False)
+            if di.invalid_reason:
+                continue
+            result[di.package.qualified_name()] = _normalize_constraint(spec)
+        return result
+
     def _fetch_deps(
         self,
         qname: str,
@@ -169,36 +230,28 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
             # Builtin / directory package -- use current metadata.
             raw_tag = node.info.metadata_version or node.info.best_version()
             raw_deps = node.info.dependencies(field="depends") or {}
-            qualified: dict[str, str] = {}
-            for dep, spec in raw_deps.items():
-                if dep in ("zeek", "zkg") or spec.startswith("branch="):
-                    continue
-                di = self._manager.find_builtin_package(dep)
-                if di is None:
-                    di = self._manager.info(dep, prefer_installed=False)
-                if di.invalid_reason:
-                    continue
-                qualified[di.package.qualified_name()] = _normalize_constraint(spec)
-            return (raw_tag, qualified)
+            return (raw_tag, self._qualify_deps(raw_deps))
         clone_dir = os.path.dirname(node.info.metadata_file)
-        clone = git.Repo(clone_dir)
-        raw_tag = str(version)
+        try:
+            clone = git.Repo(clone_dir)
+        except git.InvalidGitRepositoryError:
+            # Directory package -- no git history; use current metadata.
+            raw_tag = node.info.metadata_version or node.info.best_version()
+            raw_deps = node.info.dependencies(field="depends") or {}
+            return (raw_tag, self._qualify_deps(raw_deps))
+        found_tag: str | None = None
         for rt, nv in _semver_versions(git_version_tags(clone)):
             if semver.Version.coerce(nv) == version:
-                raw_tag = rt
+                found_tag = rt
                 break
-        raw_deps = _deps_at_version(clone, raw_tag)
-        qualified_deps: dict[str, str] = {}
-        for dep, spec in raw_deps.items():
-            if dep in ("zeek", "zkg") or spec.startswith("branch="):
-                continue
-            di = self._manager.find_builtin_package(dep)
-            if di is None:
-                di = self._manager.info(dep, prefer_installed=False)
-            if di.invalid_reason:
-                continue
-            qualified_deps[di.package.qualified_name()] = _normalize_constraint(spec)
-        return (raw_tag, qualified_deps)
+        if found_tag is None:
+            # Synthetic version (no matching tag) -- use current HEAD metadata.
+            raw_deps = node.info.dependencies(field="depends") or {}
+            raw_tag = node.info.metadata_version or node.info.best_version()
+        else:
+            raw_tag = found_tag
+            raw_deps = _deps_at_version(clone, raw_tag)
+        return (raw_tag, self._qualify_deps(raw_deps))
 
     def prioritize(
         self,
@@ -237,7 +290,16 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
         package: str,
         constraint: RangeProtocol[semver.Version],
     ) -> RangeProtocol[semver.Version]:
-        return constraint
+        r = cast(Range[semver.Version], constraint)
+        display = _fmt_range(r)
+
+        class _Displayed(Range[semver.Version]):
+            __slots__ = ()
+
+            def __str__(self) -> str:
+                return display
+
+        return cast(RangeProtocol[semver.Version], _Displayed(r._intervals))
 
 
 def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
