@@ -2153,7 +2153,11 @@ class Manager:
         while to_process:
             (_, node) = to_process.popitem()
             assert node.info
-            dd = node.info.dependencies(field="depends")
+            dd: dict[str, str] | None = _deps_at_version(
+                None,
+                None,
+                node.info,
+            )
             ds = node.info.dependencies(field="suggests")
 
             if dd is None:
@@ -3499,6 +3503,19 @@ def _get_branch_names(clone: git.Repo) -> list[str]:
         rval.append(branch_name.split("origin/")[1])
 
     return rval
+
+
+def _deps_at_version(
+    clone: git.Repo | None,
+    tag: str | None,
+    info: "PackageInfo",
+) -> dict[str, str]:
+    """Return the dependency dict for *info* at *tag*.
+
+    The *clone* and *tag* arguments are currently unused; the result comes
+    from the already-loaded PackageInfo metadata.
+    """
+    return info.dependencies(field="depends") or {}
 
 
 def _is_directory_package(path: str) -> bool:

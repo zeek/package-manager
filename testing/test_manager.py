@@ -9,6 +9,7 @@ import pytest
 from zeekpkg.manager import (
     GitResolution,
     Manager,
+    _deps_at_version,
     _info_from_snapshot,
     _is_directory_package,
     _prepare_snapshot,
@@ -509,3 +510,24 @@ def test_test_directory_package(
     error, passed, _ = manager.test(str(pkg_dir))
     assert not passed
     assert "test_command" in error
+
+
+def _make_info(deps: dict[str, str] | None = None) -> "PackageInfo":
+    """Build a minimal PackageInfo with the given depends dict."""
+    meta: dict[str, str] = {}
+    if deps is not None:
+        meta["depends"] = " ".join(f"{k} {v}" for k, v in deps.items())
+    pkg = Package(git_url="https://example.com/pkg", name="pkg", canonical=True)
+    return PackageInfo(package=pkg, metadata=meta, versions=["v1.0.0"])
+
+
+def test_deps_at_version_returns_deps_from_info() -> None:
+    info = _make_info({"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"})
+    result = _deps_at_version(None, "v1.0.0", info)
+    assert result == {"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"}
+
+
+def test_deps_at_version_returns_empty_when_no_depends() -> None:
+    info = _make_info()
+    result = _deps_at_version(None, "v1.0.0", info)
+    assert result == {}
