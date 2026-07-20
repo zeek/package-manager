@@ -2125,12 +2125,55 @@ class Manager:
             graph[node.name] = node
             requests.append(node)
 
+        if not ignore_installed_packages:
+            zeek_version_seed = get_zeek_version()
+            if zeek_version_seed:
+                zeek_seed = _Node("zeek")
+                zeek_seed.installed_version = PackageVersion(
+                    TrackingMethod.VERSION,
+                    zeek_version_seed,
+                )
+                graph["zeek"] = zeek_seed
+
+            zkg_seed = _Node("zkg")
+            zkg_seed.installed_version = PackageVersion(
+                TrackingMethod.VERSION,
+                __version__,
+            )
+            graph["zkg"] = zkg_seed
+
+            if use_builtin_packages:
+                for binfo in self.discover_builtin_packages():
+                    bname = binfo.package.qualified_name()
+                    if bname not in graph:
+                        bnode = _Node(bname)
+                        bnode.info = binfo
+                        graph[bname] = bnode
+
+            for ipkg in self.installed_packages():
+                iname = ipkg.package.qualified_name()
+                if iname in graph:
+                    graph[iname].installed_version = PackageVersion(
+                        ipkg.status.tracking_method,
+                        ipkg.status.current_version,
+                    )
+                    continue
+                iinfo = self.info(iname, prefer_installed=True)
+                inode = _Node(iname)
+                inode.info = iinfo
+                inode.installed_version = PackageVersion(
+                    ipkg.status.tracking_method,
+                    ipkg.status.current_version,
+                )
+                graph[iname] = inode
+
         # Recursively add nodes for all dependencies of requested packages,
         to_process = copy.copy(graph)
 
         while to_process:
             (_, node) = to_process.popitem()
-            assert node.info
+            if node.info is None:
+                continue
             best_tag = node.info.versions[-1] if node.info.versions else None
             if best_tag and node.info.metadata_file:
                 clone_dir = os.path.dirname(node.info.metadata_file)
@@ -2214,42 +2257,6 @@ class Manager:
                 node.is_suggestion = is_suggestion
                 graph[node.name] = node
                 to_process[node.name] = node
-
-        # Add nodes for things that are already installed (including zeek)
-        if not ignore_installed_packages:
-            zeek_version = get_zeek_version()
-
-            if zeek_version:
-                node = _Node("zeek")
-                node.installed_version = PackageVersion(
-                    TrackingMethod.VERSION,
-                    zeek_version,
-                )
-                graph["zeek"] = node
-            else:
-                LOG.warning('could not get zeek version: no "zeek-config" in PATH ?')
-
-            node = _Node("zkg")
-            node.installed_version = PackageVersion(
-                TrackingMethod.VERSION,
-                __version__,
-            )
-            graph["zkg"] = node
-
-            for ipkg in self.installed_packages():
-                name = ipkg.package.qualified_name()
-                status = ipkg.status
-
-                if name not in graph:
-                    info = self.info(name, prefer_installed=True)
-                    node = _Node(name)
-                    node.info = info
-                    graph[node.name] = node
-
-                graph[name].installed_version = PackageVersion(
-                    status.tracking_method,
-                    status.current_version,
-                )
 
         # 2. Fill in the edges of the graph with dependency information.
         for name, node in graph.items():
