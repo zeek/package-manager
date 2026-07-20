@@ -2001,7 +2001,8 @@ class Manager:
             git.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
-        clone = _clone_package(package, clonepath, version, recursive=False)
+        delete_path(clonepath)
+        clone = git_clone(package.git_url, clonepath, shallow=True, recursive=False)
         versions = git_version_tags(clone)
 
         if not version:
