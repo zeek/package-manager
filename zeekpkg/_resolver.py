@@ -260,7 +260,7 @@ def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
     if content is None:
         return {}
 
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(interpolation=None)
     parser.read_string(content)
     meta = dict(parser["package"]) if parser.has_section("package") else {}
     return pkg_dependencies(meta, field="depends") or {}
