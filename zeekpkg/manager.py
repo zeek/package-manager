@@ -273,6 +273,7 @@ class Manager:
             None  # Cached Zeek built-in packages.
         )
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
+        self._info_cache: dict[tuple[str, str | None, bool, bool], PackageInfo] = {}
         self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
@@ -1878,6 +1879,11 @@ class Manager:
             A :class:`.package.PackageInfo` object.
         """
         pkg_path = canonical_url(pkg_path)
+        cache_key = (pkg_path, version, prefer_installed, update_submodules)
+
+        if cache_key in self._info_cache:
+            return self._info_cache[cache_key]
+
         name = name_from_path(pkg_path)
 
         if not is_valid_package_name(name):
@@ -1886,6 +1892,22 @@ class Manager:
 
         LOG.debug('getting info on "%s"', pkg_path)
 
+        result = self._info_lookup(
+            pkg_path,
+            version,
+            prefer_installed,
+            update_submodules,
+        )
+        self._info_cache[cache_key] = result
+        return result
+
+    def _info_lookup(
+        self,
+        pkg_path: str,
+        version: str | None,
+        prefer_installed: bool,
+        update_submodules: bool,
+    ) -> PackageInfo:
         # Handle built-in packages like installed packages
         # but avoid looking up the repository information.
         bpkg_info = self.find_builtin_package(pkg_path)
