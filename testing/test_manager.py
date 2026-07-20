@@ -512,22 +512,55 @@ def test_test_directory_package(
     assert "test_command" in error
 
 
-def _make_info(deps: dict[str, str] | None = None) -> "PackageInfo":
-    """Build a minimal PackageInfo with the given depends dict."""
-    meta: dict[str, str] = {}
-    if deps is not None:
-        meta["depends"] = " ".join(f"{k} {v}" for k, v in deps.items())
-    pkg = Package(git_url="https://example.com/pkg", name="pkg", canonical=True)
-    return PackageInfo(package=pkg, metadata=meta, versions=["v1.0.0"])
+def _make_tagged_repo(
+    tmp_path: pathlib.Path,
+    tag: str,
+    meta_filename: str,
+    meta_content: str,
+) -> git.Repo:
+    """Create a git repo with a tagged commit containing the given metadata file."""
+    r = git.Repo.init(tmp_path, initial_branch="main")
+    r.config_writer().set_value("user", "name", "Test").release()
+    r.config_writer().set_value("user", "email", "test@test").release()
+    (tmp_path / meta_filename).write_text(meta_content)
+    r.index.add([meta_filename])
+    r.index.commit("init")
+    r.create_tag(tag)
+    return r
 
 
-def test_deps_at_version_returns_deps_from_info() -> None:
-    info = _make_info({"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"})
-    result = _deps_at_version(None, "v1.0.0", info)
-    assert result == {"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"}
+def test_deps_at_version_reads_from_zkg_meta(tmp_path: pathlib.Path) -> None:
+    content = "[package]\ndescription = test\ndepends = dep-a >=1.0.0 dep-b *\n"
+    r = _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
+    result = _deps_at_version(r, "v1.0.0")
+    assert result == {"dep-a": ">=1.0.0", "dep-b": "*"}
 
 
-def test_deps_at_version_returns_empty_when_no_depends() -> None:
-    info = _make_info()
-    result = _deps_at_version(None, "v1.0.0", info)
+def test_deps_at_version_falls_back_to_legacy_meta(tmp_path: pathlib.Path) -> None:
+    content = "[package]\ndescription = test\ndepends = dep-c >=2.0.0\n"
+    r = _make_tagged_repo(tmp_path, "v1.0.0", "bro-pkg.meta", content)
+    result = _deps_at_version(r, "v1.0.0")
+    assert result == {"dep-c": ">=2.0.0"}
+
+
+def test_deps_at_version_returns_empty_when_no_meta_file(
+    tmp_path: pathlib.Path,
+) -> None:
+    r = git.Repo.init(tmp_path, initial_branch="main")
+    r.config_writer().set_value("user", "name", "Test").release()
+    r.config_writer().set_value("user", "email", "test@test").release()
+    (tmp_path / "README").write_text("hi")
+    r.index.add(["README"])
+    r.index.commit("init")
+    r.create_tag("v1.0.0")
+    result = _deps_at_version(r, "v1.0.0")
+    assert result == {}
+
+
+def test_deps_at_version_returns_empty_when_no_depends_field(
+    tmp_path: pathlib.Path,
+) -> None:
+    content = "[package]\ndescription = no deps here\n"
+    r = _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
+    result = _deps_at_version(r, "v1.0.0")
     assert result == {}

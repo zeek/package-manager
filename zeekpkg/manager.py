@@ -68,6 +68,9 @@ from .package import (
     name_from_path,
 )
 from .package import (
+    dependencies as pkg_dependencies,
+)
+from .package import (
     is_valid_name as is_valid_package_name,
 )
 from .source import AGGREGATE_DATA_FILE, Source
@@ -2153,11 +2156,13 @@ class Manager:
         while to_process:
             (_, node) = to_process.popitem()
             assert node.info
-            dd: dict[str, str] | None = _deps_at_version(
-                None,
-                None,
-                node.info,
-            )
+            best_tag = node.info.versions[-1] if node.info.versions else None
+            if best_tag and node.info.metadata_file:
+                clone_dir = os.path.dirname(node.info.metadata_file)
+                node_clone = git.Repo(clone_dir)
+                dd: dict[str, str] | None = _deps_at_version(node_clone, best_tag)
+            else:
+                dd = node.info.dependencies(field="depends") or {}
             ds = node.info.dependencies(field="suggests")
 
             if dd is None:
@@ -3505,17 +3510,27 @@ def _get_branch_names(clone: git.Repo) -> list[str]:
     return rval
 
 
-def _deps_at_version(
-    clone: git.Repo | None,
-    tag: str | None,
-    info: "PackageInfo",
-) -> dict[str, str]:
-    """Return the dependency dict for *info* at *tag*.
+def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
+    """Return the dependency dict for *clone* at *tag* by reading the metadata file.
 
-    The *clone* and *tag* arguments are currently unused; the result comes
-    from the already-loaded PackageInfo metadata.
+    Tries METADATA_FILENAME first, falls back to LEGACY_METADATA_FILENAME.
+    Returns ``{}`` if neither file exists at *tag* or if the depends field is absent.
     """
-    return info.dependencies(field="depends") or {}
+    content: str | None = None
+    for filename in (METADATA_FILENAME, LEGACY_METADATA_FILENAME):
+        try:
+            content = clone.git.show(f"{tag}:{filename}")
+            break
+        except git.GitCommandError:
+            continue
+
+    if content is None:
+        return {}
+
+    parser = configparser.ConfigParser()
+    parser.read_string(content)
+    meta = dict(parser["package"]) if parser.has_section("package") else {}
+    return pkg_dependencies(meta, field="depends") or {}
 
 
 def _is_directory_package(path: str) -> bool:
