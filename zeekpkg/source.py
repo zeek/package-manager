@@ -80,7 +80,15 @@ class Source:
                 shutil.rmtree(clone_path)
                 self.clone = git_clone(git_url, clone_path, shallow=True)
 
-        git_checkout(self.clone, version or git_default_branch(self.clone))
+        target = version or git_default_branch(self.clone)
+
+        try:
+            current = self.clone.active_branch.name
+        except TypeError:
+            current = self.clone.head.commit.hexsha
+
+        if current != target:
+            git_checkout(self.clone, target)
 
     def __str__(self) -> str:
         return self.git_url
