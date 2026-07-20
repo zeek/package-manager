@@ -26,6 +26,12 @@ from . import (
     LOG,
     __version__,
 )
+from ._resolver import (
+    _deps_at_version,
+    _get_branch_names,
+    _Node,
+    _normalize_constraint,
+)
 from ._util import (
     configparser_section_dict,
     copy_over_path,
@@ -66,9 +72,6 @@ from .package import (
     canonical_url,
     make_builtin_package,
     name_from_path,
-)
-from .package import (
-    dependencies as pkg_dependencies,
 )
 from .package import (
     is_valid_name as is_valid_package_name,
@@ -2100,36 +2103,8 @@ class Manager:
             prior to the depender packages.
         """
 
-        class Node:
-            def __init__(self, name: str):
-                self.name = name
-                self.info: PackageInfo | None = None
-
-                # (tracking method, version)
-                self.requested_version: PackageVersion | None = None
-
-                # (tracking method, version)
-                self.installed_version: PackageVersion | None = None
-
-                # name -> version, name needs self at version
-                self.dependers: dict[str, str] = {}
-
-                # name -> version, self needs name at version
-                self.dependees: dict[str, str] = {}
-
-                self.is_suggestion = False
-
-            def __str__(self) -> str:
-                return (
-                    f"{self.name}\n\t"
-                    f"requested: {self.requested_version}\n\t"
-                    f"installed: {self.installed_version}\n\t"
-                    f"dependers: {self.dependers}\n\t"
-                    f"suggestion: {self.is_suggestion}"
-                )
-
-        graph: dict[str, Node] = {}  # Node.name -> Node, nodes store edges
-        requests: list[Node] = []  # List of Node, just for requested packages
+        graph: dict[str, _Node] = {}
+        requests: list[_Node] = []
 
         # 1. Try to make nodes for everything in the dependency graph...
 
@@ -2143,7 +2118,7 @@ class Manager:
                     [],
                 )
 
-            node = Node(info.package.qualified_name())
+            node = _Node(info.package.qualified_name())
             node.info = info
             method = node.info.version_type
             node.requested_version = PackageVersion(method, version)
@@ -2234,7 +2209,7 @@ class Manager:
                         to_process[dep_name].is_suggestion = False
                     continue
 
-                node = Node(dep_name)
+                node = _Node(dep_name)
                 node.info = info2
                 node.is_suggestion = is_suggestion
                 graph[node.name] = node
@@ -2245,7 +2220,7 @@ class Manager:
             zeek_version = get_zeek_version()
 
             if zeek_version:
-                node = Node("zeek")
+                node = _Node("zeek")
                 node.installed_version = PackageVersion(
                     TrackingMethod.VERSION,
                     zeek_version,
@@ -2254,7 +2229,7 @@ class Manager:
             else:
                 LOG.warning('could not get zeek version: no "zeek-config" in PATH ?')
 
-            node = Node("zkg")
+            node = _Node("zkg")
             node.installed_version = PackageVersion(
                 TrackingMethod.VERSION,
                 __version__,
@@ -2267,7 +2242,7 @@ class Manager:
 
                 if name not in graph:
                     info = self.info(name, prefer_installed=True)
-                    node = Node(name)
+                    node = _Node(name)
                     node.info = info
                     graph[node.name] = node
 
@@ -2396,7 +2371,7 @@ class Manager:
                 need_branch = False
                 need_version = False
 
-                def no_best_version_string(node: Node) -> str:
+                def no_best_version_string(node: _Node) -> str:
                     rval = f'"{node.name}" has no version satisfying dependencies:\n'
 
                     for depender_name, version_spec in node.dependers.items():
@@ -2442,7 +2417,9 @@ class Manager:
 
                         for depender_name, version_spec in node.dependers.items():
                             try:
-                                semver_spec = semver.Spec(version_spec)
+                                semver_spec = semver.SimpleSpec(
+                                    _normalize_constraint(version_spec),
+                                )
                             except ValueError:
                                 return (
                                     f'package "{depender_name}" has invalid semver spec: {version_spec}',
@@ -3494,43 +3471,6 @@ def _snapshot_from_directory(path: str) -> PackageSnapshot:
         version=version,
         tracking_method=None,
     )
-
-
-def _get_branch_names(clone: git.Repo) -> list[str]:
-    rval = []
-
-    for ref in clone.references:
-        branch_name = str(ref.name)
-
-        if not branch_name.startswith("origin/"):
-            continue
-
-        rval.append(branch_name.split("origin/")[1])
-
-    return rval
-
-
-def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
-    """Return the dependency dict for *clone* at *tag* by reading the metadata file.
-
-    Tries METADATA_FILENAME first, falls back to LEGACY_METADATA_FILENAME.
-    Returns ``{}`` if neither file exists at *tag* or if the depends field is absent.
-    """
-    content: str | None = None
-    for filename in (METADATA_FILENAME, LEGACY_METADATA_FILENAME):
-        try:
-            content = clone.git.show(f"{tag}:{filename}")
-            break
-        except git.GitCommandError:
-            continue
-
-    if content is None:
-        return {}
-
-    parser = configparser.ConfigParser()
-    parser.read_string(content)
-    meta = dict(parser["package"]) if parser.has_section("package") else {}
-    return pkg_dependencies(meta, field="depends") or {}
 
 
 def _is_directory_package(path: str) -> bool:

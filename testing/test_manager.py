@@ -6,11 +6,11 @@ from unittest.mock import patch
 import git
 import pytest
 
+from zeekpkg._resolver import _deps_at_version
 from zeekpkg._util import _semver_versions
 from zeekpkg.manager import (
     GitResolution,
     Manager,
-    _deps_at_version,
     _info_from_snapshot,
     _is_directory_package,
     _prepare_snapshot,
