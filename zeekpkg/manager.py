@@ -2385,7 +2385,7 @@ class Manager:
             if qname in explicitly_requested:
                 continue
             if _is_versioned_package(norm):
-                constraints[qname] = Range.singleton(semver.Version.coerce(norm))
+                constraints[qname] = Range.at_least(semver.Version.coerce(norm))
 
         # Branch packages are installed at a specific branch ref, not a semver
         # tag.  Register only the synthetic 0.0.0 version and pre-populate the
