@@ -12,6 +12,7 @@ import pytest
 from zeekpkg.manager import (
     GitResolution,
     Manager,
+    _deps_at_version,
     _info_from_snapshot,
     _is_directory_package,
     _prepare_snapshot,
@@ -535,6 +536,26 @@ class TestManagerBundle:
             prefer_existing_clones=True,
         )
         assert "cannot bundle directory package" in result
+
+
+def _make_info(deps: dict[str, str] | None = None) -> "PackageInfo":
+    meta: dict[str, str] = {}
+    if deps is not None:
+        meta["depends"] = " ".join(f"{k} {v}" for k, v in deps.items())
+    pkg = Package(git_url="https://example.com/pkg", name="pkg", canonical=True)
+    return PackageInfo(package=pkg, metadata=meta, versions=["v1.0.0"])
+
+
+class TestDepsAtVersion:
+    def test_returns_deps_from_info(self) -> None:
+        info = _make_info({"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"})
+        result = _deps_at_version(None, "v1.0.0", info)
+        assert result == {"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"}
+
+    def test_returns_empty_when_no_depends(self) -> None:
+        info = _make_info()
+        result = _deps_at_version(None, "v1.0.0", info)
+        assert result == {}
 
 
 class TestInfoCache:
