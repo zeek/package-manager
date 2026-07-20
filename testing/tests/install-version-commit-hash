@@ -1,0 +1,19 @@
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: (cd packages/grault && git checkout 1.0.0)
+# @TEST-EXEC: (cd packages/grault && git rev-parse HEAD) > grault.head.hash
+# @TEST-EXEC: zkg install grault --version=$(cat grault.head.hash)
+# @TEST-EXEC: cp scripts/packages/grault/__load__.zeek grault.detached.head
+# @TEST-EXEC: btest-diff grault.detached.head
+# @TEST-EXEC: zkg info grault | grep tracking_method > grault.info
+# @TEST-EXEC: btest-diff grault.info
+
+cd packages/grault
+echo 'print "grault 1.0.0";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "grault 1.0.1";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a v1.0.1 -m 1.0.1
+echo 'print "grault 1.0.2";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.2 -m 1.0.2

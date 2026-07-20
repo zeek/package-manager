@@ -1,0 +1,8 @@
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: zkg install corge
+# @TEST-EXEC: btest-diff scripts/packages/corge/__load__.zeek
+
+cd packages/corge
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "hello";' >> __load__.zeek
+git commit -am 'new stuff'
