@@ -1,6 +1,7 @@
 """Unit tests for zeekpkg._resolver internals."""
 
 import pathlib
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import git
@@ -10,9 +11,14 @@ from nab_resolver.ranges import Range
 
 from zeekpkg._resolver import (
     _constraint_to_range,
+    _deps_at_version,
     _fmt_range,
+    _FmtRange,
+    _get_branch_names,
+    _is_versioned_package,
     _Node,
     _normalize_constraint,
+    _run_solver,
     _ZkgProvider,
 )
 from zeekpkg.manager import Manager
@@ -81,6 +87,19 @@ def test_node_str() -> None:
     assert "installed" in s
 
 
+def test_get_branch_names(tmp_path: pathlib.Path) -> None:
+    repo = git.Repo.init(tmp_path / "br-repo", initial_branch="main")
+    repo.config_writer().set_value("user", "name", "Test").release()
+    repo.config_writer().set_value("user", "email", "test@test").release()
+    (tmp_path / "br-repo" / "f").write_text("x")
+    repo.index.add(["f"])
+    repo.index.commit("init")
+    # Simulate remote tracking refs by creating refs/remotes/origin/main manually.
+    repo.git.update_ref("refs/remotes/origin/main", "HEAD")
+    branches = _get_branch_names(repo)
+    assert "main" in branches
+
+
 def test_normalize_bare_equals() -> None:
     assert _normalize_constraint("=1.0.0") == "==1.0.0"
 
@@ -120,6 +139,18 @@ def test_constraint_to_range_wildcard() -> None:
     r = _constraint_to_range("*")
     assert semver.Version("1.0.0") in r
     assert semver.Version("99.0.0") in r
+
+
+def test_constraint_to_range_gt() -> None:
+    r = _constraint_to_range(">1.0.0")
+    assert semver.Version("1.0.1") in r
+    assert semver.Version("1.0.0") not in r
+
+
+def test_constraint_to_range_lte() -> None:
+    r = _constraint_to_range("<=1.0.0")
+    assert semver.Version("1.0.0") in r
+    assert semver.Version("1.0.1") not in r
 
 
 def test_constraint_to_range_compound() -> None:
@@ -218,11 +249,11 @@ def test_get_dependencies_caches_result(
         [("v1.0.0", f"{dep_repo.working_dir} >=1.0.0")],
     )
     v = semver.Version("1.0.0")
-    # Pre-populate versions so choose_version works.
     provider._versions[qname] = [v]
-    deps1 = provider.get_dependencies(qname, v)
-    deps2 = provider.get_dependencies(qname, v)
-    assert deps1 is deps2
+    with patch.object(provider, "_fetch_deps", wraps=provider._fetch_deps) as spy:
+        provider.get_dependencies(qname, v)
+        provider.get_dependencies(qname, v)
+        assert spy.call_count == 1
 
 
 def test_get_dependencies_empty_for_unknown(
@@ -305,6 +336,23 @@ def test_provider_init_version_from_versions_list(manager: Manager) -> None:
     node.info = info
     provider = _ZkgProvider(manager, {"org/pkg": node})
     assert semver.Version("1.2.0") in provider._versions.get("org/pkg", [])
+
+
+def test_provider_init_version_coercion_failure_falls_back_to_zero(
+    manager: Manager,
+) -> None:
+    # versions[-1] is not a valid semver string -- coerce raises ValueError and
+    # we fall through to the 0.0.0 sentinel.
+    info = MagicMock(spec=PackageInfo)
+    info.metadata_file = None
+    info.metadata_version = None
+    info.installed_version = None
+    info.versions = ["not-a-version"]
+    info.invalid_reason = None
+    node = _Node("org/pkg")
+    node.info = info
+    provider = _ZkgProvider(manager, {"org/pkg": node})
+    assert provider._versions.get("org/pkg") == [semver.Version("0.0.0")]
 
 
 def test_provider_init_falls_back_to_zero_version(manager: Manager) -> None:
@@ -441,6 +489,33 @@ def test_fmt_range_invert_preserves_subclass() -> None:
     assert "inf" not in str(result)
 
 
+def test_fmt_range_sub_preserves_subclass() -> None:
+    a = _FmtRange(Range.at_least(semver.Version("1.0.0"))._intervals)
+    b = _FmtRange(Range.singleton(semver.Version("1.5.0"))._intervals)
+    result = a - b
+    assert isinstance(result, _FmtRange)
+    assert "inf" not in str(result)
+
+
+def test_fmt_range_empty_classmethod() -> None:
+    r = _FmtRange.empty()
+    assert isinstance(r, _FmtRange)
+    assert semver.Version("1.0.0") not in r
+
+
+def test_fmt_range_full_classmethod() -> None:
+    r = _FmtRange.full()
+    assert isinstance(r, _FmtRange)
+    assert semver.Version("1.0.0") in r
+
+
+def test_fmt_range_singleton_classmethod() -> None:
+    r = _FmtRange.singleton(semver.Version("2.0.0"))
+    assert isinstance(r, _FmtRange)
+    assert semver.Version("2.0.0") in r
+    assert semver.Version("1.0.0") not in r
+
+
 def test_constraint_to_range_returns_fmt_range() -> None:
     assert isinstance(_constraint_to_range(">=1.0.0"), _FmtRange)
     assert isinstance(_constraint_to_range("*"), _FmtRange)
@@ -521,3 +596,353 @@ def test_qualify_deps_skips_invalid_dep(manager: Manager) -> None:
     ):
         result = provider._qualify_deps({"bad-dep": ">=1.0.0"})
     assert result == {}
+
+
+def test_get_dependencies_skips_unparseable_spec(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # An unparseable constraint in deps_str must be silently skipped rather than
+    # propagated to the solver.
+    provider, _ = _provider_with_repo(manager, tmp_path, "org/pkg", [("v1.0.0", "")])
+    v = semver.Version("1.0.0")
+    provider._cache[("org/pkg", v)] = ("v1.0.0", {"org/dep": "totally-invalid!"})
+    deps = provider.get_dependencies("org/pkg", v)
+    assert "org/dep" not in deps
+
+
+def test_deps_at_version_no_metadata_file(tmp_path: pathlib.Path) -> None:
+    # Tag exists but has no zkg.meta or bro-pkg.meta -- returns empty dict.
+    repo = git.Repo.init(tmp_path / "nometarepo", initial_branch="main")
+    repo.config_writer().set_value("user", "name", "Test").release()
+    repo.config_writer().set_value("user", "email", "test@test").release()
+    (tmp_path / "nometarepo" / "README").write_text("no meta here")
+    repo.index.add(["README"])
+    repo.index.commit("initial")
+    repo.create_tag("v1.0.0")
+    assert _deps_at_version(repo, "v1.0.0") == {}
+
+
+def test_deps_at_version_missing_package_section(tmp_path: pathlib.Path) -> None:
+    # zkg.meta at the tag has no [package] section -- returns empty dict.
+    repo = git.Repo.init(tmp_path / "badsectrepo", initial_branch="main")
+    repo.config_writer().set_value("user", "name", "Test").release()
+    repo.config_writer().set_value("user", "email", "test@test").release()
+    (tmp_path / "badsectrepo" / "zkg.meta").write_text("[other]\nkey = val\n")
+    repo.index.add(["zkg.meta"])
+    repo.index.commit("initial")
+    repo.create_tag("v1.0.0")
+    assert _deps_at_version(repo, "v1.0.0") == {}
+
+
+def test_is_versioned_package_sha() -> None:
+    assert not _is_versioned_package("a" * 40)
+
+
+def test_is_versioned_package_branch_name() -> None:
+    assert not _is_versioned_package("main")
+
+
+def test_is_versioned_package_valid_semver() -> None:
+    assert _is_versioned_package("1.2.3")
+
+
+def _make_conflicting_provider(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> tuple[_ZkgProvider, dict[str, _Node]]:
+    """Build two packages whose constraints conflict."""
+    repo_a = _make_tagged_repo(tmp_path, "pkg-a", [("v1.0.0", ""), ("v2.0.0", "")])
+    info_a = MagicMock(spec=PackageInfo)
+    info_a.metadata_file = str(pathlib.Path(str(repo_a.working_dir)) / "zkg.meta")
+    info_a.metadata_version = None
+    info_a.invalid_reason = None
+    node_a = _Node("org/pkg-a")
+    node_a.info = info_a
+
+    graph = {"org/pkg-a": node_a}
+    provider = _ZkgProvider(manager, graph)
+    return provider, graph
+
+
+def test_run_solver_resolution_error(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    provider, graph = _make_conflicting_provider(manager, tmp_path)
+    # Require >=2.0.0 and <1.0.0 simultaneously -- unsatisfiable.
+    requirements = {
+        "org/pkg-a": _constraint_to_range(">=2.0.0"),
+    }
+    constraints = {
+        "org/pkg-a": _constraint_to_range("<1.0.0"),
+    }
+    err, items = _run_solver(
+        provider,
+        requirements,
+        constraints,
+        graph,
+        requested_qnames={"org/pkg-a"},
+        installed_qnames=set(),
+        branch_pkg_names=set(),
+        soft_pinned={},
+        ignore_suggestions=True,
+        lookup_dep=lambda _: None,
+    )
+    assert err != ""
+    assert items == []
+
+
+def _make_two_package_setup(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+    *,
+    dep_suggests: bool = False,
+    dep_info_none: bool = False,
+) -> tuple[_ZkgProvider, dict[str, _Node]]:
+    """Build provider+graph where main-pkg depends on dep-pkg (or suggests it).
+
+    The solver-cache for main-pkg is pre-populated so that get_dependencies
+    returns dep-pkg as a dependency without needing real git metadata fetching.
+    """
+    dep_repo = _make_tagged_repo(tmp_path, "dep-pkg", [("v1.0.0", "")])
+    dep_info = MagicMock(spec=PackageInfo)
+    dep_info.metadata_file = str(
+        pathlib.Path(str(dep_repo.working_dir)) / "zkg.meta",
+    )
+    dep_info.metadata_version = None
+    dep_info.invalid_reason = None
+    dep_info.dependencies.return_value = {}
+    dep_info.best_version.return_value = "v1.0.0"
+    dep_node = _Node("org/dep-pkg")
+    if not dep_info_none:
+        dep_node.info = dep_info
+
+    main_repo = _make_tagged_repo(tmp_path, "main-pkg", [("v1.0.0", "")])
+    main_info = MagicMock(spec=PackageInfo)
+    main_info.metadata_file = str(
+        pathlib.Path(str(main_repo.working_dir)) / "zkg.meta",
+    )
+    main_info.metadata_version = None
+    main_info.invalid_reason = None
+    main_info.best_version.return_value = "v1.0.0"
+    if dep_suggests:
+        main_info.dependencies.side_effect = lambda field="depends": (
+            {"dep-pkg": ">=1.0.0"} if field == "suggests" else {}
+        )
+    else:
+        main_info.dependencies.return_value = {}
+    main_node = _Node("org/main-pkg")
+    main_node.info = main_info
+
+    graph: dict[str, _Node] = {"org/main-pkg": main_node, "org/dep-pkg": dep_node}
+    provider = _ZkgProvider(manager, graph)
+
+    # Pre-populate cache: main-pkg v1.0.0 depends on org/dep-pkg >=1.0.0.
+    v_main = semver.Version("1.0.0")
+    v_dep = semver.Version("1.0.0")
+    if not dep_suggests:
+        provider._cache[("org/main-pkg", v_main)] = (
+            "v1.0.0",
+            {"org/dep-pkg": ">=1.0.0"},
+        )
+    else:
+        provider._cache[("org/main-pkg", v_main)] = ("v1.0.0", {})
+    provider._cache[("org/dep-pkg", v_dep)] = ("v1.0.0", {})
+    if "org/dep-pkg" not in provider._versions:
+        provider._versions["org/dep-pkg"] = [v_dep]
+
+    return provider, graph
+
+
+def test_run_solver_dep_emitted_in_result(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # Transitive dep (not requested) resolved and emitted via _dfs_emit.
+    provider, graph = _make_two_package_setup(manager, tmp_path)
+    requirements = {"org/main-pkg": _constraint_to_range(">=1.0.0")}
+    err, items = _run_solver(
+        provider,
+        requirements,
+        {},
+        graph,
+        requested_qnames={"org/main-pkg"},
+        installed_qnames=set(),
+        branch_pkg_names=set(),
+        soft_pinned={},
+        ignore_suggestions=True,
+        lookup_dep=lambda _: None,
+    )
+    assert err == ""
+    qnames = [qn for qn, _, _ in items]
+    assert "org/dep-pkg" in qnames
+
+
+def test_run_solver_with_suggestions(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # ignore_suggestions=False exercises the _pkg_deps suggestions path (lines 409-415).
+    dep_info = MagicMock(spec=PackageInfo)
+    dep_info.invalid_reason = None
+    dep_info.package = MagicMock()
+    dep_info.package.qualified_name.return_value = "org/dep-pkg"
+    provider, graph = _make_two_package_setup(
+        manager,
+        tmp_path,
+        dep_suggests=True,
+    )
+    requirements = {"org/main-pkg": _constraint_to_range(">=1.0.0")}
+    err, items = _run_solver(
+        provider,
+        requirements,
+        {},
+        graph,
+        requested_qnames={"org/main-pkg"},
+        installed_qnames=set(),
+        branch_pkg_names=set(),
+        soft_pinned={},
+        ignore_suggestions=False,
+        lookup_dep=lambda name: dep_info if name == "dep-pkg" else None,
+    )
+    assert err == ""
+    assert "org/dep-pkg" in [qn for qn, _, _ in items]
+
+
+def test_run_solver_suggestions_skips_zeek_zkg(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # "zeek"/"zkg" in suggests must be silently skipped (line 410).
+    dep_info = MagicMock(spec=PackageInfo)
+    dep_info.invalid_reason = None
+    dep_info.package = MagicMock()
+    dep_info.package.qualified_name.return_value = "org/dep-pkg"
+    provider, graph = _make_two_package_setup(
+        manager,
+        tmp_path,
+        dep_suggests=True,
+    )
+    cast(MagicMock, graph["org/main-pkg"].info).dependencies.side_effect = (
+        lambda field="depends": (
+            {"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"} if field == "suggests" else {}
+        )
+    )
+    requirements = {"org/main-pkg": _constraint_to_range(">=1.0.0")}
+    err, _ = _run_solver(
+        provider,
+        requirements,
+        {},
+        graph,
+        requested_qnames={"org/main-pkg"},
+        installed_qnames=set(),
+        branch_pkg_names=set(),
+        soft_pinned={},
+        ignore_suggestions=False,
+        lookup_dep=lambda name: dep_info if name == "dep-pkg" else None,
+    )
+    assert err == ""
+
+
+def test_run_solver_branch_pkg_with_suggests(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # Package in branch_pkg_names is not in resolved -- exercises lines 417-428
+    # (_pkg_deps fallback reading deps/suggests from graph directly).
+    dep_info = MagicMock(spec=PackageInfo)
+    dep_info.invalid_reason = None
+    dep_info.package = MagicMock()
+    dep_info.package.qualified_name.return_value = "org/dep-pkg"
+    provider, graph = _make_two_package_setup(
+        manager,
+        tmp_path,
+        dep_suggests=True,
+    )
+    cast(MagicMock, graph["org/main-pkg"].info).dependencies.side_effect = (
+        lambda field="depends": (
+            {"zeek": ">=5.0.0", "dep-pkg": ">=1.0.0"}
+            if field in ("depends", "suggests")
+            else {}
+        )
+    )
+    requirements: dict[str, Range[semver.Version]] = {}
+    err, _ = _run_solver(
+        provider,
+        requirements,
+        {},
+        graph,
+        requested_qnames=set(),
+        installed_qnames=set(),
+        branch_pkg_names={"org/main-pkg"},
+        soft_pinned={},
+        ignore_suggestions=False,
+        lookup_dep=lambda name: dep_info if name == "dep-pkg" else None,
+    )
+    assert err == ""
+
+
+def test_run_solver_dfs_skips_revisit(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # A seed that also appears as a branch_pkg causes it to be revisited by
+    # _dfs_emit, hitting the dfs_visited guard (line 467) on the second pass.
+    repo = _make_tagged_repo(tmp_path, "solo", [("v1.0.0", "")])
+    info = MagicMock(spec=PackageInfo)
+    info.metadata_file = str(pathlib.Path(str(repo.working_dir)) / "zkg.meta")
+    info.metadata_version = None
+    info.invalid_reason = None
+    info.dependencies.return_value = {}
+    info.best_version.return_value = "v1.0.0"
+    node = _Node("org/solo")
+    node.info = info
+    graph = {"org/solo": node}
+    provider = _ZkgProvider(manager, graph)
+    v = semver.Version("1.0.0")
+    provider._cache[("org/solo", v)] = ("v1.0.0", {})
+    requirements = {"org/solo": _constraint_to_range(">=1.0.0")}
+    # Appear in both requested_qnames and branch_pkg_names -- two seeds that
+    # collapse to the same package, so the second _dfs_emit hits dfs_visited.
+    err, _ = _run_solver(
+        provider,
+        requirements,
+        {},
+        graph,
+        requested_qnames={"org/solo"},
+        installed_qnames=set(),
+        branch_pkg_names={"org/solo"},
+        soft_pinned={},
+        ignore_suggestions=True,
+        lookup_dep=lambda _: None,
+    )
+    assert err == ""
+
+
+def test_run_solver_dfs_node_no_info(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    # Dep node with info=None is skipped by _dfs_emit (covers line 454).
+    provider, graph = _make_two_package_setup(
+        manager,
+        tmp_path,
+        dep_info_none=True,
+    )
+    requirements = {"org/main-pkg": _constraint_to_range(">=1.0.0")}
+    err, items = _run_solver(
+        provider,
+        requirements,
+        {},
+        graph,
+        requested_qnames={"org/main-pkg"},
+        installed_qnames=set(),
+        branch_pkg_names=set(),
+        soft_pinned={},
+        ignore_suggestions=True,
+        lookup_dep=lambda _: None,
+    )
+    assert err == ""
+    qnames = [qn for qn, _, _ in items]
+    assert "org/dep-pkg" not in qnames

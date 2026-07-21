@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import configparser
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, cast
 
 import git
 import semantic_version as semver
+from nab_resolver.errors import ResolutionError
 from nab_resolver.ranges import Range
-from nab_resolver.resolver import ResolverProvider
+from nab_resolver.resolver import Resolver, ResolverProvider
 from nab_resolver.types import Incompatibility, RangeProtocol
 
 from ._util import _semver_versions, git_version_tags, is_sha1
@@ -30,6 +31,8 @@ from .package import dependencies as pkg_dependencies
 
 if TYPE_CHECKING:
     from .manager import Manager
+
+__all__ = ["Range"]
 
 
 class _Node:
@@ -120,6 +123,61 @@ def _fmt_range(r: Range[semver.Version]) -> str:
                 + str(hi),
             )
     return " | ".join(parts) if parts else "none"
+
+
+class _FmtRange(Range[semver.Version]):
+    """A `Range` whose `__str__` produces operator-prefixed semver notation.
+
+    nab-resolver has no global range-formatting hook: `narrow_for_display`
+    only covers terms that pass through the `_narrow_positive` path in the
+    error reporter.  The `CONSTRAINT`-cause path in `_render_line` interpolates
+    `incompatibility.constraint_range` directly, bypassing `narrow_for_display`
+    entirely and exposing the raw ``(-inf, X) | (X, +inf)`` sentinel strings.
+
+    Making every range we construct carry its own formatted `__str__` fixes all
+    render sites at once without relying on any library hook.  The operator
+    overrides are necessary because `Range.__and__`, `__or__`, and `__invert__`
+    construct their results as plain `Range` objects; without overriding them,
+    composed ranges lose the subclass and revert to the raw notation.
+    """
+
+    __slots__ = ()
+
+    def __str__(self) -> str:
+        return _fmt_range(self)
+
+    @classmethod
+    def empty(cls) -> Self:
+        return cls(super().empty()._intervals)
+
+    @classmethod
+    def full(cls) -> Self:
+        return cls(super().full()._intervals)
+
+    @classmethod
+    def singleton(cls, version: semver.Version) -> Self:
+        return cls(super().singleton(version)._intervals)
+
+    def __and__(self, other: object) -> Self:
+        result = super().__and__(other)
+        if not isinstance(result, Range):
+            return result  # pragma: no cover
+        return type(self)(result._intervals)
+
+    def __or__(self, other: object) -> Self:
+        result = super().__or__(other)
+        if not isinstance(result, Range):
+            return result  # pragma: no cover
+        return type(self)(result._intervals)
+
+    def __invert__(self) -> Self:
+        return type(self)(super().__invert__()._intervals)
+
+    def __sub__(self, other: object) -> Self:
+        result = super().__sub__(other)
+        if not isinstance(result, Range):
+            return result  # pragma: no cover
+        return type(self)(result._intervals)
 
 
 class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
@@ -300,6 +358,155 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
                 return display
 
         return cast(RangeProtocol[semver.Version], _Displayed(r._intervals))
+
+
+def _run_solver(
+    provider: _ZkgProvider,
+    requirements: Mapping[str, Range[semver.Version]],
+    constraints: Mapping[str, Range[semver.Version]],
+    graph: dict[str, _Node],
+    requested_qnames: set[str],
+    installed_qnames: set[str],
+    branch_pkg_names: set[str],
+    soft_pinned: dict[str, str],
+    ignore_suggestions: bool,
+    lookup_dep: Callable[[str], PackageInfo | None],
+) -> tuple[str, list[tuple[str, str, bool]]]:
+    """Run the nab-resolver and return a topo-sorted install list.
+
+    Returns a ``(error, items)`` pair. On success ``error`` is empty and
+    ``items`` is a list of ``(qname, raw_tag, is_suggestion)`` tuples in
+    dependency order (dependees before dependers). On failure ``error`` is
+    the first line of the resolver's error message and ``items`` is empty.
+
+    ``lookup_dep`` resolves a short package name to its ``PackageInfo``; it
+    replaces the ``find_builtin_package`` / ``_cached_info`` calls that
+    previously lived in ``manager.py``.
+    """
+    resolver: Resolver[str, semver.Version] = Resolver(
+        provider,
+        range_type=Range,
+        root_version=semver.Version("0.0.0"),
+    )
+    try:
+        resolved: dict[str, semver.Version] = resolver.resolve(
+            requirements,
+            constraints=constraints,
+        )
+    except ResolutionError as e:
+        return (str(e), [])
+
+    suggestion_names: set[str] = {
+        name for name, node in graph.items() if node.is_suggestion
+    }
+
+    def _pkg_deps(qn: str) -> list[str]:
+        result_d: list[str] = []
+        rv = resolved.get(qn)
+        if rv is not None:
+            cache_entry = provider._cache.get((qn, rv))
+            if cache_entry:
+                _, d = cache_entry
+                result_d = list(d)
+                if not ignore_suggestions:
+                    nd = graph.get(qn)
+                    if nd and nd.info:
+                        raw_sug = nd.info.dependencies(field="suggests") or {}
+                        for dep_s in raw_sug:
+                            if dep_s in ("zeek", "zkg"):
+                                continue
+                            di = lookup_dep(dep_s)
+                            if di is not None and not di.invalid_reason:
+                                dqn = di.package.qualified_name()
+                                if dqn not in result_d:
+                                    result_d.append(dqn)
+                return sorted(result_d)
+        nd = graph.get(qn)
+        if nd and nd.info:
+            raw: dict[str, str] = nd.info.dependencies(field="depends") or {}
+            if not ignore_suggestions:
+                raw = {**raw, **(nd.info.dependencies(field="suggests") or {})}
+            for dep_s in raw:
+                if dep_s in ("zeek", "zkg"):
+                    continue
+                di = lookup_dep(dep_s)
+                if di is not None and not di.invalid_reason:
+                    result_d.append(di.package.qualified_name())
+        return sorted(result_d)
+
+    dfs_visited: set[str] = set()
+    dfs_in_stack: set[str] = set()
+
+    def _dfs_emit(start: str) -> list[tuple[str, str, bool]]:
+        result: list[tuple[str, str, bool]] = []
+        stack: list[tuple[str, bool]] = [(start, False)]
+        while stack:
+            qn, post = stack.pop()
+            if post:
+                dfs_in_stack.discard(qn)
+                is_upgraded = (
+                    qn in soft_pinned
+                    and qn in resolved
+                    and _is_versioned_package(soft_pinned[qn])
+                    and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
+                )
+                if (
+                    qn in requested_qnames
+                    or (qn in installed_qnames and not is_upgraded)
+                    or qn in branch_pkg_names
+                ):
+                    continue
+                node = graph.get(qn)
+                if node is None or node.info is None:
+                    continue
+                is_sug = qn in suggestion_names
+                rv = resolved.get(qn)
+                if rv is not None:
+                    cache_entry = provider._cache.get((qn, rv))
+                    raw_tag = (
+                        cache_entry[0] if cache_entry else node.info.best_version()
+                    )
+                else:
+                    raw_tag = node.info.best_version()
+                result.append((qn, raw_tag, is_sug))
+            else:
+                if qn in dfs_visited or qn in dfs_in_stack:
+                    continue
+                dfs_visited.add(qn)
+                dfs_in_stack.add(qn)
+                stack.append((qn, True))
+                for dep_qn in reversed(_pkg_deps(qn)):
+                    if dep_qn not in dfs_visited and dep_qn not in dfs_in_stack:
+                        stack.append((dep_qn, False))
+        return result
+
+    seeds = list(requested_qnames) + list(branch_pkg_names)
+    post_order: list[tuple[str, str, bool]] = []
+    for seed in seeds:
+        post_order.extend(_dfs_emit(seed))
+
+    # post_order is leaves-first; reverse to get root-first for the return
+    # value (caller reverses again when installing, so leaves end up first).
+    seen_res: set[str] = set()
+    res: list[tuple[str, str, bool]] = []
+    for qn, raw_tag, is_sug in reversed(post_order):
+        if qn not in seen_res:
+            seen_res.add(qn)
+            if graph.get(qn) is not None and graph[qn].info is not None:
+                res.append((qn, raw_tag, is_sug))
+
+    return ("", res)
+
+
+def _is_versioned_package(v: str) -> bool:
+    """Return True if *v* is a semver-coercible version the solver can use."""
+    if is_sha1(v):
+        return False
+    try:
+        semver.Version.coerce(v)
+        return True
+    except ValueError:
+        return False
 
 
 def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:

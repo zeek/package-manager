@@ -21,19 +21,19 @@ from urllib.parse import urlparse
 
 import git
 import semantic_version as semver
-from nab_resolver.errors import ResolutionError
-from nab_resolver.ranges import Range
-from nab_resolver.resolver import Resolver
 
 from . import (
     LOG,
     __version__,
 )
 from ._resolver import (
+    Range,
     _deps_at_version,
     _get_branch_names,
+    _is_versioned_package,
     _Node,
     _normalize_constraint,
+    _run_solver,
     _ZkgProvider,
 )
 from ._util import (
@@ -2270,16 +2270,6 @@ class Manager:
                 info_cache[key] = self.info(pkg_path, prefer_installed=False)
             return info_cache[key]
 
-        def _is_versioned_package(v: str) -> bool:
-            """Return True if *v* is a semver-coercible version the solver can use."""
-            if is_sha1(v):
-                return False
-            try:
-                semver.Version.coerce(v)
-                return True
-            except ValueError:
-                return False
-
         # Identify branch-constrained packages across all graph nodes (including
         # suggests when not ignore_suggestions).
         branch_pkgs: list[tuple[PackageInfo, str, bool]] = []
@@ -2350,11 +2340,6 @@ class Manager:
         }
 
         provider = _ZkgProvider(self, graph)
-        resolver: Resolver[str, semver.Version] = Resolver(
-            provider,
-            range_type=Range,
-            root_version=semver.Version("0.0.0"),
-        )
 
         requirements: dict[str, Range[semver.Version]] = {}
         requested_qnames: set[str] = set()
@@ -2368,7 +2353,6 @@ class Manager:
                 if _is_versioned_package(norm):
                     requirements[qname] = Range.singleton(semver.Version.coerce(norm))
                     continue
-            # Branch-tracked or no semver version: any version satisfies.
             requirements[qname] = Range.full()
         for binfo, _, _ in branch_pkgs:
             bqn = binfo.package.qualified_name()
@@ -2387,9 +2371,8 @@ class Manager:
             if _is_versioned_package(norm):
                 constraints[qname] = Range.at_least(semver.Version.coerce(norm))
 
-        # Branch packages are installed at a specific branch ref, not a semver
-        # tag.  Register only the synthetic 0.0.0 version and pre-populate the
-        # cache with their current deps (including suggests when applicable).
+        # Branch packages use a synthetic 0.0.0 version; pre-populate the cache
+        # so the solver can read their deps without a git checkout.
         for binfo, _, _ in branch_pkgs:
             bqn = binfo.package.qualified_name()
             synth_v = semver.Version("0.0.0")
@@ -2413,122 +2396,26 @@ class Manager:
                     )
             provider._cache[(bqn, synth_v)] = (binfo.best_version(), bsynth_deps)
 
-        try:
-            resolved: dict[str, semver.Version] = resolver.resolve(
-                requirements,
-                constraints=constraints,
-            )
-        except ResolutionError as e:
-            return (str(e).split("\n")[0], [])
+        error, solver_res = _run_solver(
+            provider,
+            requirements,
+            constraints,
+            graph,
+            requested_qnames,
+            installed_qnames,
+            branch_pkg_names,
+            soft_pinned,
+            ignore_suggestions,
+            lambda dep: self.find_builtin_package(dep) or _cached_info(dep),
+        )
+        if error:
+            return (error, [])
 
-        suggestion_names: set[str] = {
-            name for name, node in graph.items() if node.is_suggestion
-        }
-
-        def _pkg_deps(qn: str) -> list[str]:
-            """Return dep qualified names for *qn* from provider cache or node info."""
-            result_d: list[str] = []
-            rv = resolved.get(qn)
-            if rv is not None:
-                cache_entry = provider._cache.get((qn, rv))
-                if cache_entry:
-                    _, d = cache_entry
-                    result_d = list(d)
-                    if not ignore_suggestions:
-                        nd = graph.get(qn)
-                        if nd and nd.info:
-                            raw_sug = nd.info.dependencies(field="suggests") or {}
-                            for dep_s in raw_sug:
-                                if dep_s in ("zeek", "zkg"):
-                                    continue
-                                di = self.find_builtin_package(dep_s)
-                                if di is None:
-                                    di = _cached_info(dep_s)
-                                if not di.invalid_reason:
-                                    dqn = di.package.qualified_name()
-                                    if dqn not in result_d:
-                                        result_d.append(dqn)
-                    return sorted(result_d)
-            nd = graph.get(qn)
-            if nd and nd.info:
-                raw: dict[str, str] = nd.info.dependencies(field="depends") or {}
-                if not ignore_suggestions:
-                    raw = {**raw, **(nd.info.dependencies(field="suggests") or {})}
-                for dep_s in raw:
-                    if dep_s in ("zeek", "zkg"):
-                        continue
-                    di = self.find_builtin_package(dep_s)
-                    if di is None:
-                        di = _cached_info(dep_s)
-                    if not di.invalid_reason:
-                        result_d.append(di.package.qualified_name())
-            return sorted(result_d)
-
-        dfs_visited: set[str] = set()
-        dfs_in_stack: set[str] = set()
-
-        def _dfs_emit(start: str) -> list[tuple[str, str, bool]]:
-            result: list[tuple[str, str, bool]] = []
-            stack: list[tuple[str, bool]] = [(start, False)]
-            while stack:
-                qn, post = stack.pop()
-                if post:
-                    dfs_in_stack.discard(qn)
-                    is_upgraded = (
-                        qn in soft_pinned
-                        and qn in resolved
-                        and _is_versioned_package(soft_pinned[qn])
-                        and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
-                    )
-                    if (
-                        qn in requested_qnames
-                        or (qn in installed_qnames and not is_upgraded)
-                        or qn in branch_pkg_names
-                    ):
-                        continue
-                    node = graph.get(qn)
-                    if node is None or node.info is None:
-                        continue
-                    is_sug = qn in suggestion_names
-                    rv = resolved.get(qn)
-                    if rv is not None:
-                        cache_entry = provider._cache.get((qn, rv))
-                        raw_tag = (
-                            cache_entry[0] if cache_entry else node.info.best_version()
-                        )
-                    else:
-                        raw_tag = node.info.best_version()
-                    result.append((qn, raw_tag, is_sug))
-                else:
-                    if qn in dfs_visited or qn in dfs_in_stack:
-                        continue
-                    dfs_visited.add(qn)
-                    dfs_in_stack.add(qn)
-                    stack.append((qn, True))
-                    for dep_qn in reversed(_pkg_deps(qn)):
-                        if dep_qn not in dfs_visited and dep_qn not in dfs_in_stack:
-                            stack.append((dep_qn, False))
-            return result
-
-        seeds = list(requested_qnames) + [
-            binfo.package.qualified_name() for binfo, _, _ in branch_pkgs
-        ]
-        post_order: list[tuple[str, str, bool]] = []
-        for seed in seeds:
-            post_order.extend(_dfs_emit(seed))
-
-        # post_order is leaves-first; reverse to get root-first for the return
-        # value (caller reverses again when installing, so leaves end up first).
-        seen_res: set[str] = set()
         res: list[tuple[PackageInfo, str, bool]] = []
-        for qn, raw_tag, is_sug in reversed(post_order):
-            if qn in seen_res:
-                continue
-            seen_res.add(qn)
+        for qn, raw_tag, is_sug in solver_res:
             res_node = graph.get(qn)
-            if res_node is None or res_node.info is None:
-                continue
-            res.append((res_node.info, raw_tag, is_sug))
+            if res_node is not None and res_node.info is not None:
+                res.append((res_node.info, raw_tag, is_sug))
 
         for binfo, bversion, bsug in branch_pkgs:
             bqn = binfo.package.qualified_name()
