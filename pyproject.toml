@@ -39,6 +39,7 @@ dependencies = [
     # Technically not a zkg dependency, but typically expected by users to be present.
     "btest>=1.1",
     "argcomplete>=3.6.3",
+    "nab-resolver>=0.0.11",
 ]
 
 [project.optional-dependencies]
