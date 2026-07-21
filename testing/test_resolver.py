@@ -160,6 +160,12 @@ def test_constraint_to_range_compound() -> None:
     assert semver.Version("0.9.0") not in r
 
 
+def test_constraint_to_range_returns_fmt_range() -> None:
+    assert isinstance(_constraint_to_range(">=1.0.0"), _FmtRange)
+    assert isinstance(_constraint_to_range("*"), _FmtRange)
+    assert isinstance(_constraint_to_range("=1.0.0"), _FmtRange)
+
+
 def test_choose_version_picks_highest_in_range(
     manager: Manager,
     tmp_path: pathlib.Path,
@@ -447,6 +453,17 @@ def test_fmt_range_exact_point() -> None:
 
 def test_fmt_range_full_is_wildcard() -> None:
     assert _fmt_range(Range.full()) == "*"
+
+
+def test_narrow_for_display_wraps_in_fmt_range(
+    manager: Manager,
+    tmp_path: pathlib.Path,
+) -> None:
+    provider, _ = _provider_with_repo(manager, tmp_path, "org/pkg", [("v1.0.0", "")])
+    raw = Range.at_least(semver.Version("1.0.0"))
+    result = provider.narrow_for_display("org/pkg", raw)
+    assert isinstance(result, _FmtRange)
+    assert "inf" not in str(result)
 
 
 def test_fmt_range_subclass_str() -> None:
