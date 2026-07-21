@@ -19,6 +19,7 @@ from nab_resolver.errors import ResolutionError
 from nab_resolver.ranges import Range
 from nab_resolver.resolver import Resolver, ResolverProvider
 from nab_resolver.types import Incompatibility, RangeProtocol
+from typing_extensions import Self
 
 from ._util import _semver_versions, git_version_tags, is_sha1
 from .package import (
@@ -74,25 +75,25 @@ def _normalize_constraint(spec: str) -> str:
     return spec
 
 
-def _constraint_to_range(constraint: str) -> Range[semver.Version]:
+def _constraint_to_range(constraint: str) -> _FmtRange:
     """Convert a normalized zkg constraint string to a nab-resolver `Range`."""
     if constraint in ("*", ""):
-        return Range.full()
-    result: Range[semver.Version] = Range.full()
+        return _FmtRange(Range.full()._intervals)
+    result: _FmtRange = _FmtRange(Range.full()._intervals)
     clause = semver.SimpleSpec(_normalize_constraint(constraint)).clause
     matchers = list(clause.clauses) if hasattr(clause, "clauses") else [clause]
     for m in matchers:
         v = semver.Version.coerce(str(m.target))
         if m.operator == ">=":
-            result = result & Range.at_least(v)
+            result = result & _FmtRange(Range.at_least(v)._intervals)
         elif m.operator == ">":
-            result = result & Range.greater_than(v)
+            result = result & _FmtRange(Range.greater_than(v)._intervals)
         elif m.operator == "<=":
-            result = result & Range.at_most(v)
+            result = result & _FmtRange(Range.at_most(v)._intervals)
         elif m.operator == "<":
-            result = result & Range.less_than(v)
+            result = result & _FmtRange(Range.less_than(v)._intervals)
         elif m.operator == "==":
-            result = result & Range.singleton(v)
+            result = result & _FmtRange(Range.singleton(v)._intervals)
     return result
 
 
@@ -349,15 +350,7 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
         constraint: RangeProtocol[semver.Version],
     ) -> RangeProtocol[semver.Version]:
         r = cast(Range[semver.Version], constraint)
-        display = _fmt_range(r)
-
-        class _Displayed(Range[semver.Version]):
-            __slots__ = ()
-
-            def __str__(self) -> str:
-                return display
-
-        return cast(RangeProtocol[semver.Version], _Displayed(r._intervals))
+        return _FmtRange(r._intervals)
 
 
 def _run_solver(
