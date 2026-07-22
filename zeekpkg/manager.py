@@ -624,20 +624,44 @@ class Manager:
             LOG.warning("unable to discover builtin-packages: %s", str(e))
             return self._builtin_packages
 
+        stat = os.stat(zeek_executable)
+        cache_key = {
+            "zeek_path": zeek_executable,
+            "zeek_mtime": stat.st_mtime,
+            "zeek_size": stat.st_size,
+        }
+        cache_file = os.path.join(self.state_dir, "zeek_build_info_cache.json")
+        build_info = None
+
         try:
-            build_info_str = subprocess.check_output(
-                [zeek_executable, "--build-info"],
-                stderr=subprocess.DEVNULL,
-                timeout=10,
-            )
-            build_info = json.loads(build_info_str)
-        except subprocess.CalledProcessError:
-            # Not a warning() due to being a bit noisy.
-            LOG.info("unable to discover built-in packages - requires Zeek 6.0")
-            return self._builtin_packages
-        except json.JSONDecodeError as e:
-            LOG.error("unable to parse Zeek's build info output: %s", str(e))
-            return self._builtin_packages
+            with open(cache_file) as f:
+                cached = json.load(f)
+            if cached.get("key") == cache_key:
+                build_info = cached.get("build_info")
+        except (OSError, json.JSONDecodeError, KeyError):
+            pass
+
+        if build_info is None:
+            try:
+                build_info_str = subprocess.check_output(
+                    [zeek_executable, "--build-info"],
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                )
+                build_info = json.loads(build_info_str)
+            except subprocess.CalledProcessError:
+                # Not a warning() due to being a bit noisy.
+                LOG.info("unable to discover built-in packages - requires Zeek 6.0")
+                return self._builtin_packages
+            except json.JSONDecodeError as e:
+                LOG.error("unable to parse Zeek's build info output: %s", str(e))
+                return self._builtin_packages
+
+            try:
+                with open(cache_file, "w") as f:
+                    json.dump({"key": cache_key, "build_info": build_info}, f)
+            except OSError as e:
+                LOG.debug("unable to write zeek build info cache: %s", e)
 
         if "zkg" not in build_info or "provides" not in build_info["zkg"]:
             LOG.warning("missing zkg.provides entry in zeek --build-info output")
