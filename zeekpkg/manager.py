@@ -2514,6 +2514,8 @@ class Manager:
 
             return None
 
+        seen_names: dict[str, str] = {}
+
         for git_url, version in package_list:
             # Record built-in packages in the bundle's manifest, but
             # otherwise ignore them silently.
@@ -2522,6 +2524,11 @@ class Manager:
                 continue
 
             name = name_from_path(git_url)
+
+            if name in seen_names:
+                return f'duplicate package name "{name}": remove one of "{seen_names[name]}", "{git_url}" from the manifest'
+
+            seen_names[name] = git_url
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
 
