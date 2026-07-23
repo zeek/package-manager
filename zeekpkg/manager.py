@@ -2120,8 +2120,7 @@ class Manager:
         requests: list[Node] = []  # List of Node, just for requested packages
 
         def add_node(node: Node) -> str:
-            """Add node to graph, returning an error string if its bare package
-            name collides with an already-present node under a different URL."""
+            """Add to graph; return an error string if the bare name collides under a different URL."""
             pkg_name = name_from_path(node.name)
             for existing_name in graph:
                 if (
@@ -2233,7 +2232,8 @@ class Manager:
                 node = Node(dep_name)
                 node.info = info2
                 node.is_suggestion = is_suggestion
-                graph[node.name] = node
+                if err := add_node(node):
+                    return (err, [])
                 to_process[node.name] = node
 
         # Add nodes for things that are already installed (including zeek)

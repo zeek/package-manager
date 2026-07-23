@@ -2,8 +2,7 @@
 #
 # @TEST-EXEC: bash %INPUT
 #
-# Use file:// URIs so git treats the paths as remote URLs, preventing
-# canonical_url from resolving them as local paths.
+# Use file:// URIs so Git treats the paths as remote URLs, preventing canonical_url from resolving them as local paths.
 # @TEST-EXEC-FAIL: zkg install "file://$(realpath a/foo)" "file://$(realpath b/foo)"
 # @TEST-EXEC: TEST_DIFF_CANONIFIER='$SCRIPTS/diff-remove-abspath' btest-diff .stderr
 
