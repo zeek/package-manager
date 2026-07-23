@@ -2119,6 +2119,19 @@ class Manager:
         graph: dict[str, Node] = {}  # Node.name -> Node, nodes store edges
         requests: list[Node] = []  # List of Node, just for requested packages
 
+        def add_node(node: Node) -> str:
+            """Add node to graph, returning an error string if its bare package
+            name collides with an already-present node under a different URL."""
+            pkg_name = name_from_path(node.name)
+            for existing_name in graph:
+                if (
+                    name_from_path(existing_name) == pkg_name
+                    and existing_name != node.name
+                ):
+                    return f'duplicate package name "{pkg_name}": remove one of "{existing_name}", "{node.name}"'
+            graph[node.name] = node
+            return ""
+
         # 1. Try to make nodes for everything in the dependency graph...
 
         # Add nodes for packages that are requested for installation
@@ -2135,7 +2148,8 @@ class Manager:
             node.info = info
             method = node.info.version_type
             node.requested_version = PackageVersion(method, version)
-            graph[node.name] = node
+            if err := add_node(node):
+                return (err, [])
             requests.append(node)
 
         # Recursively add nodes for all dependencies of requested packages,
