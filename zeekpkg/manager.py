@@ -273,6 +273,7 @@ class Manager:
             None  # Cached Zeek built-in packages.
         )
         self._builtin_packages_discovered = False  # Flag if discovery even worked.
+        self._info_cache: dict[tuple[str, str | None, bool], PackageInfo] = {}
         self.zeek_dist = zeek_dist
         self.state_dir = state_dir
         self.user_vars = {} if user_vars is None else user_vars
@@ -623,20 +624,44 @@ class Manager:
             LOG.warning("unable to discover builtin-packages: %s", str(e))
             return self._builtin_packages
 
+        stat = os.stat(zeek_executable)
+        cache_key = {
+            "zeek_path": zeek_executable,
+            "zeek_mtime": stat.st_mtime,
+            "zeek_size": stat.st_size,
+        }
+        cache_file = os.path.join(self.state_dir, "zeek_build_info_cache.json")
+        build_info = None
+
         try:
-            build_info_str = subprocess.check_output(
-                [zeek_executable, "--build-info"],
-                stderr=subprocess.DEVNULL,
-                timeout=10,
-            )
-            build_info = json.loads(build_info_str)
-        except subprocess.CalledProcessError:
-            # Not a warning() due to being a bit noisy.
-            LOG.info("unable to discover built-in packages - requires Zeek 6.0")
-            return self._builtin_packages
-        except json.JSONDecodeError as e:
-            LOG.error("unable to parse Zeek's build info output: %s", str(e))
-            return self._builtin_packages
+            with open(cache_file) as f:
+                cached = json.load(f)
+            if cached.get("key") == cache_key:
+                build_info = cached.get("build_info")
+        except (OSError, json.JSONDecodeError, KeyError):
+            pass
+
+        if build_info is None:
+            try:
+                build_info_str = subprocess.check_output(
+                    [zeek_executable, "--build-info"],
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                )
+                build_info = json.loads(build_info_str)
+            except subprocess.CalledProcessError:
+                # Not a warning() due to being a bit noisy.
+                LOG.info("unable to discover built-in packages - requires Zeek 6.0")
+                return self._builtin_packages
+            except json.JSONDecodeError as e:
+                LOG.error("unable to parse Zeek's build info output: %s", str(e))
+                return self._builtin_packages
+
+            try:
+                with open(cache_file, "w") as f:
+                    json.dump({"key": cache_key, "build_info": build_info}, f)
+            except OSError as e:
+                LOG.debug("unable to write zeek build info cache: %s", e)
 
         if "zkg" not in build_info or "provides" not in build_info["zkg"]:
             LOG.warning("missing zkg.provides entry in zeek --build-info output")
@@ -1849,7 +1874,6 @@ class Manager:
         pkg_path: str,
         version: str | None = "",
         prefer_installed: bool = True,
-        update_submodules: bool = True,
     ) -> PackageInfo:
         """Retrieves information about a package.
 
@@ -1871,13 +1895,15 @@ class Manager:
                 The `version` parameter is also ignored when this is set as
                 it uses whatever version of the package is currently installed.
 
-            update_submodules (bool): if this is set, git checkout will update
-                the submodules for the repository.
-
         Returns:
             A :class:`.package.PackageInfo` object.
         """
         pkg_path = canonical_url(pkg_path)
+        cache_key = (pkg_path, version, prefer_installed)
+
+        if cache_key in self._info_cache:
+            return self._info_cache[cache_key]
+
         name = name_from_path(pkg_path)
 
         if not is_valid_package_name(name):
@@ -1886,6 +1912,16 @@ class Manager:
 
         LOG.debug('getting info on "%s"', pkg_path)
 
+        result = self._info_lookup(pkg_path, version, prefer_installed)
+        self._info_cache[cache_key] = result
+        return result
+
+    def _info_lookup(
+        self,
+        pkg_path: str,
+        version: str | None,
+        prefer_installed: bool,
+    ) -> PackageInfo:
         # Handle built-in packages like installed packages
         # but avoid looking up the repository information.
         bpkg_info = self.find_builtin_package(pkg_path)
@@ -1911,7 +1947,7 @@ class Manager:
             package = Package(git_url=pkg_path)
 
             try:
-                return self._info(package, None, version, update_submodules)
+                return self._info(package, None, version)
             except git.GitCommandError as error:
                 LOG.info(
                     'getting info on "%s": invalid git repo path: %s',
@@ -1944,7 +1980,7 @@ class Manager:
         package = matches[0]
 
         try:
-            return self._info(package, None, version, update_submodules)
+            return self._info(package, None, version)
         except git.GitCommandError as error:
             LOG.info('getting info on "%s": invalid git repo path: %s', pkg_path, error)
             reason = "git repository is either invalid or unreachable"
@@ -1955,7 +1991,6 @@ class Manager:
         package: Package,
         status: PackageStatus | None,
         version: str | None,
-        update_submodules: bool,
     ) -> PackageInfo:
         """Retrieves information about a package.
 
@@ -1966,7 +2001,8 @@ class Manager:
             git.GitCommandError: when failing to clone the package repo
         """
         clonepath = os.path.join(self.scratch_dir, package.name)
-        clone = _clone_package(package, clonepath, version, update_submodules)
+        delete_path(clonepath)
+        clone = git_clone(package.git_url, clonepath, shallow=True, recursive=False)
         versions = git_version_tags(clone)
 
         if not version:
@@ -1976,7 +2012,7 @@ class Manager:
                 version = git_default_branch(clone)
 
         try:
-            git_checkout(clone, version, update_submodules)
+            git_checkout(clone, version, update_submodules=False)
         except git.GitCommandError:
             reason = f'no such commit, branch, or version tag: "{version}"'
             return PackageInfo(package=package, status=status, invalid_reason=reason)

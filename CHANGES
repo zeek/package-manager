@@ -1,3 +1,72 @@
+3.1.0-53 | 2026-07-23 09:44:54 +0200
+
+  * Always use a shallow clone for the `_info()` scratch clone (Benjamin Bannier, Corelight)
+
+    The scratch clone exists only to read `zkg.meta`, version tags, and the
+    default branch; none of which require full history. `_clone_package()`
+    used a deep clone whenever a specific version was requested (to safely
+    `git checkout` arbitrary historical commits), but that conservatism is
+    only needed for the operational clone used during install/test staging.
+
+    Inline `delete_path` + `git_clone(..., shallow=True, recursive=False)`
+    directly in `_info()` so the scratch clone is always a `--depth 1
+    --no-single-branch` clone regardless of the requested version.
+
+    This does not show up in btest benchmarks because test packages are local
+    repos created with 1-2 commits -- there is no history to truncate. The
+    benefit is real for users running `zkg info` or `zkg install` against
+    remote packages with non-trivial history, where a shallow clone avoids
+    transferring the full object graph.
+
+  * Skip submodule fetch in `_info()` scratch clone (Benjamin Bannier, Corelight)
+
+    `_info()` clones a package into `scratch_dir` solely to read its metadata
+    (`zkg.meta`), version tags, and default branch. Neither submodule content
+    nor a fully initialised submodule tree is needed for this.
+
+    The code called `_clone_package()` with `recursive=True` (fetching all
+    submodules at clone time) and `git_checkout()` with `update_submodules=True`
+    (running `git submodule sync --recursive` and `git submodule update
+    --recursive --init`), causing up to four redundant network roundtrips per
+    submodule for packages that would later be cloned again into the test or
+    install staging directory.
+
+    Hardcode `recursive=False` and `update_submodules=False` in `_info()` since
+    the scratch clone is throwaway and metadata-only. Remove the now-unused
+    `update_submodules` parameter from `_info()`, `_info_lookup()`, and
+    `info()`.
+
+  * Disk-persist `zeek --build-info` across invocations (Benjamin Bannier, Corelight)
+
+    `zeek --build-info` ran on every `Manager` construction with no
+    cross-run persistence. Cache the result to
+    `state_dir/zeek_build_info_cache.json`, keyed on the `zeek` binary path,
+    mtime, and size, so subsequent runs with an unchanged binary skip the
+    subprocess entirely.
+
+    This does not show up in btest benchmarks because each test runs with a
+    fresh `state_dir`, so the cache is always cold. The benefit is real for
+    users: the subprocess is paid on every `zkg` command and is free on all
+    subsequent ones once the binary is unchanged.
+
+  * Cache `Manager.info()` results within a single invocation (Benjamin Bannier, Corelight)
+
+    `test()` calls `self.info(pkg_path)` and then `validate_dependencies()`
+    calls `self.info(name)` again for the same package with identical arguments.
+    For git-backed packages this means two scratch clones of the same repo.
+
+    Add `_info_cache` on `Manager` and extract `_info_lookup()` so `info()`
+    returns a cached `PackageInfo` on repeated calls with the same arguments.
+
+  * Skip source `git_checkout` when HEAD already matches target (Benjamin Bannier, Corelight)
+
+    On every `Manager` construction, `Source.__init__` was unconditionally
+    running `git_checkout` on each source clone, spawning three Git subprocesses
+    (`checkout`, `submodule sync --recursive`, `submodule update --recursive --init`)
+    even when the working tree was already at the target ref.
+
+    Only call `git_checkout` when the current branch/SHA differs from the target.
+
 3.1.0-47 | 2026-07-17 11:17:40 +0200
 
   * Rework `tests.info-submodules` to avoid reaching out to the internet (Benjamin Bannier, Corelight)

@@ -2037,7 +2037,6 @@ def cmd_info(
             name,
             version=args.version,
             prefer_installed=(not args.nolocal),
-            update_submodules=False,
         )
 
         if info2.package:
@@ -2109,7 +2108,6 @@ def cmd_info(
                         name,
                         vers,
                         prefer_installed=(not args.nolocal),
-                        update_submodules=False,
                     )
                     pkginfo[name]["metadata"][info3.metadata_version] = {}
                     if info3.metadata_file:
