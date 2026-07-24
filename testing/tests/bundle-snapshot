@@ -1,0 +1,30 @@
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: zkg install foo baz
+# @TEST-EXEC: zkg install bar --version 1.0.0
+# @TEST-EXEC: zkg bundle test.bundle
+# @TEST-EXEC: zkg purge
+# @TEST-EXEC: zkg unbundle test.bundle
+# @TEST-EXEC: zkg list installed > snapshot.out
+# @TEST-EXEC: btest-diff snapshot.out
+
+cd packages/foo
+echo 'print "foo 1.0.0";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "foo 1.0.1";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.1 -m 1.0.1
+echo 'print "foo 1.0.2";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.2 -m 1.0.2
+
+cd ../bar
+echo 'print "bar 1.0.0";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.0 -m 1.0.0
+echo 'print "bar 1.0.1";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.1 -m 1.0.1
+echo 'print "bar 1.0.2";' > __load__.zeek
+git commit -am 'new stuff'
+git tag -a 1.0.2 -m 1.0.2
