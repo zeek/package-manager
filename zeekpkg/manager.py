@@ -2119,6 +2119,18 @@ class Manager:
         graph: dict[str, Node] = {}  # Node.name -> Node, nodes store edges
         requests: list[Node] = []  # List of Node, just for requested packages
 
+        def add_node(node: Node) -> str:
+            """Add to graph; return an error string if the bare name collides under a different URL."""
+            pkg_name = name_from_path(node.name)
+            for existing_name in graph:
+                if (
+                    name_from_path(existing_name) == pkg_name
+                    and existing_name != node.name
+                ):
+                    return f'duplicate package name "{pkg_name}": remove one of "{existing_name}", "{node.name}"'
+            graph[node.name] = node
+            return ""
+
         # 1. Try to make nodes for everything in the dependency graph...
 
         # Add nodes for packages that are requested for installation
@@ -2135,7 +2147,8 @@ class Manager:
             node.info = info
             method = node.info.version_type
             node.requested_version = PackageVersion(method, version)
-            graph[node.name] = node
+            if err := add_node(node):
+                return (err, [])
             requests.append(node)
 
         # Recursively add nodes for all dependencies of requested packages,
@@ -2219,7 +2232,8 @@ class Manager:
                 node = Node(dep_name)
                 node.info = info2
                 node.is_suggestion = is_suggestion
-                graph[node.name] = node
+                if err := add_node(node):
+                    return (err, [])
                 to_process[node.name] = node
 
         # Add nodes for things that are already installed (including zeek)
@@ -2514,6 +2528,8 @@ class Manager:
 
             return None
 
+        seen_names: dict[str, str] = {}
+
         for git_url, version in package_list:
             # Record built-in packages in the bundle's manifest, but
             # otherwise ignore them silently.
@@ -2522,6 +2538,11 @@ class Manager:
                 continue
 
             name = name_from_path(git_url)
+
+            if name in seen_names:
+                return f'duplicate package name "{name}": remove one of "{seen_names[name]}", "{git_url}" from the manifest'
+
+            seen_names[name] = git_url
             clonepath = os.path.join(bundle_dir, name)
             config.set("bundle", git_url, version)
 

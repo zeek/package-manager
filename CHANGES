@@ -1,3 +1,26 @@
+3.1.0-57 | 2026-07-24 17:41:39 +0200
+
+  * Reject installs where a dependency URL resolves to the same package name (Benjamin Bannier, Corelight)
+
+    Reuses the `add_node()` collision check in the dependency traversal loop
+    in `validate_dependencies()`, catching the case where a dependency pulled
+    in transitively shares a bare name with an already-present node under a
+    different URL.
+
+  * Reject installs where two requested URLs resolve to the same package name (Benjamin Bannier, Corelight)
+
+    Introduces `add_node()` to centralize graph node insertion in
+    `validate_dependencies()`. Detects when a newly requested package shares
+    a bare name with an already-present node under a different URL and
+    returns a clear error naming both.
+
+  * Reject bundles where two URLs resolve to the same package name (Benjamin Bannier, Corelight)
+
+    Two manifest entries with different URL forms but the same basename
+    (e.g. SSH vs HTTPS for the same repo) would previously fail with an
+    opaque Git clone error. Detect the conflict early and report a clear
+    error naming both URLs and instructing the user to remove one.
+
 3.1.0-53 | 2026-07-23 09:44:54 +0200
 
   * Always use a shallow clone for the `_info()` scratch clone (Benjamin Bannier, Corelight)

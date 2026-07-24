@@ -1,0 +1,16 @@
+# @TEST-DOC: A dependency that resolves to the same package name as an already-requested package should fail with a clear error.
+#
+# @TEST-EXEC: bash %INPUT
+#
+# Use file:// URIs so Git treats the paths as remote URLs, preventing canonical_url from resolving them as local paths.
+# @TEST-EXEC-FAIL: zkg install "file://$(realpath a/foo)" "file://$(realpath a/bar)"
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='$SCRIPTS/diff-remove-abspath' btest-diff .stderr
+
+mkdir a b
+cp -r packages/foo a/foo
+cp -r packages/bar a/bar
+cp -r packages/foo b/foo
+
+# a/bar depends on b/foo -- b/foo collides with already-requested a/foo (same basename, different URL).
+echo "depends = file://$(realpath b/foo) *" >> a/bar/zkg.meta
+git -C a/bar commit -am 'depend on b/foo'

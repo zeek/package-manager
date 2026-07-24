@@ -1,0 +1,15 @@
+# @TEST-DOC: Bundling a manifest with two different URLs resolving to the same package name should fail with a clear error.
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC-FAIL: zkg bundle test.bundle --manifest manifest.txt
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='$SCRIPTS/diff-remove-abspath' btest-diff .stderr
+
+mkdir -p a b
+ln -s "$(realpath packages/foo)" a/foo
+ln -s "$(realpath packages/foo)" b/foo
+
+default_branch=$(cd packages/foo && git rev-parse --abbrev-ref HEAD)
+
+echo "[bundle]" > manifest.txt
+echo "./a/foo = ${default_branch}" >> manifest.txt
+echo "./b/foo = ${default_branch}" >> manifest.txt

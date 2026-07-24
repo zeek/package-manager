@@ -1,0 +1,11 @@
+# @TEST-DOC: Installing two packages that resolve to the same package name should fail with a clear error.
+#
+# @TEST-EXEC: bash %INPUT
+#
+# Use file:// URIs so Git treats the paths as remote URLs, preventing canonical_url from resolving them as local paths.
+# @TEST-EXEC-FAIL: zkg install "file://$(realpath a/foo)" "file://$(realpath b/foo)"
+# @TEST-EXEC: TEST_DIFF_CANONIFIER='$SCRIPTS/diff-remove-abspath' btest-diff .stderr
+
+mkdir a b
+cp -r packages/foo a/foo
+cp -r packages/foo b/foo
