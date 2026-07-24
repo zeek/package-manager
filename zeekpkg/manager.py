@@ -5,6 +5,7 @@ methods to interact with and operate on Zeek packages.
 
 import configparser
 import copy
+import fcntl
 import filecmp
 import json
 import os
@@ -291,7 +292,13 @@ class Manager:
         self.manifest = os.path.join(self.state_dir, "manifest.json")
         self.autoload_script = os.path.join(self.script_dir, "packages.zeek")
         self.autoload_package = os.path.join(self.script_dir, "__load__.zeek")
+
         make_dir(self.state_dir)
+
+        # The lock file lives inside `state_dir`, so we open it after ensuring the dir exists.
+        self._state_lock = open(os.path.join(self.state_dir, ".lock"), "a")
+        fcntl.flock(self._state_lock, fcntl.LOCK_EX)
+
         make_dir(self.log_dir)
         make_dir(self.scratch_dir)
         make_dir(self.source_clonedir)
