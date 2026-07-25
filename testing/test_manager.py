@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import git
 import pytest
 
+from zeekpkg._util import _semver_versions
 from zeekpkg.manager import (
     GitResolution,
     Manager,
@@ -583,6 +584,29 @@ class TestDepsAtVersion:
         r = _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
         result = _deps_at_version(r, "v1.0.0")
         assert result == {}
+
+
+class TestSemverVersions:
+    def test_filters_invalid(self) -> None:
+        tags = ["v1.0.0", "not-a-version", "v2.3.4", "branch-name"]
+        result = _semver_versions(tags)
+        assert result == [("v1.0.0", "1.0.0"), ("v2.3.4", "2.3.4")]
+
+    def test_strips_v_prefix(self) -> None:
+        result = _semver_versions(["v1.2.3"])
+        assert result == [("v1.2.3", "1.2.3")]
+
+    def test_coerces_partial(self) -> None:
+        result = _semver_versions(["1.2"])
+        assert result == [("1.2", "1.2")]
+
+    def test_drops_branch_names(self) -> None:
+        result = _semver_versions(["main", "feature/foo"])
+        assert result == []
+
+    def test_drops_sha_hashes(self) -> None:
+        result = _semver_versions(["a" * 40])
+        assert result == []
 
 
 class TestInfoCache:
