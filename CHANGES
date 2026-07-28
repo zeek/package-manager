@@ -1,3 +1,29 @@
+3.1.0-59 | 2026-07-28 16:21:52 +0200
+
+  * GH-139: Protect state dir against concurrent operations (Benjamin Bannier, Corelight)
+
+    A big part of `zkg`'s work involves mutating its state dir, e.g., to
+    update sources, refresh indices, or create temporary files. The code was
+    built under the assumption that only a single `zkg` process would work
+    on that state, so access was not controlled at all. This means that
+    concurrent mutating operations against the state (of which we have many)
+    could corrupt each other's expected state. Additionally, the functions
+    we use to provide that functionality also do not cleanly cut along which
+    part of the state they work on end to end making granular locking hard.
+
+    What this patch does instead is to protect access to the manager's
+    global state through a lock. With that all `zkg` invocations are
+    effectively sequenced and races are impossible. This makes concurrent
+    `zkg` invocations potentially much slower, but `zkg` was never designed
+    for that use case anyway.
+
+    We add a small test exercising concurrent, mutating access via `zkg
+    list` which would have failed today without the lock, but it is not
+    really clear that that operation would always perform state mutation.
+
+    This closes #139 and maybe also #160 which could have had same
+    underlying issue.
+
 3.1.0-57 | 2026-07-24 17:41:39 +0200
 
   * Reject installs where a dependency URL resolves to the same package name (Benjamin Bannier, Corelight)

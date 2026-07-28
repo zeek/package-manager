@@ -1,0 +1,18 @@
+# @TEST-DOC: Concurrent zkg invocations must not race on shared state.
+#
+# @TEST-EXEC: bash %INPUT
+# @TEST-EXEC: btest-bg-wait 30
+#
+# @TEST-EXEC: test ! -s r1/.stderr
+# @TEST-EXEC: test ! -s r2/.stderr
+
+# `btest-bg-run` changes the working directory, so `zkg list` needs an explicit cd to find the test state.
+#
+# This test assumes `zkg list` mutates state, without that the race may not trigger.
+testdir=$(pwd)
+cat > run-zkg-list <<EOF
+cd $testdir && zkg list
+EOF
+
+BTEST_BG_RUN_SLEEP=0 btest-bg-run r1 "sh $testdir/run-zkg-list"
+BTEST_BG_RUN_SLEEP=0 btest-bg-run r2 "sh $testdir/run-zkg-list"
