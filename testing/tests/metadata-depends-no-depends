@@ -1,0 +1,3 @@
+# @TEST-EXEC: zkg install foo
+# @TEST-EXEC: zkg list installed > no_depends.out
+# @TEST-EXEC: btest-diff no_depends.out

@@ -1,3 +1,42 @@
+3.1.0-64 | 2026-07-29 11:05:41 +0200
+
+  * Split `tests.metadata-depends` into four independent tests (Benjamin Bannier, Corelight)
+
+    Mirror the same split applied to `tests.metadata-suggests`: extract the
+    no-depends baseline, upgrade, install, and bundle/unbundle scenarios
+    into separate test files with the repo-mutation setup inlined in each.
+    The original `tests.metadata-depends` is removed.
+
+  * Split `tests.metadata-suggests` into four independent tests (Benjamin Bannier, Corelight)
+
+    The original test ran four scenarios sequentially behind a single
+    `bash %INPUT` setup. Extract each scenario (no-suggests baseline,
+    upgrade via `zkg refresh`+`upgrade`, fresh install, bundle/unbundle)
+    into its own test file with the repo-mutation setup inlined. The
+    original `tests.metadata-suggests` is removed.
+
+  * Split `tests.bundle` into three independent tests (Benjamin Bannier, Corelight)
+
+    The original `tests.bundle` ran snapshot, `--manifest args`, and
+    `--manifest file` bundle scenarios sequentially in one test. Extract
+    each into its own test (`tests.bundle-snapshot`, `tests.bundle-args`,
+    `tests.bundle-manifest`) with the tag-setup script inlined per test.
+    The original `tests.bundle` is removed since all scenarios are covered
+    by the new tests.
+
+  * Split `tests.install` into seven independent tests (Benjamin Bannier, Corelight)
+
+    Extract each distinct scenario from the monolithic test:
+    - `install-branch-default`: installs corge at the latest version on the default branch
+    - `install-branch-explicit`: installs corge by explicit branch name
+    - `install-version-latest`: installs grault at the latest version
+    - `install-version-tag`: installs grault at a specific tag
+    - `install-version-detached`: installs grault from a local path with detached HEAD
+    - `install-version-commit-hash`: installs grault at a specific commit hash
+
+    The remaining `tests.install` covers the four unconditional installs
+    (foo, bar, baz, qux) that need no setup.
+
 3.1.0-59 | 2026-07-28 16:21:52 +0200
 
   * GH-139: Protect state dir against concurrent operations (Benjamin Bannier, Corelight)

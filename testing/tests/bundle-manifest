@@ -1,19 +1,4 @@
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: zkg install foo baz
-# @TEST-EXEC: zkg install bar --version 1.0.0
-# @TEST-EXEC: zkg bundle test.bundle
-# @TEST-EXEC: zkg purge
-# @TEST-EXEC: zkg unbundle test.bundle
-# @TEST-EXEC: zkg list installed > snapshot.out
-# @TEST-EXEC: btest-diff snapshot.out
-
-# @TEST-EXEC: zkg purge
-# @TEST-EXEC: zkg bundle test.bundle --manifest foo bar baz
-# @TEST-EXEC: zkg unbundle test.bundle
-# @TEST-EXEC: zkg list installed > args.out
-# @TEST-EXEC: btest-diff args.out
-
-# @TEST-EXEC: zkg purge
 # @TEST-EXEC: zkg bundle test.bundle --manifest manifest.txt
 # @TEST-EXEC: zkg unbundle test.bundle
 # @TEST-EXEC: zkg list installed > manifest.out
