@@ -1,7 +1,9 @@
 *.pyc
 *.egg-info
 *.swp
+.coverage
 .state
 doc/_build
 build
 dist
+uv.lock
