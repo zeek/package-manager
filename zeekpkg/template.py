@@ -429,7 +429,7 @@ class Template:
             "provides_package": False,
         }
 
-        # XXX we should revisit the reported 'origin' value in
+        # TODO: we should revisit the reported 'origin' value in
         # API 2.0.0 -- the the ad-hoc strings are less helpful
         # than simply providing the key only when there's an
         # actual origin.

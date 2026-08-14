@@ -319,7 +319,7 @@ def cmd_install(
 
     # Run tests on explicitly requested packages. With --force, this
     # exits with error if tests fail.
-    # XXX this prints output even with --force
+    # TODO: this prints output even with --force
     if not args.skiptests:
         # Iterate only over the requested packages here, skipping the
         # dependencies. We ask the manager to include dependencies below.

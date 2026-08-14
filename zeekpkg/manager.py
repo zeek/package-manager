@@ -527,7 +527,7 @@ class Manager:
                 version=version,
             )
         except git.GitCommandError as error:
-            # XXX seems this could also error when requesting nonexisting
+            # NOTE: seems this could also error when requesting nonexisting
             # branches/versions?
             LOG.warning("failed to clone git repo: %s", error)
             return "failed to clone git repo"
@@ -539,7 +539,7 @@ class Manager:
     def source_packages(self) -> list[Package]:
         """Return a list of :class:`.package.Package` within all sources."""
         rval = []
-        # XXX odd naming, perhaps available_packages or some such.
+        # NOTE: odd naming, perhaps available_packages or some such.
         for _, source in self.sources.items():
             rval += source.packages()
 
@@ -746,7 +746,7 @@ class Manager:
         rval = []
         canon_url = canonical_url(pkg_path)
 
-        # XXX This is the right place to populate a package source on-demand.
+        # NOTE: This is the right place to populate a package source on-demand.
 
         for pkg in self.source_packages():
             if pkg.matches_path(canon_url):
@@ -864,7 +864,7 @@ class Manager:
             shutil.copy2(config_file_path, backup_file)
             rval.append((config_file, backup_file))
 
-        # XXX there's nothing temporary about the files just created, and
+        # NOTE: there's nothing temporary about the files just created, and
         # nothing that cleans them.
 
         return rval
@@ -995,10 +995,10 @@ class Manager:
             shutil.copy2(install_path, backup_path)
             rval.append(backup_path)
 
-        # XXX odd to have both this method and save_temporary_config_files(),
+        # NOTE: odd to have both this method and save_temporary_config_files(),
         # since the latter only copies what's in the clone tree?
 
-        # XXX also note that there's no restore_modified_files() because
+        # NOTE: also note that there's no restore_modified_files() because
         # restoration isn't the point of these backups, it's to preserve the
         # modified version for reference/review (similar to e.g. .rpmsave).
 
@@ -1151,7 +1151,7 @@ class Manager:
             # The above check for whether the installed package is outdated
             # also should have already caught this situation.
 
-            # XXX This likely refers to the fact that if a package got installed
+            # NOTE: This likely refers to the fact that if a package got installed
             # to a given commit, there's only that single version, so it cannot
             # be outdated. So this is effectively pins the package.
             return "package is not outdated"
@@ -2794,7 +2794,7 @@ class Manager:
         script_dir_src = os.path.join(clone.working_dir, pkg_script_dir)
         script_dir_dst = os.path.join(stage.script_dir, package.name)
 
-        # XXX what if the package has only a plugin, no script_dir?
+        # TODO: what if the package has only a plugin, no script_dir?
         # Seems conceivable and not an error.
         if not os.path.exists(script_dir_src):
             return f"package's 'script_dir' does not exist: {pkg_script_dir}"
@@ -3094,7 +3094,7 @@ class Manager:
             # If installing directly from git URL, see if it actually is found
             # in a package source and fill in those details.
             #
-            # XXX This seems strange -- what if this is ambiguous across
+            # TODO: This seems strange -- what if this is ambiguous across
             # sources?  Also we overwrite the metdata below anyway.
             for pkg in self.source_packages():
                 if pkg.git_url == package.git_url:
@@ -3244,7 +3244,7 @@ def _copy_package_dir(
     if not os.path.exists(src):
         return ""
 
-    # XXX instead of magic handling of tarfiles, it'd be nicer
+    # TODO: instead of magic handling of tarfiles, it'd be nicer
     # to have separate keywords for shipping archives.
     # Since it only seems to make sense for pre-built plugins
     # and their dependencies, perhaps plugin_archive.
