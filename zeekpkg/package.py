@@ -3,6 +3,7 @@ A module with various data structures used for interacting with and querying
 the properties and status of Zeek packages.
 """
 
+import configparser
 import os
 import re
 from functools import total_ordering
@@ -10,6 +11,7 @@ from functools import total_ordering
 import semantic_version as semver
 
 from ._util import find_sentence_end, normalize_version_tag
+from .logs import LOG
 from .uservar import UserVar
 
 #: The name of files used by packages to store their metadata.
@@ -30,6 +32,41 @@ LEGACY_PLUGIN_MAGIC_FILE = "__bro_plugin__"
 LEGACY_PLUGIN_MAGIC_FILE_DISABLED = "__bro_plugin__.disabled"
 
 
+def get_package_metadata(parser: configparser.ConfigParser) -> dict[str, str]:
+    return {item[0]: item[1] for item in parser.items("package")}
+
+
+def pick_metadata_file(directory: str) -> str:
+    rval = os.path.join(directory, METADATA_FILENAME)
+
+    if os.path.exists(rval):
+        return rval
+
+    return os.path.join(directory, LEGACY_METADATA_FILENAME)
+
+
+def parse_package_metadata(
+    parser: configparser.ConfigParser,
+    metadata_file: str,
+) -> str:
+    """Return string explaining why metadata is invalid, or '' if valid."""
+    if not parser.read(metadata_file):
+        LOG.warning("%s: missing metadata file", metadata_file)
+        return (
+            f"missing {METADATA_FILENAME} (or {LEGACY_METADATA_FILENAME}) metadata file"
+        )
+
+    if not parser.has_section("package"):
+        LOG.warning("%s: metadata missing [package]", metadata_file)
+        return f"{os.path.basename(metadata_file)} is missing [package] section"
+
+    for a in aliases(get_package_metadata(parser)):
+        if not is_valid_name(a):
+            return f'invalid alias "{a}"'
+
+    return ""
+
+
 def name_from_path(path: str) -> str:
     """Returns the name of a package given a path to its git repository."""
     return canonical_url(path).split("/")[-1]
@@ -46,7 +83,11 @@ def canonical_url(path: str) -> str:
 
 
 def is_valid_name(name: str) -> bool:
-    """Returns True if name is a valid package name, else False."""
+    """Returns True if name is a valid package name, else False.
+
+    A name is valid if it doesn't contain spaces, slashes, dots, or reserved
+    words.
+    """
     if name != name.strip():
         # Reject names with leading/trailing whitespace
         return False
@@ -87,6 +128,10 @@ def short_description(metadata_dict: dict[str, str]) -> str:
         return ""
 
     description = metadata_dict["description"]
+
+    # Strip any quotes and whitespace around the whole description.
+    description = description.strip(' "')
+
     lines = description.split("\n")
     rval = ""
 

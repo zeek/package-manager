@@ -1,5 +1,5 @@
 """
-These are meant to be private utility methods for internal use.
+Private utility methods for zkg's internal use.
 """
 
 import configparser
@@ -18,6 +18,10 @@ from typing import IO, TextIO
 import git
 import semantic_version as semver
 
+from .ui import (
+    UI,
+)
+
 
 def make_dir(path: str) -> None:
     """Create a directory or do nothing if it already exists.
@@ -33,6 +37,10 @@ def make_dir(path: str) -> None:
 
         if os.path.isfile(path):
             raise
+
+
+def file_is_not_empty(path: str) -> bool:
+    return os.path.isfile(path) and os.path.getsize(path) > 0
 
 
 def normalize_version_tag(tag: str) -> str:
@@ -113,6 +121,12 @@ def safe_tarfile_extractall(tfile: str, destdir: str) -> None:
 
 
 def find_sentence_end(s: str) -> int:
+    """Returns first index in given string of the end of a sentence.
+
+    A sentence end is either ". " or a "." at the end of the string.
+
+    Returns zero-based index if successful, -1 otherwise.
+    """
     beg = 0
 
     while True:
@@ -300,6 +314,67 @@ def git_remote_urls(repo: git.Repo) -> dict[str, str]:
             pass
 
     return remotes
+
+
+def active_git_branch(path: str) -> str | None:
+    try:
+        repo = git.Repo(path)
+    except git.NoSuchPathError:
+        return None
+
+    if not repo.working_tree_dir:
+        return None
+
+    try:
+        rval = repo.active_branch
+    except TypeError:
+        # return detached commit
+        rval = repo.head.commit
+
+    if not rval:
+        return None
+
+    return str(rval)
+
+
+def is_local_git_repo_url(git_url: str) -> bool:
+    return (
+        git_url.startswith(".") or git_url.startswith("/") or is_local_git_repo(git_url)
+    )
+
+
+def is_local_git_repo(git_url: str) -> bool:
+    try:
+        # The Repo class takes a file system path as first arg. This
+        # can fail in two ways: (1) the path doesn't exist or isn't
+        # accessible, (2) it's not the root directory of a git repo.
+        git.Repo(git_url)
+        return True
+    except (git.InvalidGitRepositoryError, git.NoSuchPathError):
+        return False
+
+
+def is_local_git_repo_dirty(git_url: str) -> bool:
+    if not is_local_git_repo(git_url):
+        return False
+    try:
+        repo = git.Repo(git_url)
+    except git.NoSuchPathError:
+        return False
+
+    return repo.is_dirty(untracked_files=True)
+
+
+def check_local_git_repo(git_url: str) -> bool:
+    if is_local_git_repo_url(git_url):
+        if not is_local_git_repo(git_url):
+            UI.error(f"path {git_url} is not a git repository")
+            return False
+        if is_local_git_repo_dirty(git_url):
+            UI.error(f"local git clone at {git_url} is dirty")
+            return False
+
+    return True
 
 
 def is_sha1(s: str) -> bool:

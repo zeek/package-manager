@@ -3,7 +3,6 @@ A module for instantiating different types of Zeek packages.
 """
 
 import abc
-import configparser
 import os
 import re
 import shutil
@@ -14,12 +13,15 @@ import git
 import semantic_version as semver
 
 if TYPE_CHECKING:
-    from zeekpkg import UserVar
+    from zeekpkg.uservar import UserVar
 
-from . import (
-    LOG,
-    __version__,
+from zeekpkg.config import (
+    CONFIG,
 )
+from zeekpkg.consts import (
+    VERSION,
+)
+
 from ._util import (
     delete_path,
     git_checkout,
@@ -30,6 +32,9 @@ from ._util import (
     git_version_tags,
     load_source,
     make_dir,
+)
+from .logs import (
+    LOG,
 )
 from .package import (
     name_from_path,
@@ -68,7 +73,6 @@ class Template:
 
     @staticmethod
     def load(
-        config: configparser.ConfigParser,
         template: str,
         version: str | None = None,
     ) -> "Template":
@@ -83,8 +87,6 @@ class Template:
         derivative that must be present in it.
 
         Args:
-            config (configparser.ConfigParser): a zkg configuration
-
             template (str): template source repo, as directory or git URL
 
             version (str): if provided, a specific version tag to use.
@@ -123,7 +125,7 @@ class Template:
             # zkg state folder's clone space and support version
             # requests.
             template_clonedir = os.path.join(
-                config.get("paths", "state_dir"),
+                CONFIG.get("paths", "state_dir"),
                 "clones",
                 "template",
             )
@@ -427,7 +429,7 @@ class Template:
             "provides_package": False,
         }
 
-        # XXX we should revisit the reported 'origin' value in
+        # TODO: we should revisit the reported 'origin' value in
         # API 2.0.0 -- the the ad-hoc strings are less helpful
         # than simply providing the key only when there's an
         # actual origin.
@@ -792,7 +794,7 @@ class Package(_Content):
 
         commit_msg = f"""Initial commit.
 
-zkg {__version__} created this package from template "{tmpl_source}"
+zkg {VERSION} created this package from template "{tmpl_source}"
 using {ver_info}."""
 
         if self._features:

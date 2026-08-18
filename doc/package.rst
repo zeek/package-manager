@@ -549,6 +549,10 @@ script components, the "plugin" part is always unconditionally loaded by Zeek,
 but the "script" components must either be explicitly loaded (e.g. :samp:`@load
 {<package_name>}`) or the package marked as :ref:`loaded <load-command>`.
 
+:program:`zkg` captures the output of the build command into a
+`<package>-build.log` file in its logs directory, located in
+`<state_dir>/logs/`.
+
 .. _metadata-interpolation:
 
 Value Interpolation
@@ -651,6 +655,10 @@ An example :file:`zkg.meta`::
 
 The recommended test framework for writing package unit tests is `btest`_.
 See its documentation for further explanation and examples.
+
+:program:`zkg` captures the output of the test command into a
+`<package>-test.log` file in its logs directory, located in
+`<state_dir>/logs/`.
 
 .. note::
 

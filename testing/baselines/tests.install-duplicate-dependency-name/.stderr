@@ -2,4 +2,4 @@
 Switched to a new branch 'main'
 Switched to a new branch 'drop-corge'
 Switched to branch 'master'
-error: failed to resolve dependencies: duplicate package name "foo": remove one of "file:<...>/foo", "file:<...>/foo"
+Error: failed to resolve dependencies: duplicate package name "foo": remove one of "file:<...>/foo", "file:<...>/foo"
