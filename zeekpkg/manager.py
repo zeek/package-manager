@@ -5,6 +5,7 @@ methods to interact with and operate on Zeek packages.
 
 import configparser
 import copy
+import errno
 import fcntl
 import filecmp
 import json
@@ -3400,3 +3401,29 @@ def _info_from_clone(
 
 def _is_reserved_pkg_name(name: str) -> bool:
     return name in {"zeek", "zkg"}
+
+
+def create_manager() -> Manager | None:
+    """Helper to create the manager robustly in the presence of file permission errors.
+
+    Returns a manager instance, or None in case of file access errors.
+    Other types of exceptions are not caught.
+    """
+    try:
+        return Manager()
+    except OSError as error:
+        if error.errno == errno.EACCES:
+            LOG.error(f"{type(error).__name__}: {error}")
+
+            def check_permission(d: str) -> None:
+                if not os.access(d, os.W_OK):
+                    LOG.error(f"user does not have write access in {d}")
+
+            check_permission(CONFIG.state_dir())
+            check_permission(CONFIG.script_dir())
+            check_permission(CONFIG.plugin_dir())
+            check_permission(CONFIG.bin_dir())
+
+            return None
+
+        raise

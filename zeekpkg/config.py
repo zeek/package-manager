@@ -59,7 +59,6 @@ class Config(configparser.ConfigParser):
             },
         )
 
-        # These may turn out to be empty to populate only if present:
         if val := os.getenv("ZKG_DEFAULT_SOURCE", ZKG_DEFAULT_SOURCE):
             self.set("sources", "zeek", val)
         if val := os.getenv("ZKG_DEFAULT_TEMPLATE", ZKG_DEFAULT_TEMPLATE):
@@ -95,12 +94,17 @@ class Config(configparser.ConfigParser):
     def canonicalize(self) -> None:
         """Applies canonicalization to select config settings.
 
-        For any entries in the "paths" section, this includes tilde and
-        environment variable expansion, as well as path normalization.
+        For any entries in the "paths", "sources", and "templates" section, this
+        includes tilde and environment variable expansion, as well as path
+        normalization.
         """
+        for section in ("paths", "sources", "templates"):
+            for key, path in self.items(section):
+                path = os.path.expanduser(path)  # Expand ~
+                path = os.path.expandvars(path)  # Env var substitution
+                self.set(section, key, path)
+
         for key, path in self.items("paths"):
-            path = os.path.expanduser(path)  # Expand ~
-            path = os.path.expandvars(path)  # Env var substitution
             if path:
                 # Canonicalize; no trailing slashes -- but only
                 # if there is a value, because normpath otherwise
@@ -130,6 +134,15 @@ class Config(configparser.ConfigParser):
         if not os.path.isfile(configfile):
             UI.error(f'invalid config file "{configfile}"')
             sys.exit(1)
+
+        # If we're loading a config file, consider its potential `[sources]`
+        # section authoritative. This allows config files to adjust (or remove)
+        # package sources, while defaulting to the standard Zeek package source
+        # in the absence of a config file. We don't blow away the whole section,
+        # only its contents, to avoid perturbing the order of sections in the
+        # ConfigParser (picked up by the tests.user-mode btest).
+        for source in self.options("sources"):
+            self.remove_option("sources", source)
 
         self.read(configfile)
         self.canonicalize()

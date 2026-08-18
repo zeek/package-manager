@@ -16,11 +16,24 @@ def main() -> None:
 
     configfile = zeekpkg.CONFIG.find_configfile(args)
 
+    # Treat explicitly requested config files that don't exist as an error:
+    if args.configfile and configfile != args.configfile:
+        zeekpkg.UI.error(f'invalid config file "{args.configfile}"')
+        sys.exit(1)
+
     zeekpkg.CONFIG.reset(args)
     zeekpkg.CONFIG.update_from_file(configfile)
     zeekpkg.CONFIG.update_from_args(args)
 
-    manager = zeekpkg.manager.Manager()
+    manager = zeekpkg.manager.create_manager()
+
+    if manager is None:
+        zeekpkg.UI.error("Permission problems prevent zkg from creating internal state")
+        if not args.user:
+            zeekpkg.UI.error(
+                "Consider the --user flag to manage zkg state via {home_config_dir()}/config",
+            )
+        sys.exit(1)
 
     for name, url in zeekpkg.CONFIG.items("sources"):
         if err := manager.add_source(name, url):
