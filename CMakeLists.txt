@@ -25,7 +25,7 @@ set(ZKG_PYZ "${CMAKE_CURRENT_BINARY_DIR}/zkg.pyz")
 add_custom_command(
   OUTPUT "${ZKG_PYZ}"
   COMMENT "Bundling zkg"
-  COMMAND "${SHIV}" -c zkg -o "${ZKG_PYZ}" zkg
+  COMMAND "${SHIV}" -c zkg -o "${ZKG_PYZ}" ${CMAKE_CURRENT_SOURCE_DIR}
   # TODO: Ideally this would also depend on anything in `zeekpkg/` changing.
   DEPENDS shiv_install pyproject.toml zkg
   VERBATIM)

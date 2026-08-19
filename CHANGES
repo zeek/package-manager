@@ -1,3 +1,9 @@
+3.1.0-66 | 2026-08-19 08:59:51 +0200
+
+  * Use local source tree for zkg in shiv command (Christian Kreibich, Corelight)
+
+    By providing "zkg" we caused `pip install` to install from PyPI.
+
 3.1.0-64 | 2026-07-29 11:05:41 +0200
 
   * Split `tests.metadata-depends` into four independent tests (Benjamin Bannier, Corelight)
