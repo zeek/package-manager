@@ -280,8 +280,9 @@ def create_config(
 
 
 def active_git_branch(path: str) -> str | None:
+    local_path = path.removeprefix("file://")
     try:
-        repo = git.Repo(path)
+        repo = git.Repo(local_path)
     except git.NoSuchPathError:
         return None
 
@@ -329,6 +330,13 @@ def is_local_git_repo_dirty(git_url: str) -> bool:
 
 
 def check_local_git_repo(git_url: str) -> bool:
+    if git_url.startswith("file://"):
+        local_path = git_url[len("file://") :]
+        if is_local_git_repo_dirty(local_path):
+            print_error(f"error: local git clone at {git_url} is dirty")
+            return False
+        return True
+
     if is_local_git_repo_url(git_url):
         if not is_local_git_repo(git_url):
             print_error(f"error: path {git_url} is not a git repository")
