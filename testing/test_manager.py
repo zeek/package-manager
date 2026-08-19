@@ -14,7 +14,6 @@ from zeekpkg.manager import (
     Manager,
     _info_from_snapshot,
     _is_directory_package,
-    _is_git_package,
     _prepare_snapshot,
     _resolve_git_version,
     _snapshot_from_directory,
@@ -202,20 +201,6 @@ class TestSnapshotFromDirectory:
         (tmp_path / "zkg.meta").write_text("[package]\ndescription = test\n")
         with pytest.raises(ValueError, match="version"):
             _snapshot_from_directory(str(tmp_path))
-
-
-class TestIsGitPackage:
-    @pytest.mark.parametrize(
-        "method,expected",
-        [
-            (TrackingMethod.VERSION, True),
-            (TrackingMethod.BRANCH, True),
-            (TrackingMethod.COMMIT, True),
-            (None, False),
-        ],
-    )
-    def test_is_git_package(self, method: str | None, expected: bool) -> None:
-        assert _is_git_package(PackageStatus(tracking_method=method)) is expected
 
 
 class TestIsDirectoryPackage:
