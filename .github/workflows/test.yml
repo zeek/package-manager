@@ -43,10 +43,11 @@ jobs:
       - name: Remove zkg installation
         # Rule out confusion between test environment and pre-existing zkg:
         run: |
-          rm $ZEEKROOT/bin/zkg $ZEEKROOT/share/man/man1/zkg.1
-          rm -r $ZEEKROOT/etc/zkg
-          rm -r $ZEEKROOT/lib/zeek/python/zeekpkg
-          rm -r $ZEEKROOT/var/lib/zkg
+          rm -f $ZEEKROOT/bin/zkg $ZEEKROOT/share/man/man1/zkg.1
+          rm -f -r $ZEEKROOT/etc/zkg
+          rm -f -r $ZEEKROOT/lib/zeek/python/zeekpkg
+          rm -f -r $ZEEKROOT/bin/zkg
+          rm -f -r $ZEEKROOT/var/lib/zkg
       - uses: actions/checkout@v4
 
       - name: Install uv
