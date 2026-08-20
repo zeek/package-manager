@@ -1,3 +1,12 @@
+3.1.0-20 | 2026-08-25 13:13:59 -0700
+
+  * Update CI to work with latest Zeek dev Docker images (Benjamin Bannier, Corelight)
+
+  * Fix version canonifier to deal with multidigit versions (Benjamin Bannier, Corelight)
+
+    The previous canonifier expected versions to be single digit, so it
+    did not work properly with the freshly released zeek-8.0.10.
+
 3.1.0-18 | 2026-03-05 09:28:30 +0100
 
   * Bump and freeze pre-commit hooks (Benjamin Bannier, Corelight)

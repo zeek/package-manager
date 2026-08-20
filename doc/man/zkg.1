@@ -1,4 +1,5 @@
-.\" Man page generated from reStructuredText.
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
 .
 .
 .nr rst2man-indent-level 0
@@ -27,7 +28,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "ZKG" "1" "Mar 05, 2026" "3.1.0-18" "Zeek Package Manager"
+.TH "ZKG" "1" "Aug 25, 2026" "3.1.0-20" "Zeek Package Manager"
 .SH NAME
 zkg \- Zeek Package Manager
 .sp
@@ -37,8 +38,7 @@ A command\-line package manager for Zeek.
 .INDENT 3.5
 .sp
 .EX
-usage: zkg [\-h] [\-\-version] [\-\-configfile FILE | \-\-user] [\-\-verbose] [\-\-extra\-source NAME=URL]
-           {test,install,bundle,unbundle,remove,uninstall,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...
+[1;34musage: [0m[1;35mzkg[0m [[32m\-h[0m] [[36m\-\-version[0m] [[36m\-\-configfile [33mFILE[0m | [36m\-\-user[0m] [[36m\-\-verbose[0m] [[36m\-\-extra\-source [33mNAME=URL[0m] [32m{test,install,bundle,unbundle,remove,uninstall,purge,refresh,upgrade,load,unload,pin,unpin,list,search,info,config,autoconfig,env,create,template} ...[0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -53,7 +53,7 @@ show program\(aqs version number and exit
 .B  \-\-configfile
 Path to Zeek Package Manager config file. Precludes \-\-user.
 .sp
-See \fI\%Config File\fP\&.
+See Config File\&.
 .TP
 .B  \-\-user=False
 Store all state in user\(aqs home directory. Precludes \-\-configfile.
@@ -70,8 +70,8 @@ Environment Variables:
 .INDENT 0.0
 .INDENT 3.5
 \fBZKG_CONFIG_FILE\fP:	Same as \fB\-\-configfile\fP option, but has less precedence.
-\fBZKG_DEFAULT_SOURCE\fP:	The default package source to use (normally \X'tty: link https://github.com/zeek/packages'\fI\%https://github.com/zeek/packages\fP\X'tty: link').
-\fBZKG_DEFAULT_TEMPLATE\fP:	The default package template to use (normally \X'tty: link https://github.com/zeek/package-template'\fI\%https://github.com/zeek/package\-template\fP\X'tty: link').
+\fBZKG_DEFAULT_SOURCE\fP:	The default package source to use (normally \%<https://\:github\:.com/\:zeek/\:packages>).
+\fBZKG_DEFAULT_TEMPLATE\fP:	The default package template to use (normally \%<https://\:github\:.com/\:zeek/\:package-template>).
 .UNINDENT
 .UNINDENT
 
@@ -84,7 +84,7 @@ Runs the unit tests for the specified Zeek packages. In most cases, the \(dqzeek
 .INDENT 3.5
 .sp
 .EX
-usage: zkg test [\-h] [\-\-version VERSION] package [package ...]
+[1;34musage: [0m[1;35mzkg test[0m [[32m\-h[0m] [[36m\-\-version [33mVERSION[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -112,7 +112,7 @@ Installs packages from a configured package source or directly from a git URL.  
 .INDENT 3.5
 .sp
 .EX
-usage: zkg install [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-version VERSION] [\-\-force] [\-\-user\-var NAME=VAL] package [package ...]
+[1;34musage: [0m[1;35mzkg install[0m [[32m\-h[0m] [[36m\-\-skiptests[0m] [[36m\-\-nodeps[0m] [[36m\-\-nosuggestions[0m] [[36m\-\-version [33mVERSION[0m] [[36m\-\-force[0m] [[36m\-\-user\-var [33mNAME=VAL[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -155,7 +155,7 @@ Unloads (see the \fBunload\fP command) and uninstalls a previously installed pac
 .INDENT 3.5
 .sp
 .EX
-usage: zkg remove [\-h] [\-\-force] [\-\-nodeps] package [package ...]
+[1;34musage: [0m[1;35mzkg remove[0m [[32m\-h[0m] [[36m\-\-force[0m] [[36m\-\-nodeps[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -179,7 +179,7 @@ Skip all dependency resolution/checks.  Note that using this option risks puttin
 .UNINDENT
 .UNINDENT
 .sp
-\fBNOTE:\fP
+\fBNote:\fP
 .INDENT 0.0
 .INDENT 3.5
 You may also say \fBuninstall\fP\&.
@@ -193,7 +193,7 @@ Unloads (see the \fBunload\fP command) and uninstalls all previously installed p
 .INDENT 3.5
 .sp
 .EX
-usage: zkg purge [\-h] [\-\-force]
+[1;34musage: [0m[1;35mzkg purge[0m [[32m\-h[0m] [[36m\-\-force[0m]
 .EE
 .UNINDENT
 .UNINDENT
@@ -214,7 +214,7 @@ This command creates a bundle file containing a collection of Zeek packages.  If
 .INDENT 3.5
 .sp
 .EX
-usage: zkg bundle [\-h] [\-\-force] [\-\-nodeps] [\-\-nosuggestions] [\-\-manifest MANIFEST [MANIFEST ...] \-\-] filename.bundle
+[1;34musage: [0m[1;35mzkg bundle[0m [[32m\-h[0m] [[36m\-\-force[0m] [[36m\-\-nodeps[0m] [[36m\-\-nosuggestions[0m] [[36m\-\-manifest [33mMANIFEST [MANIFEST ...] \-\-[0m] [32mfilename.bundle[0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -251,7 +251,7 @@ This command unpacks a bundle file formerly created by the \fBbundle\fP command 
 .INDENT 3.5
 .sp
 .EX
-usage: zkg unbundle [\-h] [\-\-replace] [\-\-force] [\-\-user\-var NAME=VAL] filename.bundle
+[1;34musage: [0m[1;35mzkg unbundle[0m [[32m\-h[0m] [[36m\-\-replace[0m] [[36m\-\-force[0m] [[36m\-\-user\-var [33mNAME=VAL[0m] [32mfilename.bundle[0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -285,7 +285,7 @@ Retrieve latest package metadata from sources and checks whether any installed p
 .INDENT 3.5
 .sp
 .EX
-usage: zkg refresh [\-h] [\-\-aggregate] [\-\-fail\-on\-aggregate\-problems] [\-\-push] [\-\-sources SOURCES [SOURCES ...]]
+[1;34musage: [0m[1;35mzkg refresh[0m [[32m\-h[0m] [[36m\-\-aggregate[0m] [[36m\-\-fail\-on\-aggregate\-problems[0m] [[36m\-\-push[0m] [[36m\-\-sources [33mSOURCES [SOURCES ...][0m]
 .EE
 .UNINDENT
 .UNINDENT
@@ -315,7 +315,7 @@ Uprades the specified package(s) to latest available version.  If no specific pa
 .INDENT 3.5
 .sp
 .EX
-usage: zkg upgrade [\-h] [\-\-skiptests] [\-\-nodeps] [\-\-nosuggestions] [\-\-force] [\-\-user\-var NAME=VAL] [package ...]
+[1;34musage: [0m[1;35mzkg upgrade[0m [[32m\-h[0m] [[36m\-\-skiptests[0m] [[36m\-\-nodeps[0m] [[36m\-\-nosuggestions[0m] [[36m\-\-force[0m] [[36m\-\-user\-var [33mNAME=VAL[0m] [32m[package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -355,7 +355,7 @@ The Zeek Package Manager keeps track of all packages that are marked as \(dqload
 .INDENT 3.5
 .sp
 .EX
-usage: zkg load [\-h] [\-\-nodeps] package [package ...]
+[1;34musage: [0m[1;35mzkg load[0m [[32m\-h[0m] [[36m\-\-nodeps[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -383,7 +383,7 @@ The Zeek Package Manager keeps track of all packages that are marked as \(dqload
 .INDENT 3.5
 .sp
 .EX
-usage: zkg unload [\-h] [\-\-force] [\-\-nodeps] package [package ...]
+[1;34musage: [0m[1;35mzkg unload[0m [[32m\-h[0m] [[36m\-\-force[0m] [[36m\-\-nodeps[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -414,7 +414,7 @@ Pinned packages are ignored by the \fBupgrade\fP command.
 .INDENT 3.5
 .sp
 .EX
-usage: zkg pin [\-h] package [package ...]
+[1;34musage: [0m[1;35mzkg pin[0m [[32m\-h[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -435,7 +435,7 @@ Packages that are not pinned are automatically upgraded by the \fBupgrade\fP com
 .INDENT 3.5
 .sp
 .EX
-usage: zkg unpin [\-h] package [package ...]
+[1;34musage: [0m[1;35mzkg unpin[0m [[32m\-h[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -456,7 +456,7 @@ Outputs a list of packages that match a given category.
 .INDENT 3.5
 .sp
 .EX
-usage: zkg list [\-h] [\-\-nodesc] [\-\-include\-builtin] [{all,installed,not_installed,loaded,unloaded,outdated}]
+[1;34musage: [0m[1;35mzkg list[0m [[32m\-h[0m] [[36m\-\-nodesc[0m] [[36m\-\-include\-builtin[0m] [32m[{all,installed,not_installed,loaded,unloaded,outdated}][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -489,7 +489,7 @@ Perform a substring search on package names and metadata tags.  Surround search 
 .INDENT 3.5
 .sp
 .EX
-usage: zkg search [\-h] search_text [search_text ...]
+[1;34musage: [0m[1;35mzkg search[0m [[32m\-h[0m] [32msearch_text [search_text ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -510,7 +510,7 @@ Shows detailed information/metadata for given packages. If the package is curren
 .INDENT 3.5
 .sp
 .EX
-usage: zkg info [\-h] [\-\-version VERSION] [\-\-nolocal] [\-\-include\-builtin] [\-\-json] [\-\-jsonpretty SPACES] [\-\-allvers] package [package ...]
+[1;34musage: [0m[1;35mzkg info[0m [[32m\-h[0m] [[36m\-\-version [33mVERSION[0m] [[36m\-\-nolocal[0m] [[36m\-\-include\-builtin[0m] [[36m\-\-json[0m] [[36m\-\-jsonpretty [33mSPACES[0m] [[36m\-\-allvers[0m] [32mpackage [package ...][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -553,7 +553,7 @@ The default output of this command is a valid package manager config file that c
 .INDENT 3.5
 .sp
 .EX
-usage: zkg config [\-h] [{all,sources,user_vars,state_dir,script_dir,plugin_dir,bin_dir,zeek_dist}]
+[1;34musage: [0m[1;35mzkg config[0m [[32m\-h[0m] [32m[{all,sources,user_vars,state_dir,script_dir,plugin_dir,bin_dir,zeek_dist}][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -576,7 +576,7 @@ The output of this command is a valid package manager config file that is genera
 .INDENT 3.5
 .sp
 .EX
-usage: zkg autoconfig [\-h] [\-\-force]
+[1;34musage: [0m[1;35mzkg autoconfig[0m [[32m\-h[0m] [[36m\-\-force[0m]
 .EE
 .UNINDENT
 .UNINDENT
@@ -597,7 +597,7 @@ This command returns shell commands that, when executed, will correctly set \fBZ
 .INDENT 3.5
 .sp
 .EX
-usage: zkg env [\-h]
+[1;34musage: [0m[1;35mzkg env[0m [[32m\-h[0m]
 .EE
 .UNINDENT
 .UNINDENT
@@ -611,7 +611,7 @@ This command creates a new Zeek package in the directory provided via \-\-packag
 .INDENT 3.5
 .sp
 .EX
-usage: zkg create [\-h] \-\-packagedir DIR [\-\-version VERSION] [\-\-features FEATURE [FEATURE ...]] [\-\-template URL] [\-\-force] [\-\-user\-var NAME=VAL]
+[1;34musage: [0m[1;35mzkg create[0m [[32m\-h[0m] [36m\-\-packagedir [33mDIR[0m [[36m\-\-version [33mVERSION[0m] [[36m\-\-features [33mFEATURE [FEATURE ...][0m] [[36m\-\-template [33mURL[0m] [[36m\-\-force[0m] [[36m\-\-user\-var [33mNAME=VAL[0m]
 .EE
 .UNINDENT
 .UNINDENT
@@ -647,7 +647,7 @@ This command shows versions and supported features for a given package.
 .INDENT 3.5
 .sp
 .EX
-usage: zkg template info [\-h] [\-\-json] [\-\-jsonpretty SPACES] [\-\-version VERSION] [URL]
+[1;34musage: [0m[1;35mzkg template info[0m [[32m\-h[0m] [[36m\-\-json[0m] [[36m\-\-jsonpretty [33mSPACES[0m] [[36m\-\-version [33mVERSION[0m] [32m[URL][0m
 .EE
 .UNINDENT
 .UNINDENT
@@ -676,7 +676,7 @@ The template version to report on.  A version tag, branch name, or commit hash m
 .SH CONFIG FILE
 .sp
 The \fBzkg\fP command\-line tool uses an INI\-format config file to allow
-users to customize their \fI\%Package Sources\fP, \fI\%Package\fP installation paths, Zeek executable/source paths, and other
+users to customize their Package Sources \%<>, Package \%<> installation paths, Zeek executable/source paths, and other
 \fBzkg\fP options.
 .sp
 See the default/example config file below for explanations of the
@@ -776,9 +776,8 @@ default = https://github.com/zeek/package\-template
 .EE
 .UNINDENT
 .UNINDENT
-.SH AUTHOR
+.SH Author
 The Zeek Project
-.SH COPYRIGHT
+.SH Copyright
 2019, The Zeek Project
-.\" Generated by docutils manpage writer.
-.
+.\" End of generated man page.
