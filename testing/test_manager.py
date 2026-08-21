@@ -207,18 +207,18 @@ class TestSnapshotFromDirectory:
 
 class TestPackageVersionFullfills:
     def test_directory_without_version_rejects_spec(self) -> None:
-        pv = PackageVersion(TrackingMethod.DIRECTORY, None)
+        pv = PackageVersion(None, None)
         msg, ok = pv.fullfills(">=1.0.0")
         assert not ok
         assert "no version" in msg
 
     def test_directory_with_version_accepts_matching_spec(self) -> None:
-        pv = PackageVersion(TrackingMethod.DIRECTORY, "1.2.0")
+        pv = PackageVersion(None, "1.2.0")
         _, ok = pv.fullfills(">=1.0.0")
         assert ok
 
     def test_wildcard_always_passes(self) -> None:
-        pv = PackageVersion(TrackingMethod.DIRECTORY, None)
+        pv = PackageVersion(None, None)
         _, ok = pv.fullfills("*")
         assert ok
 
@@ -230,8 +230,6 @@ class TestIsGitPackage:
             (TrackingMethod.VERSION, True),
             (TrackingMethod.BRANCH, True),
             (TrackingMethod.COMMIT, True),
-            (TrackingMethod.BUILTIN, False),
-            (TrackingMethod.DIRECTORY, False),
             (None, False),
         ],
     )
@@ -260,7 +258,7 @@ class TestPrepareSnapshot:
         package = Package(git_url=str(pkg_dir), canonical=True)
         snapshot = _prepare_snapshot(package, None, str(tmp_path / "dest"))
         assert snapshot.version == "1.0.0"
-        assert snapshot.tracking_method == TrackingMethod.DIRECTORY
+        assert snapshot.tracking_method == None
         assert snapshot.current_hash is None
         assert snapshot.is_outdated is False
 
@@ -341,7 +339,7 @@ class TestManagerInfo:
         info = manager.info(str(pkg_dir))
         assert info.invalid_reason == ""
         assert info.metadata_version == "1.0.0"
-        assert info.version_type == TrackingMethod.DIRECTORY
+        assert info.version_type == None
 
 
 class TestManagerInstall:
@@ -368,7 +366,7 @@ class TestManagerInstall:
         assert result == ""
         ipkg = manager.find_installed_package("mypkg")
         assert ipkg is not None
-        assert ipkg.status.tracking_method == TrackingMethod.DIRECTORY
+        assert ipkg.status.tracking_method == None
         assert ipkg.status.current_version == "1.0.0"
 
     def test_directory_missing_metadata(
@@ -413,7 +411,7 @@ class TestManagerRefresh:
         _make_installed(
             manager,
             "mypkg",
-            tracking_method=TrackingMethod.DIRECTORY,
+            tracking_method=None,
             current_version="1.0.0",
         )
         # Should complete without raising.
@@ -525,7 +523,7 @@ class TestManagerBundle:
         _make_installed(
             manager,
             "mypkg",
-            tracking_method=TrackingMethod.DIRECTORY,
+            tracking_method=None,
             current_version="1.0.0",
         )
         bundle_file = str(tmp_path / "out.tar.gz")
@@ -545,7 +543,7 @@ class TestManagerBundle:
         _make_installed(
             manager,
             "mypkg",
-            tracking_method=TrackingMethod.DIRECTORY,
+            tracking_method=None,
             current_version="1.0.0",
         )
         bundle_file = str(tmp_path / "out.tar.gz")
