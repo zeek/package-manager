@@ -1966,7 +1966,6 @@ class Manager:
                 ipkg.status,
                 versions,
                 default_branch,
-                resolution.tracking_method,
             )
 
         matches = self.match_source_packages(pkg_path)
@@ -2061,7 +2060,6 @@ class Manager:
                 status,
                 versions,
                 default_branch,
-                resolution.tracking_method,
             )
 
         try:
@@ -2075,7 +2073,6 @@ class Manager:
             status,
             versions=[],
             default_branch="",
-            version_type=TRACKING_METHOD_DIRECTORY,
         )
 
     def package_versions(self, installed_package: InstalledPackage) -> list[str]:
@@ -3766,13 +3763,14 @@ def _info_from_snapshot(
     status: PackageStatus | None,
     versions: list[str],
     default_branch: str,
-    version_type: str,
 ) -> PackageInfo:
     """Build a :class:`.package.PackageInfo` from a :class:`.package.PackageSnapshot`.
 
     All git-specific resolution (version tags, default branch, version type)
     must be performed by the caller before constructing the snapshot.
     """
+    # Always set by `_snapshot_from_git_repo` and `_snapshot_from_directory`.
+    assert snapshot.tracking_method is not None
     metadata_file = _pick_metadata_file(snapshot.working_dir)
 
     if (
@@ -3794,7 +3792,7 @@ def _info_from_snapshot(
         metadata=snapshot.meta,
         versions=versions,
         metadata_version=snapshot.version,
-        version_type=version_type,
+        version_type=snapshot.tracking_method,
         metadata_file=metadata_file,
         default_branch=default_branch,
     )
