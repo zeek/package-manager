@@ -289,7 +289,6 @@ class TestManagerInfo:
             status=None,
             versions=["v1.0.0"],
             default_branch="main",
-            version_type=TRACKING_METHOD_VERSION,
         )
         assert isinstance(info, PackageInfo)
         assert info.metadata["description"] == "hello"
