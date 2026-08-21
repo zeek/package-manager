@@ -456,7 +456,8 @@ class TestPackageVersions:
         r.create_tag("v2.0.0")
 
         package = Package(git_url=str(pkg_dir), name="mypkg", canonical=True)
-        ipkg = InstalledPackage(package, PackageStatus())
+        status = PackageStatus(tracking_method=TRACKING_METHOD_VERSION)
+        ipkg = InstalledPackage(package, status)
         assert manager.package_versions(ipkg) == ["v1.0.0", "v2.0.0"]
 
 

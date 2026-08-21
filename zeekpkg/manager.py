@@ -2071,6 +2071,9 @@ class Manager:
     def package_versions(self, installed_package: InstalledPackage) -> list[str]:
         """Returns a list of version number tags available for a package.
 
+        Only valid for Git-backed packages; callers must check
+        ``tracking_method`` before calling.
+
         Args:
             installed_package (:class:`.package.InstalledPackage`): the package
                 for which version number tags will be retrieved.
@@ -2079,6 +2082,7 @@ class Manager:
             list of str: the version number tags.
         """
         assert installed_package.package.name
+        assert _is_git_package(installed_package.status)
         return git_version_tags(self._open_package_clone(installed_package.package))
 
     def validate_dependencies(
