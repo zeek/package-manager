@@ -1,7 +1,7 @@
 # @TEST-DOC: Test that the info doesn't recursively clone repos. The tested repository has a broken submodule in it and will fail to clone otherwise.
 #
 # @TEST-EXEC: bash %INPUT
-# @TEST-EXEC: zkg info ./clonetest | grep -v "metadata file:" > clonetest.info
+# @TEST-EXEC: zkg info file://$(pwd)/clonetest | grep -v "metadata file:" > clonetest.info
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff clonetest.info
 
 zkg create --packagedir clonetest --user-var name=clonetest.gitmodules
