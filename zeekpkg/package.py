@@ -161,17 +161,18 @@ def dependencies(
 
 @dataclass
 class PackageSnapshot:
-    """A fixed, immutable view of a package at the point it enters processing.
+    """A resolved, immutable view of a package ready for installation.
 
-    All source-specific resolution must be completed before constructing this
-    object. Downstream processing operates solely on these fields.
+    Constructed after all backend-specific work (Git checkout, directory
+    validation) has completed. Downstream processing operates solely on
+    these fields without further backend access.
 
     Attributes:
-        working_dir: path to the package directory
+        working_dir: path to the package directory on disk
         meta: parsed contents of the ``zkg.meta`` file
-        version: resolved version string, or ``None`` if unavailable
+        version: resolved version string (Git tag, branch, or metadata field)
         tracking_method: how the package version is tracked (e.g.
-            ``TRACKING_METHOD_VERSION``); ``None`` if not yet determined
+            ``TRACKING_METHOD_VERSION``, ``TRACKING_METHOD_DIRECTORY``)
         current_hash: Git commit hash at the time of snapshot, or ``None``
             for non-Git sources
         is_outdated: whether a newer version is available; always ``False``
