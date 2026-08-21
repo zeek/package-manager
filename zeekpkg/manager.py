@@ -55,16 +55,13 @@ from .package import (
     METADATA_FILENAME,
     PLUGIN_MAGIC_FILE,
     PLUGIN_MAGIC_FILE_DISABLED,
-    TRACKING_METHOD_BRANCH,
-    TRACKING_METHOD_COMMIT,
-    TRACKING_METHOD_DIRECTORY,
-    TRACKING_METHOD_VERSION,
     InstalledPackage,
     Package,
     PackageInfo,
     PackageSnapshot,
     PackageStatus,
     PackageVersion,
+    TrackingMethod,
     aliases,
     canonical_url,
     make_builtin_package,
@@ -1317,7 +1314,7 @@ class Manager:
                 )
                 continue
 
-            if not _is_git_package(ipkg.status):
+            if ipkg.status.tracking_method is None:
                 continue
 
             # Deliberate git entry point: fetch requires network access and
@@ -1379,21 +1376,21 @@ class Manager:
 
         clone = self._open_package_clone(ipkg.package)
 
-        if ipkg.status.tracking_method == TRACKING_METHOD_VERSION:
-            version_tags = git_version_tags(clone)
-            return self._install(ipkg.package, version_tags[-1])
-
-        if ipkg.status.tracking_method == TRACKING_METHOD_BRANCH:
-            git_pull(clone)
-            assert ipkg.status.current_version
-            return self._install(ipkg.package, ipkg.status.current_version)
-
-        if ipkg.status.tracking_method == TRACKING_METHOD_COMMIT:
-            # The above check for whether the installed package is outdated
-            # also should have already caught this situation.
-            return "package is not outdated"
-
-        raise NotImplementedError
+        assert ipkg.status.tracking_method
+        match ipkg.status.tracking_method:
+            case TrackingMethod.VERSION:
+                version_tags = git_version_tags(clone)
+                return self._install(ipkg.package, version_tags[-1])
+            case TrackingMethod.BRANCH:
+                git_pull(clone)
+                assert ipkg.status.current_version
+                return self._install(ipkg.package, ipkg.status.current_version)
+            case TrackingMethod.COMMIT:
+                # The above check for whether the installed package is outdated
+                # also should have already caught this situation.
+                return "package is not outdated"
+            case _:
+                raise NotImplementedError
 
     def remove(self, pkg_path: str) -> bool:
         """Remove an installed package.
@@ -2068,7 +2065,7 @@ class Manager:
             status,
             versions=[],
             default_branch="",
-            version_type=TRACKING_METHOD_DIRECTORY,
+            version_type=None,
         )
 
     def package_versions(self, installed_package: InstalledPackage) -> list[str]:
@@ -2291,7 +2288,7 @@ class Manager:
             if zeek_version:
                 node = Node("zeek")
                 node.installed_version = PackageVersion(
-                    TRACKING_METHOD_VERSION,
+                    TrackingMethod.VERSION,
                     zeek_version,
                 )
                 graph["zeek"] = node
@@ -2300,7 +2297,7 @@ class Manager:
 
             node = Node("zkg")
             node.installed_version = PackageVersion(
-                TRACKING_METHOD_VERSION,
+                TrackingMethod.VERSION,
                 __version__,
             )
             graph["zkg"] = node
@@ -2596,10 +2593,14 @@ class Manager:
 
             ipkg = match_package_url_and_version(git_url, version)
 
-            if ipkg and not _is_git_package(ipkg.status):
+            if ipkg and ipkg.status.tracking_method is None:
                 return f"cannot bundle directory package {git_url}: bundling requires a Git repository"
 
-            if prefer_existing_clones and ipkg and _is_git_package(ipkg.status):
+            if (
+                prefer_existing_clones
+                and ipkg
+                and ipkg.status.tracking_method is not None
+            ):
                 src = os.path.join(self.package_clonedir, ipkg.package.name)
                 shutil.copytree(src, clonepath, symlinks=True)
                 clone = git.Repo(clonepath)
@@ -3283,7 +3284,7 @@ class Manager:
         # `version` field, if present, matches the Git tag.
         meta_version = snapshot.meta.get("version")
         if (
-            snapshot.tracking_method == TRACKING_METHOD_VERSION
+            snapshot.tracking_method == TrackingMethod.VERSION
             and meta_version
             and meta_version != snapshot.version
         ):
@@ -3402,12 +3403,12 @@ class GitResolution:
     """The resolved Git state for a package after checkout."""
 
     version: str
-    tracking_method: str
+    tracking_method: TrackingMethod
     current_hash: str
     is_outdated: bool
 
 
-def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, str]:
+def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, TrackingMethod]:
     """Return (resolved_version, tracking_method) for *version* in *clone*.
 
     When *version* is ``None`` or empty, the best available version is chosen
@@ -3421,12 +3422,12 @@ def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, str]:
 
     if version:
         if _is_commit_hash(clone, version):
-            return version, TRACKING_METHOD_COMMIT
+            return version, TrackingMethod.COMMIT
         if version in version_tags:
-            return version, TRACKING_METHOD_VERSION
+            return version, TrackingMethod.VERSION
         branches = _get_branch_names(clone)
         if version in branches:
-            return version, TRACKING_METHOD_BRANCH
+            return version, TrackingMethod.BRANCH
         LOG.info(
             'branch "%s" not in available branches: %s',
             version,
@@ -3435,8 +3436,8 @@ def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, str]:
         raise ValueError(f'no such branch or version tag: "{version}"')
 
     if version_tags:
-        return version_tags[-1], TRACKING_METHOD_VERSION
-    return git_default_branch(clone), TRACKING_METHOD_BRANCH
+        return version_tags[-1], TrackingMethod.VERSION
+    return git_default_branch(clone), TrackingMethod.BRANCH
 
 
 def _resolve_git_version(clone: git.Repo, version: str | None) -> GitResolution:
@@ -3544,7 +3545,7 @@ def _snapshot_from_directory(path: str) -> PackageSnapshot:
         working_dir=path,
         meta=meta,
         version=version,
-        tracking_method=TRACKING_METHOD_DIRECTORY,
+        tracking_method=None,
     )
 
 
@@ -3571,19 +3572,6 @@ def _is_directory_package(path: str) -> bool:
     return (path.startswith(".") or path.startswith("/")) and os.path.isdir(path)
 
 
-def _is_git_package(status: PackageStatus) -> bool:
-    """Return True if *status* represents a git-backed package.
-
-    Non-git package sources (e.g. local directories) will use a different
-    tracking method; this predicate guards operations that require a git clone.
-    """
-    return status.tracking_method in (
-        TRACKING_METHOD_VERSION,
-        TRACKING_METHOD_BRANCH,
-        TRACKING_METHOD_COMMIT,
-    )
-
-
 def _is_version_outdated(clone: git.Repo, version: str) -> bool:
     version_tags = git_version_tags(clone)
     latest = normalize_version_tag(version_tags[-1])
@@ -3596,17 +3584,20 @@ def _is_branch_outdated(clone: git.Repo, branch: str) -> bool:
     return num_commits_behind > 0
 
 
-def _is_clone_outdated(clone: git.Repo, ref_name: str, tracking_method: str) -> bool:
-    if tracking_method == TRACKING_METHOD_VERSION:
-        return _is_version_outdated(clone, ref_name)
-
-    if tracking_method == TRACKING_METHOD_BRANCH:
-        return _is_branch_outdated(clone, ref_name)
-
-    if tracking_method == TRACKING_METHOD_COMMIT:
-        return False
-
-    raise NotImplementedError
+def _is_clone_outdated(
+    clone: git.Repo,
+    ref_name: str,
+    tracking_method: TrackingMethod,
+) -> bool:
+    match tracking_method:
+        case TrackingMethod.VERSION:
+            return _is_version_outdated(clone, ref_name)
+        case TrackingMethod.BRANCH:
+            return _is_branch_outdated(clone, ref_name)
+        case TrackingMethod.COMMIT:
+            return False
+        case _:
+            raise NotImplementedError
 
 
 def _is_commit_hash(clone: git.Repo, text: str) -> bool:
@@ -3759,7 +3750,7 @@ def _info_from_snapshot(
     status: PackageStatus | None,
     versions: list[str],
     default_branch: str,
-    version_type: str,
+    version_type: TrackingMethod | None,
 ) -> PackageInfo:
     """Build a :class:`.package.PackageInfo` from a :class:`.package.PackageSnapshot`.
 
