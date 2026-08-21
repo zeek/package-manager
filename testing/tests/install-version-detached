@@ -1,6 +1,6 @@
 # @TEST-EXEC: bash %INPUT
 # @TEST-EXEC: (cd packages/grault && git checkout --detach)
-# @TEST-EXEC: zkg install $(pwd)/packages/grault
+# @TEST-EXEC: zkg install file://$(pwd)/packages/grault
 # @TEST-EXEC: cp scripts/packages/grault/__load__.zeek grault.detached
 # @TEST-EXEC: btest-diff grault.detached
 # @TEST-EXEC: zkg info grault | grep tracking_method > grault.info

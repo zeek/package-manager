@@ -7,5 +7,5 @@
 # @TEST-EXEC: zkg install one/alice/baz
 # @TEST-EXEC: btest-diff scripts/packages/baz/__load__.zeek
 
-# @TEST-EXEC: zkg install $(pwd)/packages/qux
+# @TEST-EXEC: zkg install file://$(pwd)/packages/qux
 # @TEST-EXEC: btest-diff scripts/packages/qux/__load__.zeek

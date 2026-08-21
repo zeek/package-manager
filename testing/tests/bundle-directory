@@ -1,0 +1,10 @@
+# @TEST-DOC: Bundling a plain directory package must fail with a clear error.
+#
+# @TEST-REQUIRES: type zeek
+# @TEST-EXEC-FAIL: zkg bundle out.bundle --manifest ./mypkg >output 2>&1
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff output
+
+@TEST-START-FILE mypkg/zkg.meta
+[package]
+version = 1.0.0
+@TEST-END-FILE

@@ -1,0 +1,15 @@
+# @TEST-DOC: Test that a plain local directory (no .git) can be installed as a package.
+#
+# @TEST-REQUIRES: type zeek
+# @TEST-EXEC: zkg install $(pwd)/mypkg
+# @TEST-EXEC: zeek -b scripts/packages/packages.zeek >output 2>&1
+# @TEST-EXEC: btest-diff output
+
+@TEST-START-FILE mypkg/zkg.meta
+[package]
+version = 1.0.0
+@TEST-END-FILE
+
+@TEST-START-FILE mypkg/__load__.zeek
+event zeek_init() { print "Hello, world!"; }
+@TEST-END-FILE
