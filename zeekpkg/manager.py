@@ -3290,7 +3290,7 @@ class Manager:
         ):
             msg = f"zkg.meta version '{meta_version}' does not match Git tag '{snapshot.version}'"
             if skip_version_validation:
-                LOG.warning("%s", msg)
+                LOG.warning("%s: installing anyway", msg)
             else:
                 return msg
 
