@@ -233,7 +233,7 @@ class PackageVersion:
             self.req_semver = semver.Version.coerce(normal_version)
 
         try:
-            semver_spec = semver.Spec(version_spec)
+            semver_spec = semver.SimpleSpec(version_spec)
         except ValueError:
             return f'invalid semver spec: "{version_spec}"', False
         else:
