@@ -916,7 +916,7 @@ def cmd_bundle(
                 print_error(f'error: invalid package "{name}": {info.invalid_reason}')
                 sys.exit(1)
 
-            if info.version_type == TrackingMethod.DIRECTORY:
+            if info.version_type is None:
                 print_error(
                     f'error: cannot bundle directory package "{name}":'
                     " bundling requires a Git repository",
