@@ -9,7 +9,10 @@
 # @TEST-EXEC: cp scripts/packages/packages.zeek after_load.out
 # @TEST-EXEC: btest-diff after_load.out
 
-# @TEST-EXEC: zkg install i-have-no-scripts
+# Packages that intentionally ship only a plugin should not emit a warning
+# when they omit script_dir and have no top-level __load__.zeek.
+# @TEST-EXEC: zkg install i-have-no-scripts 2>install_no_scripts.err
+# @TEST-EXEC: ! grep -q 'no __load__.zeek in implicit script_dir' install_no_scripts.err
 # @TEST-EXEC: zkg load i-have-no-scripts
 # @TEST-EXEC: cp scripts/packages/packages.zeek after_loading_no_scripts.out
 # @TEST-EXEC: btest-diff after_loading_no_scripts.out
