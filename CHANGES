@@ -1,3 +1,7 @@
+3.2.0 | 2026-08-25 13:14:38 -0700
+
+  * Release 3.2.0.
+
 3.1.0-20 | 2026-08-25 13:13:59 -0700
 
   * Update CI to work with latest Zeek dev Docker images (Benjamin Bannier, Corelight)
