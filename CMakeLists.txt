@@ -22,10 +22,18 @@ add_custom_target(
   DEPENDS "${SHIV}")
 
 set(ZKG_PYZ "${CMAKE_CURRENT_BINARY_DIR}/zkg.pyz")
+
+set(ZKG_SHIV_EXTRA_ARGS "")
+if(ZEEK_VENDOR_DIR AND IS_DIRECTORY "${ZEEK_VENDOR_DIR}/package-manager")
+  set(ZKG_SHIV_EXTRA_ARGS --no-index --find-links
+                          "${ZEEK_VENDOR_DIR}/package-manager")
+endif()
+
 add_custom_command(
   OUTPUT "${ZKG_PYZ}"
   COMMENT "Bundling zkg"
-  COMMAND "${SHIV}" -c zkg -o "${ZKG_PYZ}" ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND "${SHIV}" -c zkg -o "${ZKG_PYZ}" ${ZKG_SHIV_EXTRA_ARGS}
+          ${CMAKE_CURRENT_SOURCE_DIR}
   # TODO: Ideally this would also depend on anything in `zeekpkg/` changing.
   DEPENDS shiv_install pyproject.toml zkg
   VERBATIM)
