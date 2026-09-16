@@ -13,6 +13,10 @@
 # when they omit script_dir and have no top-level __load__.zeek.
 # @TEST-EXEC: zkg install i-have-no-scripts 2>install_no_scripts.err
 # @TEST-EXEC: ! grep -q 'no __load__.zeek in implicit script_dir' install_no_scripts.err
+# The same skip is still recorded at debug level when verbose logging is enabled.
+# --force is explicit because the test wrapper only injects it when argv[1] is "install".
+# @TEST-EXEC: zkg -vvv install --force i-have-no-scripts 2>install_no_scripts_debug.err
+# @TEST-EXEC: grep -q 'DEBUG.*no __load__.zeek in implicit script_dir' install_no_scripts_debug.err
 # @TEST-EXEC: zkg load i-have-no-scripts
 # @TEST-EXEC: cp scripts/packages/packages.zeek after_loading_no_scripts.out
 # @TEST-EXEC: btest-diff after_loading_no_scripts.out
