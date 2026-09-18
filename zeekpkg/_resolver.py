@@ -290,17 +290,15 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
             return (str(version), {})
         if not node.info.metadata_file:
             # Builtin / directory package -- use current metadata.
-            raw_tag = node.info.metadata_version or node.info.best_version()
             raw_deps = node.info.dependencies(field="depends") or {}
-            return (raw_tag, self._qualify_deps(raw_deps))
+            return (node.info.version_tag(), self._qualify_deps(raw_deps))
         clone_dir = os.path.dirname(node.info.metadata_file)
         try:
             clone = git.Repo(clone_dir)
         except git.InvalidGitRepositoryError:
             # Directory package -- no git history; use current metadata.
-            raw_tag = node.info.metadata_version or node.info.best_version()
             raw_deps = node.info.dependencies(field="depends") or {}
-            return (raw_tag, self._qualify_deps(raw_deps))
+            return (node.info.version_tag(), self._qualify_deps(raw_deps))
         found_tag: str | None = None
         for rt, nv in _semver_versions(git_version_tags(clone)):
             if semver.Version.coerce(nv) == version:
@@ -309,7 +307,7 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
         if found_tag is None:
             # Synthetic version (no matching tag) -- use current HEAD metadata.
             raw_deps = node.info.dependencies(field="depends") or {}
-            raw_tag = node.info.metadata_version or node.info.best_version()
+            raw_tag = node.info.version_tag()
         else:
             raw_tag = found_tag
             raw_deps = _deps_at_version(clone, raw_tag)
@@ -459,11 +457,9 @@ def _run_solver(
                 rv = resolved.get(qn)
                 if rv is not None:
                     cache_entry = provider._cache.get((qn, rv))
-                    raw_tag = (
-                        cache_entry[0] if cache_entry else node.info.best_version()
-                    )
+                    raw_tag = cache_entry[0] if cache_entry else node.info.version_tag()
                 else:
-                    raw_tag = node.info.best_version()
+                    raw_tag = node.info.version_tag()
                 result.append((qn, raw_tag, is_sug))
             else:
                 if qn in dfs_visited or qn in dfs_in_stack:

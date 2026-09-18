@@ -2445,7 +2445,7 @@ class Manager:
                     bsynth_deps[di.package.qualified_name()] = _normalize_constraint(
                         dep_spec,
                     )
-            provider._cache[(bqn, synth_v)] = (binfo.best_version(), bsynth_deps)
+            provider._cache[(bqn, synth_v)] = (binfo.version_tag(), bsynth_deps)
 
         error, solver_res = _run_solver(
             provider,
