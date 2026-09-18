@@ -3481,6 +3481,7 @@ def _prepare_snapshot(
         and not package.source
         and _is_directory_package(package.git_url)
     ):
+        LOG.debug('using directory-backed package "%s"', package.git_url)
         make_symlink(package.git_url, dest_path)
         return _snapshot_from_directory(dest_path)
 
@@ -3541,6 +3542,11 @@ def _snapshot_from_directory(path: str) -> PackageSnapshot:
         raise ValueError(
             "zkg.meta is missing a required 'version' field for directory-backed packages",
         )
+    LOG.debug(
+        'directory-backed snapshot for "%s", version "%s"',
+        path,
+        version,
+    )
     return PackageSnapshot(
         working_dir=path,
         meta=meta,
