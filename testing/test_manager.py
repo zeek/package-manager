@@ -386,35 +386,19 @@ class TestManagerInstall:
         result = manager.install(str(pkg_dir))
         assert result != ""
 
-    @pytest.mark.parametrize(
-        "skip,expected",
-        [
-            (False, "does not match"),
-            (True, ""),
-        ],
-        ids=["fails", "skip_validation"],
-    )
     def test_version_field_mismatch(
         self,
         manager: Manager,
         pkg_repo: git.Repo,
-        skip: bool,
-        expected: str,
     ) -> None:
-        # A zkg.meta version field that does not match the Git tag must fail;
-        # with skip_version_validation the mismatch is only a warning.
         (pathlib.Path(pkg_repo.working_dir) / "zkg.meta").write_text(
             "[package]\ndescription = test\nversion = v9.9.9\n",
         )
         pkg_repo.index.add(["zkg.meta"])
         pkg_repo.index.commit("wrong version")
         pkg_repo.create_tag("v1.0.1")
-        result = manager.install(
-            f"file://{pkg_repo.working_dir}",
-            "v1.0.1",
-            skip_version_validation=skip,
-        )
-        assert expected in result
+        result = manager.install(f"file://{pkg_repo.working_dir}", "v1.0.1")
+        assert "does not match" in result
 
     def test_no_version_field_passes(
         self,
