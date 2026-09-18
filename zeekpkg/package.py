@@ -5,6 +5,7 @@ the properties and status of Zeek packages.
 
 import os
 import re
+from dataclasses import dataclass, field
 from functools import total_ordering
 
 import semantic_version as semver
@@ -20,6 +21,7 @@ TRACKING_METHOD_VERSION = "version"
 TRACKING_METHOD_BRANCH = "branch"
 TRACKING_METHOD_COMMIT = "commit"
 TRACKING_METHOD_BUILTIN = "builtin"
+TRACKING_METHOD_DIRECTORY = "directory"
 
 BUILTIN_SOURCE = "zeek-builtin"
 BUILTIN_SCHEME = "zeek-builtin://"
@@ -157,6 +159,34 @@ def dependencies(
     return rval
 
 
+@dataclass
+class PackageSnapshot:
+    """A resolved, immutable view of a package ready for installation.
+
+    Constructed after all backend-specific work (Git checkout, directory
+    validation) has completed. Downstream processing operates solely on
+    these fields without further backend access.
+
+    Attributes:
+        working_dir: path to the package directory on disk
+        meta: parsed contents of the ``zkg.meta`` file
+        version: resolved version string (Git tag, branch, or metadata field)
+        tracking_method: how the package version is tracked (e.g.
+            ``TRACKING_METHOD_VERSION``, ``TRACKING_METHOD_DIRECTORY``)
+        current_hash: Git commit hash at the time of snapshot, or ``None``
+            for non-Git sources
+        is_outdated: whether a newer version is available; always ``False``
+            for non-Git sources
+    """
+
+    working_dir: str
+    meta: dict[str, str] = field(default_factory=dict)
+    version: str | None = None
+    tracking_method: str | None = None
+    current_hash: str | None = None
+    is_outdated: bool = False
+
+
 class PackageVersion:
     """
     Helper class to compare package versions with version specs.
@@ -182,6 +212,9 @@ class PackageVersion:
 
         if self.method == TRACKING_METHOD_BRANCH:
             return "tracking method branch and commit", False
+
+        if self.method == TRACKING_METHOD_DIRECTORY and not self.version:
+            return "directory-backed package has no version", False
 
         # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
         if version_spec.startswith("branch="):

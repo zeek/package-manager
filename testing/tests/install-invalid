@@ -1,6 +1,6 @@
 # Test invalid package names and paths
 # @TEST-EXEC-FAIL: bash %INPUT 2>output
-# @TEST-EXEC: btest-diff output
+# @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-canonifier btest-diff output
 
 CONFIG=$(pwd)/config
 mkdir -p invalid
@@ -28,7 +28,4 @@ git add README zkg.meta && \
 git commit -m "Initial commit"
 )
 echo README > ./packages/dirtyrepo/README
-zkg --config=$CONFIG install --force ./packages/dirtyrepo
-
-(cd ./packages && zkg --config=$CONFIG install dirtyrepo --force 1>&2)
-(cd ./packages && zkg --config=$CONFIG install ./dirtyrepo --force 1>&2)
+zkg --config=$CONFIG install --force file://$(pwd)/packages/dirtyrepo
