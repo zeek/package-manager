@@ -551,7 +551,7 @@ def cmd_test(
             sys.exit(1)
 
         if not version:
-            version = package_info.metadata_version or package_info.best_version()
+            version = package_info.version_tag()
 
         package_infos.append((package_info, version))
 
@@ -626,7 +626,7 @@ def cmd_install(
             sys.exit(1)
 
         if not version:
-            version = package_info.metadata_version or package_info.best_version()
+            version = package_info.version_tag()
 
         package_infos.append((package_info, version, False))
 
@@ -916,7 +916,7 @@ def cmd_bundle(
                 sys.exit(1)
 
             if not version:
-                version = info.metadata_version or info.best_version()
+                version = info.version_tag()
 
             to_validate.append((info.package.qualified_name(), version))
             packages_to_bundle.append(

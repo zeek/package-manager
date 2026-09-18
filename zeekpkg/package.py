@@ -237,7 +237,7 @@ class PackageVersion:
             self.req_semver = semver.Version.coerce(normal_version)
 
         try:
-            semver_spec = semver.Spec(version_spec)
+            semver_spec = semver.SimpleSpec(version_spec)
         except ValueError:
             return f'invalid semver spec: "{version_spec}"', False
         else:
@@ -443,17 +443,26 @@ class PackageInfo:
         """
         return UserVar.parse_dict(self.metadata)
 
-    def best_version(self) -> str:
+    def best_version(self) -> str | None:
         """Returns the best/latest version of the package that is available.
 
-        If the package has any git release tags, this returns the highest one,
-        else it returns the default branch like 'main' or 'master'.
+        If the package has any git release tags, this returns the highest one.
+        For Git packages without tags, returns the default branch.  For
+        directory-backed packages, returns ``None``.
         """
         if self.versions:
             return self.versions[-1]
 
-        assert self.default_branch
-        return self.default_branch
+        return self.default_branch or None
+
+    def version_tag(self) -> str:
+        """Returns the best available version identifier for this package.
+
+        Prefers the metadata version field, then the best Git version tag or
+        default branch, falling back to an empty string for directory-backed
+        packages without a version.
+        """
+        return self.metadata_version or self.best_version() or ""
 
     def is_builtin(self) -> bool:
         if self.package:
