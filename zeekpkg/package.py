@@ -213,6 +213,9 @@ class PackageVersion:
         if self.method == TRACKING_METHOD_BRANCH:
             return "tracking method branch and commit", False
 
+        if self.method == TRACKING_METHOD_DIRECTORY and not self.version:
+            return "directory-backed package has no version", False
+
         # TRACKING_METHOD_BRANCH / TRACKING_METHOD_BUILTIN
         if version_spec.startswith("branch="):
             branch = version_spec[len("branch=") :]

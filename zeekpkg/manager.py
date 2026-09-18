@@ -2815,9 +2815,7 @@ class Manager:
                 assert stage.state_dir
                 return (str(error), False, stage.state_dir)
 
-            assert snapshot.version is not None
-            version = snapshot.version
-            fail_msg = self._stage(info.package, version, snapshot, stage, env)
+            fail_msg = self._stage(info.package, snapshot.version, snapshot, stage, env)
 
             if fail_msg:
                 return (fail_msg, False, self.state_dir)
@@ -2892,7 +2890,7 @@ class Manager:
     def _stage(
         self,
         package: Package,
-        version: str,
+        version: str | None,
         snapshot: PackageSnapshot,
         stage: Stage,
         env: dict[str, str] | None = None,
@@ -2910,7 +2908,9 @@ class Manager:
         Args:
             package (:class:`.package.Package`): the package to stage
 
-            version (str): the resolved version of the package to stage
+            version (str | None): the resolved version of the package to
+                stage, or ``None`` for directory-backed packages without a
+                version field
 
             snapshot (:class:`.package.PackageSnapshot`): snapshot of the
                 package's on-disk state at the point it entered processing.
@@ -3304,9 +3304,6 @@ class Manager:
         # A dummy stage that uses the actual installation folders;
         # we do not need to populate() it.
         stage = Stage(self)
-        # `_prepare_snapshot` guarantees `version` is set for both directory
-        # and Git sources.
-        assert snapshot.version is not None
         fail_msg = self._stage(package, snapshot.version, snapshot, stage)
         if fail_msg:
             return fail_msg
@@ -3472,8 +3469,7 @@ def _prepare_snapshot(
     resolved and checked out, and the snapshot is built from the clone.
 
     Raises:
-        ValueError: if metadata is missing, invalid, or (for directory sources)
-            has no ``version`` field.
+        ValueError: if metadata is missing or invalid.
         git.GitCommandError: if cloning or checkout fails.
     """
     if (
@@ -3524,12 +3520,11 @@ def _snapshot_from_git_repo(
 def _snapshot_from_directory(path: str) -> PackageSnapshot:
     """Construct a :class:`.package.PackageSnapshot` from a plain directory.
 
-    The ``version`` field in ``zkg.meta`` is mandatory since there is no
-    version control history to derive it from.
+    The ``version`` field in ``zkg.meta`` is optional.  When omitted the
+    snapshot's :attr:`version` is ``None``.
 
     Raises:
-        ValueError: if the metadata file is missing, invalid, or has no
-            ``version`` field.
+        ValueError: if the metadata file is missing or invalid.
     """
     metadata_file = _pick_metadata_file(path)
     metadata_parser = configparser.ConfigParser(interpolation=None)
@@ -3537,11 +3532,7 @@ def _snapshot_from_directory(path: str) -> PackageSnapshot:
     if invalid_reason:
         raise ValueError(invalid_reason)
     meta = _get_package_metadata(metadata_parser)
-    version = meta.get("version")
-    if not version:
-        raise ValueError(
-            "zkg.meta is missing a required 'version' field for directory-backed packages",
-        )
+    version = meta.get("version") or None
     LOG.debug(
         'directory-backed snapshot for "%s", version "%s"',
         path,

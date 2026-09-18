@@ -31,6 +31,7 @@ from zeekpkg.package import (
     PackageInfo,
     PackageSnapshot,
     PackageStatus,
+    PackageVersion,
 )
 
 
@@ -202,10 +203,28 @@ class TestSnapshotFromDirectory:
         with pytest.raises(ValueError, match="missing"):
             _snapshot_from_directory(str(tmp_path))
 
-    def test_missing_version_raises(self, tmp_path: pathlib.Path) -> None:
+    def test_missing_version(self, tmp_path: pathlib.Path) -> None:
         (tmp_path / "zkg.meta").write_text("[package]\ndescription = test\n")
-        with pytest.raises(ValueError, match="version"):
-            _snapshot_from_directory(str(tmp_path))
+        snapshot = _snapshot_from_directory(str(tmp_path))
+        assert snapshot.version is None
+
+
+class TestPackageVersionFullfills:
+    def test_directory_without_version_rejects_spec(self) -> None:
+        pv = PackageVersion(TRACKING_METHOD_DIRECTORY, None)
+        msg, ok = pv.fullfills(">=1.0.0")
+        assert not ok
+        assert "no version" in msg
+
+    def test_directory_with_version_accepts_matching_spec(self) -> None:
+        pv = PackageVersion(TRACKING_METHOD_DIRECTORY, "1.2.0")
+        _, ok = pv.fullfills(">=1.0.0")
+        assert ok
+
+    def test_wildcard_always_passes(self) -> None:
+        pv = PackageVersion(TRACKING_METHOD_DIRECTORY, None)
+        _, ok = pv.fullfills("*")
+        assert ok
 
 
 class TestIsGitPackage:
