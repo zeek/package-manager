@@ -560,7 +560,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         package: str,
         version_range: RangeProtocol[semver.Version],
     ) -> bool:
-        return any(v in version_range for v in self._versions.get(package, []))
+        return self.choose_version(package, version_range) is not None
 
     def get_dependencies(
         self,
