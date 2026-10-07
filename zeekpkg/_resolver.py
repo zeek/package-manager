@@ -266,8 +266,13 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                 return (err, [])
             requests.append(node)
 
+        hard_pinned: dict[str, str] = {}
+        soft_pinned: dict[str, str] = {}
+        installed_qnames: set[str] = set()
         if not ignore_installed:
-            self._seed_installed(use_builtins)
+            hard_pinned, soft_pinned, installed_qnames = self._seed_installed(
+                use_builtins,
+            )
 
         if err := self._walk_deps(ignore_suggestions, use_builtins):
             return (err, [])
@@ -279,14 +284,13 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
             return (err, [])
 
         requested_qnames = {n.name for n in requests if n.info}
-        requirements, constraints, installed_qnames, soft_pinned = (
-            self._build_solver_inputs(
-                requests,
-                branch_pkgs,
-                ignore_installed,
-                ignore_suggestions,
-                requested_qnames,
-            )
+        requirements, constraints = self._build_solver_inputs(
+            requests,
+            branch_pkgs,
+            hard_pinned,
+            soft_pinned,
+            ignore_suggestions,
+            requested_qnames,
         )
 
         error, solver_res = self.solve(
@@ -370,7 +374,18 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
         self._graph[node.name] = node
         return ""
 
-    def _seed_installed(self, use_builtins: bool) -> None:
+    def _seed_installed(
+        self,
+        use_builtins: bool,
+    ) -> tuple[dict[str, str], dict[str, str], set[str]]:
+        """Populate graph with installed/builtin packages, return pin info.
+
+        Returns ``(hard_pinned, soft_pinned, installed_qnames)``.
+        """
+        hard_pinned: dict[str, str] = {}
+        soft_pinned: dict[str, str] = {}
+        installed_qnames: set[str] = set()
+
         zeek_version = get_zeek_version()
         if zeek_version:
             zeek_node = _Node("zeek")
@@ -379,6 +394,7 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                 zeek_version,
             )
             self._graph["zeek"] = zeek_node
+            hard_pinned["zeek"] = normalize_version_tag(zeek_version)
 
         zkg_node = _Node("zkg")
         zkg_node.installed_version = PackageVersion(
@@ -386,6 +402,7 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
             __version__,
         )
         self._graph["zkg"] = zkg_node
+        hard_pinned["zkg"] = normalize_version_tag(__version__)
 
         if use_builtins:
             for binfo in self._manager.discover_builtin_packages():
@@ -397,20 +414,30 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
 
         for ipkg in self._manager.installed_packages():
             iname = ipkg.package.qualified_name()
+            installed_qnames.add(iname)
             if iname in self._graph:
                 self._graph[iname].installed_version = PackageVersion(
                     ipkg.status.tracking_method,
                     ipkg.status.current_version,
                 )
-                continue
-            iinfo = self._manager.info(iname, prefer_installed=True)
-            inode = _Node(iname)
-            inode.info = iinfo
-            inode.installed_version = PackageVersion(
-                ipkg.status.tracking_method,
-                ipkg.status.current_version,
-            )
-            self._graph[iname] = inode
+            else:
+                iinfo = self._manager.info(iname, prefer_installed=True)
+                inode = _Node(iname)
+                inode.info = iinfo
+                inode.installed_version = PackageVersion(
+                    ipkg.status.tracking_method,
+                    ipkg.status.current_version,
+                )
+                self._graph[iname] = inode
+            installed_ver = ipkg.status.current_version
+            if installed_ver:
+                norm = normalize_version_tag(installed_ver)
+                if ipkg.status.tracking_method is None:
+                    hard_pinned[iname] = norm
+                else:
+                    soft_pinned[iname] = norm
+
+        return hard_pinned, soft_pinned, installed_qnames
 
     def _walk_deps(
         self,
@@ -541,35 +568,11 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
         self,
         requests: list[_Node],
         branch_pkgs: list[tuple[PackageInfo, str, bool]],
-        ignore_installed: bool,
+        hard_pinned: dict[str, str],
+        soft_pinned: dict[str, str],
         ignore_suggestions: bool,
         requested_qnames: set[str],
-    ) -> tuple[
-        dict[str, Range[semver.Version]],
-        dict[str, Range[semver.Version]],
-        set[str],
-        dict[str, str],
-    ]:
-        hard_pinned: dict[str, str] = {}
-        soft_pinned: dict[str, str] = {}
-        installed_qnames: set[str] = set()
-
-        if not ignore_installed:
-            zeek_v = get_zeek_version()
-            if zeek_v:
-                hard_pinned["zeek"] = normalize_version_tag(zeek_v)
-            hard_pinned["zkg"] = normalize_version_tag(__version__)
-            for ipkg in self._manager.installed_packages():
-                iname = ipkg.package.qualified_name()
-                installed_qnames.add(iname)
-                installed_ver = ipkg.status.current_version
-                if installed_ver:
-                    norm = normalize_version_tag(installed_ver)
-                    if ipkg.status.tracking_method is None:
-                        hard_pinned[iname] = norm
-                    else:
-                        soft_pinned[iname] = norm
-
+    ) -> tuple[dict[str, Range[semver.Version]], dict[str, Range[semver.Version]]]:
         requirements: dict[str, Range[semver.Version]] = {}
         for req_node in requests:
             assert req_node.info
@@ -615,7 +618,7 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                 self._qualify_deps(raw_bdeps),
             )
 
-        return (requirements, constraints, installed_qnames, soft_pinned)
+        return requirements, constraints
 
     # -- version discovery ----------------------------------------------------
 
