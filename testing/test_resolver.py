@@ -521,36 +521,12 @@ def test_fmt_range_singleton_classmethod() -> None:
     assert semver.Version("1.0.0") not in r
 
 
-def _make_pkg_repo_with_deps(
-    tmp_path: pathlib.Path,
-    name: str,
-    versions: list[tuple[str, str]],
-) -> git.Repo:
-    """Create a git repo with tagged versions, each having a zkg.meta.
-
-    *versions* is a list of (tag, depends_line) tuples where depends_line
-    is the raw value for the 'depends' field (e.g. "dep-a >=1.0.0").
-    """
-    r = git.Repo.init(tmp_path / name, initial_branch="main")
-    r.config_writer().set_value("user", "name", "Test").release()
-    r.config_writer().set_value("user", "email", "test@test").release()
-    for tag, depends in versions:
-        meta = f"[package]\ndescription = {name}\n"
-        if depends:
-            meta += f"depends = {depends}\n"
-        (tmp_path / name / "zkg.meta").write_text(meta)
-        r.index.add(["zkg.meta"])
-        r.index.commit(f"version {tag}")
-        r.create_tag(tag)
-    return r
-
-
 def test_zkgprovider_qualified_names_via_resolve(
     manager: Manager,
     tmp_path: pathlib.Path,
 ) -> None:
-    dep_repo = _make_pkg_repo_with_deps(tmp_path, "dep-pkg", [("v1.0.0", "")])
-    pkg_repo = _make_pkg_repo_with_deps(
+    dep_repo = _make_tagged_repo(tmp_path, "dep-pkg", [("v1.0.0", "")])
+    pkg_repo = _make_tagged_repo(
         tmp_path,
         "main-pkg",
         [("v1.0.0", f"file://{dep_repo.working_dir} >=1.0.0")],
@@ -563,7 +539,7 @@ def test_zkgprovider_strips_branch_deps(
     manager: Manager,
     tmp_path: pathlib.Path,
 ) -> None:
-    pkg_repo = _make_pkg_repo_with_deps(
+    pkg_repo = _make_tagged_repo(
         tmp_path,
         "pkg-with-branch-dep",
         [("v1.0.0", "some-dep branch=main")],
@@ -575,7 +551,7 @@ def test_zkgprovider_strips_zeek_zkg(
     manager: Manager,
     tmp_path: pathlib.Path,
 ) -> None:
-    pkg_repo = _make_pkg_repo_with_deps(
+    pkg_repo = _make_tagged_repo(
         tmp_path,
         "pkg-with-zeek-dep",
         [("v1.0.0", "zeek >=5.0.0 zkg >=3.0.0")],
