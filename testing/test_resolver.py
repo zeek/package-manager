@@ -231,7 +231,7 @@ def test_get_dependencies_caches_result(
         [("v1.0.0", f"{dep_repo.working_dir} >=1.0.0")],
     )
     v = semver.Version("1.0.0")
-    provider._versions[qname] = [v]
+    provider._versions[qname] = [("v1.0.0", v)]
     with patch.object(provider, "_fetch_deps", wraps=provider._fetch_deps) as spy:
         provider.get_dependencies(qname, v)
         provider.get_dependencies(qname, v)
@@ -266,7 +266,10 @@ def test_provider_init_git_error_falls_back_gracefully(
     node.info = info
     provider = _Solver(manager, {"org/broken": node})
     # Falls back to metadata_version.
-    assert semver.Version("1.0.0") in provider._versions.get("org/broken", [])
+    assert ("1.0.0", semver.Version("1.0.0")) in provider._versions.get(
+        "org/broken",
+        [],
+    )
 
 
 def test_provider_init_no_metadata_file(
@@ -283,7 +286,10 @@ def test_provider_init_no_metadata_file(
     node = _Node("org/builtin")
     node.info = info
     provider = _Solver(manager, {"org/builtin": node})
-    assert semver.Version("2.0.0") in provider._versions.get("org/builtin", [])
+    assert ("2.0.0", semver.Version("2.0.0")) in provider._versions.get(
+        "org/builtin",
+        [],
+    )
 
 
 def test_fetch_deps_no_metadata_file(
@@ -301,7 +307,7 @@ def test_fetch_deps_no_metadata_file(
     node = _Node("org/builtin")
     node.info = info
     provider = _Solver(manager, {"org/builtin": node})
-    provider._versions["org/builtin"] = [semver.Version("1.0.0")]
+    provider._versions["org/builtin"] = [("1.0.0", semver.Version("1.0.0"))]
     deps = provider.get_dependencies("org/builtin", semver.Version("1.0.0"))
     assert deps == {}
 
@@ -317,7 +323,7 @@ def test_provider_init_version_from_versions_list(manager: Manager) -> None:
     node = _Node("org/pkg")
     node.info = info
     provider = _Solver(manager, {"org/pkg": node})
-    assert semver.Version("1.2.0") in provider._versions.get("org/pkg", [])
+    assert ("1.2.0", semver.Version("1.2.0")) in provider._versions.get("org/pkg", [])
 
 
 def test_provider_init_version_coercion_failure_falls_back_to_zero(
@@ -334,7 +340,7 @@ def test_provider_init_version_coercion_failure_falls_back_to_zero(
     node = _Node("org/pkg")
     node.info = info
     provider = _Solver(manager, {"org/pkg": node})
-    assert provider._versions.get("org/pkg") == [semver.Version("0.0.0")]
+    assert provider._versions.get("org/pkg") == [("0.0.0", semver.Version("0.0.0"))]
 
 
 def test_provider_init_falls_back_to_zero_version(manager: Manager) -> None:
@@ -349,7 +355,7 @@ def test_provider_init_falls_back_to_zero_version(manager: Manager) -> None:
     node = _Node("org/pkg")
     node.info = info
     provider = _Solver(manager, {"org/pkg": node})
-    assert provider._versions.get("org/pkg") == [semver.Version("0.0.0")]
+    assert provider._versions.get("org/pkg") == [("0.0.0", semver.Version("0.0.0"))]
 
 
 def test_fetch_deps_non_git_directory(manager: Manager, tmp_path: pathlib.Path) -> None:
@@ -369,7 +375,7 @@ def test_fetch_deps_non_git_directory(manager: Manager, tmp_path: pathlib.Path) 
     node = _Node("org/plain")
     node.info = info
     provider = _Solver(manager, {"org/plain": node})
-    provider._versions["org/plain"] = [semver.Version("1.0.0")]
+    provider._versions["org/plain"] = [("1.0.0", semver.Version("1.0.0"))]
     deps = provider.get_dependencies("org/plain", semver.Version("1.0.0"))
     assert deps == {}
 
@@ -391,7 +397,7 @@ def test_fetch_deps_synthetic_version(
     node = _Node("org/synth")
     node.info = info
     provider = _Solver(manager, {"org/synth": node})
-    provider._versions["org/synth"] = [semver.Version("9.9.9")]
+    provider._versions["org/synth"] = [("9.9.9", semver.Version("9.9.9"))]
     deps = provider.get_dependencies("org/synth", semver.Version("9.9.9"))
     assert deps == {}
 
@@ -611,7 +617,7 @@ def _make_two_package_setup(
         provider._cache[("org/main-pkg", v_main)] = ("v1.0.0", {})
     provider._cache[("org/dep-pkg", v_dep)] = ("v1.0.0", {})
     if "org/dep-pkg" not in provider._versions:
-        provider._versions["org/dep-pkg"] = [v_dep]
+        provider._versions["org/dep-pkg"] = [("v1.0.0", v_dep)]
 
     return provider, graph
 

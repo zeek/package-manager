@@ -20,6 +20,7 @@ from nab_resolver.types import RangeProtocol
 
 from . import __version__
 from ._util import (
+    _semver_versions,
     get_zeek_version,
     is_sha1,
     normalize_version_tag,
@@ -125,12 +126,11 @@ class _Solver(BaseProvider["str", "semver.Version"]):
     ) -> None:
         self._manager = manager
         self._graph: dict[str, _Node] = graph if graph is not None else {}
-        self._versions: dict[str, list[semver.Version]] = {}
+        self._versions: dict[str, list[tuple[str, semver.Version]]] = {}
         self._cache: dict[tuple[str, semver.Version], tuple[str, dict[str, str]]] = {}
 
-        if graph is not None:
-            for qname in graph:
-                self._ensure_versions(qname)
+        for node in list(self._graph.values()):
+            self._add_node(node)
 
     def resolve(
         self,
@@ -248,6 +248,19 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                     f' remove one of "{existing_name}", "{node.name}"'
                 )
         self._graph[node.name] = node
+        if node.info and node.name not in self._versions:
+            pairs = [
+                (tag, semver.Version.coerce(norm))
+                for tag, norm in _semver_versions(node.info.versions)
+            ]
+            if not pairs and node.info.metadata_version:
+                raw = node.info.metadata_version
+                if not is_sha1(raw):
+                    try:
+                        pairs.append((raw, semver.Version.coerce(raw)))
+                    except ValueError:
+                        pass
+            self._versions[node.name] = pairs or [("0.0.0", semver.Version("0.0.0"))]
         return ""
 
     def _seed_installed(
@@ -286,7 +299,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 if bname not in self._graph:
                     bnode = _Node(bname)
                     bnode.info = binfo
-                    self._graph[bname] = bnode
+                    self._add_node(bnode)
 
         for ipkg in self._manager.installed_packages():
             iname = ipkg.package.qualified_name()
@@ -304,7 +317,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                     ipkg.status.tracking_method,
                     ipkg.status.current_version,
                 )
-                self._graph[iname] = inode
+                self._add_node(inode)
             installed_ver = ipkg.status.current_version
             if installed_ver:
                 norm = normalize_version_tag(installed_ver)
@@ -419,7 +432,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         for binfo, _, _ in branch_pkgs:
             bqn = binfo.package.qualified_name()
             synth_v = semver.Version("0.0.0")
-            self._versions[bqn] = [synth_v]
+            self._versions[bqn] = [("0.0.0", synth_v)]
             raw_bdeps: dict[str, str] = binfo.dependencies(field="depends") or {}
             if not ignore_suggestions:
                 raw_bdeps = {
@@ -433,36 +446,12 @@ class _Solver(BaseProvider["str", "semver.Version"]):
 
         return requirements, constraints
 
-    def _ensure_versions(self, package: str) -> None:
-        if package in self._versions:
-            return
-        node = self._graph.get(package)
-        if node is None or node.info is None:
-            return
-        versions: list[semver.Version] = []
-        for tag in node.info.versions:
-            norm = normalize_version_tag(tag)
-            if not is_sha1(norm):
-                try:
-                    versions.append(semver.Version.coerce(norm))
-                except ValueError:
-                    pass
-        if not versions and node.info.metadata_version:
-            raw = node.info.metadata_version
-            if not is_sha1(raw):
-                try:
-                    versions.append(semver.Version.coerce(raw))
-                except ValueError:
-                    pass
-        self._versions[package] = versions or [semver.Version("0.0.0")]
-
     def choose_version(
         self,
         package: str,
         version_range: RangeProtocol[semver.Version],
     ) -> semver.Version | None:
-        self._ensure_versions(package)
-        for v in reversed(self._versions.get(package, [])):
+        for _, v in reversed(self._versions.get(package, [])):
             if v in version_range:
                 return v
         return None
@@ -498,7 +487,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         conflict_counts: Mapping[str, int],
         culprit_counts: Mapping[str, int] | None = None,
     ) -> int:
-        return -len(self._versions.get(package, []))
+        return -len(self._versions.get(package, ()))
 
     def widen_decision(
         self,
@@ -527,21 +516,13 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         if node is None or node.info is None:
             return (str(version), {})
 
-        found_tag: str | None = None
-        for tag in node.info.versions:
-            norm = normalize_version_tag(tag)
-            if not is_sha1(norm):
-                try:
-                    if semver.Version.coerce(norm) == version:
-                        found_tag = tag
-                        break
-                except ValueError:
-                    pass
-
-        if found_tag:
-            raw_deps = self._manager.dependencies_at_version(node.info, found_tag)
-            if raw_deps is not None:
-                return (found_tag, self._qualify_deps(raw_deps))
+        for tag, v in self._versions.get(qname, []):
+            if v == version:
+                if tag in (node.info.versions or []):
+                    raw_deps = self._manager.dependencies_at_version(node.info, tag)
+                    if raw_deps is not None:
+                        return (tag, self._qualify_deps(raw_deps))
+                break
 
         raw_tag = node.info.version_tag()
         raw_deps = node.info.dependencies(field="depends") or {}
