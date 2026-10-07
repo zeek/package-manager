@@ -601,10 +601,8 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         for dep, spec in raw_deps.items():
             if dep in ("zeek", "zkg") or spec.startswith("branch="):
                 continue
-            di = self._manager.find_builtin_package(dep)
-            if di is None:
-                di = self._manager.info(dep, prefer_installed=False)
-            if di.invalid_reason:
+            di = self._lookup_dep(dep)
+            if di is None or di.invalid_reason:
                 continue
             result[di.package.qualified_name()] = _normalize_constraint(spec)
         return result
@@ -657,16 +655,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             )
         return self._info_cache[key]
 
-    def _resolve_raw_deps(self, raw: dict[str, str]) -> list[str]:
-        result: list[str] = []
-        for dep_s in raw:
-            if dep_s in ("zeek", "zkg"):
-                continue
-            di = self._lookup_dep(dep_s)
-            if di is not None and not di.invalid_reason:
-                result.append(di.package.qualified_name())
-        return result
-
     def _topo_sort(
         self,
         resolved: dict[str, semver.Version],
@@ -687,7 +675,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         if not ignore_suggestions:
             for qn, nd in self._graph.items():
                 if nd.info:
-                    for dqn in self._resolve_raw_deps(
+                    for dqn in self._qualify_deps(
                         nd.info.dependencies(field="suggests") or {},
                     ):
                         if dqn not in children.get(qn, []):
