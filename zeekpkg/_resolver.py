@@ -34,7 +34,6 @@ from .package import (
     PackageInfo,
     PackageVersion,
     TrackingMethod,
-    canonical_url,
     name_from_path,
 )
 from .package import dependencies as pkg_dependencies
@@ -169,7 +168,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         self._graph: dict[str, _Node] = graph if graph is not None else {}
         self._versions: dict[str, list[semver.Version]] = {}
         self._cache: dict[tuple[str, semver.Version], tuple[str, dict[str, str]]] = {}
-        self._info_cache: dict[str, PackageInfo] = {}
+
         if graph is not None:
             self._discover_versions()
 
@@ -644,16 +643,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         di = self._manager.find_builtin_package(dep_name)
         if di is not None:
             return di
-        return self._lookup_info(dep_name)
-
-    def _lookup_info(self, pkg_path: str) -> PackageInfo:
-        key = canonical_url(pkg_path)
-        if key not in self._info_cache:
-            self._info_cache[key] = self._manager.info(
-                pkg_path,
-                prefer_installed=False,
-            )
-        return self._info_cache[key]
+        return self._manager.info(dep_name, prefer_installed=False)
 
     def _topo_sort(
         self,
