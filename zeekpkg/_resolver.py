@@ -134,20 +134,7 @@ def _fmt_range(r: Range[semver.Version]) -> str:
 
 
 class _FmtRange(Range[semver.Version]):
-    """A `Range` whose `__str__` produces operator-prefixed semver notation.
-
-    nab-resolver has no global range-formatting hook: `narrow_for_display`
-    only covers terms that pass through the `_narrow_positive` path in the
-    error reporter.  The `CONSTRAINT`-cause path in `_render_line` interpolates
-    `incompatibility.constraint_range` directly, bypassing `narrow_for_display`
-    entirely and exposing the raw ``(-inf, X) | (X, +inf)`` sentinel strings.
-
-    Making every range we construct carry its own formatted `__str__` fixes all
-    render sites at once without relying on any library hook.  The operator
-    overrides are necessary because `Range.__and__`, `__or__`, and `__invert__`
-    construct their results as plain `Range` objects; without overriding them,
-    composed ranges lose the subclass and revert to the raw notation.
-    """
+    """Range subclass whose ``__str__`` uses operator-prefixed semver notation."""
 
     __slots__ = ()
 
@@ -223,13 +210,7 @@ def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
 
 
 class _Solver(ResolverProvider["str", "semver.Version"]):
-    """Combined graph builder, nab-resolver provider, and topo-sort driver.
-
-    For production use call `resolve`, which builds the dependency graph,
-    runs the solver, and returns a topo-sorted install list.  Tests that need
-    fine-grained control can construct with a pre-built graph and call `solve`
-    directly.
-    """
+    """Graph builder, nab-resolver provider, and topo-sort driver."""
 
     def __init__(
         self,
@@ -243,8 +224,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
         self._info_cache: dict[str, PackageInfo] = {}
         if graph is not None:
             self._discover_versions()
-
-    # -- high-level entry point -----------------------------------------------
 
     def resolve(
         self,
@@ -318,8 +297,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
 
         return ("", res)
 
-    # -- lower-level solve (usable by tests with a pre-built graph) -----------
-
     def solve(
         self,
         requirements: Mapping[str, Range[semver.Version]],
@@ -360,8 +337,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                 ignore_suggestions,
             ),
         )
-
-    # -- graph building -------------------------------------------------------
 
     def _add_node(self, node: _Node) -> str:
         pkg_name = name_from_path(node.name)
@@ -620,8 +595,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
 
         return requirements, constraints
 
-    # -- version discovery ----------------------------------------------------
-
     def _discover_versions(self) -> None:
         for qname, node in self._graph.items():
             if qname in self._versions:
@@ -652,8 +625,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                         break
                 if not registered:
                     self._versions[qname] = [semver.Version("0.0.0")]
-
-    # -- ResolverProvider interface -------------------------------------------
 
     def begin_decision_scan(self) -> None:
         return None
@@ -732,8 +703,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
         r = cast(Range[semver.Version], constraint)
         return _FmtRange(r._intervals)
 
-    # -- dependency fetching --------------------------------------------------
-
     def _qualify_deps(self, raw_deps: dict[str, str]) -> dict[str, str]:
         result: dict[str, str] = {}
         for dep, spec in raw_deps.items():
@@ -791,8 +760,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                 prefer_installed=False,
             )
         return self._info_cache[key]
-
-    # -- topo sort ------------------------------------------------------------
 
     def _topo_sort(
         self,
