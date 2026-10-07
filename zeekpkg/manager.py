@@ -64,6 +64,7 @@ from .package import (
     TrackingMethod,
     aliases,
     canonical_url,
+    dependencies,
     make_builtin_package,
     name_from_path,
 )
@@ -1875,6 +1876,40 @@ class Manager:
             infos.append((git_url, version, pkg_info))
 
         return ("", infos)
+
+    def dependencies_at_version(
+        self,
+        pkg_info: PackageInfo,
+        tag: str,
+    ) -> dict[str, str] | None:
+        """Return the dependency dict for a package at a specific Git tag.
+
+        Reads ``zkg.meta`` (or ``bro-pkg.meta``) from the package's clone at
+        *tag* via ``git show``.  Returns ``None`` when no clone is available.
+        """
+        if not pkg_info.metadata_file:
+            return None
+        clone_dir = os.path.dirname(pkg_info.metadata_file)
+        try:
+            clone = git.Repo(clone_dir)
+        except git.InvalidGitRepositoryError:
+            return None
+
+        content: str | None = None
+        for filename in (METADATA_FILENAME, LEGACY_METADATA_FILENAME):
+            try:
+                content = clone.git.show(f"{tag}:{filename}")
+                break
+            except git.GitCommandError:
+                continue
+
+        if content is None:
+            return {}
+
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read_string(content)
+        meta = dict(parser["package"]) if parser.has_section("package") else {}
+        return dependencies(meta, field="depends") or {}
 
     def info(
         self,

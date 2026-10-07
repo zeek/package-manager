@@ -7,14 +7,11 @@ to `_Solver.resolve`.
 
 from __future__ import annotations
 
-import configparser
 import copy
 import graphlib
-import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-import git
 import semantic_version as semver
 from nab_resolver.errors import ResolutionError
 from nab_resolver.ranges import Range
@@ -28,14 +25,11 @@ from ._util import (
     normalize_version_tag,
 )
 from .package import (
-    LEGACY_METADATA_FILENAME,
-    METADATA_FILENAME,
     PackageInfo,
     PackageVersion,
     TrackingMethod,
     name_from_path,
 )
-from .package import dependencies as pkg_dependencies
 
 if TYPE_CHECKING:
     from .manager import Manager
@@ -119,29 +113,6 @@ def _is_versioned_package(v: str) -> bool:
         return True
     except ValueError:
         return False
-
-
-def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
-    """Return the dependency dict for `clone` at `tag`.
-
-    Reads `zkg.meta`, falling back to `bro-pkg.meta`. Returns `{}` if
-    neither file exists at `tag` or the `depends` field is absent.
-    """
-    content: str | None = None
-    for filename in (METADATA_FILENAME, LEGACY_METADATA_FILENAME):
-        try:
-            content = clone.git.show(f"{tag}:{filename}")
-            break
-        except git.GitCommandError:
-            continue
-
-    if content is None:
-        return {}
-
-    parser = configparser.ConfigParser(interpolation=None)
-    parser.read_string(content)
-    meta = dict(parser["package"]) if parser.has_section("package") else {}
-    return pkg_dependencies(meta, field="depends") or {}
 
 
 class _Solver(BaseProvider["str", "semver.Version"]):
@@ -567,16 +538,10 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 except ValueError:
                     pass
 
-        if found_tag and node.info.metadata_file:
-            clone_dir = os.path.dirname(node.info.metadata_file)
-            try:
-                clone = git.Repo(clone_dir)
-                return (
-                    found_tag,
-                    self._qualify_deps(_deps_at_version(clone, found_tag)),
-                )
-            except git.InvalidGitRepositoryError:
-                pass
+        if found_tag:
+            raw_deps = self._manager.dependencies_at_version(node.info, found_tag)
+            if raw_deps is not None:
+                return (found_tag, self._qualify_deps(raw_deps))
 
         raw_tag = node.info.version_tag()
         raw_deps = node.info.dependencies(field="depends") or {}

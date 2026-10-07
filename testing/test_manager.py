@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 import git
 import pytest
 
-from zeekpkg._resolver import _deps_at_version
 from zeekpkg._util import _semver_versions
 from zeekpkg.manager import (
     GitResolution,
@@ -559,19 +558,44 @@ def _make_tagged_repo(
 
 
 class TestDepsAtVersion:
-    def test_reads_from_zkg_meta(self, tmp_path: pathlib.Path) -> None:
+    @staticmethod
+    def _info_with_meta(repo_path: pathlib.Path) -> PackageInfo:
+        pkg = Package(git_url=f"file://{repo_path}")
+        return PackageInfo(
+            package=pkg,
+            metadata_file=str(repo_path / "zkg.meta"),
+        )
+
+    def test_reads_from_zkg_meta(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
         content = "[package]\ndescription = test\ndepends = dep-a >=1.0.0 dep-b *\n"
-        r = _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
-        result = _deps_at_version(r, "v1.0.0")
-        assert result == {"dep-a": ">=1.0.0", "dep-b": "*"}
+        _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {
+            "dep-a": ">=1.0.0",
+            "dep-b": "*",
+        }
 
-    def test_falls_back_to_legacy_meta(self, tmp_path: pathlib.Path) -> None:
+    def test_falls_back_to_legacy_meta(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
         content = "[package]\ndescription = test\ndepends = dep-c >=2.0.0\n"
-        r = _make_tagged_repo(tmp_path, "v1.0.0", "bro-pkg.meta", content)
-        result = _deps_at_version(r, "v1.0.0")
-        assert result == {"dep-c": ">=2.0.0"}
+        _make_tagged_repo(tmp_path, "v1.0.0", "bro-pkg.meta", content)
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {
+            "dep-c": ">=2.0.0",
+        }
 
-    def test_returns_empty_when_no_meta_file(self, tmp_path: pathlib.Path) -> None:
+    def test_returns_empty_when_no_meta_file(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
         r = git.Repo.init(tmp_path, initial_branch="main")
         r.config_writer().set_value("user", "name", "Test").release()
         r.config_writer().set_value("user", "email", "test@test").release()
@@ -579,14 +603,22 @@ class TestDepsAtVersion:
         r.index.add(["README"])
         r.index.commit("init")
         r.create_tag("v1.0.0")
-        result = _deps_at_version(r, "v1.0.0")
-        assert result == {}
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {}
 
-    def test_returns_empty_when_no_depends_field(self, tmp_path: pathlib.Path) -> None:
+    def test_returns_empty_when_no_depends_field(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
         content = "[package]\ndescription = no deps here\n"
-        r = _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
-        result = _deps_at_version(r, "v1.0.0")
-        assert result == {}
+        _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {}
+
+    def test_returns_none_without_metadata_file(self, manager: Manager) -> None:
+        info = PackageInfo(package=Package(git_url="file:///nonexistent"))
+        assert manager.dependencies_at_version(info, "v1.0.0") is None
 
 
 class TestSemverVersions:

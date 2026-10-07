@@ -11,7 +11,6 @@ from nab_resolver.ranges import Range
 
 from zeekpkg._resolver import (
     _constraint_to_range,
-    _deps_at_version,
     _fmt_range,
     _is_versioned_package,
     _Node,
@@ -495,30 +494,6 @@ def test_get_dependencies_skips_unparseable_spec(
     provider._cache[("org/pkg", v)] = ("v1.0.0", {"org/dep": "totally-invalid!"})
     deps = provider.get_dependencies("org/pkg", v)
     assert "org/dep" not in deps
-
-
-def test_deps_at_version_no_metadata_file(tmp_path: pathlib.Path) -> None:
-    # Tag exists but has no zkg.meta or bro-pkg.meta -- returns empty dict.
-    repo = git.Repo.init(tmp_path / "nometarepo", initial_branch="main")
-    repo.config_writer().set_value("user", "name", "Test").release()
-    repo.config_writer().set_value("user", "email", "test@test").release()
-    (tmp_path / "nometarepo" / "README").write_text("no meta here")
-    repo.index.add(["README"])
-    repo.index.commit("initial")
-    repo.create_tag("v1.0.0")
-    assert _deps_at_version(repo, "v1.0.0") == {}
-
-
-def test_deps_at_version_missing_package_section(tmp_path: pathlib.Path) -> None:
-    # zkg.meta at the tag has no [package] section -- returns empty dict.
-    repo = git.Repo.init(tmp_path / "badsectrepo", initial_branch="main")
-    repo.config_writer().set_value("user", "name", "Test").release()
-    repo.config_writer().set_value("user", "email", "test@test").release()
-    (tmp_path / "badsectrepo" / "zkg.meta").write_text("[other]\nkey = val\n")
-    repo.index.add(["zkg.meta"])
-    repo.index.commit("initial")
-    repo.create_tag("v1.0.0")
-    assert _deps_at_version(repo, "v1.0.0") == {}
 
 
 def test_is_versioned_package_sha() -> None:
