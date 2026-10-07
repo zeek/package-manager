@@ -11,7 +11,7 @@ import configparser
 import copy
 import os
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import git
 import semantic_version as semver
@@ -54,14 +54,6 @@ class _Node:
         self.requested_version: PackageVersion | None = None
         self.installed_version: PackageVersion | None = None
         self.is_suggestion = False
-
-    def __str__(self) -> str:
-        return (
-            f"{self.name}\n\t"
-            f"requested: {self.requested_version}\n\t"
-            f"installed: {self.installed_version}\n\t"
-            f"suggestion: {self.is_suggestion}"
-        )
 
 
 def _get_branch_names(clone: git.Repo) -> list[str]:
@@ -129,15 +121,6 @@ def _fmt_range(r: Range[semver.Version]) -> str:
                 + str(hi),
             )
     return " | ".join(parts) if parts else "none"
-
-
-class _FmtRange(Range[semver.Version]):
-    """Range subclass whose ``__str__`` uses operator-prefixed semver notation."""
-
-    __slots__ = ()
-
-    def __str__(self) -> str:
-        return _fmt_range(self)
 
 
 def _is_versioned_package(v: str) -> bool:
@@ -282,6 +265,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             self,
             range_type=Range,
             root_version=semver.Version("0.0.0"),
+            format_range=_fmt_range,
         )
         try:
             resolved: dict[str, semver.Version] = resolver.resolve(
@@ -575,21 +559,20 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 except Exception:
                     pass
             if not self._versions.get(qname) and node.info:
-                registered = False
-                for raw in (
+                candidates = (
                     node.info.metadata_version,
                     node.installed_version.version if node.installed_version else None,
                     node.info.versions[-1] if node.info.versions else None,
-                ):
+                )
+                coerced = None
+                for raw in candidates:
                     if raw and not is_sha1(raw):
                         try:
-                            self._versions[qname] = [semver.Version.coerce(raw)]
-                            registered = True
+                            coerced = semver.Version.coerce(raw)
                         except ValueError:
                             pass
                         break
-                if not registered:
-                    self._versions[qname] = [semver.Version("0.0.0")]
+                self._versions[qname] = [coerced or semver.Version("0.0.0")]
 
     def choose_version(
         self,
@@ -641,14 +624,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
     ) -> RangeProtocol[semver.Version] | None:
         return None
 
-    def narrow_for_display(
-        self,
-        package: str,
-        constraint: RangeProtocol[semver.Version],
-    ) -> RangeProtocol[semver.Version]:
-        r = cast(Range[semver.Version], constraint)
-        return cast("RangeProtocol[semver.Version]", _FmtRange(r._intervals))
-
     def _qualify_deps(self, raw_deps: dict[str, str]) -> dict[str, str]:
         result: dict[str, str] = {}
         for dep, spec in raw_deps.items():
@@ -670,26 +645,29 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         node = self._graph.get(qname)
         if node is None or node.info is None:
             return (str(version), {})
-        if not node.info.metadata_file:
-            raw_deps = node.info.dependencies(field="depends") or {}
-            return (node.info.version_tag(), self._qualify_deps(raw_deps))
-        clone_dir = os.path.dirname(node.info.metadata_file)
-        try:
-            clone = git.Repo(clone_dir)
-        except git.InvalidGitRepositoryError:
-            raw_deps = node.info.dependencies(field="depends") or {}
-            return (node.info.version_tag(), self._qualify_deps(raw_deps))
+
+        clone: git.Repo | None = None
+        if node.info.metadata_file:
+            clone_dir = os.path.dirname(node.info.metadata_file)
+            try:
+                clone = git.Repo(clone_dir)
+            except git.InvalidGitRepositoryError:
+                pass
+
         found_tag: str | None = None
-        for rt, nv in _semver_versions(git_version_tags(clone)):
-            if semver.Version.coerce(nv) == version:
-                found_tag = rt
-                break
-        if found_tag is None:
-            raw_deps = node.info.dependencies(field="depends") or {}
-            raw_tag = node.info.version_tag()
-        else:
+        if clone:
+            for rt, nv in _semver_versions(git_version_tags(clone)):
+                if semver.Version.coerce(nv) == version:
+                    found_tag = rt
+                    break
+
+        if found_tag and clone:
             raw_tag = found_tag
             raw_deps = _deps_at_version(clone, raw_tag)
+        else:
+            raw_tag = node.info.version_tag()
+            raw_deps = node.info.dependencies(field="depends") or {}
+
         return (raw_tag, self._qualify_deps(raw_deps))
 
     def _lookup_dep(self, dep_name: str) -> PackageInfo | None:

@@ -77,14 +77,6 @@ def _provider_with_repo(
     return _Solver(manager, graph), repo
 
 
-def test_node_str() -> None:
-    n = _Node("org/pkg")
-    s = str(n)
-    assert "org/pkg" in s
-    assert "requested" in s
-    assert "installed" in s
-
-
 def test_get_branch_names(tmp_path: pathlib.Path) -> None:
     repo = git.Repo.init(tmp_path / "br-repo", initial_branch="main")
     repo.config_writer().set_value("user", "name", "Test").release()
@@ -451,16 +443,6 @@ def test_fmt_range_exact_point() -> None:
 
 def test_fmt_range_full_is_wildcard() -> None:
     assert _fmt_range(Range.full()) == "*"
-
-
-def test_narrow_for_display_formats_range(
-    manager: Manager,
-    tmp_path: pathlib.Path,
-) -> None:
-    provider, _ = _provider_with_repo(manager, tmp_path, "org/pkg", [("v1.0.0", "")])
-    raw = Range.at_least(semver.Version("1.0.0"))
-    result = provider.narrow_for_display("org/pkg", raw)
-    assert str(result) == ">=1.0.0"
 
 
 def test_zkgprovider_qualified_names_via_resolve(
