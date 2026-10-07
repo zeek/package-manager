@@ -630,8 +630,18 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 if dep in reachable:
                     ts.add(qn, dep)
 
+        # `static_order` is non-deterministic for nodes at the same level;
+        # sort each ready batch so install order is reproducible.
+        ts.prepare()
+        order: list[str] = []
+        while ts.is_active():
+            ready = sorted(ts.get_ready())
+            order.extend(ready)
+            for qn in ready:
+                ts.done(qn)
+
         result: list[tuple[str, str, bool]] = []
-        for qn in ts.static_order():
+        for qn in order:
             is_upgraded = (
                 qn in soft_pinned
                 and qn in resolved

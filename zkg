@@ -704,7 +704,7 @@ def cmd_install(
         if not confirmation_prompt("Proceed?"):
             return
 
-    package_infos += new_pkgs
+    package_infos = new_pkgs + package_infos
 
     prompt_for_user_vars(
         manager,
@@ -764,7 +764,7 @@ def cmd_install(
 
     installs_failed = []
 
-    for info, version, _ in reversed(package_infos):
+    for info, version, _ in package_infos:
         name = info.package.qualified_name()
 
         is_overwriting = False
@@ -1581,7 +1581,7 @@ def cmd_upgrade(
                 ):
                     return
 
-    for info, version, _ in reversed(new_pkgs):
+    for info, version, _ in new_pkgs:
         name = info.package.qualified_name()
         worker = InstallWorker(manager, name, version)
         worker.start()

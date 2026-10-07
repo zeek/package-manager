@@ -2128,10 +2128,8 @@ class Manager:
 
             The list will not include any packages that are already installed or
             that are in the `requested_packages` argument. The list is sorted in
-            dependency order: whenever a dependency in turn has dependencies,
-            those are guaranteed to appear in order in the list. This means that
-            reverse iteration of the list guarantees processing of dependencies
-            prior to the depender packages.
+            dependency order: dependencies appear before the packages that
+            depend on them.
         """
         return _Solver(self).resolve(
             requested_packages,
@@ -2402,15 +2400,12 @@ class Manager:
             assert stage.state_dir
             return (err, False, stage.state_dir)
 
-        pkgs: list[tuple[PackageInfo, str]] = []
+        pkgs: list[tuple[PackageInfo, str]] = [(i, v) for i, v, _ in new_pkgs]
         pkgs.append((pkg_info, version))
-
-        for info, version, _ in new_pkgs:
-            pkgs.append((info, version))
 
         # Clone all packages, checkout right version, and build/install to
         # staging area.
-        for info, version in reversed(pkgs):
+        for info, version in pkgs:
             LOG.debug(
                 'preparing "%s" for testing: version %s',
                 info.package.name,
@@ -2443,7 +2438,7 @@ class Manager:
         else:
             test_pkgs = [(pkg_info, version)]
 
-        for info, _ in reversed(test_pkgs):
+        for info, _ in test_pkgs:
             LOG.info('testing "%s"', package)
             # Interpolate the test command:
             metadata, invalid_reason = self._interpolate_package_metadata(
