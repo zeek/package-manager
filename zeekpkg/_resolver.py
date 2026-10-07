@@ -761,6 +761,16 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
             )
         return self._info_cache[key]
 
+    def _resolve_raw_deps(self, raw: dict[str, str]) -> list[str]:
+        result: list[str] = []
+        for dep_s in raw:
+            if dep_s in ("zeek", "zkg"):
+                continue
+            di = self._lookup_dep(dep_s)
+            if di is not None and not di.invalid_reason:
+                result.append(di.package.qualified_name())
+        return result
+
     def _topo_sort(
         self,
         resolved: dict[str, semver.Version],
@@ -775,49 +785,36 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
         }
 
         def pkg_deps(qn: str) -> list[str]:
-            result_d: list[str] = []
-            rv = resolved.get(qn)
-            if rv is not None:
-                cache_entry = self._cache.get((qn, rv))
-                if cache_entry:
-                    _, d = cache_entry
-                    result_d = list(d)
-                    if not ignore_suggestions:
-                        nd = self._graph.get(qn)
-                        if nd and nd.info:
-                            raw_sug = nd.info.dependencies(field="suggests") or {}
-                            for dep_s in raw_sug:
-                                if dep_s in ("zeek", "zkg"):
-                                    continue
-                                di = self._lookup_dep(dep_s)
-                                if di is not None and not di.invalid_reason:
-                                    dqn = di.package.qualified_name()
-                                    if dqn not in result_d:
-                                        result_d.append(dqn)
-                    return sorted(result_d)
             nd = self._graph.get(qn)
-            if nd and nd.info:
-                raw: dict[str, str] = nd.info.dependencies(field="depends") or {}
-                if not ignore_suggestions:
-                    raw = {**raw, **(nd.info.dependencies(field="suggests") or {})}
-                for dep_s in raw:
-                    if dep_s in ("zeek", "zkg"):
-                        continue
-                    di = self._lookup_dep(dep_s)
-                    if di is not None and not di.invalid_reason:
-                        result_d.append(di.package.qualified_name())
-            return sorted(result_d)
+            rv = resolved.get(qn)
+            cached = self._cache.get((qn, rv)) if rv is not None else None
 
-        dfs_visited: set[str] = set()
-        dfs_in_stack: set[str] = set()
+            if cached:
+                deps = list(cached[1])
+            elif nd and nd.info:
+                deps = self._resolve_raw_deps(
+                    nd.info.dependencies(field="depends") or {},
+                )
+            else:
+                return []
 
-        def dfs_emit(start: str) -> list[tuple[str, str, bool]]:
-            result: list[tuple[str, str, bool]] = []
+            if not ignore_suggestions and nd and nd.info:
+                for dqn in self._resolve_raw_deps(
+                    nd.info.dependencies(field="suggests") or {},
+                ):
+                    if dqn not in deps:
+                        deps.append(dqn)
+
+            return sorted(deps)
+
+        visited: set[str] = set()
+        post_order: list[tuple[str, str, bool]] = []
+
+        def dfs_emit(start: str) -> None:
             stack: list[tuple[str, bool]] = [(start, False)]
             while stack:
                 qn, post = stack.pop()
                 if post:
-                    dfs_in_stack.discard(qn)
                     is_upgraded = (
                         qn in soft_pinned
                         and qn in resolved
@@ -833,36 +830,27 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                     node = self._graph.get(qn)
                     if node is None or node.info is None:
                         continue
-                    is_sug = qn in suggestion_names
                     rv = resolved.get(qn)
-                    if rv is not None:
-                        ce = self._cache.get((qn, rv))
-                        raw_tag = ce[0] if ce else node.info.version_tag()
-                    else:
-                        raw_tag = node.info.version_tag()
-                    result.append((qn, raw_tag, is_sug))
+                    ce = self._cache.get((qn, rv)) if rv is not None else None
+                    raw_tag = ce[0] if ce else node.info.version_tag()
+                    post_order.append((qn, raw_tag, qn in suggestion_names))
                 else:
-                    if qn in dfs_visited or qn in dfs_in_stack:
+                    if qn in visited:
                         continue
-                    dfs_visited.add(qn)
-                    dfs_in_stack.add(qn)
+                    visited.add(qn)
                     stack.append((qn, True))
                     for dep_qn in reversed(pkg_deps(qn)):
-                        if dep_qn not in dfs_visited and dep_qn not in dfs_in_stack:
+                        if dep_qn not in visited:
                             stack.append((dep_qn, False))
-            return result
 
-        seeds = list(requested_qnames) + list(branch_pkg_names)
-        post_order: list[tuple[str, str, bool]] = []
-        for seed in seeds:
-            post_order.extend(dfs_emit(seed))
+        for seed in list(requested_qnames) + list(branch_pkg_names):
+            dfs_emit(seed)
 
-        seen_res: set[str] = set()
+        seen: set[str] = set()
         res: list[tuple[str, str, bool]] = []
         for qn, raw_tag, is_sug in reversed(post_order):
-            if qn not in seen_res:
-                seen_res.add(qn)
-                if self._graph.get(qn) is not None and self._graph[qn].info is not None:
-                    res.append((qn, raw_tag, is_sug))
+            if qn not in seen:
+                seen.add(qn)
+                res.append((qn, raw_tag, is_sug))
 
         return res
