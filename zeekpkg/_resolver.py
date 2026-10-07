@@ -53,16 +53,6 @@ class _Node:
         self.installed_version: PackageVersion | None = None
 
 
-def _get_branch_names(clone: git.Repo) -> list[str]:
-    rval = []
-    for ref in clone.references:
-        branch_name = str(ref.name)
-        if not branch_name.startswith("origin/"):
-            continue
-        rval.append(branch_name.split("origin/")[1])
-    return rval
-
-
 def _normalize_constraint(spec: str) -> str:
     """Normalize bare `=X` to `==X` for semver compatibility."""
     if spec.startswith("=") and not spec.startswith("=="):

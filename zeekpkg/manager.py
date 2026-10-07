@@ -25,7 +25,6 @@ from . import (
     __version__,
 )
 from ._resolver import (
-    _get_branch_names,
     _Solver,
 )
 from ._util import (
@@ -34,6 +33,7 @@ from ._util import (
     delete_path,
     find_program,
     get_zeek_info,
+    git_branch_names,
     git_checkout,
     git_clone,
     git_default_branch,
@@ -3017,7 +3017,7 @@ def _pick_version(clone: git.Repo, version: str | None) -> tuple[str, TrackingMe
             return version, TrackingMethod.COMMIT
         if version in version_tags:
             return version, TrackingMethod.VERSION
-        branches = _get_branch_names(clone)
+        branches = git_branch_names(clone)
         if version in branches:
             return version, TrackingMethod.BRANCH
         LOG.info(

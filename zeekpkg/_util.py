@@ -259,6 +259,17 @@ def _semver_versions(tags: list[str]) -> list[tuple[str, str]]:
     return result
 
 
+def git_branch_names(clone: git.Repo) -> list[str]:
+    """Return remote branch names (without the ``origin/`` prefix)."""
+    rval = []
+    for ref in clone.references:
+        branch_name = str(ref.name)
+        if not branch_name.startswith("origin/"):
+            continue
+        rval.append(branch_name.split("origin/")[1])
+    return rval
+
+
 def git_version_tags(repo: git.Repo) -> list[str]:
     """Returns semver-sorted list of version tag strings in the given repo."""
     raw_tags = [str(tagref.name) for tagref in repo.tags]
