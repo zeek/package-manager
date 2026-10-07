@@ -128,6 +128,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         self._graph: dict[str, _Node] = graph if graph is not None else {}
         self._versions: dict[str, list[tuple[str, semver.Version]]] = {}
         self._cache: dict[tuple[str, semver.Version], tuple[str, dict[str, str]]] = {}
+        self._suggestion_edges: dict[str, list[str]] = {}
 
         for node in list(self._graph.values()):
             self._add_node(node)
@@ -181,7 +182,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             installed_qnames,
             {binfo.package.qualified_name() for binfo, _, _ in branch_pkgs},
             soft_pinned,
-            ignore_suggestions,
         )
         if error:
             return (error, [])
@@ -207,7 +207,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         installed_qnames: set[str],
         branch_pkg_names: set[str],
         soft_pinned: dict[str, str],
-        ignore_suggestions: bool,
     ) -> tuple[str, list[tuple[str, str, bool]]]:
         """Run the nab-resolver and return a topo-sorted install list.
 
@@ -235,7 +234,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 installed_qnames,
                 branch_pkg_names,
                 soft_pinned,
-                ignore_suggestions,
             ),
         )
 
@@ -341,8 +339,8 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             if node.info is None:
                 continue
 
-            dd = node.info.dependencies(field="depends") or {}
-            all_deps = dd.copy()
+            hard_deps = node.info.dependencies(field="depends") or {}
+            suggestion_deps: dict[str, str] = {}
             if not ignore_suggestions:
                 ds = node.info.dependencies(field="suggests")
                 if ds is None:
@@ -350,9 +348,9 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                         [],
                         f'package "{node.name}" has malformed "suggests" field',
                     )
-                all_deps.update(ds)
+                suggestion_deps = ds
 
-            for dep_name, spec in all_deps.items():
+            for dep_name, spec in {**hard_deps, **suggestion_deps}.items():
                 if dep_name in ("zeek", "zkg"):
                     continue
 
@@ -360,6 +358,9 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 if di is None or di.invalid_reason:
                     continue
                 qname = di.package.qualified_name()
+
+                if dep_name in suggestion_deps and not spec.startswith("branch="):
+                    self._suggestion_edges.setdefault(node.name, []).append(qname)
 
                 if spec.startswith("branch="):
                     existing = self._graph.get(qname)
@@ -542,7 +543,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         installed_qnames: set[str],
         branch_pkg_names: set[str],
         soft_pinned: dict[str, str],
-        ignore_suggestions: bool,
     ) -> list[tuple[str, str, bool]]:
         hard_children = {child for _, child in edges}
         children: dict[str, list[str]] = {}
@@ -550,16 +550,12 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             children.setdefault(parent, []).append(child)
 
         suggestion_names: set[str] = set()
-        if not ignore_suggestions:
-            for qn, nd in self._graph.items():
-                if nd.info:
-                    for dqn in self._qualify_deps(
-                        nd.info.dependencies(field="suggests") or {},
-                    ):
-                        if dqn not in hard_children:
-                            suggestion_names.add(dqn)
-                        if dqn not in children.get(qn, []):
-                            children.setdefault(qn, []).append(dqn)
+        for qn, sugg_deps in self._suggestion_edges.items():
+            for dqn in sugg_deps:
+                if dqn not in hard_children:
+                    suggestion_names.add(dqn)
+                if dqn not in children.get(qn, []):
+                    children.setdefault(qn, []).append(dqn)
 
         reachable: set[str] = set()
         stack = list(requested_qnames) + list(branch_pkg_names)

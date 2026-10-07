@@ -552,7 +552,6 @@ def test_run_solver_resolution_error(
         installed_qnames=set(),
         branch_pkg_names=set(),
         soft_pinned={},
-        ignore_suggestions=True,
     )
     assert err != ""
     assert items == []
@@ -618,6 +617,8 @@ def _make_two_package_setup(
     provider._cache[("org/dep-pkg", v_dep)] = ("v1.0.0", {})
     if "org/dep-pkg" not in provider._versions:
         provider._versions["org/dep-pkg"] = [("v1.0.0", v_dep)]
+    if dep_suggests:
+        provider._suggestion_edges["org/main-pkg"] = ["org/dep-pkg"]
 
     return provider, graph
 
@@ -636,7 +637,6 @@ def test_run_solver_dep_emitted_in_result(
         installed_qnames=set(),
         branch_pkg_names=set(),
         soft_pinned={},
-        ignore_suggestions=True,
     )
     assert err == ""
     qnames = [qn for qn, _, _ in items]
@@ -670,7 +670,6 @@ def test_run_solver_with_suggestions(
             installed_qnames=set(),
             branch_pkg_names=set(),
             soft_pinned={},
-            ignore_suggestions=False,
         )
     assert err == ""
     assert "org/dep-pkg" in [qn for qn, _, _ in items]
@@ -709,7 +708,6 @@ def test_run_solver_suggestions_skips_zeek_zkg(
             installed_qnames=set(),
             branch_pkg_names=set(),
             soft_pinned={},
-            ignore_suggestions=False,
         )
     assert err == ""
 
@@ -748,7 +746,6 @@ def test_run_solver_branch_pkg_with_suggests(
             installed_qnames=set(),
             branch_pkg_names={"org/main-pkg"},
             soft_pinned={},
-            ignore_suggestions=False,
         )
     assert err == ""
 
@@ -783,7 +780,6 @@ def test_run_solver_dfs_skips_revisit(
         installed_qnames=set(),
         branch_pkg_names={"org/solo"},
         soft_pinned={},
-        ignore_suggestions=True,
     )
     assert err == ""
 
@@ -806,7 +802,6 @@ def test_run_solver_dfs_node_no_info(
         installed_qnames=set(),
         branch_pkg_names=set(),
         soft_pinned={},
-        ignore_suggestions=True,
     )
     assert err == ""
     qnames = [qn for qn, _, _ in items]
