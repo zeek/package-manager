@@ -201,14 +201,11 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 use_builtins,
             )
 
-        if err := self._walk_deps(ignore_suggestions, use_builtins):
+        branch_pkgs, err = self._walk_deps(ignore_suggestions, use_builtins)
+        if err:
             return (err, [])
 
         self._discover_versions()
-
-        branch_pkgs, err = self._collect_branches(ignore_suggestions)
-        if err:
-            return (err, [])
 
         requested_qnames = {n.name for n in requests if n.info}
         requirements, constraints = self._build_solver_inputs(
@@ -365,7 +362,10 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         self,
         ignore_suggestions: bool,
         use_builtins: bool,
-    ) -> str:
+    ) -> tuple[list[tuple[PackageInfo, str, bool]], str]:
+        branch_pkgs: list[tuple[PackageInfo, str, bool]] = []
+        branch_pkg_names: set[str] = set()
+
         to_process = copy.copy(self._graph)
         while to_process:
             _, node = to_process.popitem()
@@ -381,16 +381,19 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             ds = node.info.dependencies(field="suggests")
 
             if dd is None:
-                return f'package "{node.name}" has malformed "depends" field'
+                return ([], f'package "{node.name}" has malformed "depends" field')
 
             all_deps = dd.copy()
 
             if not ignore_suggestions:
                 if ds is None:
-                    return f'package "{node.name}" has malformed "suggests" field'
+                    return (
+                        [],
+                        f'package "{node.name}" has malformed "suggests" field',
+                    )
                 all_deps.update(ds)
 
-            for dep_name, _ in all_deps.items():
+            for dep_name, spec in all_deps.items():
                 if dep_name in ("zeek", "zkg"):
                     continue
 
@@ -406,8 +409,9 @@ class _Solver(BaseProvider["str", "semver.Version"]):
 
                 if info2.invalid_reason:
                     return (
+                        [],
                         f'package "{node.name}" has invalid dependency'
-                        f' "{dep_name}": {info2.invalid_reason}'
+                        f' "{dep_name}": {info2.invalid_reason}',
                     )
 
                 dep_name_orig = dep_name
@@ -418,6 +422,24 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                     node.name,
                     dep_name,
                 )
+
+                if spec.startswith("branch="):
+                    existing = self._graph.get(dep_name)
+                    if existing and existing.installed_version:
+                        msg, ok = existing.installed_version.fullfills(spec)
+                        if not ok:
+                            return (
+                                [],
+                                f'unsatisfiable dependency: "{dep_name}"'
+                                f" ({existing.installed_version.version}) is"
+                                f' installed, but "{node.name}" requires'
+                                f" {spec} ({msg})",
+                            )
+                    elif dep_name not in branch_pkg_names:
+                        branch_pkgs.append(
+                            (info2, spec[len("branch=") :], is_suggestion),
+                        )
+                        branch_pkg_names.add(dep_name)
 
                 if dep_name in self._graph:
                     if self._graph[dep_name].is_suggestion and not is_suggestion:
@@ -433,56 +455,8 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 node.info = info2
                 node.is_suggestion = is_suggestion
                 if err := self._add_node(node):
-                    return err
+                    return ([], err)
                 to_process[node.name] = node
-
-        return ""
-
-    def _collect_branches(
-        self,
-        ignore_suggestions: bool,
-    ) -> tuple[list[tuple[PackageInfo, str, bool]], str]:
-        branch_pkgs: list[tuple[PackageInfo, str, bool]] = []
-        branch_pkg_names: set[str] = set()
-
-        for src_node in list(self._graph.values()):
-            if src_node.info is None:
-                continue
-            src_deps: dict[str, str] = src_node.info.dependencies(field="depends") or {}
-            if not ignore_suggestions:
-                src_deps = {
-                    **src_deps,
-                    **(src_node.info.dependencies(field="suggests") or {}),
-                }
-            for dep_name, spec in src_deps.items():
-                if not spec.startswith("branch="):
-                    continue
-                branch_name = spec[len("branch=") :]
-                dep_info = self._lookup_dep(dep_name)
-                if dep_info is None or dep_info.invalid_reason:
-                    reason = dep_info.invalid_reason if dep_info else "unknown package"
-                    return (
-                        [],
-                        f'package "{src_node.name}" has invalid dependency'
-                        f' "{dep_name}": {reason}',
-                    )
-                qn = dep_info.package.qualified_name()
-                if self._graph.get(qn) and self._graph[qn].installed_version:
-                    iv = self._graph[qn].installed_version
-                    assert iv
-                    msg, ok = iv.fullfills(spec)
-                    if not ok:
-                        return (
-                            [],
-                            f'unsatisfiable dependency: "{qn}" ({iv.version}) is'
-                            f' installed, but "{src_node.name}" requires'
-                            f" {spec} ({msg})",
-                        )
-                elif qn not in branch_pkg_names:
-                    branch_pkgs.append(
-                        (dep_info, branch_name, src_node.is_suggestion),
-                    )
-                    branch_pkg_names.add(qn)
 
         return (branch_pkgs, "")
 
