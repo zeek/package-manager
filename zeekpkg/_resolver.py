@@ -19,7 +19,6 @@ from nab_resolver.errors import ResolutionError
 from nab_resolver.ranges import Range
 from nab_resolver.resolver import BaseProvider, Resolver
 from nab_resolver.types import RangeProtocol
-from typing_extensions import Self
 
 from . import LOG, __version__
 from ._util import (
@@ -82,25 +81,24 @@ def _normalize_constraint(spec: str) -> str:
     return spec
 
 
-def _constraint_to_range(constraint: str) -> _FmtRange:
+def _constraint_to_range(constraint: str) -> Range[semver.Version]:
     """Convert a normalized zkg constraint string to a nab-resolver `Range`."""
     if constraint in ("*", ""):
-        return _FmtRange(Range.full()._intervals)
-    result: _FmtRange = _FmtRange(Range.full()._intervals)
+        return Range.full()
+    result: Range[semver.Version] = Range.full()
     clause = semver.SimpleSpec(_normalize_constraint(constraint)).clause
     matchers = list(clause.clauses) if hasattr(clause, "clauses") else [clause]
+    ops = {
+        ">=": Range.at_least,
+        ">": Range.greater_than,
+        "<=": Range.at_most,
+        "<": Range.less_than,
+        "==": Range.singleton,
+    }
     for m in matchers:
         v = semver.Version.coerce(str(m.target))
-        if m.operator == ">=":
-            result = result & _FmtRange(Range.at_least(v)._intervals)
-        elif m.operator == ">":
-            result = result & _FmtRange(Range.greater_than(v)._intervals)
-        elif m.operator == "<=":
-            result = result & _FmtRange(Range.at_most(v)._intervals)
-        elif m.operator == "<":
-            result = result & _FmtRange(Range.less_than(v)._intervals)
-        elif m.operator == "==":
-            result = result & _FmtRange(Range.singleton(v)._intervals)
+        if m.operator in ops:
+            result = result & ops[m.operator](v)
     return result
 
 
@@ -140,39 +138,6 @@ class _FmtRange(Range[semver.Version]):
 
     def __str__(self) -> str:
         return _fmt_range(self)
-
-    @classmethod
-    def empty(cls) -> Self:
-        return cls(super().empty()._intervals)
-
-    @classmethod
-    def full(cls) -> Self:
-        return cls(super().full()._intervals)
-
-    @classmethod
-    def singleton(cls, version: semver.Version) -> Self:
-        return cls(super().singleton(version)._intervals)
-
-    def __and__(self, other: object) -> Self:
-        result = super().__and__(other)
-        if not isinstance(result, Range):
-            return result  # pragma: no cover
-        return type(self)(result._intervals)
-
-    def __or__(self, other: object) -> Self:
-        result = super().__or__(other)
-        if not isinstance(result, Range):
-            return result  # pragma: no cover
-        return type(self)(result._intervals)
-
-    def __invert__(self) -> Self:
-        return type(self)(super().__invert__()._intervals)
-
-    def __sub__(self, other: object) -> Self:
-        result = super().__sub__(other)
-        if not isinstance(result, Range):
-            return result  # pragma: no cover
-        return type(self)(result._intervals)
 
 
 def _is_versioned_package(v: str) -> bool:
@@ -682,7 +647,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         constraint: RangeProtocol[semver.Version],
     ) -> RangeProtocol[semver.Version]:
         r = cast(Range[semver.Version], constraint)
-        return _FmtRange(r._intervals)
+        return cast("RangeProtocol[semver.Version]", _FmtRange(r._intervals))
 
     def _qualify_deps(self, raw_deps: dict[str, str]) -> dict[str, str]:
         result: dict[str, str] = {}

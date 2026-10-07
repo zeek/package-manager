@@ -13,7 +13,6 @@ from zeekpkg._resolver import (
     _constraint_to_range,
     _deps_at_version,
     _fmt_range,
-    _FmtRange,
     _get_branch_names,
     _is_versioned_package,
     _Node,
@@ -159,10 +158,10 @@ def test_constraint_to_range_compound() -> None:
     assert semver.Version("0.9.0") not in r
 
 
-def test_constraint_to_range_returns_fmt_range() -> None:
-    assert isinstance(_constraint_to_range(">=1.0.0"), _FmtRange)
-    assert isinstance(_constraint_to_range("*"), _FmtRange)
-    assert isinstance(_constraint_to_range("=1.0.0"), _FmtRange)
+def test_constraint_to_range_returns_range() -> None:
+    assert isinstance(_constraint_to_range(">=1.0.0"), Range)
+    assert isinstance(_constraint_to_range("*"), Range)
+    assert isinstance(_constraint_to_range("=1.0.0"), Range)
 
 
 def test_choose_version_picks_highest_in_range(
@@ -454,71 +453,14 @@ def test_fmt_range_full_is_wildcard() -> None:
     assert _fmt_range(Range.full()) == "*"
 
 
-def test_narrow_for_display_wraps_in_fmt_range(
+def test_narrow_for_display_formats_range(
     manager: Manager,
     tmp_path: pathlib.Path,
 ) -> None:
     provider, _ = _provider_with_repo(manager, tmp_path, "org/pkg", [("v1.0.0", "")])
     raw = Range.at_least(semver.Version("1.0.0"))
     result = provider.narrow_for_display("org/pkg", raw)
-    assert isinstance(result, _FmtRange)
-    assert "inf" not in str(result)
-
-
-def test_fmt_range_subclass_str() -> None:
-    r = _FmtRange(Range.at_least(semver.Version("1.0.0"))._intervals)
-    assert str(r) == ">=1.0.0"
-    assert "inf" not in str(r)
-
-
-def test_fmt_range_and_preserves_subclass() -> None:
-    a = _FmtRange(Range.at_least(semver.Version("1.0.0"))._intervals)
-    b = _FmtRange(Range.less_than(semver.Version("2.0.0"))._intervals)
-    result = a & b
-    assert isinstance(result, _FmtRange)
-    assert str(result) == ">=1.0.0, <2.0.0"
-
-
-def test_fmt_range_or_preserves_subclass() -> None:
-    a = _FmtRange(Range.less_than(semver.Version("1.0.0"))._intervals)
-    b = _FmtRange(Range.greater_than(semver.Version("2.0.0"))._intervals)
-    result = a | b
-    assert isinstance(result, _FmtRange)
-    assert "inf" not in str(result)
-
-
-def test_fmt_range_invert_preserves_subclass() -> None:
-    r = _FmtRange(Range.singleton(semver.Version("1.0.0"))._intervals)
-    result = ~r
-    assert isinstance(result, _FmtRange)
-    assert "inf" not in str(result)
-
-
-def test_fmt_range_sub_preserves_subclass() -> None:
-    a = _FmtRange(Range.at_least(semver.Version("1.0.0"))._intervals)
-    b = _FmtRange(Range.singleton(semver.Version("1.5.0"))._intervals)
-    result = a - b
-    assert isinstance(result, _FmtRange)
-    assert "inf" not in str(result)
-
-
-def test_fmt_range_empty_classmethod() -> None:
-    r = _FmtRange.empty()
-    assert isinstance(r, _FmtRange)
-    assert semver.Version("1.0.0") not in r
-
-
-def test_fmt_range_full_classmethod() -> None:
-    r = _FmtRange.full()
-    assert isinstance(r, _FmtRange)
-    assert semver.Version("1.0.0") in r
-
-
-def test_fmt_range_singleton_classmethod() -> None:
-    r = _FmtRange.singleton(semver.Version("2.0.0"))
-    assert isinstance(r, _FmtRange)
-    assert semver.Version("2.0.0") in r
-    assert semver.Version("1.0.0") not in r
+    assert str(result) == ">=1.0.0"
 
 
 def test_zkgprovider_qualified_names_via_resolve(
