@@ -17,8 +17,8 @@ import git
 import semantic_version as semver
 from nab_resolver.errors import ResolutionError
 from nab_resolver.ranges import Range
-from nab_resolver.resolver import Resolver, ResolverProvider
-from nab_resolver.types import Incompatibility, RangeProtocol
+from nab_resolver.resolver import BaseProvider, Resolver
+from nab_resolver.types import RangeProtocol
 from typing_extensions import Self
 
 from . import LOG, __version__
@@ -209,7 +209,7 @@ def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
     return pkg_dependencies(meta, field="depends") or {}
 
 
-class _Solver(ResolverProvider["str", "semver.Version"]):
+class _Solver(BaseProvider["str", "semver.Version"]):
     """Graph builder, nab-resolver provider, and topo-sort driver."""
 
     def __init__(
@@ -626,9 +626,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
                 if not registered:
                     self._versions[qname] = [semver.Version("0.0.0")]
 
-    def begin_decision_scan(self) -> None:
-        return None
-
     def choose_version(
         self,
         package: str,
@@ -671,22 +668,6 @@ class _Solver(ResolverProvider["str", "semver.Version"]):
         culprit_counts: Mapping[str, int] | None = None,
     ) -> int:
         return -len(self._versions.get(package, []))
-
-    def is_ready(self, package: str) -> bool:
-        return True
-
-    def receive_partial_solution_hint(
-        self,
-        positive_ranges: Mapping[str, RangeProtocol[semver.Version]],
-        decisions: Mapping[str, semver.Version],
-    ) -> None:
-        pass
-
-    def consume_pending_clauses(self) -> list[Incompatibility[str, semver.Version]]:
-        return []
-
-    def consume_force_backtrack_targets(self) -> list[str]:
-        return []
 
     def widen_decision(
         self,
