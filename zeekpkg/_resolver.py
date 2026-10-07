@@ -20,7 +20,7 @@ from nab_resolver.ranges import Range
 from nab_resolver.resolver import BaseProvider, Resolver
 from nab_resolver.types import RangeProtocol
 
-from . import LOG, __version__
+from . import __version__
 from ._util import (
     _semver_versions,
     get_zeek_version,
@@ -52,7 +52,6 @@ class _Node:
         self.info: PackageInfo | None = None
         self.requested_version: PackageVersion | None = None
         self.installed_version: PackageVersion | None = None
-        self.is_suggestion = False
 
 
 def _get_branch_names(clone: git.Repo) -> list[str]:
@@ -201,7 +200,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 use_builtins,
             )
 
-        branch_pkgs, err = self._walk_deps(ignore_suggestions, use_builtins)
+        branch_pkgs, err = self._walk_deps(ignore_suggestions)
         if err:
             return (err, [])
 
@@ -359,7 +358,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
     def _walk_deps(
         self,
         ignore_suggestions: bool,
-        use_builtins: bool,
     ) -> tuple[list[tuple[PackageInfo, str, bool]], str]:
         branch_pkgs: list[tuple[PackageInfo, str, bool]] = []
         branch_pkg_names: set[str] = set()
@@ -369,21 +367,11 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             _, node = to_process.popitem()
             if node.info is None:
                 continue
-            best_tag = node.info.versions[-1] if node.info.versions else None
-            if best_tag and node.info.metadata_file:
-                clone_dir = os.path.dirname(node.info.metadata_file)
-                node_clone = git.Repo(clone_dir)
-                dd: dict[str, str] | None = _deps_at_version(node_clone, best_tag)
-            else:
-                dd = node.info.dependencies(field="depends") or {}
-            ds = node.info.dependencies(field="suggests")
 
-            if dd is None:
-                return ([], f'package "{node.name}" has malformed "depends" field')
-
+            dd = node.info.dependencies(field="depends") or {}
             all_deps = dd.copy()
-
             if not ignore_suggestions:
+                ds = node.info.dependencies(field="suggests")
                 if ds is None:
                     return (
                         [],
@@ -395,66 +383,37 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 if dep_name in ("zeek", "zkg"):
                     continue
 
-                is_suggestion = node.is_suggestion or (
-                    (ds is not None and dep_name in ds) and dep_name not in dd
-                )
-
-                info2 = None
-                if use_builtins:
-                    info2 = self._manager.find_builtin_package(dep_name)
-                if info2 is None:
-                    info2 = self._manager.info(dep_name, prefer_installed=False)
-
-                if info2.invalid_reason:
-                    return (
-                        [],
-                        f'package "{node.name}" has invalid dependency'
-                        f' "{dep_name}": {info2.invalid_reason}',
-                    )
-
-                dep_name_orig = dep_name
-                dep_name = info2.package.qualified_name()
-                LOG.debug(
-                    'dependency "%s" of "%s" resolved to "%s"',
-                    dep_name_orig,
-                    node.name,
-                    dep_name,
-                )
+                di = self._lookup_dep(dep_name)
+                if di is None or di.invalid_reason:
+                    continue
+                qname = di.package.qualified_name()
 
                 if spec.startswith("branch="):
-                    existing = self._graph.get(dep_name)
+                    existing = self._graph.get(qname)
                     if existing and existing.installed_version:
                         msg, ok = existing.installed_version.fullfills(spec)
                         if not ok:
                             return (
                                 [],
-                                f'unsatisfiable dependency: "{dep_name}"'
+                                f'unsatisfiable dependency: "{qname}"'
                                 f" ({existing.installed_version.version}) is"
                                 f' installed, but "{node.name}" requires'
                                 f" {spec} ({msg})",
                             )
-                    elif dep_name not in branch_pkg_names:
+                    elif qname not in branch_pkg_names:
                         branch_pkgs.append(
-                            (info2, spec[len("branch=") :], is_suggestion),
+                            (di, spec[len("branch=") :], False),
                         )
-                        branch_pkg_names.add(dep_name)
+                        branch_pkg_names.add(qname)
 
-                if dep_name in self._graph:
-                    if self._graph[dep_name].is_suggestion and not is_suggestion:
-                        self._graph[dep_name].is_suggestion = False
+                if qname in self._graph or qname in to_process:
                     continue
 
-                if dep_name in to_process:
-                    if to_process[dep_name].is_suggestion and not is_suggestion:
-                        to_process[dep_name].is_suggestion = False
-                    continue
-
-                node = _Node(dep_name)
-                node.info = info2
-                node.is_suggestion = is_suggestion
-                if err := self._add_node(node):
+                dep_node = _Node(qname)
+                dep_node.info = di
+                if err := self._add_node(dep_node):
                     return ([], err)
-                to_process[node.name] = node
+                to_process[dep_node.name] = dep_node
 
         return (branch_pkgs, "")
 
@@ -655,19 +614,20 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         soft_pinned: dict[str, str],
         ignore_suggestions: bool,
     ) -> list[tuple[str, str, bool]]:
-        suggestion_names: set[str] = {
-            name for name, node in self._graph.items() if node.is_suggestion
-        }
-
+        hard_children = {child for _, child in edges}
         children: dict[str, list[str]] = {}
         for parent, child in edges:
             children.setdefault(parent, []).append(child)
+
+        suggestion_names: set[str] = set()
         if not ignore_suggestions:
             for qn, nd in self._graph.items():
                 if nd.info:
                     for dqn in self._qualify_deps(
                         nd.info.dependencies(field="suggests") or {},
                     ):
+                        if dqn not in hard_children:
+                            suggestion_names.add(dqn)
                         if dqn not in children.get(qn, []):
                             children.setdefault(qn, []).append(dqn)
 
