@@ -70,6 +70,7 @@ def _provider_with_repo(
     info.metadata_file = str(pathlib.Path(str(repo.working_dir)) / "zkg.meta")
     info.metadata_version = None
     info.invalid_reason = None
+    info.versions = [tag for tag, _ in tags_deps]
 
     node = _Node(qname)
     node.info = info
@@ -556,6 +557,7 @@ def _make_conflicting_provider(
     info_a.metadata_file = str(pathlib.Path(str(repo_a.working_dir)) / "zkg.meta")
     info_a.metadata_version = None
     info_a.invalid_reason = None
+    info_a.versions = ["v1.0.0", "v2.0.0"]
     node_a = _Node("org/pkg-a")
     node_a.info = info_a
 
@@ -608,6 +610,7 @@ def _make_two_package_setup(
     )
     dep_info.metadata_version = None
     dep_info.invalid_reason = None
+    dep_info.versions = ["v1.0.0"]
     dep_info.dependencies.return_value = {}
     dep_info.best_version.return_value = "v1.0.0"
     dep_node = _Node("org/dep-pkg")
@@ -621,6 +624,7 @@ def _make_two_package_setup(
     )
     main_info.metadata_version = None
     main_info.invalid_reason = None
+    main_info.versions = ["v1.0.0"]
     main_info.best_version.return_value = "v1.0.0"
     if dep_suggests:
         main_info.dependencies.side_effect = lambda field="depends": (
@@ -793,6 +797,7 @@ def test_run_solver_dfs_skips_revisit(
     info.metadata_file = str(pathlib.Path(str(repo.working_dir)) / "zkg.meta")
     info.metadata_version = None
     info.invalid_reason = None
+    info.versions = ["v1.0.0"]
     info.dependencies.return_value = {}
     info.best_version.return_value = "v1.0.0"
     node = _Node("org/solo")

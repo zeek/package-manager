@@ -23,9 +23,7 @@ from nab_resolver.types import RangeProtocol
 
 from . import __version__
 from ._util import (
-    _semver_versions,
     get_zeek_version,
-    git_version_tags,
     is_sha1,
     normalize_version_tag,
 )
@@ -480,29 +478,22 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         node = self._graph.get(package)
         if node is None or node.info is None:
             return
-        if node.info.metadata_file:
-            clone_dir = os.path.dirname(node.info.metadata_file)
-            try:
-                clone = git.Repo(clone_dir)
-                pairs = _semver_versions(git_version_tags(clone))
-                self._versions[package] = [semver.Version.coerce(nv) for _, nv in pairs]
-            except Exception:
-                pass
-        if not self._versions.get(package):
-            candidates = (
-                node.info.metadata_version,
-                node.installed_version.version if node.installed_version else None,
-                node.info.versions[-1] if node.info.versions else None,
-            )
-            coerced = None
-            for raw in candidates:
-                if raw and not is_sha1(raw):
-                    try:
-                        coerced = semver.Version.coerce(raw)
-                    except ValueError:
-                        pass
-                    break
-            self._versions[package] = [coerced or semver.Version("0.0.0")]
+        versions: list[semver.Version] = []
+        for tag in node.info.versions:
+            norm = normalize_version_tag(tag)
+            if not is_sha1(norm):
+                try:
+                    versions.append(semver.Version.coerce(norm))
+                except ValueError:
+                    pass
+        if not versions and node.info.metadata_version:
+            raw = node.info.metadata_version
+            if not is_sha1(raw):
+                try:
+                    versions.append(semver.Version.coerce(raw))
+                except ValueError:
+                    pass
+        self._versions[package] = versions or [semver.Version("0.0.0")]
 
     def choose_version(
         self,
@@ -575,28 +566,30 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         if node is None or node.info is None:
             return (str(version), {})
 
-        clone: git.Repo | None = None
-        if node.info.metadata_file:
+        found_tag: str | None = None
+        for tag in node.info.versions:
+            norm = normalize_version_tag(tag)
+            if not is_sha1(norm):
+                try:
+                    if semver.Version.coerce(norm) == version:
+                        found_tag = tag
+                        break
+                except ValueError:
+                    pass
+
+        if found_tag and node.info.metadata_file:
             clone_dir = os.path.dirname(node.info.metadata_file)
             try:
                 clone = git.Repo(clone_dir)
+                return (
+                    found_tag,
+                    self._qualify_deps(_deps_at_version(clone, found_tag)),
+                )
             except git.InvalidGitRepositoryError:
                 pass
 
-        found_tag: str | None = None
-        if clone:
-            for rt, nv in _semver_versions(git_version_tags(clone)):
-                if semver.Version.coerce(nv) == version:
-                    found_tag = rt
-                    break
-
-        if found_tag and clone:
-            raw_tag = found_tag
-            raw_deps = _deps_at_version(clone, raw_tag)
-        else:
-            raw_tag = node.info.version_tag()
-            raw_deps = node.info.dependencies(field="depends") or {}
-
+        raw_tag = node.info.version_tag()
+        raw_deps = node.info.dependencies(field="depends") or {}
         return (raw_tag, self._qualify_deps(raw_deps))
 
     def _lookup_dep(self, dep_name: str) -> PackageInfo | None:
