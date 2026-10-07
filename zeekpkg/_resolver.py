@@ -171,7 +171,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             branch_pkgs,
             hard_pinned,
             soft_pinned,
-            ignore_suggestions,
             requested_qnames,
         )
 
@@ -389,6 +388,21 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                     return ([], err)
                 to_process[dep_node.name] = dep_node
 
+        synth_v = semver.Version("0.0.0")
+        for binfo, _, _ in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            self._versions[bqn] = [("0.0.0", synth_v)]
+            raw_bdeps: dict[str, str] = binfo.dependencies(field="depends") or {}
+            if not ignore_suggestions:
+                raw_bdeps = {
+                    **raw_bdeps,
+                    **(binfo.dependencies(field="suggests") or {}),
+                }
+            self._cache[(bqn, synth_v)] = (
+                binfo.version_tag(),
+                self._qualify_deps(raw_bdeps),
+            )
+
         return (branch_pkgs, "")
 
     def _build_solver_inputs(
@@ -397,7 +411,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         branch_pkgs: list[tuple[PackageInfo, str, bool]],
         hard_pinned: dict[str, str],
         soft_pinned: dict[str, str],
-        ignore_suggestions: bool,
         requested_qnames: set[str],
     ) -> tuple[dict[str, Range[semver.Version]], dict[str, Range[semver.Version]]]:
         requirements: dict[str, Range[semver.Version]] = {}
@@ -429,21 +442,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                 continue
             if _is_versioned_package(norm):
                 constraints[qname] = Range.at_least(semver.Version.coerce(norm))
-
-        for binfo, _, _ in branch_pkgs:
-            bqn = binfo.package.qualified_name()
-            synth_v = semver.Version("0.0.0")
-            self._versions[bqn] = [("0.0.0", synth_v)]
-            raw_bdeps: dict[str, str] = binfo.dependencies(field="depends") or {}
-            if not ignore_suggestions:
-                raw_bdeps = {
-                    **raw_bdeps,
-                    **(binfo.dependencies(field="suggests") or {}),
-                }
-            self._cache[(bqn, synth_v)] = (
-                binfo.version_tag(),
-                self._qualify_deps(raw_bdeps),
-            )
 
         return requirements, constraints
 
