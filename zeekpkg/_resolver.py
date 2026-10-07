@@ -1,16 +1,16 @@
 """nab-resolver integration for zkg dependency resolution.
 
-Provides `_Node` (the per-package graph node), `_ZkgProvider` (the
-`ResolverProvider` implementation), and the helpers they depend on.
-`Manager.validate_dependencies` constructs a graph of `_Node` objects and
-passes it to `_ZkgProvider`, which the nab-resolver `Resolver` then drives.
+Provides `_Solver` (the combined graph builder, `ResolverProvider`, and
+topo-sort driver) and its helpers.  `Manager.validate_dependencies` delegates
+to `_Solver.resolve`.
 """
 
 from __future__ import annotations
 
 import configparser
+import copy
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, cast
 
 import git
@@ -21,12 +21,22 @@ from nab_resolver.resolver import Resolver, ResolverProvider
 from nab_resolver.types import Incompatibility, RangeProtocol
 from typing_extensions import Self
 
-from ._util import _semver_versions, git_version_tags, is_sha1
+from . import LOG, __version__
+from ._util import (
+    _semver_versions,
+    get_zeek_version,
+    git_version_tags,
+    is_sha1,
+    normalize_version_tag,
+)
 from .package import (
     LEGACY_METADATA_FILENAME,
     METADATA_FILENAME,
     PackageInfo,
     PackageVersion,
+    TrackingMethod,
+    canonical_url,
+    name_from_path,
 )
 from .package import dependencies as pkg_dependencies
 
@@ -37,7 +47,7 @@ __all__ = ["Range"]
 
 
 class _Node:
-    """Dependency graph node used inside `validate_dependencies`."""
+    """Dependency graph node used inside `_Solver`."""
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -178,25 +188,441 @@ class _FmtRange(Range[semver.Version]):
         return type(self)(result._intervals)
 
 
-class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
-    """nab-resolver `ResolverProvider` backed by zkg package metadata.
+def _is_versioned_package(v: str) -> bool:
+    """Return True if *v* is a semver-coercible version the solver can use."""
+    if is_sha1(v):
+        return False
+    try:
+        semver.Version.coerce(v)
+        return True
+    except ValueError:
+        return False
 
-    Lazily fetches dependency information per (package, version) on demand
-    from git repos using `_deps_at_version`, caching results for post-resolution
-    use by `_pkg_deps` and the DFS topo sort.
+
+def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
+    """Return the dependency dict for `clone` at `tag`.
+
+    Reads `zkg.meta`, falling back to `bro-pkg.meta`. Returns `{}` if
+    neither file exists at `tag` or the `depends` field is absent.
+    """
+    content: str | None = None
+    for filename in (METADATA_FILENAME, LEGACY_METADATA_FILENAME):
+        try:
+            content = clone.git.show(f"{tag}:{filename}")
+            break
+        except git.GitCommandError:
+            continue
+
+    if content is None:
+        return {}
+
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read_string(content)
+    meta = dict(parser["package"]) if parser.has_section("package") else {}
+    return pkg_dependencies(meta, field="depends") or {}
+
+
+class _Solver(ResolverProvider["str", "semver.Version"]):
+    """Combined graph builder, nab-resolver provider, and topo-sort driver.
+
+    For production use call `resolve`, which builds the dependency graph,
+    runs the solver, and returns a topo-sorted install list.  Tests that need
+    fine-grained control can construct with a pre-built graph and call `solve`
+    directly.
     """
 
     def __init__(
         self,
         manager: Manager,
-        graph: dict[str, _Node],
+        graph: dict[str, _Node] | None = None,
     ) -> None:
         self._manager = manager
-        self._graph = graph
+        self._graph: dict[str, _Node] = graph if graph is not None else {}
         self._versions: dict[str, list[semver.Version]] = {}
         self._cache: dict[tuple[str, semver.Version], tuple[str, dict[str, str]]] = {}
+        self._info_cache: dict[str, PackageInfo] = {}
+        if graph is not None:
+            self._discover_versions()
 
-        for qname, node in graph.items():
+    # -- high-level entry point -----------------------------------------------
+
+    def resolve(
+        self,
+        requested_packages: list[tuple[str, str]],
+        ignore_installed: bool = False,
+        ignore_suggestions: bool = False,
+        use_builtins: bool = True,
+    ) -> tuple[str, list[tuple[PackageInfo, str, bool]]]:
+        requests: list[_Node] = []
+
+        for name, version in requested_packages:
+            info = self._manager.info(name, version=version, prefer_installed=False)
+            if info.invalid_reason:
+                return (f'invalid package "{name}": {info.invalid_reason}', [])
+            node = _Node(info.package.qualified_name())
+            node.info = info
+            node.requested_version = PackageVersion(info.version_type, version)
+            if err := self._add_node(node):
+                return (err, [])
+            requests.append(node)
+
+        if not ignore_installed:
+            self._seed_installed(use_builtins)
+
+        if err := self._walk_deps(ignore_suggestions, use_builtins):
+            return (err, [])
+
+        self._discover_versions()
+
+        branch_pkgs, err = self._collect_branches(ignore_suggestions)
+        if err:
+            return (err, [])
+
+        requested_qnames = {n.name for n in requests if n.info}
+        requirements, constraints, installed_qnames, soft_pinned = (
+            self._build_solver_inputs(
+                requests,
+                branch_pkgs,
+                ignore_installed,
+                ignore_suggestions,
+                requested_qnames,
+            )
+        )
+
+        error, solver_res = self.solve(
+            requirements,
+            constraints,
+            requested_qnames,
+            installed_qnames,
+            {binfo.package.qualified_name() for binfo, _, _ in branch_pkgs},
+            soft_pinned,
+            ignore_suggestions,
+        )
+        if error:
+            return (error, [])
+
+        res: list[tuple[PackageInfo, str, bool]] = []
+        for qn, raw_tag, is_sug in solver_res:
+            res_node = self._graph.get(qn)
+            if res_node is not None and res_node.info is not None:
+                res.append((res_node.info, raw_tag, is_sug))
+
+        for binfo, bversion, bsug in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            if bqn not in installed_qnames and bqn not in requested_qnames:
+                res.append((binfo, bversion, bsug))
+
+        return ("", res)
+
+    # -- lower-level solve (usable by tests with a pre-built graph) -----------
+
+    def solve(
+        self,
+        requirements: Mapping[str, Range[semver.Version]],
+        constraints: Mapping[str, Range[semver.Version]],
+        requested_qnames: set[str],
+        installed_qnames: set[str],
+        branch_pkg_names: set[str],
+        soft_pinned: dict[str, str],
+        ignore_suggestions: bool,
+    ) -> tuple[str, list[tuple[str, str, bool]]]:
+        """Run the nab-resolver and return a topo-sorted install list.
+
+        Returns a ``(error, items)`` pair.  On success ``error`` is empty and
+        ``items`` is a list of ``(qname, raw_tag, is_suggestion)`` tuples in
+        dependency order (dependencies before dependents).
+        """
+        resolver: Resolver[str, semver.Version] = Resolver(
+            self,
+            range_type=Range,
+            root_version=semver.Version("0.0.0"),
+        )
+        try:
+            resolved: dict[str, semver.Version] = resolver.resolve(
+                requirements,
+                constraints=constraints,
+            )
+        except ResolutionError as e:
+            return (str(e), [])
+
+        return (
+            "",
+            self._topo_sort(
+                resolved,
+                requested_qnames,
+                installed_qnames,
+                branch_pkg_names,
+                soft_pinned,
+                ignore_suggestions,
+            ),
+        )
+
+    # -- graph building -------------------------------------------------------
+
+    def _add_node(self, node: _Node) -> str:
+        pkg_name = name_from_path(node.name)
+        for existing_name in self._graph:
+            if name_from_path(existing_name) == pkg_name and existing_name != node.name:
+                return (
+                    f'duplicate package name "{pkg_name}":'
+                    f' remove one of "{existing_name}", "{node.name}"'
+                )
+        self._graph[node.name] = node
+        return ""
+
+    def _seed_installed(self, use_builtins: bool) -> None:
+        zeek_version = get_zeek_version()
+        if zeek_version:
+            zeek_node = _Node("zeek")
+            zeek_node.installed_version = PackageVersion(
+                TrackingMethod.VERSION,
+                zeek_version,
+            )
+            self._graph["zeek"] = zeek_node
+
+        zkg_node = _Node("zkg")
+        zkg_node.installed_version = PackageVersion(
+            TrackingMethod.VERSION,
+            __version__,
+        )
+        self._graph["zkg"] = zkg_node
+
+        if use_builtins:
+            for binfo in self._manager.discover_builtin_packages():
+                bname = binfo.package.qualified_name()
+                if bname not in self._graph:
+                    bnode = _Node(bname)
+                    bnode.info = binfo
+                    self._graph[bname] = bnode
+
+        for ipkg in self._manager.installed_packages():
+            iname = ipkg.package.qualified_name()
+            if iname in self._graph:
+                self._graph[iname].installed_version = PackageVersion(
+                    ipkg.status.tracking_method,
+                    ipkg.status.current_version,
+                )
+                continue
+            iinfo = self._manager.info(iname, prefer_installed=True)
+            inode = _Node(iname)
+            inode.info = iinfo
+            inode.installed_version = PackageVersion(
+                ipkg.status.tracking_method,
+                ipkg.status.current_version,
+            )
+            self._graph[iname] = inode
+
+    def _walk_deps(
+        self,
+        ignore_suggestions: bool,
+        use_builtins: bool,
+    ) -> str:
+        to_process = copy.copy(self._graph)
+        while to_process:
+            _, node = to_process.popitem()
+            if node.info is None:
+                continue
+            best_tag = node.info.versions[-1] if node.info.versions else None
+            if best_tag and node.info.metadata_file:
+                clone_dir = os.path.dirname(node.info.metadata_file)
+                node_clone = git.Repo(clone_dir)
+                dd: dict[str, str] | None = _deps_at_version(node_clone, best_tag)
+            else:
+                dd = node.info.dependencies(field="depends") or {}
+            ds = node.info.dependencies(field="suggests")
+
+            if dd is None:
+                return f'package "{node.name}" has malformed "depends" field'
+
+            all_deps = dd.copy()
+
+            if not ignore_suggestions:
+                if ds is None:
+                    return f'package "{node.name}" has malformed "suggests" field'
+                all_deps.update(ds)
+
+            for dep_name, _ in all_deps.items():
+                if dep_name in ("zeek", "zkg"):
+                    continue
+
+                is_suggestion = node.is_suggestion or (
+                    (ds is not None and dep_name in ds) and dep_name not in dd
+                )
+
+                info2 = None
+                if use_builtins:
+                    info2 = self._manager.find_builtin_package(dep_name)
+                if info2 is None:
+                    info2 = self._manager.info(dep_name, prefer_installed=False)
+
+                if info2.invalid_reason:
+                    return (
+                        f'package "{node.name}" has invalid dependency'
+                        f' "{dep_name}": {info2.invalid_reason}'
+                    )
+
+                dep_name_orig = dep_name
+                dep_name = info2.package.qualified_name()
+                LOG.debug(
+                    'dependency "%s" of "%s" resolved to "%s"',
+                    dep_name_orig,
+                    node.name,
+                    dep_name,
+                )
+
+                if dep_name in self._graph:
+                    if self._graph[dep_name].is_suggestion and not is_suggestion:
+                        self._graph[dep_name].is_suggestion = False
+                    continue
+
+                if dep_name in to_process:
+                    if to_process[dep_name].is_suggestion and not is_suggestion:
+                        to_process[dep_name].is_suggestion = False
+                    continue
+
+                node = _Node(dep_name)
+                node.info = info2
+                node.is_suggestion = is_suggestion
+                if err := self._add_node(node):
+                    return err
+                to_process[node.name] = node
+
+        return ""
+
+    def _collect_branches(
+        self,
+        ignore_suggestions: bool,
+    ) -> tuple[list[tuple[PackageInfo, str, bool]], str]:
+        branch_pkgs: list[tuple[PackageInfo, str, bool]] = []
+        branch_pkg_names: set[str] = set()
+
+        for src_node in list(self._graph.values()):
+            if src_node.info is None:
+                continue
+            src_deps: dict[str, str] = src_node.info.dependencies(field="depends") or {}
+            if not ignore_suggestions:
+                src_deps = {
+                    **src_deps,
+                    **(src_node.info.dependencies(field="suggests") or {}),
+                }
+            for dep_name, spec in src_deps.items():
+                if not spec.startswith("branch="):
+                    continue
+                branch_name = spec[len("branch=") :]
+                dep_info = self._lookup_dep(dep_name)
+                if dep_info is None or dep_info.invalid_reason:
+                    reason = dep_info.invalid_reason if dep_info else "unknown package"
+                    return (
+                        [],
+                        f'package "{src_node.name}" has invalid dependency'
+                        f' "{dep_name}": {reason}',
+                    )
+                qn = dep_info.package.qualified_name()
+                if self._graph.get(qn) and self._graph[qn].installed_version:
+                    iv = self._graph[qn].installed_version
+                    assert iv
+                    msg, ok = iv.fullfills(spec)
+                    if not ok:
+                        return (
+                            [],
+                            f'unsatisfiable dependency: "{qn}" ({iv.version}) is'
+                            f' installed, but "{src_node.name}" requires'
+                            f" {spec} ({msg})",
+                        )
+                elif qn not in branch_pkg_names:
+                    branch_pkgs.append(
+                        (dep_info, branch_name, src_node.is_suggestion),
+                    )
+                    branch_pkg_names.add(qn)
+
+        return (branch_pkgs, "")
+
+    def _build_solver_inputs(
+        self,
+        requests: list[_Node],
+        branch_pkgs: list[tuple[PackageInfo, str, bool]],
+        ignore_installed: bool,
+        ignore_suggestions: bool,
+        requested_qnames: set[str],
+    ) -> tuple[
+        dict[str, Range[semver.Version]],
+        dict[str, Range[semver.Version]],
+        set[str],
+        dict[str, str],
+    ]:
+        hard_pinned: dict[str, str] = {}
+        soft_pinned: dict[str, str] = {}
+        installed_qnames: set[str] = set()
+
+        if not ignore_installed:
+            zeek_v = get_zeek_version()
+            if zeek_v:
+                hard_pinned["zeek"] = normalize_version_tag(zeek_v)
+            hard_pinned["zkg"] = normalize_version_tag(__version__)
+            for ipkg in self._manager.installed_packages():
+                iname = ipkg.package.qualified_name()
+                installed_qnames.add(iname)
+                installed_ver = ipkg.status.current_version
+                if installed_ver:
+                    norm = normalize_version_tag(installed_ver)
+                    if ipkg.status.tracking_method is None:
+                        hard_pinned[iname] = norm
+                    else:
+                        soft_pinned[iname] = norm
+
+        requirements: dict[str, Range[semver.Version]] = {}
+        for req_node in requests:
+            assert req_node.info
+            qname = req_node.name
+            rv = req_node.requested_version
+            if rv and rv.version:
+                norm = normalize_version_tag(rv.version)
+                if _is_versioned_package(norm):
+                    requirements[qname] = Range.singleton(
+                        semver.Version.coerce(norm),
+                    )
+                    continue
+            requirements[qname] = Range.full()
+        for binfo, _, _ in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            if bqn not in requirements and bqn not in hard_pinned:
+                requirements[bqn] = Range.singleton(semver.Version("0.0.0"))
+
+        constraints: dict[str, Range[semver.Version]] = {}
+        for qname, norm in hard_pinned.items():
+            if qname in requested_qnames:
+                continue
+            if _is_versioned_package(norm):
+                constraints[qname] = Range.singleton(semver.Version.coerce(norm))
+        for qname, norm in soft_pinned.items():
+            if qname in requested_qnames:
+                continue
+            if _is_versioned_package(norm):
+                constraints[qname] = Range.at_least(semver.Version.coerce(norm))
+
+        for binfo, _, _ in branch_pkgs:
+            bqn = binfo.package.qualified_name()
+            synth_v = semver.Version("0.0.0")
+            self._versions[bqn] = [synth_v]
+            raw_bdeps: dict[str, str] = binfo.dependencies(field="depends") or {}
+            if not ignore_suggestions:
+                raw_bdeps = {
+                    **raw_bdeps,
+                    **(binfo.dependencies(field="suggests") or {}),
+                }
+            self._cache[(bqn, synth_v)] = (
+                binfo.version_tag(),
+                self._qualify_deps(raw_bdeps),
+            )
+
+        return (requirements, constraints, installed_qnames, soft_pinned)
+
+    # -- version discovery ----------------------------------------------------
+
+    def _discover_versions(self) -> None:
+        for qname, node in self._graph.items():
+            if qname in self._versions:
+                continue
             if node.info and node.info.metadata_file:
                 clone_dir = os.path.dirname(node.info.metadata_file)
                 try:
@@ -208,9 +634,6 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
                 except Exception:
                     pass
             if not self._versions.get(qname) and node.info:
-                # No git tags: try a concrete version from metadata, installed
-                # state, or versions list; fall back to 0.0.0 so the solver can
-                # still resolve packages with no semver release history.
                 registered = False
                 for raw in (
                     node.info.metadata_version,
@@ -226,6 +649,8 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
                         break
                 if not registered:
                     self._versions[qname] = [semver.Version("0.0.0")]
+
+    # -- ResolverProvider interface -------------------------------------------
 
     def begin_decision_scan(self) -> None:
         return None
@@ -263,52 +688,6 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
             except ValueError:
                 pass
         return result
-
-    def _qualify_deps(self, raw_deps: dict[str, str]) -> dict[str, str]:
-        result: dict[str, str] = {}
-        for dep, spec in raw_deps.items():
-            if dep in ("zeek", "zkg") or spec.startswith("branch="):
-                continue
-            di = self._manager.find_builtin_package(dep)
-            if di is None:
-                di = self._manager.info(dep, prefer_installed=False)
-            if di.invalid_reason:
-                continue
-            result[di.package.qualified_name()] = _normalize_constraint(spec)
-        return result
-
-    def _fetch_deps(
-        self,
-        qname: str,
-        version: semver.Version,
-    ) -> tuple[str, dict[str, str]]:
-        node = self._graph.get(qname)
-        if node is None or node.info is None:
-            return (str(version), {})
-        if not node.info.metadata_file:
-            # Builtin / directory package -- use current metadata.
-            raw_deps = node.info.dependencies(field="depends") or {}
-            return (node.info.version_tag(), self._qualify_deps(raw_deps))
-        clone_dir = os.path.dirname(node.info.metadata_file)
-        try:
-            clone = git.Repo(clone_dir)
-        except git.InvalidGitRepositoryError:
-            # Directory package -- no git history; use current metadata.
-            raw_deps = node.info.dependencies(field="depends") or {}
-            return (node.info.version_tag(), self._qualify_deps(raw_deps))
-        found_tag: str | None = None
-        for rt, nv in _semver_versions(git_version_tags(clone)):
-            if semver.Version.coerce(nv) == version:
-                found_tag = rt
-                break
-        if found_tag is None:
-            # Synthetic version (no matching tag) -- use current HEAD metadata.
-            raw_deps = node.info.dependencies(field="depends") or {}
-            raw_tag = node.info.version_tag()
-        else:
-            raw_tag = found_tag
-            raw_deps = _deps_at_version(clone, raw_tag)
-        return (raw_tag, self._qualify_deps(raw_deps))
 
     def prioritize(
         self,
@@ -350,172 +729,170 @@ class _ZkgProvider(ResolverProvider["str", "semver.Version"]):
         r = cast(Range[semver.Version], constraint)
         return _FmtRange(r._intervals)
 
+    # -- dependency fetching --------------------------------------------------
 
-def _run_solver(
-    provider: _ZkgProvider,
-    requirements: Mapping[str, Range[semver.Version]],
-    constraints: Mapping[str, Range[semver.Version]],
-    graph: dict[str, _Node],
-    requested_qnames: set[str],
-    installed_qnames: set[str],
-    branch_pkg_names: set[str],
-    soft_pinned: dict[str, str],
-    ignore_suggestions: bool,
-    lookup_dep: Callable[[str], PackageInfo | None],
-) -> tuple[str, list[tuple[str, str, bool]]]:
-    """Run the nab-resolver and return a topo-sorted install list.
-
-    Returns a ``(error, items)`` pair. On success ``error`` is empty and
-    ``items`` is a list of ``(qname, raw_tag, is_suggestion)`` tuples in
-    dependency order (dependencies before dependents). On failure ``error`` is
-    the first line of the resolver's error message and ``items`` is empty.
-
-    ``lookup_dep`` resolves a short package name to its ``PackageInfo``; it
-    replaces the ``find_builtin_package`` / ``_cached_info`` calls that
-    previously lived in ``manager.py``.
-    """
-    resolver: Resolver[str, semver.Version] = Resolver(
-        provider,
-        range_type=Range,
-        root_version=semver.Version("0.0.0"),
-    )
-    try:
-        resolved: dict[str, semver.Version] = resolver.resolve(
-            requirements,
-            constraints=constraints,
-        )
-    except ResolutionError as e:
-        return (str(e), [])
-
-    suggestion_names: set[str] = {
-        name for name, node in graph.items() if node.is_suggestion
-    }
-
-    def _pkg_deps(qn: str) -> list[str]:
-        result_d: list[str] = []
-        rv = resolved.get(qn)
-        if rv is not None:
-            cache_entry = provider._cache.get((qn, rv))
-            if cache_entry:
-                _, d = cache_entry
-                result_d = list(d)
-                if not ignore_suggestions:
-                    nd = graph.get(qn)
-                    if nd and nd.info:
-                        raw_sug = nd.info.dependencies(field="suggests") or {}
-                        for dep_s in raw_sug:
-                            if dep_s in ("zeek", "zkg"):
-                                continue
-                            di = lookup_dep(dep_s)
-                            if di is not None and not di.invalid_reason:
-                                dqn = di.package.qualified_name()
-                                if dqn not in result_d:
-                                    result_d.append(dqn)
-                return sorted(result_d)
-        nd = graph.get(qn)
-        if nd and nd.info:
-            raw: dict[str, str] = nd.info.dependencies(field="depends") or {}
-            if not ignore_suggestions:
-                raw = {**raw, **(nd.info.dependencies(field="suggests") or {})}
-            for dep_s in raw:
-                if dep_s in ("zeek", "zkg"):
-                    continue
-                di = lookup_dep(dep_s)
-                if di is not None and not di.invalid_reason:
-                    result_d.append(di.package.qualified_name())
-        return sorted(result_d)
-
-    dfs_visited: set[str] = set()
-    dfs_in_stack: set[str] = set()
-
-    def _dfs_emit(start: str) -> list[tuple[str, str, bool]]:
-        result: list[tuple[str, str, bool]] = []
-        stack: list[tuple[str, bool]] = [(start, False)]
-        while stack:
-            qn, post = stack.pop()
-            if post:
-                dfs_in_stack.discard(qn)
-                is_upgraded = (
-                    qn in soft_pinned
-                    and qn in resolved
-                    and _is_versioned_package(soft_pinned[qn])
-                    and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
-                )
-                if (
-                    qn in requested_qnames
-                    or (qn in installed_qnames and not is_upgraded)
-                    or qn in branch_pkg_names
-                ):
-                    continue
-                node = graph.get(qn)
-                if node is None or node.info is None:
-                    continue
-                is_sug = qn in suggestion_names
-                rv = resolved.get(qn)
-                if rv is not None:
-                    cache_entry = provider._cache.get((qn, rv))
-                    raw_tag = cache_entry[0] if cache_entry else node.info.version_tag()
-                else:
-                    raw_tag = node.info.version_tag()
-                result.append((qn, raw_tag, is_sug))
-            else:
-                if qn in dfs_visited or qn in dfs_in_stack:
-                    continue
-                dfs_visited.add(qn)
-                dfs_in_stack.add(qn)
-                stack.append((qn, True))
-                for dep_qn in reversed(_pkg_deps(qn)):
-                    if dep_qn not in dfs_visited and dep_qn not in dfs_in_stack:
-                        stack.append((dep_qn, False))
+    def _qualify_deps(self, raw_deps: dict[str, str]) -> dict[str, str]:
+        result: dict[str, str] = {}
+        for dep, spec in raw_deps.items():
+            if dep in ("zeek", "zkg") or spec.startswith("branch="):
+                continue
+            di = self._manager.find_builtin_package(dep)
+            if di is None:
+                di = self._manager.info(dep, prefer_installed=False)
+            if di.invalid_reason:
+                continue
+            result[di.package.qualified_name()] = _normalize_constraint(spec)
         return result
 
-    seeds = list(requested_qnames) + list(branch_pkg_names)
-    post_order: list[tuple[str, str, bool]] = []
-    for seed in seeds:
-        post_order.extend(_dfs_emit(seed))
-
-    # post_order is leaves-first; reverse to get root-first for the return
-    # value (caller reverses again when installing, so leaves end up first).
-    seen_res: set[str] = set()
-    res: list[tuple[str, str, bool]] = []
-    for qn, raw_tag, is_sug in reversed(post_order):
-        if qn not in seen_res:
-            seen_res.add(qn)
-            if graph.get(qn) is not None and graph[qn].info is not None:
-                res.append((qn, raw_tag, is_sug))
-
-    return ("", res)
-
-
-def _is_versioned_package(v: str) -> bool:
-    """Return True if *v* is a semver-coercible version the solver can use."""
-    if is_sha1(v):
-        return False
-    try:
-        semver.Version.coerce(v)
-        return True
-    except ValueError:
-        return False
-
-
-def _deps_at_version(clone: git.Repo, tag: str) -> dict[str, str]:
-    """Return the dependency dict for `clone` at `tag`.
-
-    Reads `zkg.meta`, falling back to `bro-pkg.meta`. Returns `{}` if
-    neither file exists at `tag` or the `depends` field is absent.
-    """
-    content: str | None = None
-    for filename in (METADATA_FILENAME, LEGACY_METADATA_FILENAME):
+    def _fetch_deps(
+        self,
+        qname: str,
+        version: semver.Version,
+    ) -> tuple[str, dict[str, str]]:
+        node = self._graph.get(qname)
+        if node is None or node.info is None:
+            return (str(version), {})
+        if not node.info.metadata_file:
+            raw_deps = node.info.dependencies(field="depends") or {}
+            return (node.info.version_tag(), self._qualify_deps(raw_deps))
+        clone_dir = os.path.dirname(node.info.metadata_file)
         try:
-            content = clone.git.show(f"{tag}:{filename}")
-            break
-        except git.GitCommandError:
-            continue
+            clone = git.Repo(clone_dir)
+        except git.InvalidGitRepositoryError:
+            raw_deps = node.info.dependencies(field="depends") or {}
+            return (node.info.version_tag(), self._qualify_deps(raw_deps))
+        found_tag: str | None = None
+        for rt, nv in _semver_versions(git_version_tags(clone)):
+            if semver.Version.coerce(nv) == version:
+                found_tag = rt
+                break
+        if found_tag is None:
+            raw_deps = node.info.dependencies(field="depends") or {}
+            raw_tag = node.info.version_tag()
+        else:
+            raw_tag = found_tag
+            raw_deps = _deps_at_version(clone, raw_tag)
+        return (raw_tag, self._qualify_deps(raw_deps))
 
-    if content is None:
-        return {}
+    def _lookup_dep(self, dep_name: str) -> PackageInfo | None:
+        di = self._manager.find_builtin_package(dep_name)
+        if di is not None:
+            return di
+        return self._lookup_info(dep_name)
 
-    parser = configparser.ConfigParser(interpolation=None)
-    parser.read_string(content)
-    meta = dict(parser["package"]) if parser.has_section("package") else {}
-    return pkg_dependencies(meta, field="depends") or {}
+    def _lookup_info(self, pkg_path: str) -> PackageInfo:
+        key = canonical_url(pkg_path)
+        if key not in self._info_cache:
+            self._info_cache[key] = self._manager.info(
+                pkg_path,
+                prefer_installed=False,
+            )
+        return self._info_cache[key]
+
+    # -- topo sort ------------------------------------------------------------
+
+    def _topo_sort(
+        self,
+        resolved: dict[str, semver.Version],
+        requested_qnames: set[str],
+        installed_qnames: set[str],
+        branch_pkg_names: set[str],
+        soft_pinned: dict[str, str],
+        ignore_suggestions: bool,
+    ) -> list[tuple[str, str, bool]]:
+        suggestion_names: set[str] = {
+            name for name, node in self._graph.items() if node.is_suggestion
+        }
+
+        def pkg_deps(qn: str) -> list[str]:
+            result_d: list[str] = []
+            rv = resolved.get(qn)
+            if rv is not None:
+                cache_entry = self._cache.get((qn, rv))
+                if cache_entry:
+                    _, d = cache_entry
+                    result_d = list(d)
+                    if not ignore_suggestions:
+                        nd = self._graph.get(qn)
+                        if nd and nd.info:
+                            raw_sug = nd.info.dependencies(field="suggests") or {}
+                            for dep_s in raw_sug:
+                                if dep_s in ("zeek", "zkg"):
+                                    continue
+                                di = self._lookup_dep(dep_s)
+                                if di is not None and not di.invalid_reason:
+                                    dqn = di.package.qualified_name()
+                                    if dqn not in result_d:
+                                        result_d.append(dqn)
+                    return sorted(result_d)
+            nd = self._graph.get(qn)
+            if nd and nd.info:
+                raw: dict[str, str] = nd.info.dependencies(field="depends") or {}
+                if not ignore_suggestions:
+                    raw = {**raw, **(nd.info.dependencies(field="suggests") or {})}
+                for dep_s in raw:
+                    if dep_s in ("zeek", "zkg"):
+                        continue
+                    di = self._lookup_dep(dep_s)
+                    if di is not None and not di.invalid_reason:
+                        result_d.append(di.package.qualified_name())
+            return sorted(result_d)
+
+        dfs_visited: set[str] = set()
+        dfs_in_stack: set[str] = set()
+
+        def dfs_emit(start: str) -> list[tuple[str, str, bool]]:
+            result: list[tuple[str, str, bool]] = []
+            stack: list[tuple[str, bool]] = [(start, False)]
+            while stack:
+                qn, post = stack.pop()
+                if post:
+                    dfs_in_stack.discard(qn)
+                    is_upgraded = (
+                        qn in soft_pinned
+                        and qn in resolved
+                        and _is_versioned_package(soft_pinned[qn])
+                        and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
+                    )
+                    if (
+                        qn in requested_qnames
+                        or (qn in installed_qnames and not is_upgraded)
+                        or qn in branch_pkg_names
+                    ):
+                        continue
+                    node = self._graph.get(qn)
+                    if node is None or node.info is None:
+                        continue
+                    is_sug = qn in suggestion_names
+                    rv = resolved.get(qn)
+                    if rv is not None:
+                        ce = self._cache.get((qn, rv))
+                        raw_tag = ce[0] if ce else node.info.version_tag()
+                    else:
+                        raw_tag = node.info.version_tag()
+                    result.append((qn, raw_tag, is_sug))
+                else:
+                    if qn in dfs_visited or qn in dfs_in_stack:
+                        continue
+                    dfs_visited.add(qn)
+                    dfs_in_stack.add(qn)
+                    stack.append((qn, True))
+                    for dep_qn in reversed(pkg_deps(qn)):
+                        if dep_qn not in dfs_visited and dep_qn not in dfs_in_stack:
+                            stack.append((dep_qn, False))
+            return result
+
+        seeds = list(requested_qnames) + list(branch_pkg_names)
+        post_order: list[tuple[str, str, bool]] = []
+        for seed in seeds:
+            post_order.extend(dfs_emit(seed))
+
+        seen_res: set[str] = set()
+        res: list[tuple[str, str, bool]] = []
+        for qn, raw_tag, is_sug in reversed(post_order):
+            if qn not in seen_res:
+                seen_res.add(qn)
+                if self._graph.get(qn) is not None and self._graph[qn].info is not None:
+                    res.append((qn, raw_tag, is_sug))
+
+        return res
