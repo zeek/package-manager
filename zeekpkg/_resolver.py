@@ -268,17 +268,15 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             format_range=_fmt_range,
         )
         try:
-            resolved: dict[str, semver.Version] = resolver.resolve(
-                requirements,
-                constraints=constraints,
-            )
+            solution = resolver.solve(requirements, constraints=constraints)
         except ResolutionError as e:
             return (str(e), [])
 
         return (
             "",
             self._topo_sort(
-                resolved,
+                solution.pins,
+                solution.edges,
                 requested_qnames,
                 installed_qnames,
                 branch_pkg_names,
@@ -698,6 +696,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
     def _topo_sort(
         self,
         resolved: dict[str, semver.Version],
+        edges: tuple[tuple[str, str], ...],
         requested_qnames: set[str],
         installed_qnames: set[str],
         branch_pkg_names: set[str],
@@ -708,28 +707,17 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             name for name, node in self._graph.items() if node.is_suggestion
         }
 
-        def pkg_deps(qn: str) -> list[str]:
-            nd = self._graph.get(qn)
-            rv = resolved.get(qn)
-            cached = self._cache.get((qn, rv)) if rv is not None else None
-
-            if cached:
-                deps = list(cached[1])
-            elif nd and nd.info:
-                deps = self._resolve_raw_deps(
-                    nd.info.dependencies(field="depends") or {},
-                )
-            else:
-                return []
-
-            if not ignore_suggestions and nd and nd.info:
-                for dqn in self._resolve_raw_deps(
-                    nd.info.dependencies(field="suggests") or {},
-                ):
-                    if dqn not in deps:
-                        deps.append(dqn)
-
-            return sorted(deps)
+        children: dict[str, list[str]] = {}
+        for parent, child in edges:
+            children.setdefault(parent, []).append(child)
+        if not ignore_suggestions:
+            for qn, nd in self._graph.items():
+                if nd.info:
+                    for dqn in self._resolve_raw_deps(
+                        nd.info.dependencies(field="suggests") or {},
+                    ):
+                        if dqn not in children.get(qn, []):
+                            children.setdefault(qn, []).append(dqn)
 
         visited: set[str] = set()
         post_order: list[tuple[str, str, bool]] = []
@@ -763,7 +751,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                         continue
                     visited.add(qn)
                     stack.append((qn, True))
-                    for dep_qn in reversed(pkg_deps(qn)):
+                    for dep_qn in sorted(children.get(qn, []), reverse=True):
                         if dep_qn not in visited:
                             stack.append((dep_qn, False))
 
