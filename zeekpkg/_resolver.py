@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import configparser
 import copy
+import graphlib
 import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
@@ -631,50 +632,41 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                         if dqn not in children.get(qn, []):
                             children.setdefault(qn, []).append(dqn)
 
-        visited: set[str] = set()
-        post_order: list[tuple[str, str, bool]] = []
+        reachable: set[str] = set()
+        stack = list(requested_qnames) + list(branch_pkg_names)
+        while stack:
+            qn = stack.pop()
+            if qn in reachable:
+                continue
+            reachable.add(qn)
+            stack.extend(children.get(qn, []))
 
-        def dfs_emit(start: str) -> None:
-            stack: list[tuple[str, bool]] = [(start, False)]
-            while stack:
-                qn, post = stack.pop()
-                if post:
-                    is_upgraded = (
-                        qn in soft_pinned
-                        and qn in resolved
-                        and _is_versioned_package(soft_pinned[qn])
-                        and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
-                    )
-                    if (
-                        qn in requested_qnames
-                        or (qn in installed_qnames and not is_upgraded)
-                        or qn in branch_pkg_names
-                    ):
-                        continue
-                    node = self._graph.get(qn)
-                    if node is None or node.info is None:
-                        continue
-                    rv = resolved.get(qn)
-                    ce = self._cache.get((qn, rv)) if rv is not None else None
-                    raw_tag = ce[0] if ce else node.info.version_tag()
-                    post_order.append((qn, raw_tag, qn in suggestion_names))
-                else:
-                    if qn in visited:
-                        continue
-                    visited.add(qn)
-                    stack.append((qn, True))
-                    for dep_qn in sorted(children.get(qn, []), reverse=True):
-                        if dep_qn not in visited:
-                            stack.append((dep_qn, False))
+        ts = graphlib.TopologicalSorter[str]()
+        for qn in reachable:
+            for dep in children.get(qn, []):
+                if dep in reachable:
+                    ts.add(qn, dep)
 
-        for seed in list(requested_qnames) + list(branch_pkg_names):
-            dfs_emit(seed)
+        result: list[tuple[str, str, bool]] = []
+        for qn in ts.static_order():
+            is_upgraded = (
+                qn in soft_pinned
+                and qn in resolved
+                and _is_versioned_package(soft_pinned[qn])
+                and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
+            )
+            if (
+                qn in requested_qnames
+                or (qn in installed_qnames and not is_upgraded)
+                or qn in branch_pkg_names
+            ):
+                continue
+            node = self._graph.get(qn)
+            if node is None or node.info is None:
+                continue
+            rv = resolved.get(qn)
+            ce = self._cache.get((qn, rv)) if rv is not None else None
+            raw_tag = ce[0] if ce else node.info.version_tag()
+            result.append((qn, raw_tag, qn in suggestion_names))
 
-        seen: set[str] = set()
-        res: list[tuple[str, str, bool]] = []
-        for qn, raw_tag, is_sug in reversed(post_order):
-            if qn not in seen:
-                seen.add(qn)
-                res.append((qn, raw_tag, is_sug))
-
-        return res
+        return result
