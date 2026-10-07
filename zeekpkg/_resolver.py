@@ -170,7 +170,8 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         self._cache: dict[tuple[str, semver.Version], tuple[str, dict[str, str]]] = {}
 
         if graph is not None:
-            self._discover_versions()
+            for qname in graph:
+                self._ensure_versions(qname)
 
     def resolve(
         self,
@@ -203,8 +204,6 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         branch_pkgs, err = self._walk_deps(ignore_suggestions, use_builtins)
         if err:
             return (err, [])
-
-        self._discover_versions()
 
         requested_qnames = {n.name for n in requests if n.info}
         requirements, constraints = self._build_solver_inputs(
@@ -515,41 +514,42 @@ class _Solver(BaseProvider["str", "semver.Version"]):
 
         return requirements, constraints
 
-    def _discover_versions(self) -> None:
-        for qname, node in self._graph.items():
-            if qname in self._versions:
-                continue
-            if node.info and node.info.metadata_file:
-                clone_dir = os.path.dirname(node.info.metadata_file)
-                try:
-                    clone = git.Repo(clone_dir)
-                    pairs = _semver_versions(git_version_tags(clone))
-                    self._versions[qname] = [
-                        semver.Version.coerce(nv) for _, nv in pairs
-                    ]
-                except Exception:
-                    pass
-            if not self._versions.get(qname) and node.info:
-                candidates = (
-                    node.info.metadata_version,
-                    node.installed_version.version if node.installed_version else None,
-                    node.info.versions[-1] if node.info.versions else None,
-                )
-                coerced = None
-                for raw in candidates:
-                    if raw and not is_sha1(raw):
-                        try:
-                            coerced = semver.Version.coerce(raw)
-                        except ValueError:
-                            pass
-                        break
-                self._versions[qname] = [coerced or semver.Version("0.0.0")]
+    def _ensure_versions(self, package: str) -> None:
+        if package in self._versions:
+            return
+        node = self._graph.get(package)
+        if node is None or node.info is None:
+            return
+        if node.info.metadata_file:
+            clone_dir = os.path.dirname(node.info.metadata_file)
+            try:
+                clone = git.Repo(clone_dir)
+                pairs = _semver_versions(git_version_tags(clone))
+                self._versions[package] = [semver.Version.coerce(nv) for _, nv in pairs]
+            except Exception:
+                pass
+        if not self._versions.get(package):
+            candidates = (
+                node.info.metadata_version,
+                node.installed_version.version if node.installed_version else None,
+                node.info.versions[-1] if node.info.versions else None,
+            )
+            coerced = None
+            for raw in candidates:
+                if raw and not is_sha1(raw):
+                    try:
+                        coerced = semver.Version.coerce(raw)
+                    except ValueError:
+                        pass
+                    break
+            self._versions[package] = [coerced or semver.Version("0.0.0")]
 
     def choose_version(
         self,
         package: str,
         version_range: RangeProtocol[semver.Version],
     ) -> semver.Version | None:
+        self._ensure_versions(package)
         for v in reversed(self._versions.get(package, [])):
             if v in version_range:
                 return v
