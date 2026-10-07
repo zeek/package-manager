@@ -44,8 +44,6 @@ class _Node:
         self.info: PackageInfo | None = None
         self.requested_version: PackageVersion | None = None
         self.installed_version: PackageVersion | None = None
-        self.dependers: dict[str, str] = {}
-        self.dependees: dict[str, str] = {}
         self.is_suggestion = False
 
     def __str__(self) -> str:
@@ -53,7 +51,6 @@ class _Node:
             f"{self.name}\n\t"
             f"requested: {self.requested_version}\n\t"
             f"installed: {self.installed_version}\n\t"
-            f"dependers: {self.dependers}\n\t"
             f"suggestion: {self.is_suggestion}"
         )
 
@@ -370,7 +367,7 @@ def _run_solver(
 
     Returns a ``(error, items)`` pair. On success ``error`` is empty and
     ``items`` is a list of ``(qname, raw_tag, is_suggestion)`` tuples in
-    dependency order (dependees before dependers). On failure ``error`` is
+    dependency order (dependencies before dependents). On failure ``error`` is
     the first line of the resolver's error message and ``items`` is empty.
 
     ``lookup_dep`` resolves a short package name to its ``PackageInfo``; it
