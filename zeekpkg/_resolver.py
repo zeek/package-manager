@@ -224,17 +224,34 @@ class _Solver(BaseProvider["str", "semver.Version"]):
         except ResolutionError as e:
             return (str(e), [])
 
-        return (
-            "",
-            self._topo_sort(
-                solution.pins,
-                solution.edges,
-                requested_qnames,
-                installed_qnames,
-                branch_pkg_names,
-                soft_pinned,
-            ),
+        order, suggestion_names = self._topo_sort(
+            solution.edges,
+            requested_qnames | branch_pkg_names,
         )
+
+        resolved = solution.pins
+        result: list[tuple[str, str, bool]] = []
+        for qn in order:
+            if qn in requested_qnames or qn in branch_pkg_names:
+                continue
+            if qn in installed_qnames:
+                is_upgrade = (
+                    qn in soft_pinned
+                    and qn in resolved
+                    and _is_versioned_package(soft_pinned[qn])
+                    and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
+                )
+                if not is_upgrade:
+                    continue
+            node = self._graph.get(qn)
+            if node is None or node.info is None:
+                continue
+            rv = resolved.get(qn)
+            ce = self._cache.get((qn, rv)) if rv is not None else None
+            raw_tag = ce[0] if ce else node.info.version_tag()
+            result.append((qn, raw_tag, qn in suggestion_names))
+
+        return ("", result)
 
     def _add_node(self, node: _Node) -> str:
         pkg_name = name_from_path(node.name)
@@ -535,13 +552,16 @@ class _Solver(BaseProvider["str", "semver.Version"]):
 
     def _topo_sort(
         self,
-        resolved: dict[str, semver.Version],
         edges: tuple[tuple[str, str], ...],
-        requested_qnames: set[str],
-        installed_qnames: set[str],
-        branch_pkg_names: set[str],
-        soft_pinned: dict[str, str],
-    ) -> list[tuple[str, str, bool]]:
+        roots: set[str],
+    ) -> tuple[list[str], set[str]]:
+        """Return reachable packages in dependency order and the suggestion set.
+
+        Merges solver *edges* with pre-collected suggestion edges, computes
+        reachability from *roots*, and returns a deterministically sorted
+        list of reachable qualified names (dependencies first) plus the set
+        of names that are only reachable via suggestions.
+        """
         hard_children = {child for _, child in edges}
         children: dict[str, list[str]] = {}
         for parent, child in edges:
@@ -556,7 +576,7 @@ class _Solver(BaseProvider["str", "semver.Version"]):
                     children.setdefault(qn, []).append(dqn)
 
         reachable: set[str] = set()
-        stack = list(requested_qnames) + list(branch_pkg_names)
+        stack = list(roots)
         while stack:
             qn = stack.pop()
             if qn in reachable:
@@ -580,26 +600,4 @@ class _Solver(BaseProvider["str", "semver.Version"]):
             for qn in ready:
                 ts.done(qn)
 
-        result: list[tuple[str, str, bool]] = []
-        for qn in order:
-            is_upgraded = (
-                qn in soft_pinned
-                and qn in resolved
-                and _is_versioned_package(soft_pinned[qn])
-                and resolved[qn] > semver.Version.coerce(soft_pinned[qn])
-            )
-            if (
-                qn in requested_qnames
-                or (qn in installed_qnames and not is_upgraded)
-                or qn in branch_pkg_names
-            ):
-                continue
-            node = self._graph.get(qn)
-            if node is None or node.info is None:
-                continue
-            rv = resolved.get(qn)
-            ce = self._cache.get((qn, rv)) if rv is not None else None
-            raw_tag = ce[0] if ce else node.info.version_tag()
-            result.append((qn, raw_tag, qn in suggestion_names))
-
-        return result
+        return order, suggestion_names
