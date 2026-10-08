@@ -246,23 +246,35 @@ def git_default_branch(repo: git.Repo) -> str:
         return repo.head.object.hexsha
 
 
+def _semver_versions(tags: list[str]) -> list[tuple[str, str]]:
+    """Return (raw_tag, normalized) pairs for tags coercible to X.Y.Z semver."""
+    result = []
+    for tag in tags:
+        norm = normalize_version_tag(tag)
+        try:
+            semver.Version.coerce(norm)
+            result.append((tag, norm))
+        except ValueError:
+            pass
+    return result
+
+
+def git_branch_names(clone: git.Repo) -> list[str]:
+    """Return remote branch names (without the ``origin/`` prefix)."""
+    rval = []
+    for ref in clone.references:
+        branch_name = str(ref.name)
+        if not branch_name.startswith("origin/"):
+            continue
+        rval.append(branch_name.split("origin/")[1])
+    return rval
+
+
 def git_version_tags(repo: git.Repo) -> list[str]:
     """Returns semver-sorted list of version tag strings in the given repo."""
-    tags = []
-
-    for tagref in repo.tags:
-        tag = str(tagref.name)
-        normal_tag = normalize_version_tag(tag)
-
-        try:
-            sv = semver.Version.coerce(normal_tag)
-        except ValueError:
-            # Skip tags that aren't compatible semantic versions.
-            continue
-        else:
-            tags.append((normal_tag, tag, sv))
-
-    return [t[1] for t in sorted(tags, key=lambda e: e[2])]
+    raw_tags = [str(tagref.name) for tagref in repo.tags]
+    pairs = _semver_versions(raw_tags)
+    return [raw for raw, _ in sorted(pairs, key=lambda e: semver.Version.coerce(e[1]))]
 
 
 def git_pull(repo: git.Repo) -> None:

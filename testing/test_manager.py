@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import git
 import pytest
 
+from zeekpkg._util import _semver_versions
 from zeekpkg.manager import (
     GitResolution,
     Manager,
@@ -538,6 +539,109 @@ class TestManagerBundle:
             prefer_existing_clones=True,
         )
         assert "cannot bundle directory package" in result
+
+
+def _make_tagged_repo(
+    tmp_path: pathlib.Path,
+    tag: str,
+    meta_filename: str,
+    meta_content: str,
+) -> git.Repo:
+    r = git.Repo.init(tmp_path, initial_branch="main")
+    r.config_writer().set_value("user", "name", "Test").release()
+    r.config_writer().set_value("user", "email", "test@test").release()
+    (tmp_path / meta_filename).write_text(meta_content)
+    r.index.add([meta_filename])
+    r.index.commit("init")
+    r.create_tag(tag)
+    return r
+
+
+class TestDepsAtVersion:
+    @staticmethod
+    def _info_with_meta(repo_path: pathlib.Path) -> PackageInfo:
+        pkg = Package(git_url=f"file://{repo_path}")
+        return PackageInfo(
+            package=pkg,
+            metadata_file=str(repo_path / "zkg.meta"),
+        )
+
+    def test_reads_from_zkg_meta(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
+        content = "[package]\ndescription = test\ndepends = dep-a >=1.0.0 dep-b *\n"
+        _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {
+            "dep-a": ">=1.0.0",
+            "dep-b": "*",
+        }
+
+    def test_falls_back_to_legacy_meta(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
+        content = "[package]\ndescription = test\ndepends = dep-c >=2.0.0\n"
+        _make_tagged_repo(tmp_path, "v1.0.0", "bro-pkg.meta", content)
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {
+            "dep-c": ">=2.0.0",
+        }
+
+    def test_returns_empty_when_no_meta_file(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
+        r = git.Repo.init(tmp_path, initial_branch="main")
+        r.config_writer().set_value("user", "name", "Test").release()
+        r.config_writer().set_value("user", "email", "test@test").release()
+        (tmp_path / "README").write_text("hi")
+        r.index.add(["README"])
+        r.index.commit("init")
+        r.create_tag("v1.0.0")
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {}
+
+    def test_returns_empty_when_no_depends_field(
+        self,
+        tmp_path: pathlib.Path,
+        manager: Manager,
+    ) -> None:
+        content = "[package]\ndescription = no deps here\n"
+        _make_tagged_repo(tmp_path, "v1.0.0", "zkg.meta", content)
+        info = self._info_with_meta(tmp_path)
+        assert manager.dependencies_at_version(info, "v1.0.0") == {}
+
+    def test_returns_none_without_metadata_file(self, manager: Manager) -> None:
+        info = PackageInfo(package=Package(git_url="file:///nonexistent"))
+        assert manager.dependencies_at_version(info, "v1.0.0") is None
+
+
+class TestSemverVersions:
+    def test_filters_invalid(self) -> None:
+        tags = ["v1.0.0", "not-a-version", "v2.3.4", "branch-name"]
+        result = _semver_versions(tags)
+        assert result == [("v1.0.0", "1.0.0"), ("v2.3.4", "2.3.4")]
+
+    def test_strips_v_prefix(self) -> None:
+        result = _semver_versions(["v1.2.3"])
+        assert result == [("v1.2.3", "1.2.3")]
+
+    def test_coerces_partial(self) -> None:
+        result = _semver_versions(["1.2"])
+        assert result == [("1.2", "1.2")]
+
+    def test_drops_branch_names(self) -> None:
+        result = _semver_versions(["main", "feature/foo"])
+        assert result == []
+
+    def test_drops_sha_hashes(self) -> None:
+        result = _semver_versions(["a" * 40])
+        assert result == []
 
 
 class TestInfoCache:

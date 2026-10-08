@@ -25,7 +25,9 @@ repos:
     additional_dependencies:
       - "argcomplete>=3.6.3"
       - "GitPython>=3.1.43"
+      - "nab-resolver>=0.0.11"
       - "semantic_version>=2.10.0"
+      - "typing_extensions>=4.0"
       - "types-docutils>=0.21.0.20250809"
       - "types-setuptools>=80.9.0.20250809"
       - "pytest>=9.0.3"
