@@ -1,3 +1,22 @@
+3.1.0-72 | 2026-10-27 11:50:34 +0100
+
+  * Fix stray `output_dir/VERSION` in the install prefix (Patrick)
+
+  * Fix version canonifier to deal with multidigit versions (Benjamin Bannier, Corelight)
+
+    The previous canonifier expected versions to be single digit, so it
+    did not work properly with the freshly released zeek-8.0.10.
+
+  * Update CI for Zeek now shipping a shiv-bundled zkg (Benjamin Bannier, Corelight)
+
+  * Revert "Protect state dir against concurrent operations" (Benjamin Bannier, Corelight)
+
+    This reverts commit bfe12246db70e490b568f4dd173e2f7c7c343082.
+
+    This is a straight revert, and we do not attempt a proper fix at this
+    point since that would require careful granular locking around mutating
+    operations which currently are scattered all over.
+
 3.1.0-66 | 2026-08-19 08:59:51 +0200
 
   * Use local source tree for zkg in shiv command (Christian Kreibich, Corelight)
