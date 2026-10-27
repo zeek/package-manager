@@ -9,7 +9,4 @@ def version() -> str:
 
 setup(
     version=version(),
-    data_files=[
-        ("output_dir", ["VERSION"]),
-    ],
 )
