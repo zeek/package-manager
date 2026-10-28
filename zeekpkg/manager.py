@@ -3013,7 +3013,7 @@ class Manager:
             if "script_dir" in interpolated_metadata:
                 return f"no __load__.zeek file found in package's 'script_dir' : {pkg_script_dir}"
 
-            LOG.warning(
+            LOG.debug(
                 'installing "%s": no __load__.zeek in implicit'
                 " script_dir, skipped installing scripts",
                 package,
